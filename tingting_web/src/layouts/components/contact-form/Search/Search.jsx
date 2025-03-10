@@ -15,7 +15,7 @@ import styles from "./Search.module.scss";
 
 const cx = classNames.bind(styles);
 
-function Search() {
+function Search({ className }) {
   const [searchValue, setSearchValue] = useState("");
   const [searchResult, setSearchResult] = useState([]);
   const [showResult, setShowResult] = useState(true);
@@ -76,7 +76,7 @@ function Search() {
   return (
     // Using a wrapper <div> or <span> tag around the reference element solves this by creating a new parentNode context.
 
-    <div className={cx("search")}>
+    <div className={cx("search", className)}>
       <button
         className={cx("search-btn")}
         onMouseDown={(e) => e.preventDefault()}

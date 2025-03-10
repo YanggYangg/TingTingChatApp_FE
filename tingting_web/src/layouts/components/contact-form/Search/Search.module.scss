@@ -1,6 +1,5 @@
 .search,
 .search-result {
-  width: 400px;
   --color-primary: #4a69e2;
   --white: #fff;
   --font-family: "ProximaNova", sans-serif;
@@ -12,7 +11,7 @@
   --search-border-radius: 92px;
   --search-height: 40px;
   --search-top-spacer: 8px;
-  --search-button-width: 52px;
+  --search-button-width: 40px;
 }
 
 .search-title {
@@ -25,7 +24,7 @@
 .search {
   position: relative;
   height: var(--search-height);
-  padding-right: 48px;
+  padding-right: 38px;
   display: flex;
   // background-color: rgba(22, 24, 35, 0.06);
   border-radius: 6px;
@@ -83,12 +82,4 @@
 
   font-size: 20px;
   color: rgba(22, 24, 35, 0.34);
-}
-
-.more-btn {
-  cursor: pointer;
-  font-size: 2rem;
-  margin-left: 28px;
-  padding: 4px 8px;
-  background-color: transparent;
 }

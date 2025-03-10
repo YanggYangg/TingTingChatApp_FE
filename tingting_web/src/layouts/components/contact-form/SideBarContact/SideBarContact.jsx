@@ -4,8 +4,10 @@ import {
   faUserPlus,
   faUserGear,
 } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import ContactItem from "../ContactItem";
+import Search from "../Search";
 
 const SibarContact = () => {
   return (

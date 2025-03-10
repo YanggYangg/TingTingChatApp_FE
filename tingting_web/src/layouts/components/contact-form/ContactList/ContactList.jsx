@@ -180,7 +180,7 @@ const ContactList = () => {
                         <ContactItem
                           key={friend.id}
                           label={friend.name}
-                          image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpgs"
+                          image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpg"
                         />
                       ))}
                     </div>
