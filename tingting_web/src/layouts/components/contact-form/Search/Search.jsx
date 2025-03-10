@@ -77,11 +77,19 @@ function Search() {
     // Using a wrapper <div> or <span> tag around the reference element solves this by creating a new parentNode context.
 
     <div className={cx("search")}>
+      <button
+        className={cx("search-btn")}
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        {/* Search */}
+        <FontAwesomeIcon icon={faMagnifyingGlass} />
+      </button>
       <input
+        className="outline-none"
         ref={inputRef}
         value={searchValue}
         type="text"
-        placeholder="Search shoes"
+        placeholder="Tìm bạn"
         spellCheck={false}
         onChange={handleChange}
         onFocus={() => setShowResult(true)}
@@ -97,13 +105,6 @@ function Search() {
       {loading && (
         <FontAwesomeIcon className={cx("loading")} icon={faSpinner} />
       )}
-      <button
-        className={cx("search-btn")}
-        onMouseDown={(e) => e.preventDefault()}
-      >
-        {/* Search */}
-        <FontAwesomeIcon icon={faMagnifyingGlass} />
-      </button>
     </div>
   );
 }
