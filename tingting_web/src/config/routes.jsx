@@ -1,4 +1,6 @@
 const routes = {
+    chat: '/chat',
+    contacts: '/contact',
     
 };
 
