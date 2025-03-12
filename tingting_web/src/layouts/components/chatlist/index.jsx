@@ -1,47 +1,72 @@
 import React from "react";
-import classNames from 'classnames';
+import classNames from "classnames";
 import styles from "./chatlist.module.scss";
+import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 
 const cx = classNames.bind(styles);
 
-function ChatList({ activeTab }){
-    return(
-        console.log("activeTab: ", activeTab),
-        // <div className="w-48 h-screen bg-green-500 text-white p-2">
-        //      <h1>chat list</h1>
-        // </div>
-  
-        <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
-            <div className="p-2 bg-white shadow-md">
-            <SearchCompo />
-            </div>
+function ChatList({ activeTab }) {
+  // Hàm xử lý khi click vào tin nhắn
+  const handleMessageClick = (message) => {
+    console.log("Chi tiết tin nhắn:", message);
+  };
 
+  // Dữ liệu mẫu
+  const sampleMessages = [
+    {
+      name: "Hờ Mờ Hờ Và Những Ngư...",
+      avatar: "https://picsum.photos/200",
+      type: "group",
+      lastMessage: "Giải tán hết đi mấy con quỉ cái này",
+      isCall: false,
+      time: "38 phút",
+      members: 99,
+    },
+    {
+      name: "Khánh",
+      avatar: "https://picsum.photos/200",
+      type: "personal",
+      isCall: true,
+      missed: false,
+      time: "1 giờ",
+    },
+    {
+      name: "Dũng",
+      avatar: "https://picsum.photos/200",
+      type: "personal",
+      lastMessage: "Hello bạn!",
+      isCall: false,
+      time: "2 giờ",
+    },
+    {
+      name: "Lớp ReactJS",
+      avatar: "https://picsum.photos/200",
+      type: "group",
+      isCall: true,
+      missed: true,
+      time: "5 giờ",
+    },
+  ];
 
-            <div className="flex-grow overflow-y-auto p-4 text-gray-700">
-            {activeTab === "/chat" && <p>Danh sách chat</p>}
-            {activeTab === "/contact" && <p>Danh sách liên hệ</p>}
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            <p>Noidung</p>
-            </div>
-        </div>
+  return (
+    <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
+      {/* Thanh tìm kiếm (cố định) */}
+      <div className="p-2 bg-white shadow-md">
+        <SearchCompo />
+      </div>
 
-    );
-};
+      {/* Danh sách chat hoặc liên hệ (cuộn được) */}
+      <div className="flex-grow overflow-y-auto p-4 text-gray-700">
+        {activeTab === "/chat" && (
+          <MessageList messages={sampleMessages} onMessageClick={handleMessageClick} />
+        )}
+        {activeTab === "/contact" && <p>Danh sách liên hệ</p>}
+
+        
+      </div>
+    </div>
+  );
+}
+
 export default ChatList;
