@@ -1,4 +1,4 @@
-import React from "react";
+import React,  {useState } from "react";
 import classNames from "classnames";
 import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
@@ -7,10 +7,16 @@ import SearchCompo from "../../../components/searchComponent/SearchCompo";
 const cx = classNames.bind(styles);
 
 function ChatList({ activeTab }) {
+  const [selectedTab, setSelectedTab] = useState("priority");
+
   // Hàm xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
     console.log("Chi tiết tin nhắn:", message);
   };
+
+  const handleTabClick = (tab) => {
+    setSelectedTab(tab);
+  }
 
   // Dữ liệu mẫu
   const sampleMessages = [
@@ -51,10 +57,36 @@ function ChatList({ activeTab }) {
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
-      {/* Thanh tìm kiếm (cố định) */}
       <div className="p-2 bg-white shadow-md">
         <SearchCompo />
       </div>
+
+      {activeTab === "/chat" && (
+      <div className="flex justify-start space-x-4 px-4 py-2 border-b">
+     <button
+            className={`font-semibold px-2 ${
+              selectedTab === "priority"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-600"
+            }`}
+            onClick={() => handleTabClick("priority")}
+          >
+            Ưu tiên
+          </button>
+          <button
+            className={`font-semibold px-2 ${
+              selectedTab === "others"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-600"
+            }`}
+            onClick={() => handleTabClick("others")}
+          >
+            Khác
+          </button>
+        </div>
+      )}
+
+  
 
       {/* Danh sách chat hoặc liên hệ (cuộn được) */}
       <div className="flex-grow overflow-y-auto p-4 text-gray-700">

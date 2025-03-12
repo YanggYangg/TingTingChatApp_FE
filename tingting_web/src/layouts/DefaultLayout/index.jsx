@@ -15,7 +15,7 @@ function DefaultLayout({ children }) {
   const [activeTab, setActiveTab] = useState(location.pathname); // 'chat' or 'contact'
   return (
     <ChatProvider>
-      <div className="flex h-screen">
+      <div className="flex h-screen overflow-hidden">
         <div className="w-[80px] bg-blue-600 text-white flex-shrink-0">
           <Sidebar setActiveTab={setActiveTab} />
         </div>
