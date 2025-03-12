@@ -21,7 +21,7 @@ function DefaultLayout({ children }) {
                 <Sidebar setActiveTab={setActiveTab} />
             </div>
 
-            <div className="w-[350px] bg-green-500 text-white flex-shrink-0">
+            <div className="w-[350px] text-white flex-shrink-0">
                 <ChatList activeTab={activeTab} />
             </div>
 
