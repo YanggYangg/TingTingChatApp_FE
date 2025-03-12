@@ -3,7 +3,7 @@ import SidebarItem from "./SidebarItem";
 import { FaUserCircle, FaComments, FaAddressBook, FaCog, FaCloud } from 'react-icons/fa';
 import routes from "../../config/routes";
 
-function SidebarCompo() {
+function SidebarCompo({ setActiveTab }) {
     return(
         <div className="w-16 h-screen bg-blue-600 flex flex-col items-center py-4">
         {/* Avatar */}
@@ -12,8 +12,8 @@ function SidebarCompo() {
         </div>
 
         {/* Top*/}
-        <SidebarItem icon={FaComments} to={routes.chat}/>
-        <SidebarItem icon={FaAddressBook} badge="3" to={routes.contacts}/> 
+        <SidebarItem icon={FaComments} to={routes.chat} onClick={() => setActiveTab(routes.chat)}/>
+        <SidebarItem icon={FaAddressBook} badge="3" to={routes.contacts} onClick={() => setActiveTab(routes.contacts)}/> 
 
         <div className="flex-grow"></div>
 
