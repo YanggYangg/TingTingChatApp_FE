@@ -1,7 +1,7 @@
 import classNames from "classnames";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ChatProvider } from "../../hooks/ChatContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import styles from "./DefaultLayout.module.scss";
 
@@ -12,11 +12,20 @@ const cx = classNames.bind(styles);
 
 function DefaultLayout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(location.pathname); // 'chat' or 'contact'
+  
+  useEffect(() => {
+    if(location.pathname === '/'){
+      navigate('/chat');
+      setActiveTab('/chat');
+    }
+  }, [location, navigate]);
+  
   return (
     <ChatProvider>
       <div className="flex h-screen overflow-hidden">
-        <div className="w-[80px] bg-blue-600 text-white flex-shrink-0">
+        <div className="w-[60px] bg-blue-600 text-white flex-shrink-0">
           <Sidebar setActiveTab={setActiveTab} />
         </div>
 

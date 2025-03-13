@@ -4,6 +4,7 @@ import { clearSelectedMessage } from "../../redux/slices/chatSlice";
 import ChatHeader from "./ChatWindow/ChatHeader";
 import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
+import TingTingImage from "../../assets/TingTing_Chat.png";
 
 function ChatPage() {
   const mockMessages = [
@@ -154,8 +155,8 @@ function ChatPage() {
     mockMessages.find((chat) => chat.id === selectedMessageId) || null;
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className= "mx-auto">
+    <div className="min-h-screen bg-gray-100  ">
+      <div className="mx-auto">
         {selectedChat ? (
           <div className="w-full ">
             <ChatHeader
@@ -172,14 +173,19 @@ function ChatPage() {
             <ChatFooter className="fixed bottom-0 left-0 w-full bg-white shadow-md" />
           </div>
         ) : (
-          <div className="text-center flex-1 flex flex-col items-center justify-center">
-            <h1 className=" text-2xl font-bold">
+          <div className="flex flex-col items-center justify-center h-screen bg-white">
+            <h1 className=" text-2xl font-bold justify-center">
               Chào mừng đến với TingTing PC!
             </h1>
             <p className="text-gray-600">
               Khám phá các tiện ích hỗ trợ làm việc và trò chuyện cùng người
               thân, bạn bè.
             </p>
+            <img
+              src={TingTingImage}
+              alt="Welcome"
+              className="mt-4 w-64 h-auto rounded-lg"
+            />
           </div>
         )}
       </div>

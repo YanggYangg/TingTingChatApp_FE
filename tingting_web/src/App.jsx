@@ -11,7 +11,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<DefaultLayout />}>
-            <Route index element={<h1>Chat window</h1>} />
+            {/* <Route index element={<h1>Chat window</h1>} /> */}
             <Route path="chat" element={<ChatPage />} />
             <Route path="contact" element={<ContactsPage />} />
           </Route>
