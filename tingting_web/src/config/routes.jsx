@@ -2,7 +2,7 @@ const routes = {
     chat: '/chat',
     contacts: '/contact',
     chatInfo: '/chatInfo',
-    StoragePage: '/StoragePage',    
+    storagePage: '/storagePage',    
 };
 
 export default routes;

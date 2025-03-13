@@ -1,23 +1,20 @@
-import React, { useState } from "react";
-import { AiOutlineLink } from "react-icons/ai"; // Import icon từ react-icons
+import React from "react";
+import { AiOutlineLink } from "react-icons/ai";
+import { useNavigate } from "react-router-dom";
 
 const GroupLinks = () => {
-  const [showAll, setShowAll] = useState(false);
-
-  // Danh sách link mặc định
+  const navigate = useNavigate();
   const links = [
     { title: "Google", url: "https://www.google.com" },
     { title: "Nguyễn Kiến Thức", url: "https://www.facebook.com" },
     { title: "Đảm bảo chất lượng và kiểm thử", url: "https://docs.google.com" },
-    { title: "Microsoft Copilot", url: "https://copilot.microsoft.com" },
-    { title: "ChatGPT", url: "https://chat.openai.com" },
   ];
 
   return (
     <div className="mb-4">
       <h3 className="text-md font-semibold mb-2">Link</h3>
       <div className="space-y-2">
-        {(showAll ? links : links.slice(0, 3)).map((link, index) => (
+        {links.map((link, index) => (
           <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
             <div>
               <p className="text-sm font-semibold">{link.title}</p>
@@ -31,11 +28,12 @@ const GroupLinks = () => {
           </div>
         ))}
       </div>
-      {!showAll && links.length > 3 && (
-        <button className="text-blue-500 mt-2 hover:underline" onClick={() => setShowAll(true)}>
-          Xem tất cả
-        </button>
-      )}
+      <button
+        className="mt-2 flex items-center justify-center w-full bg-gray-200 text-gray-700 text-sm px-4 py-2 rounded hover:bg-gray-300"
+        onClick={() => navigate("/storage")}
+      >
+        Xem tất cả
+      </button>
     </div>
   );
 };
