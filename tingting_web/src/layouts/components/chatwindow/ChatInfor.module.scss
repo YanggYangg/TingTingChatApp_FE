@@ -1,0 +1,27 @@
+.mediaGallery {
+    @apply p-4 bg-white rounded-lg shadow-md;
+  }
+  
+  .sectionTitle {
+    @apply text-lg font-semibold flex items-center gap-2 mb-2;
+  }
+  
+  .mediaGrid {
+    @apply grid grid-cols-3 gap-2;
+  }
+  
+  .mediaItem {
+    @apply w-full h-24 object-cover rounded-lg;
+  }
+  
+  .viewAll {
+    @apply mt-2 text-blue-500 hover:underline;
+  }
+  
+  .fileList, .linkList {
+    @apply mt-2 space-y-2;
+  }
+  
+  .fileLink, .linkItem {
+    @apply text-blue-500 hover:underline;
+  }
