@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { clearSelectedMessage } from "../../redux/slices/chatSlice";
 import ChatHeader from "./ChatWindow/ChatHeader";
 import MessageItem from "./ChatWindow/MessageItem";
+import ChatFooter from "./ChatWindow/ChatFooter";
 
 function ChatPage() {
   const mockMessages = [
@@ -31,6 +32,76 @@ function ChatPage() {
           fileName: "document.pdf",
           fileUrl: "https://example.com/document.pdf",
           time: "10:35 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
+        },
+        {
+          type: "call",
+          sender: "Bạn",
+          callDuration: "3 phút",
+          missed: false,
+          time: "10:40 AM",
         },
         {
           type: "call",
@@ -83,8 +154,8 @@ function ChatPage() {
     mockMessages.find((chat) => chat.id === selectedMessageId) || null;
 
   return (
-    <div className="min-h-screen bg-gray-100 ">
-      <div className="w-full  mx-auto">
+    <div className="min-h-screen bg-gray-100">
+      <div className= "mx-auto">
         {selectedChat ? (
           <div className="w-full ">
             <ChatHeader
@@ -93,11 +164,12 @@ function ChatPage() {
               lastActive={6}
               avatar={selectedChat.avatar}
             />
-            <div className="p-2">
+            <div className="p-2 w-full h-[calc(100vh-200px)] overflow-y-auto">
               {selectedChat.messages.map((msg, index) => (
                 <MessageItem key={index} msg={msg} />
               ))}
             </div>
+            <ChatFooter className="fixed bottom-0 left-0 w-full bg-white shadow-md" />
           </div>
         ) : (
           <div className="text-center flex-1 flex flex-col items-center justify-center">
