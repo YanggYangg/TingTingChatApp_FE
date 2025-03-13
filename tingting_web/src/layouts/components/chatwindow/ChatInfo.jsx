@@ -14,6 +14,7 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(inviteLink);
+    console.log("Link nhóm đã được sao chép:", inviteLink);
     alert("Đã sao chép link nhóm!");
   };
 
@@ -36,10 +37,29 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
 
       {/* Các nút hành động */}
       <div className="grid grid-cols-4 gap-2 my-4">
-        <GroupActionButton icon="mute" text="Tắt thông báo" onClick={() => setIsMuteModalOpen(true)} />
-        <GroupActionButton icon="pin" text="Bỏ ghim hội thoại" />
-        <GroupActionButton icon="add" text="Thêm thành viên" />
-        <GroupActionButton icon="settings" text="Quản lý nhóm" />
+        <GroupActionButton
+          icon="mute"
+          text="Tắt thông báo"
+          onClick={() => {
+            console.log("Nhấn vào 'Tắt thông báo'");
+            setIsMuteModalOpen(true);
+          }}
+        />
+        <GroupActionButton
+          icon="pin"
+          text="Bỏ ghim hội thoại"
+          onClick={() => console.log("Nhấn vào 'Bỏ ghim hội thoại'")}
+        />
+        <GroupActionButton
+          icon="add"
+          text="Thêm thành viên"
+          onClick={() => console.log("Nhấn vào 'Thêm thành viên'")}
+        />
+        <GroupActionButton
+          icon="settings"
+          text="Quản lý nhóm"
+          onClick={() => console.log(" Nhấn vào 'Quản lý nhóm'")}
+        />
       </div>
 
       {/* Thành viên nhóm */}
@@ -55,15 +75,25 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-500 text-sm"
+              onClick={() => console.log("🔗 Nhấn vào link tham gia nhóm:", inviteLink)}
             >
               {inviteLink}
             </a>
           </div>
           <div className="flex space-x-2">
-            <button onClick={copyToClipboard} className="text-gray-500 hover:text-blue-500">
+            <button
+              onClick={copyToClipboard}
+              className="text-gray-500 hover:text-blue-500"
+            >
               <AiOutlineCopy size={20} />
             </button>
-            <a href={inviteLink} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-500">
+            <a
+              href={inviteLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-500 hover:text-blue-500"
+              onClick={() => console.log("➡️ Nhấn vào icon chuyển hướng đến link nhóm")}
+            >
               <AiOutlineArrowRight size={20} />
             </a>
           </div>
@@ -83,7 +113,13 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
       <SecuritySettings />
 
       {/* Modal tắt thông báo */}
-      <MuteNotificationModal isOpen={isMuteModalOpen} onClose={() => setIsMuteModalOpen(false)} />
+      <MuteNotificationModal
+        isOpen={isMuteModalOpen}
+        onClose={() => {
+          console.log("❌ Đóng modal tắt thông báo");
+          setIsMuteModalOpen(false);
+        }}
+      />
     </div>
   );
 };

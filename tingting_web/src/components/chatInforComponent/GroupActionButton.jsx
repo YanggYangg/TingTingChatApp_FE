@@ -7,9 +7,15 @@ const iconMap = {
   "settings": <FaCog size={16} />
 };
 
-const GroupActionButton = ({ icon, text }) => {
+const GroupActionButton = ({ icon, text, onClick }) => {
   return (
-    <button className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-500">
+    <button
+      onClick={() => {
+        console.log(`🖱 Nhấn vào: ${text}`);
+        if (onClick) onClick(); // Gọi sự kiện nếu có
+      }}
+      className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-500"
+    >
       {iconMap[icon] || <FaCog size={16} />} {/* Mặc định là FaCog */}
       <span>{text}</span>
     </button>

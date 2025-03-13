@@ -32,3 +32,10 @@ const GroupMediaGallery = () => {
 };
 
 export default GroupMediaGallery;
+
+// <button
+// className="mt-2 text-blue-500 text-sm hover:underline"
+// onClick={() => navigate("/StoragePage")} // Điều hướng đến trang kho lưu trữ
+// >
+// Xem tất cả
+// </button>
