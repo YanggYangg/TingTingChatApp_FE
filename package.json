@@ -1,5 +1,7 @@
 {
   "dependencies": {
-    "lucide-react": "^0.479.0"
+    "@reduxjs/toolkit": "^2.6.1",
+    "lucide-react": "^0.479.0",
+    "react-redux": "^9.2.0"
   }
 }

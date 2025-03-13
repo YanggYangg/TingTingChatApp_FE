@@ -3,18 +3,23 @@ import classNames from "classnames";
 import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
+import { useDispatch } from "react-redux";
+import { setSelectedMessage } from "../../../redux/slices/chatSlice";
 
 const cx = classNames.bind(styles);
 
 function ChatList({ activeTab }) {
-  // Hàm xử lý khi click vào tin nhắn
+  const dispatch = useDispatch();
+
+  // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
-    console.log("Chi tiết tin nhắn:", message);
+    dispatch(setSelectedMessage(message.id));
   };
 
   // Dữ liệu mẫu
   const sampleMessages = [
     {
+      id: 1,
       name: "Hờ Mờ Hờ Và Những Ngư...",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -24,6 +29,7 @@ function ChatList({ activeTab }) {
       members: 99,
     },
     {
+      id: 2,
       name: "Khánh",
       avatar: "https://picsum.photos/200",
       type: "personal",
@@ -32,6 +38,7 @@ function ChatList({ activeTab }) {
       time: "1 giờ",
     },
     {
+      id: 3,
       name: "Dũng",
       avatar: "https://picsum.photos/200",
       type: "personal",
@@ -40,6 +47,7 @@ function ChatList({ activeTab }) {
       time: "2 giờ",
     },
     {
+      id: 4,
       name: "Lớp ReactJS",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -51,19 +59,20 @@ function ChatList({ activeTab }) {
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
-      {/* Thanh tìm kiếm (cố định) */}
+      {/* Thanh tìm kiếm */}
       <div className="p-2 bg-white shadow-md">
         <SearchCompo />
       </div>
 
-      {/* Danh sách chat hoặc liên hệ (cuộn được) */}
-      <div className="flex-grow overflow-y-auto p-4 text-gray-700">
+      {/* Danh sách chat */}
+      <div className="flex-grow overflow-y-auto  text-gray-700">
         {activeTab === "/chat" && (
-          <MessageList messages={sampleMessages} onMessageClick={handleMessageClick} />
+          <MessageList
+            messages={sampleMessages}
+            onMessageClick={handleMessageClick}
+          />
         )}
         {activeTab === "/contact" && <p>Danh sách liên hệ</p>}
-
-        
       </div>
     </div>
   );
