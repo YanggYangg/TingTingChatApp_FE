@@ -11,11 +11,25 @@ import MuteNotificationModal from "../../../components/chatInforComponent/MuteNo
 const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) => {
   const [inviteLink] = useState(groupLink || "https://zalo.me/g/dvfhuk799");
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
+  const [pinnedMessage, setPinnedMessage] = useState(null);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(inviteLink);
     console.log("Link nhóm đã được sao chép:", inviteLink);
     alert("Đã sao chép link nhóm!");
+  };
+
+  const togglePinMessage = () => {
+    if (pinnedMessage) {
+      setPinnedMessage(null);
+      console.log("Đã bỏ ghim tin nhắn");
+    } else {
+      const message = prompt("Nhập nội dung tin nhắn cần ghim:");
+      if (message) {
+        setPinnedMessage(message);
+        console.log("Tin nhắn đã ghim:", message);
+      }
+    }
   };
 
   return (
@@ -45,10 +59,11 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
             setIsMuteModalOpen(true);
           }}
         />
-        <GroupActionButton
+          <GroupActionButton
           icon="pin"
-          text="Bỏ ghim hội thoại"
-          onClick={() => console.log("Nhấn vào 'Bỏ ghim hội thoại'")}
+          text={pinnedMessage ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn"}
+          onClick={togglePinMessage}
+
         />
         <GroupActionButton
           icon="add"
@@ -61,7 +76,14 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
           onClick={() => console.log(" Nhấn vào 'Quản lý nhóm'")}
         />
       </div>
-
+{pinnedMessage && (
+        <div className="bg-yellow-100 p-3 rounded-md flex items-center justify-between mb-4">
+          <p className="text-sm font-semibold">{pinnedMessage}</p>
+          <button onClick={togglePinMessage} className="text-red-500 text-sm">
+            Bỏ ghim
+          </button>
+        </div>
+      )}
       {/* Thành viên nhóm */}
       <div className="bg-gray-100 p-3 rounded-lg">
         <GroupMemberList members={["4 thành viên"]} />
