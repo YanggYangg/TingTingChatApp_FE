@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
 
-Modal.setAppElement("#root"); // Đảm bảo modal có thể hoạt động
+Modal.setAppElement("#root");
 
-const MuteNotificationModal = ({ isOpen, onClose }) => {
+const MuteNotificationModal = ({ isOpen, onClose, onConfirm }) => {
   const [selectedMuteTime, setSelectedMuteTime] = useState("1h");
 
   const handleConfirmMute = () => {
-    console.log(`Đã tắt thông báo trong ${selectedMuteTime}`);
-    onClose(); // Đóng modal
+    console.log(`🔕 Đã tắt thông báo trong ${selectedMuteTime}`);
+    if (onConfirm) {
+      onConfirm(selectedMuteTime);
+    } else {
+      console.error("onConfirm is not defined!");
+    }
   };
 
   useEffect(() => {
-    console.log("Trạng thái modal:", isOpen); // Kiểm tra xem modal có mở không
+    console.log("Trạng thái modal:", isOpen);
   }, [isOpen]);
 
   return (
@@ -45,7 +49,6 @@ const MuteNotificationModal = ({ isOpen, onClose }) => {
         ))}
       </div>
 
-      {/* Nút xác nhận và hủy */}
       <div className="flex justify-end mt-4">
         <button onClick={onClose} className="px-4 py-2 text-gray-600 bg-gray-200 rounded-md mr-2">
           Hủy

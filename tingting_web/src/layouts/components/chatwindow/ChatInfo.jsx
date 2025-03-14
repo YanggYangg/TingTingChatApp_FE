@@ -12,6 +12,23 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
   const [inviteLink] = useState(groupLink || "https://zalo.me/g/dvfhuk799");
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [pinnedMessage, setPinnedMessage] = useState(null);
+  const [isMuted, setIsMuted] = useState(false);
+
+const handleMuteNotification = () => {
+  if (isMuted) {
+    console.log("🔊 Bật lại thông báo");
+    setIsMuted(false);
+  } else {
+    setIsMuteModalOpen(true);
+  }
+};
+
+const confirmMuteNotification = (time) => {
+  console.log(`🔕 Đã tắt thông báo trong: ${time}`);
+  setIsMuted(true);
+  setIsMuteModalOpen(false);
+};
+
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(inviteLink);
@@ -51,14 +68,12 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
 
       {/* Các nút hành động */}
       <div className="grid grid-cols-4 gap-2 my-4">
-        <GroupActionButton
-          icon="mute"
-          text="Tắt thông báo"
-          onClick={() => {
-            console.log("Nhấn vào 'Tắt thông báo'");
-            setIsMuteModalOpen(true);
-          }}
-        />
+      <GroupActionButton
+  icon="mute"
+  text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
+  onClick={handleMuteNotification}
+/>
+
           <GroupActionButton
           icon="pin"
           text={pinnedMessage ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn"}
@@ -136,12 +151,11 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
 
       {/* Modal tắt thông báo */}
       <MuteNotificationModal
-        isOpen={isMuteModalOpen}
-        onClose={() => {
-          console.log("❌ Đóng modal tắt thông báo");
-          setIsMuteModalOpen(false);
-        }}
-      />
+  isOpen={isMuteModalOpen}
+  onClose={() => setIsMuteModalOpen(false)}
+  onConfirm={confirmMuteNotification}
+/>
+
     </div>
   );
 };

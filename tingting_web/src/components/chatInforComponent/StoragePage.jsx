@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaCalendarAlt } from "react-icons/fa";
+import { FaCalendarAlt, AiOutlineArrowLeft  } from "react-icons/fa";
 
 const StoragePage = () => {
   const [activeTab, setActiveTab] = useState("images");
@@ -14,6 +14,9 @@ const StoragePage = () => {
       { url: "https://i.pinimg.com/736x/74/2e/15/742e1531a34e2ea5a4c23e5bbcfa669f.jpg", date: "2024-03-13", sender: "Nhi" },
       { url: "https://phongvu.vn/cong-nghe/wp-content/uploads/2024/12/hinh-nen-cute-27-576x1024.jpg", date: "2024-03-13", sender: "Giang" },
       { url: "https://phongvu.vn/cong-nghe/wp-content/uploads/2024/12/hinh-nen-cute-27-576x1024.jpg", date: "2024-03-11", sender: "Hậu" },
+      { url: "https://i.pinimg.com/736x/74/2e/15/742e1531a34e2ea5a4c23e5bbcfa669f.jpg", date: "2025-03-13", sender: "Nhi" },
+      { url: "https://phongvu.vn/cong-nghe/wp-content/uploads/2024/12/hinh-nen-cute-27-576x1024.jpg", date: "2025-03-13", sender: "Giang" },
+      { url: "https://phongvu.vn/cong-nghe/wp-content/uploads/2024/12/hinh-nen-cute-27-576x1024.jpg", date: "2025-03-11", sender: "Hậu" },
     ],
     files: [
       { name: "Tài liệu 1.pdf", date: "2024-03-08", sender: "Bạn A" },
