@@ -1,21 +1,22 @@
 import { useState } from "react";
 import classNames from "classnames/bind";
-import styles from "./ContactItem.module.scss";
+import styles from "./GroupItem.module.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { MoreVertical } from "lucide-react";
 
 const cx = classNames.bind(styles);
 
-const ContactItem = ({
+const GroupItem = ({
   onClick,
   icon,
   image,
   label,
+  memberCount, // Nhận số lượng thành viên từ props
   className,
   showBorder,
   menuOpen,
   onMenuToggle,
-  showMenuIcon, // Thêm prop để kiểm soát hiển thị nút ba chấm
+  showMenuIcon,
 }) => {
   return (
     <div
@@ -39,9 +40,16 @@ const ContactItem = ({
         ) : (
           <FontAwesomeIcon icon={icon} className="h-5 w-10 pr-1" />
         )}
-        {label}
 
-        {/* Chỉ hiển thị nút ba chấm nếu showMenuIcon = true */}
+        {/* Tên nhóm và số thành viên */}
+        <div className="flex flex-col">
+          <span>{label}</span>
+          <span className="text-sm text-gray-500">
+            {memberCount} thành viên
+          </span>
+        </div>
+
+        {/* Nút ba chấm */}
         {showMenuIcon && (
           <button
             className="ml-auto p-2 rounded hover:bg-gray-300"
@@ -57,14 +65,8 @@ const ContactItem = ({
         {/* Dropdown menu */}
         {menuOpen && (
           <div className="absolute right-4 top-10 bg-white shadow-md rounded-md p-2 w-40 z-10">
-            <button className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
-              Xem chi tiết
-            </button>
-            <button className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
-              Nhắn tin
-            </button>
             <button className="block w-full text-left px-3 py-2 text-red-500 hover:bg-red-100 text-sm">
-              Xóa bạn
+              Rời nhóm
             </button>
           </div>
         )}
@@ -73,4 +75,4 @@ const ContactItem = ({
   );
 };
 
-export default ContactItem;
+export default GroupItem;
