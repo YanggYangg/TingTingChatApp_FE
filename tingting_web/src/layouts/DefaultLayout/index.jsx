@@ -8,6 +8,7 @@ import styles from './DefaultLayout.module.scss';
 
 import Sidebar from '../components/sidebar';
 import ChatList from '../components/chatlist';
+import Login from '../../pages/Login';
 
 const cx = classNames.bind(styles);
 
