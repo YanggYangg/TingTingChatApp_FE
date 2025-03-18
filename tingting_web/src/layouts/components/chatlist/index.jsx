@@ -5,6 +5,8 @@ import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 import { useDispatch } from "react-redux";
 import { setSelectedMessage } from "../../../redux/slices/chatSlice";
+import Contact from "../contact-form/Contact";
+import SibarContact from "../contact-form/SideBarContact/SideBarContact";
 
 const cx = classNames.bind(styles);
 
@@ -178,7 +180,11 @@ function ChatList({ activeTab }) {
             onMessageClick={handleMessageClick}
           />
         )}
-        {activeTab === "/contact" && <p>Danh sách liên hệ</p>}
+
+
+        {activeTab === "/contact" &&
+          <SibarContact />
+        }
       </div>
     </div>
   );
