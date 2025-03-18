@@ -8,6 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 
 import ContactItem from "../ContactItem";
+import GroupItem from "../GroupItem";
 import Search from "../Search";
 
 const GroupList = () => {
@@ -16,30 +17,69 @@ const GroupList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredFriends, setFilteredFriends] = useState([]);
   const [groupedFriends, setGroupedFriends] = useState({});
+  const [menuOpenId, setMenuOpenId] = useState(null); // Quản lý menu đang mở
 
   // Sample friends data
   const allFriends = [
-    { id: 1, name: "A2", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 2, name: "An", avatar: "/placeholder.svg?height=40&width=40" },
+    {
+      id: 1,
+      name: "A2",
+      avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 1,
+    },
+    {
+      id: 2,
+      name: "An",
+      avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 1,
+    },
     {
       id: 3,
       name: "An Quốc Việt",
       avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 1,
     },
-    { id: 4, name: "Anh Khoa", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 5, name: "Anh Thư", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 6, name: "Ba", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 7, name: "Bảo Châu", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 8, name: "Bảo Trân", avatar: "/placeholder.svg?height=40&width=40" },
+    {
+      id: 4,
+      name: "Anh Khoa",
+      avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 2,
+    },
+    {
+      id: 5,
+      name: "Anh Thư",
+      avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 2,
+    },
+    {
+      id: 6,
+      name: "Ba",
+      avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 2,
+    },
+    {
+      id: 7,
+      name: "Bảo Châu",
+      avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 2,
+    },
+    {
+      id: 8,
+      name: "Bảo Trân",
+      avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 2,
+    },
     {
       id: 9,
       name: "Bảoo Ngocc",
       avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 1,
     },
     {
       id: 10,
       name: "Bích Phương",
       avatar: "/placeholder.svg?height=40&width=40",
+      memberCount: 1,
     },
   ];
 
@@ -90,6 +130,18 @@ const GroupList = () => {
     e.stopPropagation();
   };
 
+  // Ẩn menu khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setMenuOpenId(null);
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="w-full h-full bg-white text-black flex flex-col ">
       <ContactItem
@@ -99,7 +151,7 @@ const GroupList = () => {
       />
 
       <div className="bg-gray-200 w-full flex-1 p-4 overflow-y-auto">
-        <h2 className="pb-4 text-black font-medium">Nhóm và cộng đồng (100)</h2>
+        <h2 className="pb-4 text-black font-medium">Nhóm và cộng đồng (10)</h2>
         <div className="w-full bg-white rounded-xs">
           <div className="w-full rounded-xs p-4 flex justify-between">
             <Search />
@@ -175,13 +227,20 @@ const GroupList = () => {
                   .sort()
                   .map((letter) => (
                     <div key={letter}>
-                      {groupedFriends[letter].map((friend) => (
-                        <ContactItem
+                      {groupedFriends[letter].map((friend, index, array) => (
+                        <GroupItem
+                          memberCount={friend.memberCount} // Truyền số lượng thành viên vào props
                           key={friend.id}
                           label={friend.name}
-                          image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpg"
-                          // showBorder={index !== arr.length - 1}
-                          // showBorder={true}
+                          image="https://hoanghamobile.com/tin-tuc/wp-content/uploads/2023/08/hinh-nen-lap-top-cute-74.jpg"
+                          showBorder={index !== array.length - 1}
+                          showMenuIcon={true}
+                          menuOpen={menuOpenId === friend.id}
+                          onMenuToggle={() =>
+                            setMenuOpenId(
+                              menuOpenId === friend.id ? null : friend.id
+                            )
+                          }
                         />
                       ))}
                     </div>
