@@ -20,7 +20,7 @@ const SibarContact = ({ setActiveComponent }) => {
   };
 
   return (
-    <div className="w-[350px] h-screen bg-white text-black border-r border-gray-200">
+    <div className="w-full h-screen bg-white  border-gray-200">
       <div>
         <ContactItem
           label="Danh sách bạn bè"
