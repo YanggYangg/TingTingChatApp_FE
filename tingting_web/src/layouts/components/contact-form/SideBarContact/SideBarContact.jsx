@@ -26,29 +26,45 @@ const SibarContact = ({ setActiveComponent }) => {
           label="Danh sách bạn bè"
           icon={faUser}
           onClick={() => handleSelect("friends")}
-          className={cx("wrapper", { selected: selectedItem === "friends" })}
+          className={cx(
+            "wrapper",
+            { selected: selectedItem === "friends" },
+            "cursor-default"
+          )}
         />
         <ContactItem
           label="Danh sách nhóm và cộng đồng"
           icon={faUsers}
           onClick={() => handleSelect("groups")}
-          className={cx("wrapper", { selected: selectedItem === "groups" })}
+          className={cx(
+            "wrapper",
+            { selected: selectedItem === "groups" },
+            "cursor-default"
+          )}
         />
         <ContactItem
           label="Lời mời kết bạn"
           icon={faUserPlus}
           onClick={() => handleSelect("friendRequests")}
-          className={cx("wrapper", {
-            selected: selectedItem === "friendRequests",
-          })}
+          className={cx(
+            "wrapper",
+            {
+              selected: selectedItem === "friendRequests",
+            },
+            "cursor-default"
+          )}
         />
         <ContactItem
           label="Lời mời vào nhóm và cộng đồng"
           icon={faUserGear}
           onClick={() => handleSelect("groupInvites")}
-          className={cx("wrapper", {
-            selected: selectedItem === "groupInvites",
-          })}
+          className={cx(
+            "wrapper",
+            {
+              selected: selectedItem === "groupInvites",
+            },
+            "cursor-default"
+          )}
         />
       </div>
     </div>

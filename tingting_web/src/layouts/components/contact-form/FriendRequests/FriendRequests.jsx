@@ -114,7 +114,7 @@ const FriendRequests = () => {
 
         <div className="mt-8">
           <div className="flex items-center mb-4">
-            <h2 className="text-lg font-medium">
+            <h2 className=" text-black font-medium">
               Gợi ý kết bạn ({suggestions.length})
             </h2>
             <button className="ml-2 text-blue-600">
