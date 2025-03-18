@@ -7,10 +7,13 @@ import ChatHeader from "./ChatWindow/ChatHeader";
 import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
 import TingTingImage from "../../assets/TingTing_Chat.png";
+import GroupMediaGallery from "../../components/chatInforComponent/GroupMediaGallery";
+import StoragePage from "../../components/chatInforComponent/StoragePage";
+
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
-
+  const [showStorage, setShowStorage] = useState(false);
 
   const mockMessages = [
     {
@@ -184,10 +187,11 @@ function ChatPage() {
 
         {/* Vùng thông tin chat */}
         {isChatInfoVisible && (
-          <div className="w-[400px] bg-white border-l p-4 max-h-screen overflow-y-auto transition-all duration-300">
+          <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
             <ChatInfo />
           </div>
         )}
+        
       </div>
     ) : (
       <div className="flex flex-1 flex-col items-center justify-center bg-white">

@@ -1,7 +1,15 @@
 import React from "react";
 
 import { PanelRight, Search, Video, UserPlus, User } from "lucide-react";
-const ChatHeader = ({ type, name, members, lastActive, avatar,isChatInfoVisible,setIsChatInfoVisible }) => {
+const ChatHeader = ({
+  type,
+  name,
+  members,
+  lastActive,
+  avatar,
+  isChatInfoVisible,
+  setIsChatInfoVisible,
+}) => {
   return (
     <div className={`flex items-center justify-between p-2 border-b bg-white`}>
       {/* Thông tin nhóm/người chat */}
@@ -38,18 +46,16 @@ const ChatHeader = ({ type, name, members, lastActive, avatar,isChatInfoVisible,
           {/* <FontAwesomeIcon icon={faSearch} /> */}
           <Search />
         </button>
-        
+
         <button
-  className="text-gray-500 hover:text-gray-700"
-  onClick={() => {
-    setIsChatInfoVisible(!isChatInfoVisible);
-    console.log("isChatInfoVisible:", !isChatInfoVisible); // Kiểm tra giá trị
-  }}
->
-  <PanelRight />
-</button>
-
-
+          className="text-gray-500 hover:text-gray-700"
+          onClick={() => {
+            setIsChatInfoVisible(!isChatInfoVisible);
+            console.log("isChatInfoVisible:", !isChatInfoVisible); // Kiểm tra giá trị
+          }}
+        >
+          <PanelRight />
+        </button>
       </div>
     </div>
   );
