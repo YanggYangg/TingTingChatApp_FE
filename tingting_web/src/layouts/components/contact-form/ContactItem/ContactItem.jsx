@@ -26,7 +26,7 @@ const ContactItem = ({
     >
       <div
         className={cx(
-          "flex items-center px-3 py-4 text-black-700 font-medium hover:bg-gray-200 transition relative",
+          "flex items-center px-2 py-4 text-black-700 font-medium hover:bg-gray-200 transition relative",
           className
         )}
       >
