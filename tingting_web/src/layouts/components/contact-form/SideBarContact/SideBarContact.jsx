@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   faUser,
   faUsers,
@@ -5,31 +6,49 @@ import {
   faUserGear,
 } from "@fortawesome/free-solid-svg-icons";
 import ContactItem from "../ContactItem";
+import styles from "./SideBarContact.module.scss";
+import classNames from "classnames/bind";
+
+const cx = classNames.bind(styles);
 
 const SibarContact = ({ setActiveComponent }) => {
+  const [selectedItem, setSelectedItem] = useState("friends");
+
+  const handleSelect = (component) => {
+    setSelectedItem(component);
+    setActiveComponent(component);
+  };
+
   return (
     <div className="w-[350px] h-screen bg-white text-black border-r border-gray-200">
       <div>
         <ContactItem
           label="Danh sách bạn bè"
           icon={faUser}
-          onClick={() => setActiveComponent("friends")}
-          className={"cursor-default active:bg-blue-500"}
+          onClick={() => handleSelect("friends")}
+          className={cx("wrapper", { selected: selectedItem === "friends" })}
         />
         <ContactItem
           label="Danh sách nhóm và cộng đồng"
           icon={faUsers}
-          onClick={() => setActiveComponent("groups")}
+          onClick={() => handleSelect("groups")}
+          className={cx("wrapper", { selected: selectedItem === "groups" })}
         />
         <ContactItem
           label="Lời mời kết bạn"
           icon={faUserPlus}
-          onClick={() => setActiveComponent("friendRequests")}
+          onClick={() => handleSelect("friendRequests")}
+          className={cx("wrapper", {
+            selected: selectedItem === "friendRequests",
+          })}
         />
         <ContactItem
           label="Lời mời vào nhóm và cộng đồng"
           icon={faUserGear}
-          onClick={() => setActiveComponent("groupInvites")}
+          onClick={() => handleSelect("groupInvites")}
+          className={cx("wrapper", {
+            selected: selectedItem === "groupInvites",
+          })}
         />
       </div>
     </div>
