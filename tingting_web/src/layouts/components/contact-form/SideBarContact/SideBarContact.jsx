@@ -4,33 +4,33 @@ import {
   faUserPlus,
   faUserGear,
 } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-
 import ContactItem from "../ContactItem";
-import Search from "../Search";
 
-const SibarContact = () => {
+const SibarContact = ({ setActiveComponent }) => {
   return (
     <div className="w-[350px] h-screen bg-white text-black border-r border-gray-200">
       <div>
-        <ContactItem href="/chat" label="Danh sách bạn bè" icon={faUser} />
         <ContactItem
-          href="/contact"
+          label="Danh sách bạn bè"
+          icon={faUser}
+          onClick={() => setActiveComponent("friends")}
+          className={"cursor-default active:bg-blue-500"}
+        />
+        <ContactItem
           label="Danh sách nhóm và cộng đồng"
           icon={faUsers}
+          onClick={() => setActiveComponent("groups")}
         />
-        <ContactItem href="/group" label="Lời mời kết bạn" icon={faUserPlus} />
         <ContactItem
-          href="/setting"
+          label="Lời mời kết bạn"
+          icon={faUserPlus}
+          onClick={() => setActiveComponent("friendRequests")}
+        />
+        <ContactItem
           label="Lời mời vào nhóm và cộng đồng"
           icon={faUserGear}
+          onClick={() => setActiveComponent("groupInvites")}
         />
-
-        {/* <ContactItem
-          href="/setting"
-          label="Setting"
-          image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpg"
-        /> */}
       </div>
     </div>
   );

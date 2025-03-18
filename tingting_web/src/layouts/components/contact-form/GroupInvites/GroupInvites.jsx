@@ -10,13 +10,12 @@ import { useState, useEffect } from "react";
 import ContactItem from "../ContactItem";
 import Search from "../Search";
 
-const ContactList = () => {
+const GroupInvites = () => {
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredFriends, setFilteredFriends] = useState([]);
   const [groupedFriends, setGroupedFriends] = useState({});
-  const [menuOpenId, setMenuOpenId] = useState(null); // Quản lý menu đang mở
 
   // Sample friends data
   const allFriends = [
@@ -42,11 +41,6 @@ const ContactList = () => {
       name: "Bích Phương",
       avatar: "/placeholder.svg?height=40&width=40",
     },
-    { id: 11, name: "Anh Khoa", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 12, name: "Anh Thư", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 13, name: "Ba", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 14, name: "Bảo Châu", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 15, name: "Bảo Trân", avatar: "/placeholder.svg?height=40&width=40" },
   ];
 
   // Filter and group friends when search query changes
@@ -96,23 +90,11 @@ const ContactList = () => {
     e.stopPropagation();
   };
 
-  // Ẩn menu khi click ra ngoài
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setMenuOpenId(null);
-    };
-
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
-
   return (
     <div className="w-full h-full bg-white text-black flex flex-col ">
       <ContactItem
-        label="Danh sách bạn bè"
-        icon={faUser}
+        label="Lời mời vào nhóm và cộng đồng"
+        icon={faUserGear}
         className="hover:bg-white cursor-default "
       />
 
@@ -193,19 +175,11 @@ const ContactList = () => {
                   .sort()
                   .map((letter) => (
                     <div key={letter}>
-                      {groupedFriends[letter].map((friend, index, array) => (
+                      {groupedFriends[letter].map((friend) => (
                         <ContactItem
                           key={friend.id}
                           label={friend.name}
                           image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpg"
-                          showBorder={index !== array.length - 1}
-                          showMenuIcon={true}
-                          menuOpen={menuOpenId === friend.id}
-                          onMenuToggle={() =>
-                            setMenuOpenId(
-                              menuOpenId === friend.id ? null : friend.id
-                            )
-                          }
                         />
                       ))}
                     </div>
@@ -219,4 +193,4 @@ const ContactList = () => {
   );
 };
 
-export default ContactList;
+export default GroupInvites;

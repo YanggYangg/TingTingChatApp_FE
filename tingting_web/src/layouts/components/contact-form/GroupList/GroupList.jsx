@@ -10,13 +10,12 @@ import { useState, useEffect } from "react";
 import ContactItem from "../ContactItem";
 import Search from "../Search";
 
-const ContactList = () => {
+const GroupList = () => {
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredFriends, setFilteredFriends] = useState([]);
   const [groupedFriends, setGroupedFriends] = useState({});
-  const [menuOpenId, setMenuOpenId] = useState(null); // Quản lý menu đang mở
 
   // Sample friends data
   const allFriends = [
@@ -42,11 +41,6 @@ const ContactList = () => {
       name: "Bích Phương",
       avatar: "/placeholder.svg?height=40&width=40",
     },
-    { id: 11, name: "Anh Khoa", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 12, name: "Anh Thư", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 13, name: "Ba", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 14, name: "Bảo Châu", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 15, name: "Bảo Trân", avatar: "/placeholder.svg?height=40&width=40" },
   ];
 
   // Filter and group friends when search query changes
@@ -96,28 +90,16 @@ const ContactList = () => {
     e.stopPropagation();
   };
 
-  // Ẩn menu khi click ra ngoài
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setMenuOpenId(null);
-    };
-
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
-
   return (
     <div className="w-full h-full bg-white text-black flex flex-col ">
       <ContactItem
-        label="Danh sách bạn bè"
-        icon={faUser}
+        label="Danh sách nhóm và cộng đồng"
+        icon={faUsers}
         className="hover:bg-white cursor-default "
       />
 
       <div className="bg-gray-200 w-full flex-1 p-4 overflow-y-auto">
-        <h2 className="pb-4 text-black font-medium">Bạn bè (100) </h2>
+        <h2 className="pb-4 text-black font-medium">Nhóm và cộng đồng (100)</h2>
         <div className="w-full bg-white rounded-xs">
           <div className="w-full rounded-xs p-4 flex justify-between">
             <Search />
@@ -193,19 +175,13 @@ const ContactList = () => {
                   .sort()
                   .map((letter) => (
                     <div key={letter}>
-                      {groupedFriends[letter].map((friend, index, array) => (
+                      {groupedFriends[letter].map((friend) => (
                         <ContactItem
                           key={friend.id}
                           label={friend.name}
                           image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpg"
-                          showBorder={index !== array.length - 1}
-                          showMenuIcon={true}
-                          menuOpen={menuOpenId === friend.id}
-                          onMenuToggle={() =>
-                            setMenuOpenId(
-                              menuOpenId === friend.id ? null : friend.id
-                            )
-                          }
+                          // showBorder={index !== arr.length - 1}
+                          // showBorder={true}
                         />
                       ))}
                     </div>
@@ -219,4 +195,4 @@ const ContactList = () => {
   );
 };
 
-export default ContactList;
+export default GroupList;
