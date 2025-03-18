@@ -1,4 +1,6 @@
-import { useRef, useEffect } from "react";
+"use client";
+
+import { useState, useRef, useEffect } from "react";
 import {
   FaUser,
   FaCog,
@@ -9,8 +11,10 @@ import {
   FaTimes,
   FaChevronRight,
 } from "react-icons/fa";
+import SettingsModal from "../SettingsModal/SettingsModal";
 
 function SettingsMenu({ isOpen, onClose, position }) {
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const menuRef = useRef(null);
 
   // Close menu when clicking outside
@@ -37,51 +41,69 @@ function SettingsMenu({ isOpen, onClose, position }) {
     bottom: "4rem",
   };
 
-  if (!isOpen) return null;
+  const handleSettingsClick = () => {
+    onClose(); // Close the menu
+    setSettingsModalOpen(true); // Open the settings modal
+  };
+
+  if (!isOpen && !settingsModalOpen) return null;
 
   return (
-    <div
-      ref={menuRef}
-      className="absolute w-64 bg-white shadow-lg rounded-sm z-50"
-      style={menuStyle}
-    >
-      <ul className="py-1">
-        <MenuItem
-          icon={<FaUser className="text-black" />}
-          text="Thông tin tài khoản"
-        />
+    <>
+      {isOpen && (
+        <div
+          ref={menuRef}
+          className="absolute w-64 bg-white shadow-lg rounded-sm z-50"
+          style={menuStyle}
+        >
+          <ul className="py-1">
+            <MenuItem
+              icon={<FaUser className="text-black" />}
+              text="Thông tin tài khoản"
+            />
 
-        <MenuItem icon={<FaCog className="text-black" />} text="Cài đặt" />
+            <MenuItem
+              icon={<FaCog className="text-black" />}
+              text="Cài đặt"
+              onClick={handleSettingsClick}
+            />
 
-        <MenuItem
-          icon={<FaDatabase className="text-black" />}
-          text="Dữ liệu"
-          hasSubmenu
-        />
+            <MenuItem
+              icon={<FaDatabase className="text-black" />}
+              text="Dữ liệu"
+              hasSubmenu
+            />
 
-        <MenuItem
-          icon={<FaGlobe className="text-black" />}
-          text="Ngôn ngữ"
-          hasSubmenu
-        />
+            <MenuItem
+              icon={<FaGlobe className="text-black" />}
+              text="Ngôn ngữ"
+              hasSubmenu
+            />
 
-        <MenuItem
-          icon={<FaQuestionCircle className="text-black" />}
-          text="Hỗ trợ"
-          hasSubmenu
-        />
+            <MenuItem
+              icon={<FaQuestionCircle className="text-black" />}
+              text="Hỗ trợ"
+              hasSubmenu
+            />
 
-        <li className="border-t border-gray-200 my-1"></li>
+            <li className="border-t border-gray-200 my-1"></li>
 
-        <MenuItem
-          icon={<FaSignOutAlt className="text-red-600" />}
-          text="Đăng xuất"
-          textClass="text-red-600"
-        />
+            <MenuItem
+              icon={<FaSignOutAlt className="text-red-600" />}
+              text="Đăng xuất"
+              textClass="text-red-600"
+            />
 
-        <MenuItem icon={<FaTimes className="text-black" />} text="Thoát" />
-      </ul>
-    </div>
+            <MenuItem icon={<FaTimes className="text-black" />} text="Thoát" />
+          </ul>
+        </div>
+      )}
+
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+      />
+    </>
   );
 }
 
