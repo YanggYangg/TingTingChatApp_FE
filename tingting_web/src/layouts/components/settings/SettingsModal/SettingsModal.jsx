@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   FaCog,
   FaUserShield,
@@ -19,11 +19,32 @@ import {
 function SettingsModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState("account");
 
+  // Close modal when clicking outside
+  const modalRef = useRef(null);
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        onClose();
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-[rgba(0,0,0,0.6)] flex items-center justify-center z-50">
-      <div className="bg-white w-full max-w-4xl h-[600px] flex rounded-md overflow-hidden">
+      <div
+        ref={modalRef}
+        className="bg-white w-full max-w-4xl h-[600px] flex rounded-md overflow-hidden"
+      >
         {/* Left sidebar */}
         <div className="w-64 bg-white border-r">
           <div className="p-4 border-b">

@@ -12,9 +12,11 @@ import {
   FaChevronRight,
 } from "react-icons/fa";
 import SettingsModal from "../SettingsModal/SettingsModal";
+import UserProfileModal from "../UserProfileModal/UserProfileModal";
 
 function SettingsMenu({ isOpen, onClose, position }) {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
   const menuRef = useRef(null);
 
   // Close menu when clicking outside
@@ -46,7 +48,12 @@ function SettingsMenu({ isOpen, onClose, position }) {
     setSettingsModalOpen(true); // Open the settings modal
   };
 
-  if (!isOpen && !settingsModalOpen) return null;
+  const handleUserProfileClick = () => {
+    onClose(); // Close the menu
+    setUserProfileModalOpen(true); // Open the user profile modal
+  };
+
+  if (!isOpen && !settingsModalOpen && !userProfileModalOpen) return null;
 
   return (
     <>
@@ -60,6 +67,7 @@ function SettingsMenu({ isOpen, onClose, position }) {
             <MenuItem
               icon={<FaUser className="text-black" />}
               text="Thông tin tài khoản"
+              onClick={handleUserProfileClick}
             />
 
             <MenuItem
@@ -102,6 +110,10 @@ function SettingsMenu({ isOpen, onClose, position }) {
       <SettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
+      />
+      <UserProfileModal
+        isOpen={userProfileModalOpen}
+        onClose={() => setUserProfileModalOpen(false)}
       />
     </>
   );
