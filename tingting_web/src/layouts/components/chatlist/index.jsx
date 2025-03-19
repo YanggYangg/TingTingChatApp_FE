@@ -5,8 +5,14 @@ import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 import { useDispatch } from "react-redux";
 import { setSelectedMessage } from "../../../redux/slices/chatSlice";
-import Contact from "../contact-form/Contact";
+
 import SibarContact from "../contact-form/SideBarContact/SideBarContact";
+import GroupList from "../contact-form/GroupList";
+import FriendRequests from "../contact-form/FriendRequests";
+import GroupInvites from "../contact-form/GroupInvites";
+import ContactList from "../contact-form/ContactList";
+import ContactsPage from "../../../pages/Chat/ContactsPage";
+
 
 const cx = classNames.bind(styles);
 
@@ -138,6 +144,19 @@ function ChatList({ activeTab }) {
     },
   ];
 
+  const renderComponent = () => {
+    switch (activeComponent) {
+      case "groups":
+        return <GroupList />;
+      case "friendRequests":
+        return <FriendRequests />;
+      case "groupInvites":
+        return <GroupInvites />;
+      default:
+        return <ContactList />;
+    }
+  };
+
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
       {/* Thanh tìm kiếm */}
@@ -182,9 +201,10 @@ function ChatList({ activeTab }) {
         )}
 
 
-        {activeTab === "/contact" &&
-          <SibarContact />
-        }
+    {activeTab === "/contact" && (
+
+          <SibarContact  />
+      )}
       </div>
     </div>
   );

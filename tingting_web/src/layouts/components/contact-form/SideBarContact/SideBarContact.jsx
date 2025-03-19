@@ -8,63 +8,35 @@ import {
 import ContactItem from "../ContactItem";
 import styles from "./SideBarContact.module.scss";
 import classNames from "classnames/bind";
+import { useNavigate } from "react-router-dom";
 
 const cx = classNames.bind(styles);
 
-const SibarContact = ({ setActiveComponent }) => {
-  const [selectedItem, setSelectedItem] = useState("friends");
-
-  const handleSelect = (component) => {
-    setSelectedItem(component);
-    setActiveComponent(component);
-  };
-
+const SibarContact = () => {
+  const navigate = useNavigate(); 
   return (
     <div className="w-full h-screen bg-white  border-gray-200">
       <div>
         <ContactItem
           label="Danh sách bạn bè"
           icon={faUser}
-          onClick={() => handleSelect("friends")}
-          className={cx(
-            "wrapper",
-            { selected: selectedItem === "friends" },
-            "cursor-default"
-          )}
+          onClick={() => navigate("/contacts/friends")}
         />
         <ContactItem
           label="Danh sách nhóm và cộng đồng"
           icon={faUsers}
-          onClick={() => handleSelect("groups")}
-          className={cx(
-            "wrapper",
-            { selected: selectedItem === "groups" },
-            "cursor-default"
-          )}
+          onClick={() => navigate("/contacts/groups")}
+
         />
         <ContactItem
           label="Lời mời kết bạn"
           icon={faUserPlus}
-          onClick={() => handleSelect("friendRequests")}
-          className={cx(
-            "wrapper",
-            {
-              selected: selectedItem === "friendRequests",
-            },
-            "cursor-default"
-          )}
+          onClick={() => navigate("/contacts/friend-requests")}
         />
         <ContactItem
           label="Lời mời vào nhóm và cộng đồng"
           icon={faUserGear}
-          onClick={() => handleSelect("groupInvites")}
-          className={cx(
-            "wrapper",
-            {
-              selected: selectedItem === "groupInvites",
-            },
-            "cursor-default"
-          )}
+          onClick={() => navigate("/contacts/group-invites")}
         />
       </div>
     </div>
