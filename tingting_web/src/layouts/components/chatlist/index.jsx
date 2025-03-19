@@ -1,12 +1,17 @@
-import React,  {useState } from "react";
+import React, { useState } from "react";
 import classNames from "classnames";
 import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 import { useDispatch } from "react-redux";
 import { setSelectedMessage } from "../../../redux/slices/chatSlice";
-import Contact from "../contact-form/Contact";
+
 import SibarContact from "../contact-form/SideBarContact/SideBarContact";
+import GroupList from "../contact-form/GroupList";
+import FriendRequests from "../contact-form/FriendRequests";
+import GroupInvites from "../contact-form/GroupInvites";
+import ContactList from "../contact-form/ContactList";
+import ContactsPage from "../../../pages/Chat/ContactsPage";
 
 const cx = classNames.bind(styles);
 
@@ -23,7 +28,7 @@ function ChatList({ activeTab }) {
 
   const handleTabClick = (tab) => {
     setSelectedTab(tab);
-  }
+  };
 
   // Dữ liệu mẫu
   const sampleMessages = [
@@ -138,6 +143,19 @@ function ChatList({ activeTab }) {
     },
   ];
 
+  const renderComponent = () => {
+    switch (activeComponent) {
+      case "groups":
+        return <GroupList />;
+      case "friendRequests":
+        return <FriendRequests />;
+      case "groupInvites":
+        return <GroupInvites />;
+      default:
+        return <ContactList />;
+    }
+  };
+
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
       {/* Thanh tìm kiếm */}
@@ -146,8 +164,8 @@ function ChatList({ activeTab }) {
       </div>
 
       {activeTab === "/chat" && (
-      <div className="flex justify-start space-x-4 px-4 py-2 border-b">
-     <button
+        <div className="flex justify-start space-x-4 px-4 py-2 border-b">
+          <button
             className={`font-semibold px-2 ${
               selectedTab === "priority"
                 ? "text-blue-600 border-b-2 border-blue-600"
@@ -170,10 +188,8 @@ function ChatList({ activeTab }) {
         </div>
       )}
 
-  
-
       {/* Danh sách chat */}
-      <div className="flex-grow overflow-y-auto  text-gray-700">
+      <div className="flex-grow  text-gray-700">
         {activeTab === "/chat" && (
           <MessageList
             messages={sampleMessages}
@@ -181,10 +197,7 @@ function ChatList({ activeTab }) {
           />
         )}
 
-
-        {activeTab === "/contact" &&
-          <SibarContact />
-        }
+        {activeTab === "/contact" && <SibarContact />}
       </div>
     </div>
   );

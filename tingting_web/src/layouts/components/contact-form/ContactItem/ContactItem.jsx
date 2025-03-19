@@ -16,17 +16,24 @@ const ContactItem = ({
   menuOpen,
   onMenuToggle,
   showMenuIcon, // Thêm prop để kiểm soát hiển thị nút ba chấm
+  isSelected,
 }) => {
   return (
     <div
-      className={cx("wrapper", className, {
-        "border-b border-gray-300": showBorder,
-      })}
+      className={cx(
+        "wrapper",
+        "contact-item",
+        { selected: isSelected },
+        className,
+        {
+          "border-b border-gray-300": showBorder,
+        }
+      )}
       onClick={onClick}
     >
       <div
         className={cx(
-          "flex items-center px-2 py-4 text-black-700 font-medium hover:bg-gray-200 transition relative",
+          "flex items-center px-2 py-4 text-black font-medium hover:bg-gray-200 transition relative",
           className
         )}
       >
