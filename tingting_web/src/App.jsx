@@ -29,9 +29,7 @@ function App() {
         <Route path="/homepage" element={<HomePage />} />
         </Routes>
       </Router>
-      
     </Provider>
   );
 }
-
 export default App;

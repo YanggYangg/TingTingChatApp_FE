@@ -37,7 +37,7 @@ function Search(){
       {isModalFriendsOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-            <h2 className="text-xl font-semibold mb-4 text-black">Thêm bạn</h2>
+            <h2 className="text-xl font-semibold mb-4 textgit -black">Thêm bạn</h2>
             <input
               type="text"
               placeholder="Nhập số điện thoại"
