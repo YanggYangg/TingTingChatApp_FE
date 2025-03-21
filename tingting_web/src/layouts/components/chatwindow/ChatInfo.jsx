@@ -8,7 +8,7 @@ import GroupLinks from "../../../components/chatInforComponent/GroupLinks";
 import SecuritySettings from "../../../components/chatInforComponent/SecuritySettings";
 import MuteNotificationModal from "../../../components/chatInforComponent/MuteNotificationModal"; // Import modal
 
-const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) => {
+const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink, type, memberCount, commonGroupCount }) => {
   const [inviteLink] = useState(groupLink || "https://zalo.me/g/dvfhuk799");
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [pinnedMessage, setPinnedMessage] = useState(null);
@@ -105,9 +105,9 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) =
           </button>
         </div>
       )}
-      {/* Thành viên nhóm */}
+      {/* Thành viên nhóm hoặc số nhóm chung */}
       <div className="bg-gray-100 p-3 rounded-lg">
-        <GroupMemberList members={["4 thành viên"]} />
+        <GroupMemberList members={type === "group" ? `${memberCount} thành viên` : `${commonGroupCount} nhóm chung`} />
 
         {/* Link tham gia nhóm */}
         <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
