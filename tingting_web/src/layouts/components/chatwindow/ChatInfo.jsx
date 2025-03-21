@@ -54,7 +54,7 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink, typ
 
       <div className="pb-4 border-b border-gray-200 flex-shrink-0">
         <h2 className="text-xl font-bold text-center text-gray-900 mb-4">
-          Thông tin nhóm
+        {type === "group" ? "Thông tin nhóm" : "Thông tin hội thoại"}
         </h2>
       </div>
 
