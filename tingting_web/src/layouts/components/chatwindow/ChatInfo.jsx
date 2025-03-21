@@ -91,11 +91,13 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink, typ
           text="Thêm thành viên"
           onClick={() => console.log("Nhấn vào 'Thêm thành viên'")}
         />
-        <GroupActionButton
-          icon="settings"
-          text="Quản lý nhóm"
-          onClick={() => console.log(" Nhấn vào 'Quản lý nhóm'")}
-        />
+     {type === "group" && (
+          <GroupActionButton
+            icon="settings"
+            text="Quản lý nhóm"
+            onClick={() => console.log(" Nhấn vào 'Quản lý nhóm'")}
+          />
+        )}
       </div>
       {pinnedMessage && (
         <div className="bg-yellow-100 p-3 rounded-md flex items-center justify-between mb-4">
@@ -109,7 +111,9 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink, typ
       <div className="bg-gray-100 p-3 rounded-lg">
         <GroupMemberList members={type === "group" ? `${memberCount} thành viên` : `${commonGroupCount} nhóm chung`} />
 
+
         {/* Link tham gia nhóm */}
+        {type === "group" && (
         <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
           <div>
             <p className="text-sm font-semibold">Link tham gia nhóm</p>
@@ -145,6 +149,8 @@ const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink, typ
             </a>
           </div>
         </div>
+        )}
+
       </div>
 
       {/* Ảnh/Video */}

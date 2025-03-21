@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Switch from "react-switch"; // Import react-switch
 import { FaExclamationTriangle, FaTrash, FaDoorOpen } from "react-icons/fa";
 
-const SecuritySettings = () => {
+const SecuritySettings = ({type}) => {
   const [isHidden, setIsHidden] = useState(false); // State điều khiển switch
   const [pin, setPin] = useState(""); // State lưu mã PIN
   const [showPinInput, setShowPinInput] = useState(false); // State hiển thị form nhập PIN
@@ -103,6 +103,7 @@ const SecuritySettings = () => {
         <FaTrash size={16} />
         Xóa lịch sử trò chuyện
       </button>
+      {type === "group" && (
       <button
         className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
         onClick={handleLeaveGroup}
@@ -110,6 +111,7 @@ const SecuritySettings = () => {
         <FaDoorOpen size={16} />
         Rời nhóm
       </button>
+      )}
     </div>
   );
 };
