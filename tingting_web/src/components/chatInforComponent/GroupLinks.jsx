@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { AiOutlineLink } from "react-icons/ai";
-import { useNavigate } from "react-router-dom";
+import StoragePage from "./StoragePage";
 
 const GroupLinks = () => {
-  const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
+  
   const links = [
     { title: "Google", url: "https://www.google.com" },
     { title: "Nguyễn Kiến Thức", url: "https://www.facebook.com" },
@@ -30,10 +31,12 @@ const GroupLinks = () => {
       </div>
       <button
         className="mt-2 flex items-center justify-center w-full bg-gray-200 text-gray-700 text-sm px-4 py-2 rounded hover:bg-gray-300"
-        onClick={() => navigate("/storage")}
+        onClick={() => setIsOpen(true)}
       >
         Xem tất cả
       </button>
+      
+      {isOpen && <StoragePage onClose={() => setIsOpen(false)} />}
     </div>
   );
 };
