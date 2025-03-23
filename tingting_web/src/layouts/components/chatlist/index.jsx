@@ -16,6 +16,7 @@ import ContactsPage from "../../../pages/Chat/ContactsPage";
 const cx = classNames.bind(styles);
 
 function ChatList({ activeTab }) {
+  console.log("Current activeTab:", activeTab);
   const [selectedTab, setSelectedTab] = useState("priority");
 
   // Hàm xử lý khi click vào tin nhắn

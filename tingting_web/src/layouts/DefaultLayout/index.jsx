@@ -19,9 +19,13 @@ function DefaultLayout({ children }) {
   useEffect(() => {
     if (location.pathname === "/") {
       navigate("/chat");
-      setActiveTab("/chat");
+    } else {
+      const basePath = location.pathname.startsWith("/contact")
+        ? "/contact"
+        : "/chat";
+      setActiveTab(basePath);
     }
-  }, [location, navigate]);
+  }, [location.pathname, navigate]);
 
   return (
     <ChatProvider>
