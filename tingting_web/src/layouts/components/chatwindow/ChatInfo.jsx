@@ -82,7 +82,7 @@ const ChatInfo = () => {
         <GroupMediaGallery chatId={chatId} />
         <GroupFile chatId={chatId} />
         <GroupLinks chatId={chatId} />
-        <SecuritySettings />
+        <SecuritySettings  chatId={chatId}/>
       </div>
 
       <MuteNotificationModal isOpen={isMuteModalOpen} onClose={() => setIsMuteModalOpen(false)} onConfirm={() => setIsMuted(true)} />

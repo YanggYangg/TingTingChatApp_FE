@@ -10,7 +10,7 @@ const StoragePage = ({ onClose }) => {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [showDateSuggestions, setShowDateSuggestions] = useState(false);
   const [data, setData] = useState({ images: [], files: [], links: [] });
-  const chatId = "67e0eda53261750c58989c24";
+const chatId = "67e0eda53261750c58989c24";
 
   useEffect(() => {
     if (!chatId) return;
@@ -24,18 +24,18 @@ const StoragePage = ({ onClose }) => {
         ]);
 
         setData({
-          images: imagesRes.data.map(item => ({
+          images: imagesRes.data.filter(item => item.message.messageType === "image").map(item => ({
             url: item.message.linkURL,
             date: item.createdAt.split("T")[0],
             sender: item.message.userId,
           })),
-          files: filesRes.data.map(item => ({
+          files: filesRes.data.filter(item => item.message.messageType === "file").map(item => ({
             name: item.message.content,
             url: item.message.linkURL,
             date: item.createdAt.split("T")[0],
             sender: item.message.userId,
           })),
-          links: linksRes.data.map(item => ({
+          links: linksRes.data.filter(item => item.message.messageType === "link").map(item => ({
             title: item.message.content,
             url: item.message.linkURL,
             date: item.createdAt.split("T")[0],
@@ -51,13 +51,6 @@ const StoragePage = ({ onClose }) => {
   }, [chatId]);
 
   const getUniqueSenders = () => ["Tất cả", ...new Set(data[activeTab].map(item => item.sender))];
-
-  const handleDateFilter = (days) => {
-    const today = new Date();
-    const pastDate = new Date(today.setDate(today.getDate() - days)).toISOString().split("T")[0];
-    setStartDate(pastDate);
-    setEndDate("");
-  };
 
   const filteredData = data[activeTab].filter(item =>
     (filterSender === "Tất cả" || item.sender === filterSender) &&
@@ -88,46 +81,13 @@ const StoragePage = ({ onClose }) => {
             <option key={sender} value={sender}>{sender}</option>
           ))}
         </select>
-        <button className="border p-1 rounded text-sm" onClick={() => setShowDateFilter(!showDateFilter)}>Lọc theo ngày</button>
       </div>
-      {showDateFilter && (
-        <div className="p-2 border rounded bg-white shadow-lg">
-          <button className="w-full text-left p-2 font-semibold" onClick={() => setShowDateSuggestions(!showDateSuggestions)}>
-            Gợi ý thời gian
-          </button>
-          {showDateSuggestions && (
-            <div>
-              {[7, 30, 90].map(days => (
-                <button key={days} className="block w-full p-2 text-left hover:bg-gray-200" onClick={() => handleDateFilter(days)}>
-                  {days} ngày trước
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="mt-2">
-            <p className="text-sm">Chọn khoảng thời gian</p>
-            <div className="flex gap-2 mt-2">
-              {[startDate, endDate].map((date, index) => (
-                <div key={index} className="relative w-1/2">
-                  <FaCalendarAlt className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500" />
-                  <input 
-                    type="date" 
-                    className="border p-1 pl-8 rounded text-sm w-full" 
-                    value={date} 
-                    onChange={(e) => index === 0 ? setStartDate(e.target.value) : setEndDate(e.target.value)}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
       <div className="mt-4">
         {[...new Set(filteredData.map(item => item.date))].map(date => (
           <div key={date} className="mt-4">
             <h2 className="font-bold text-base text-gray-700">Ngày {date}</h2>
             <div className={`grid ${activeTab === "images" ? "grid-cols-4" : "grid-cols-1"} gap-2 mt-2`}>
-              {filteredData.filter(item => item.date === date).map((item, index) => (                                            
+              {filteredData.filter(item => item.date === date).map((item, index) => (                                           
                 <div key={index}>
                   {activeTab === "images" && item.url && (
                     <img src={item.url} alt="Hình ảnh" className="h-20 w-20 object-cover" />

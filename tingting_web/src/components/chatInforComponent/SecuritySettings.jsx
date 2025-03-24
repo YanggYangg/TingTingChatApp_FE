@@ -1,14 +1,29 @@
-import React, { useState } from "react";
-import Switch from "react-switch"; // Import react-switch
-import { FaExclamationTriangle, FaTrash, FaDoorOpen } from "react-icons/fa";
+import React, { useState, useEffect } from "react";
+import Switch from "react-switch";
+import { FaExclamationTriangle, FaTrash, FaDoorOpen, FaBell, FaBellSlash } from "react-icons/fa";
+import axios from "axios";
 
-const SecuritySettings = ({type}) => {
-  const [isHidden, setIsHidden] = useState(false); // State điều khiển switch
-  const [pin, setPin] = useState(""); // State lưu mã PIN
-  const [showPinInput, setShowPinInput] = useState(false); // State hiển thị form nhập PIN
+const SecuritySettings = ({ chatId }) => {
+  const [isHidden, setIsHidden] = useState(false);
+  const [pin, setPin] = useState("");
+  const [showPinInput, setShowPinInput] = useState(false);
+  const [isGroup, setIsGroup] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+
+  useEffect(() => {
+    const fetchChatInfo = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/conversations/${chatId}`);
+        setIsGroup(response.data.isGroup);
+        setIsMuted(response.data.isMuted);
+      } catch (error) {
+        console.error("Lỗi khi lấy thông tin cuộc trò chuyện:", error);
+      }
+    };
+    fetchChatInfo();
+  }, [chatId]);
 
   const handleToggle = (checked) => {
-    console.log(`Ẩn trò chuyện: ${checked ? "Bật" : "Tắt"}`);
     if (checked) {
       setShowPinInput(true);
     } else {
@@ -22,36 +37,62 @@ const SecuritySettings = ({type}) => {
     if (pin.length === 4) {
       setIsHidden(true);
       setShowPinInput(false);
-      console.log("Mã PIN đã nhập:", pin);
-      console.log("Ẩn trò chuyện đã được kích hoạt!");
     } else {
       alert("Mã PIN phải có 4 chữ số!");
-      console.log("Mã PIN không hợp lệ!");
     }
   };
 
-  const handleReport = () => {
-    console.log("Người dùng đã nhấn vào Báo xấu!");
+  const handleReport = async () => {
+    try {
+      await axios.post(`http://localhost:5000/conversations/${chatId}/report`);
+      alert("Đã gửi báo cáo thành công!");
+    } catch (error) {
+      console.error("Lỗi khi báo cáo cuộc trò chuyện:", error);
+    }
   };
 
-  const handleDeleteHistory = () => {
-    console.log("Người dùng đã nhấn vào Xóa lịch sử trò chuyện!");
+  const handleDeleteHistory = async () => {
+    try {
+      await axios.delete(`http://localhost:5000/conversations/${chatId}/messages`);
+      alert("Đã xóa lịch sử trò chuyện!");
+    } catch (error) {
+      console.error("Lỗi khi xóa lịch sử trò chuyện:", error);
+    }
   };
 
-  const handleLeaveGroup = () => {
-    console.log("Người dùng đã nhấn vào Rời nhóm!");
+  const handleLeaveGroup = async () => {
+    try {
+      await axios.delete(`http://localhost:5000/conversations/${chatId}/participants`);
+      alert("Bạn đã rời khỏi nhóm!");
+    } catch (error) {
+      console.error("Lỗi khi rời nhóm:", error);
+    }
+  };
+
+  const toggleMute = async () => {
+    try {
+      await axios.put(`http://localhost:5000/conversations/${chatId}/mute`, {
+        isMuted: !isMuted,
+      });
+      setIsMuted(!isMuted);
+    } catch (error) {
+      console.error("Lỗi khi cập nhật trạng thái thông báo:", error);
+    }
   };
 
   return (
     <div className="mb-4">
       <h3 className="text-md font-semibold mb-2">Thiết lập bảo mật</h3>
 
+      {/* Bật/tắt thông báo */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm">Tin nhắn tự xóa</span>
-        <span className="text-xs text-gray-500">Chỉ dành cho trưởng hoặc phó nhóm</span>
+        <span className="text-sm">Thông báo</span>
+        <button onClick={toggleMute} className="text-gray-600 hover:text-gray-800">
+          {isMuted ? <FaBellSlash size={18} /> : <FaBell size={18} />}
+        </button>
       </div>
 
-      {/* Ẩn trò chuyện - sử dụng react-switch */}
+      {/* Ẩn trò chuyện */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm">Ẩn trò chuyện</span>
         <Switch
@@ -103,14 +144,14 @@ const SecuritySettings = ({type}) => {
         <FaTrash size={16} />
         Xóa lịch sử trò chuyện
       </button>
-      {type === "group" && (
-      <button
-        className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
-        onClick={handleLeaveGroup}
-      >
-        <FaDoorOpen size={16} />
-        Rời nhóm
-      </button>
+      {isGroup && (
+        <button
+          className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
+          onClick={handleLeaveGroup}
+        >
+          <FaDoorOpen size={16} />
+          Rời nhóm
+        </button>
       )}
     </div>
   );

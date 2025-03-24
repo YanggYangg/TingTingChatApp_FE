@@ -2,23 +2,22 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import StoragePage from "./StoragePage";
 
-const GroupMediaGallery = ({chatId}) => {
+const GroupMediaGallery = ({ chatId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [images, setImages] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [uploading, setUploading] = useState(false);
-  // const chatId = "67e0eda53261750c58989c24";
 
   useEffect(() => {
     const fetchImages = async () => {
       try {
         const response = await axios.get(`http://localhost:5000/messages/${chatId}/media`);
         const filteredImages = response.data
-          .filter(item => item.message.messageType === "image") // Chỉ lấy tin nhắn có ảnh
+          .filter(item => item.message.messageType === "image")
           .map(item => ({
-            src: item.message.linkURL, // Đường dẫn ảnh
-            name: item.message.content, // Tên ảnh
+            src: item.message.linkURL,
+            name: item.message.content,
           }));
         setImages(filteredImages);
       } catch (error) {
@@ -35,7 +34,7 @@ const GroupMediaGallery = ({chatId}) => {
     const file = event.target.files[0];
     if (file) {
       setSelectedFile(file);
-      setPreviewImage(URL.createObjectURL(file)); // Hiển thị ảnh preview
+      setPreviewImage(URL.createObjectURL(file));
     }
   };
 
@@ -84,9 +83,7 @@ const GroupMediaGallery = ({chatId}) => {
             <img
               src={img.src}
               alt={img.name}
-              className={`w-16 h-16 rounded-md object-cover ${
-                img.isTemporary ? "opacity-50" : ""
-              }`}
+              className={`w-16 h-16 rounded-md object-cover ${img.isTemporary ? "opacity-50" : ""}`}
             />
             {img.isTemporary && (
               <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50">
@@ -100,9 +97,7 @@ const GroupMediaGallery = ({chatId}) => {
       <input type="file" accept="image/*" onChange={handleFileChange} className="mt-2" />
       <button
         onClick={handleUpload}
-        className={`mt-2 w-full text-white text-sm px-4 py-2 rounded ${
-          uploading ? "bg-gray-500" : "bg-blue-500 hover:bg-blue-600"
-        }`}
+        className={`mt-2 w-full text-white text-sm px-4 py-2 rounded ${uploading ? "bg-gray-500" : "bg-blue-500 hover:bg-blue-600"}`}
         disabled={uploading}
       >
         {uploading ? "Đang gửi..." : "Tải lên ảnh"}
@@ -115,7 +110,7 @@ const GroupMediaGallery = ({chatId}) => {
         Xem tất cả
       </button>
 
-      {isOpen && <StoragePage onClose={() => setIsOpen(false)} />}
+      {isOpen && <StoragePage images={images} onClose={() => setIsOpen(false)} />}
     </div>
   );
 };

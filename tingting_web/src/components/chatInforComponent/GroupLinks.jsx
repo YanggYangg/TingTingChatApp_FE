@@ -55,7 +55,7 @@ const GroupLinks = ({chatId}) => {
         Xem tất cả
       </button>
 
-      {isOpen && <StoragePage onClose={() => setIsOpen(false)} />}
+      {isOpen && <StoragePage links={links} onClose={() => setIsOpen(false)} />}
     </div>
   );
 };

@@ -50,7 +50,8 @@ const GroupFile = ({chatId}) => {
       >
         Xem tất cả
       </button>
-      {isOpen && <StoragePage onClose={() => setIsOpen(false)} />}
+      {/* {isOpen && <StoragePage onClose={() => setIsOpen(false)} />} */}
+      {isOpen && <StoragePage files={files} onClose={() => setIsOpen(false)} />}
     </div>
   );
 };
