@@ -2,40 +2,40 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import StoragePage from "./StoragePage";
 
-const DEFAULT_CONVERSATION_ID = "67ddbca30d5c131f4d051593"; // ID mặc định để test
-
-const GroupMediaGallery = ({ conversationId = DEFAULT_CONVERSATION_ID, userId }) => {
+const GroupMediaGallery = ({chatId}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [images, setImages] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [uploading, setUploading] = useState(false);
+  // const chatId = "67e0eda53261750c58989c24";
 
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const response = await axios.get(
-          `http://localhost:5000/api/messages/${conversationId}`
-        );
-        const imageMessages = response.data.filter(
-          (msg) => msg.sender[0].messageType === "image"
-        );
-        setImages(imageMessages.map((msg) => msg.sender[0].content));
+        const response = await axios.get(`http://localhost:5000/messages/${chatId}/media`);
+        const filteredImages = response.data
+          .filter(item => item.message.messageType === "image") // Chỉ lấy tin nhắn có ảnh
+          .map(item => ({
+            src: item.message.linkURL, // Đường dẫn ảnh
+            name: item.message.content, // Tên ảnh
+          }));
+        setImages(filteredImages);
       } catch (error) {
         console.error("Lỗi khi lấy danh sách ảnh:", error);
       }
     };
 
-    if (conversationId) {
+    if (chatId) {
       fetchImages();
     }
-  }, [conversationId]);
+  }, [chatId]);
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
       setSelectedFile(file);
-      setPreviewImage(URL.createObjectURL(file)); // Hiển thị ảnh tượng trưng
+      setPreviewImage(URL.createObjectURL(file)); // Hiển thị ảnh preview
     }
   };
 
@@ -46,14 +46,13 @@ const GroupMediaGallery = ({ conversationId = DEFAULT_CONVERSATION_ID, userId })
     }
 
     setUploading(true);
-    
+
     const tempImage = { src: previewImage, isTemporary: true };
     setImages((prevImages) => [tempImage, ...prevImages]);
 
     const formData = new FormData();
     formData.append("image", selectedFile);
-    formData.append("conversationId", conversationId);
-    formData.append("userId", userId);
+    formData.append("chatId", chatId);
 
     try {
       const response = await axios.post(
@@ -79,12 +78,12 @@ const GroupMediaGallery = ({ conversationId = DEFAULT_CONVERSATION_ID, userId })
   return (
     <div className="mb-4">
       <h3 className="text-md font-semibold mb-2">Ảnh/Video</h3>
-      <div className="grid grid-cols-4 grid-rows-2 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {images.slice(0, 8).map((img, index) => (
           <div key={index} className="relative">
             <img
-              src={img.src || img}
-              alt="media"
+              src={img.src}
+              alt={img.name}
               className={`w-16 h-16 rounded-md object-cover ${
                 img.isTemporary ? "opacity-50" : ""
               }`}
@@ -98,12 +97,7 @@ const GroupMediaGallery = ({ conversationId = DEFAULT_CONVERSATION_ID, userId })
         ))}
       </div>
 
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        className="mt-2"
-      />
+      <input type="file" accept="image/*" onChange={handleFileChange} className="mt-2" />
       <button
         onClick={handleUpload}
         className={`mt-2 w-full text-white text-sm px-4 py-2 rounded ${
@@ -111,7 +105,7 @@ const GroupMediaGallery = ({ conversationId = DEFAULT_CONVERSATION_ID, userId })
         }`}
         disabled={uploading}
       >
-        {uploading ? "Đang gửi..." : "Upload Ảnh"}
+        {uploading ? "Đang gửi..." : "Tải lên ảnh"}
       </button>
 
       <button

@@ -1,15 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { FaRegFolderOpen } from "react-icons/fa";
 import StoragePage from "./StoragePage";
 
-const GroupFile = () => {
+const GroupFile = ({chatId}) => {
+  // const chatId = "67e0eda53261750c58989c24";
   const [isOpen, setIsOpen] = useState(false);
-  
-  const files = [
-    { name: "Tài liệu 1.pdf", url: "https://example.com/tailieu1.pdf" },
-    { name: "Hướng dẫn sử dụng.docx", url: "https://example.com/huongdan.docx" },
-    { name: "Báo cáo tài chính.xlsx", url: "https://example.com/baocao.xlsx" },
-  ];
+  const [files, setFiles] = useState([]);
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/messages/${chatId}/files`);
+        const filteredFiles = response.data
+          .filter(item => item.message.messageType === "file") // Lọc tin nhắn kiểu file
+          .map(item => ({
+            name: item.message.content, // Tên file
+            url: item.message.linkURL  // Đường dẫn file
+          }));
+        setFiles(filteredFiles);
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách file:", error);
+      }
+    };
+
+    fetchFiles();
+  }, [chatId]);
+
+  console.log(files);
 
   return (
     <div className="mb-4">
@@ -32,7 +50,6 @@ const GroupFile = () => {
       >
         Xem tất cả
       </button>
-      
       {isOpen && <StoragePage onClose={() => setIsOpen(false)} />}
     </div>
   );
