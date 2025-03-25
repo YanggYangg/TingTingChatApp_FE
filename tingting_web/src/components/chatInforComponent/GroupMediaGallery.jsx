@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import StoragePage from "./StoragePage";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
 const GroupMediaGallery = ({ chatId }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,19 +15,29 @@ const GroupMediaGallery = ({ chatId }) => {
 
     const fetchImages = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/messages/${chatId}/media`);
-        console.log("API trả về:", response.data);
+        console.log("🔍 Đang lấy dữ liệu từ API...");
+        const response = await Api_chatInfo.getChatMedia(chatId);
 
-        const filteredImages = response.data
-          .filter(item => item?.messageType === "image") // Kiểm tra đúng messageType
-          .map(item => ({
-            src: item?.linkURL || "#",
-            name: item?.content || "Không có tên",
-          }));
+        console.log("✅ Dữ liệu API nhận được:", response);
 
-        setImages(filteredImages);
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách ảnh:", error);
+        const mediaData = Array.isArray(response?.data) ? response.data : response;
+
+        if (Array.isArray(mediaData)) {
+          const filteredImages = mediaData
+            .filter((item) => item?.messageType === "image")
+            .map((item) => ({
+              src: item?.linkURL || "#",
+              name: item?.content || "Không có tên",
+            }));
+
+          setImages(filteredImages);
+        } else {
+          console.warn("⚠️ API không trả về dữ liệu hợp lệ.");
+          setImages([]);
+        }
+      }
+      catch (error) {
+        console.error("❌ Lỗi khi lấy dữ liệu ảnh:", error);
       }
     };
 
@@ -49,7 +60,6 @@ const GroupMediaGallery = ({ chatId }) => {
 
     setUploading(true);
 
-    // Thêm ảnh tạm thời vào danh sách
     const tempImage = { src: previewImage, isTemporary: true };
     setImages((prevImages) => [tempImage, ...prevImages]);
 
@@ -64,17 +74,18 @@ const GroupMediaGallery = ({ chatId }) => {
         { headers: { "Content-Type": "multipart/form-data" } }
       );
 
-      setImages((prevImages) => [
-        { src: response.data.imageUrl, isTemporary: false },
-        ...prevImages.filter((img) => !img.isTemporary),
-      ]);
+      setImages((prevImages) =>
+        prevImages.map((img) =>
+          img.isTemporary ? { src: response.data.imageUrl, isTemporary: false } : img
+        )
+      );
 
-      // Reset trạng thái sau khi tải lên thành công
       setPreviewImage(null);
       setSelectedFile(null);
     } catch (error) {
       console.error("Lỗi khi tải ảnh lên:", error);
       alert("Lỗi khi tải ảnh lên!");
+      setImages((prevImages) => prevImages.filter((img) => !img.isTemporary));
     } finally {
       setUploading(false);
     }

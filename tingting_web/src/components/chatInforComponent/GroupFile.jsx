@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FaRegFolderOpen } from "react-icons/fa";
 import StoragePage from "./StoragePage";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
 const GroupFile = ({ chatId }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,30 +10,31 @@ const GroupFile = ({ chatId }) => {
 
   useEffect(() => {
     if (!chatId) return;
-  
+
     const fetchFiles = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/messages/${chatId}/files`);
-        console.log("Dữ liệu API trả về:", response.data); // Debug API response
-  
-        const filteredFiles = response.data
-          .filter(item => item?.messageType === "file") // Kiểm tra chắc chắn messageType là "file"
-          .map(item => ({
-            name: item?.content || "Không có tên", // Lấy tên file từ content
-            url: item?.linkURL || "#", // Lấy đường dẫn file
-            date: item?.createdAt?.split("T")[0] || "Không có ngày", // Lấy ngày gửi
-            sender: item?.userId || "Không rõ người gửi", // Lấy thông tin người gửi
-          }));
-  
-        setFiles(filteredFiles);
+        console.log("🔍 Gửi request đến API...");
+        const response = await Api_chatInfo.getChatFiles(chatId);
+        
+        console.log("✅ Dữ liệu API trả về:", response); // Kiểm tra toàn bộ response
+        
+        // Kiểm tra nếu response là một mảng hoặc nếu response.data là mảng
+        const fileData = Array.isArray(response) ? response : response?.data;
+        
+        if (Array.isArray(fileData)) {
+          setFiles(fileData);
+        } else {
+          setFiles([]);
+          console.warn("⚠️ API không trả về mảng hợp lệ");
+        }
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách file:", error);
+        console.error("❌ Lỗi khi lấy danh sách file:", error);
       }
     };
-  
+
     fetchFiles();
   }, [chatId]);
-  
+
   return (
     <div className="mb-4">
       <h3 className="text-md font-semibold mb-2">Tệp tin</h3>
@@ -40,8 +42,8 @@ const GroupFile = ({ chatId }) => {
         {files.length > 0 ? (
           files.map((file, index) => (
             <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
-              <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm font-semibold">
-                {file.name}
+              <a href={file.linkURL} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm font-semibold">
+                {file.content || "Không có tên"}
               </a>
               <button className="text-gray-500 hover:text-blue-500">
                 <FaRegFolderOpen size={18} />

@@ -1,32 +1,42 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { AiOutlineLink } from "react-icons/ai";
 import StoragePage from "./StoragePage";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
 const GroupLinks = ({ chatId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [links, setLinks] = useState([]);
 
   useEffect(() => {
-    if (!chatId) return; // Nếu chatId không tồn tại, thoát khỏi useEffect
+    if (!chatId) return; // Kiểm tra chatId trước khi fetch
 
     const fetchLinks = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/messages/${chatId}/links`);
-        console.log("Dữ liệu API trả về:", response.data); // Debug API response
+        console.log("🔍 Gửi request đến API...");
+        const response = await Api_chatInfo.getChatLinks(chatId); // Giả sử API này trả về cả link
 
-        const filteredLinks = response.data
-          .filter(item => item?.messageType === "link") // Kiểm tra đúng messageType
-          .map(item => ({
-            title: item?.content || "Không có tiêu đề", // Lấy tiêu đề link
-            url: item?.linkURL || "#", // Lấy đường dẫn link
-            date: item?.createdAt?.split("T")[0] || "Không có ngày", // Lấy ngày gửi
-            sender: item?.userId || "Không rõ người gửi", // Lấy người gửi
-          }));
+        console.log("✅ Dữ liệu API trả về:", response); // Kiểm tra toàn bộ response
 
-        setLinks(filteredLinks);
+        // Kiểm tra nếu response là một mảng hoặc nếu response.data là mảng
+        const linkData = Array.isArray(response) ? response : response?.data;
+
+        if (Array.isArray(linkData)) {
+          const filteredLinks = linkData
+            .filter(item => item?.messageType === "link") // Lọc tin nhắn là link
+            .map(item => ({
+              title: item?.content || "Không có tiêu đề",
+              url: item?.linkURL || "#",
+              date: item?.createdAt?.split("T")[0] || "Không có ngày",
+              sender: item?.userId || "Không rõ người gửi",
+            }));
+
+          setLinks(filteredLinks);
+        } else {
+          setLinks([]);
+          console.warn("⚠️ API không trả về mảng hợp lệ");
+        }
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách link:", error);
+        console.error("❌ Lỗi khi lấy danh sách link:", error);
       }
     };
 

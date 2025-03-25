@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useState, useEffect, useMemo } from "react";
 import { FaCalendarAlt } from "react-icons/fa";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
 const StoragePage = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState("images");
@@ -13,57 +13,57 @@ const StoragePage = ({ onClose }) => {
   const chatId = "67e2d6bef1ea6ac96f10bf91";
 
   useEffect(() => {
-    if (!chatId) return;
-
     const fetchData = async () => {
       try {
         const [imagesRes, filesRes, linksRes] = await Promise.all([
-          axios.get(`http://localhost:5000/messages/${chatId}/media`),
-          axios.get(`http://localhost:5000/messages/${chatId}/files`),
-          axios.get(`http://localhost:5000/messages/${chatId}/links`),
+          Api_chatInfo.getChatMedia(chatId),
+          Api_chatInfo.getChatFiles(chatId),
+          Api_chatInfo.getChatLinks(chatId),
         ]);
 
-        setData({
-          images: imagesRes.data.map(item => ({
-            url: item.linkURL,
-            date: item.createdAt.split("T")[0],
-            sender: item.userId,
+        const imagesArray = Array.isArray(imagesRes) ? imagesRes : [];
+        const filesArray = Array.isArray(filesRes) ? filesRes : [];
+        const linksArray = Array.isArray(linksRes) ? linksRes : [];
+
+        const newData = {
+          images: imagesArray.map((item) => ({
+            url: item.linkURL || "#",
+            date: item.createdAt?.split("T")[0] || "",
+            sender: item.userId || "Unknown",
           })),
-          files: filesRes.data.map(item => ({
-            name: item.content,
-            url: item.linkURL,
-            date: item.createdAt.split("T")[0],
-            sender: item.userId,
+          files: filesArray.map((item) => ({
+            name: item.content || "Không có tên",
+            url: item.linkURL || "#",
+            date: item.createdAt?.split("T")[0] || "",
+            sender: item.userId || "Unknown",
           })),
-          links: linksRes.data.map(item => ({
-            title: item.content,
-            url: item.linkURL,
-            date: item.createdAt.split("T")[0],
-            sender: item.userId,
+          links: linksArray.map((item) => ({
+            title: item.content || "Không có tiêu đề",
+            url: item.linkURL || "#",
+            date: item.createdAt?.split("T")[0] || "",
+            sender: item.userId || "Unknown",
           })),
-        });
+        };
+
+        setData(newData);
       } catch (error) {
         console.error("Lỗi khi lấy dữ liệu:", error);
       }
     };
 
-    fetchData();
+    if (chatId) {
+      fetchData();
+    }
   }, [chatId]);
 
-  const getUniqueSenders = () => ["Tất cả", ...new Set(data[activeTab].map(item => item.sender))];
-
-  const handleDateFilter = (days) => {
-    const today = new Date();
-    const pastDate = new Date(today.setDate(today.getDate() - days)).toISOString().split("T")[0];
-    setStartDate(pastDate);
-    setEndDate("");
-  };
-
-  const filteredData = data[activeTab].filter(item =>
-    (filterSender === "Tất cả" || item.sender === filterSender) &&
-    (!startDate || new Date(item.date) >= new Date(startDate)) &&
-    (!endDate || new Date(item.date) <= new Date(endDate))
-  );
+  const filteredData = useMemo(() => {
+    return (data[activeTab] || []).filter(
+      (item) =>
+        (filterSender === "Tất cả" || item.sender === filterSender) &&
+        (!startDate || new Date(item.date) >= new Date(startDate)) &&
+        (!endDate || new Date(item.date) <= new Date(endDate))
+    );
+  }, [data, activeTab, filterSender, startDate, endDate]);
 
   return (
     <div className="absolute right-0 top-0 h-full w-[410px] bg-white shadow-lg p-4 overflow-y-auto">
@@ -72,7 +72,7 @@ const StoragePage = ({ onClose }) => {
         <h1 className="text-xl font-bold text-center">Kho lưu trữ</h1>
       </div>
       <div className="flex border-b justify-between">
-        {["images", "files", "links"].map(tab => (
+        {["images", "files", "links"].map((tab) => (
           <button
             key={tab}
             className={`px-4 py-2 font-medium ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"}`}
@@ -82,67 +82,42 @@ const StoragePage = ({ onClose }) => {
           </button>
         ))}
       </div>
-      <div className="flex gap-2 my-2">
-        <select className="border p-1 rounded text-sm w-1/2" value={filterSender} onChange={(e) => setFilterSender(e.target.value)}>
-          {getUniqueSenders().map(sender => (
-            <option key={sender} value={sender}>{sender}</option>
-          ))}
-        </select>
-        <button className="border p-1 rounded text-sm" onClick={() => setShowDateFilter(!showDateFilter)}>Lọc theo ngày</button>
-      </div>
-      {showDateFilter && (
-        <div className="p-2 border rounded bg-white shadow-lg">
-          <button className="w-full text-left p-2 font-semibold" onClick={() => setShowDateSuggestions(!showDateSuggestions)}>
-            Gợi ý thời gian
-          </button>
-          {showDateSuggestions && (
-            <div>
-              {[7, 30, 90].map(days => (
-                <button key={days} className="block w-full p-2 text-left hover:bg-gray-200" onClick={() => handleDateFilter(days)}>
-                  {days} ngày trước
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="mt-2">
-            <p className="text-sm">Chọn khoảng thời gian</p>
-            <div className="flex gap-2 mt-2">
-              {[startDate, endDate].map((date, index) => (
-                <div key={index} className="relative w-1/2">
-                  <FaCalendarAlt className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500" />
-                  <input 
-                    type="date" 
-                    className="border p-1 pl-8 rounded text-sm w-full" 
-                    value={date} 
-                    onChange={(e) => index === 0 ? setStartDate(e.target.value) : setEndDate(e.target.value)}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
       <div className="mt-4">
-        {[...new Set(filteredData.map(item => item.date))].map(date => (
-          <div key={date} className="mt-4">
-            <h2 className="font-bold text-base text-gray-700">Ngày {date}</h2>
-            <div className={`grid ${activeTab === "images" ? "grid-cols-4" : "grid-cols-1"} gap-2 mt-2`}>
-              {filteredData.filter(item => item.date === date).map((item, index) => (                                            
-                <div key={index}>
-                  {activeTab === "images" && item.url && (
-                    <img src={item.url} alt="Hình ảnh" className="h-20 w-20 object-cover" />
-                  )}
-                  {activeTab === "files" && item.name && (
-                    <p className="text-sm text-gray-600 truncate border p-2 rounded">{item.name}</p>
-                  )}
-                  {activeTab === "links" && item.url && (
-                    <a href={item.url} className="text-blue-500 text-base font-medium block text-left break-words border p-2 rounded w-full">{item.url}</a>
-                  )}
+        {activeTab === "images" ? (
+          <div className="grid grid-cols-4 gap-2">
+            {filteredData.length > 0 ? (
+              filteredData.map((item, index) => (
+                <div key={index} className="relative">
+                  <img src={item.url} alt="Media" className="w-full h-20 object-cover rounded-md" />
+                  <p className="text-xs text-gray-500 text-center mt-1">{item.date}</p>
                 </div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <p className="text-gray-500">Không có dữ liệu</p>
+            )}
           </div>
-        ))}
+        ) : (
+          filteredData.length > 0 ? (
+            filteredData.map((item, index) => (
+              <div key={index} className="border p-2 rounded mb-2">
+                {activeTab === "files" && (
+                  <div>
+                    <p className="font-bold">{item.name}</p>
+                    <a href={item.url} className="text-blue-500" target="_blank" rel="noopener noreferrer">Tải xuống</a>
+                  </div>
+                )}
+                {activeTab === "links" && (
+                  <div>
+                    <p className="font-bold">{item.title}</p>
+                    <a href={item.url} className="text-blue-500" target="_blank" rel="noopener noreferrer">Truy cập</a>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">Không có dữ liệu</p>
+          )
+        )}
       </div>
     </div>
   );
