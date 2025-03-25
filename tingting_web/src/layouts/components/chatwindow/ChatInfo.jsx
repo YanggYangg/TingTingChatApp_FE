@@ -13,7 +13,7 @@ const ChatInfo = () => {
   const [chatInfo, setChatInfo] = useState(null);
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const chatId = "67e0eda53261750c58989c24";
+  const chatId = "67e2bf002a0d6ba06877e3f9";
 
   useEffect(() => {
     const fetchChatInfo = async () => {
@@ -36,7 +36,7 @@ const ChatInfo = () => {
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(chatInfo?.inviteLink || "https://zalo.me/g/bamwwg826");
+    navigator.clipboard.writeText(chatInfo?.linkGroup || "https://zalo.me/g/bamwwg826");
     alert("Đã sao chép link nhóm!");
   };
 
@@ -69,10 +69,10 @@ const ChatInfo = () => {
 
         <GroupMemberList chatInfo={chatInfo} />
 
-        {chatInfo.inviteLink && (
+        {chatInfo.linkGroup && (
           <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
             <p className="text-sm font-semibold">Link tham gia nhóm</p>
-            <a href={chatInfo.inviteLink} className="text-blue-500 text-sm">{chatInfo.inviteLink}</a>
+            <a href={chatInfo.linkGroup} className="text-blue-500 text-sm">{chatInfo.linkGroup}</a>
             <button onClick={copyToClipboard} className="text-gray-500 hover:text-blue-500">
               <AiOutlineCopy size={20} />
             </button>
