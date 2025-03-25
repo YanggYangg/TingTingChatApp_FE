@@ -10,11 +10,11 @@ const StoragePage = ({ onClose }) => {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [showDateSuggestions, setShowDateSuggestions] = useState(false);
   const [data, setData] = useState({ images: [], files: [], links: [] });
-  const chatId = "67e0eda53261750c58989c24";
+  const chatId = "67e2d6bef1ea6ac96f10bf91";
 
   useEffect(() => {
     if (!chatId) return;
-    
+
     const fetchData = async () => {
       try {
         const [imagesRes, filesRes, linksRes] = await Promise.all([
@@ -25,21 +25,21 @@ const StoragePage = ({ onClose }) => {
 
         setData({
           images: imagesRes.data.map(item => ({
-            url: item.message.linkURL,
+            url: item.linkURL,
             date: item.createdAt.split("T")[0],
-            sender: item.message.userId,
+            sender: item.userId,
           })),
           files: filesRes.data.map(item => ({
-            name: item.message.content,
-            url: item.message.linkURL,
+            name: item.content,
+            url: item.linkURL,
             date: item.createdAt.split("T")[0],
-            sender: item.message.userId,
+            sender: item.userId,
           })),
           links: linksRes.data.map(item => ({
-            title: item.message.content,
-            url: item.message.linkURL,
+            title: item.content,
+            url: item.linkURL,
             date: item.createdAt.split("T")[0],
-            sender: item.message.userId,
+            sender: item.userId,
           })),
         });
       } catch (error) {

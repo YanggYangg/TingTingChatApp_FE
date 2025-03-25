@@ -13,7 +13,7 @@ const ChatInfo = () => {
   const [chatInfo, setChatInfo] = useState(null);
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const chatId = "67e2bf002a0d6ba06877e3f9";
+  const chatId = "67e2d6bef1ea6ac96f10bf91";
 
   useEffect(() => {
     const fetchChatInfo = async () => {

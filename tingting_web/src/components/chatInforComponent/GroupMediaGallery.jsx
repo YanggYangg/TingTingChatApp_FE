@@ -10,24 +10,27 @@ const GroupMediaGallery = ({ chatId }) => {
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
+    if (!chatId) return;
+
     const fetchImages = async () => {
       try {
         const response = await axios.get(`http://localhost:5000/messages/${chatId}/media`);
+        console.log("API trả về:", response.data);
+
         const filteredImages = response.data
-          .filter(item => item.message.messageType === "image")
+          .filter(item => item?.messageType === "image") // Kiểm tra đúng messageType
           .map(item => ({
-            src: item.message.linkURL,
-            name: item.message.content,
+            src: item?.linkURL || "#",
+            name: item?.content || "Không có tên",
           }));
+
         setImages(filteredImages);
       } catch (error) {
         console.error("Lỗi khi lấy danh sách ảnh:", error);
       }
     };
 
-    if (chatId) {
-      fetchImages();
-    }
+    fetchImages();
   }, [chatId]);
 
   const handleFileChange = (event) => {
@@ -46,6 +49,7 @@ const GroupMediaGallery = ({ chatId }) => {
 
     setUploading(true);
 
+    // Thêm ảnh tạm thời vào danh sách
     const tempImage = { src: previewImage, isTemporary: true };
     setImages((prevImages) => [tempImage, ...prevImages]);
 
@@ -64,6 +68,8 @@ const GroupMediaGallery = ({ chatId }) => {
         { src: response.data.imageUrl, isTemporary: false },
         ...prevImages.filter((img) => !img.isTemporary),
       ]);
+
+      // Reset trạng thái sau khi tải lên thành công
       setPreviewImage(null);
       setSelectedFile(null);
     } catch (error) {

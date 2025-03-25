@@ -3,30 +3,34 @@ import axios from "axios";
 import { AiOutlineLink } from "react-icons/ai";
 import StoragePage from "./StoragePage";
 
-const GroupLinks = ({chatId}) => {
-  // const chatId = "67e0eda53261750c58989c24";
+const GroupLinks = ({ chatId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [links, setLinks] = useState([]);
 
   useEffect(() => {
+    if (!chatId) return; // Nếu chatId không tồn tại, thoát khỏi useEffect
+
     const fetchLinks = async () => {
       try {
         const response = await axios.get(`http://localhost:5000/messages/${chatId}/links`);
+        console.log("Dữ liệu API trả về:", response.data); // Debug API response
+
         const filteredLinks = response.data
-          .filter(item => item.message.messageType === "link") // Chỉ lấy tin nhắn chứa link
+          .filter(item => item?.messageType === "link") // Kiểm tra đúng messageType
           .map(item => ({
-            title: item.message.content, // Tiêu đề link
-            url: item.message.linkURL, // Đường dẫn link
+            title: item?.content || "Không có tiêu đề", // Lấy tiêu đề link
+            url: item?.linkURL || "#", // Lấy đường dẫn link
+            date: item?.createdAt?.split("T")[0] || "Không có ngày", // Lấy ngày gửi
+            sender: item?.userId || "Không rõ người gửi", // Lấy người gửi
           }));
+
         setLinks(filteredLinks);
       } catch (error) {
         console.error("Lỗi khi lấy danh sách link:", error);
       }
     };
 
-    if (chatId) {
-      fetchLinks();
-    }
+    fetchLinks();
   }, [chatId]);
 
   return (
