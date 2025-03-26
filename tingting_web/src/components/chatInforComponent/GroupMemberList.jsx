@@ -1,27 +1,46 @@
 import { useState } from "react";
-import MemberListModal from "./MemberListModal "; // Thêm import
+import MemberListModal from "./MemberListModal";
+import CommonGroupsModal from "./CommonGroupsModal"; // Thêm import modal nhóm chung
 
 const GroupMemberList = ({ chatInfo }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMemberModalOpen, setMemberModalOpen] = useState(false);
+  const [isGroupModalOpen, setGroupModalOpen] = useState(false);
 
-  if (!chatInfo) return null; // Kiểm tra nếu chưa có dữ liệu
+  if (!chatInfo) return null;
 
   return (
     <div className="mb-4">
-      <h3 className="text-md font-semibold mb-2">Thành viên nhóm</h3>
-      <p
-        className="text-blue-500 cursor-pointer"
-        onClick={() => setIsModalOpen(true)}
-      >
-        {chatInfo.isGroup
-          ? `${chatInfo.participants.length} thành viên`
-          : `${chatInfo.commonGroups || 0} nhóm chung`}
-      </p>
+      <h3 className="text-md font-semibold mb-2">Thông tin hội thoại</h3>
 
+      {/* Hiển thị số thành viên */}
+      {chatInfo.isGroup ? (
+        <p
+          className="text-blue-500 cursor-pointer"
+          onClick={() => setMemberModalOpen(true)}
+        >
+          {chatInfo.participants.length} thành viên
+        </p>
+      ) : (
+        <p
+          className="text-blue-500 cursor-pointer"
+          onClick={() => setGroupModalOpen(true)}
+        >
+          {chatInfo.commonGroups?.length || 0} nhóm chung
+        </p>
+      )}
+
+      {/* Modal danh sách thành viên */}
       <MemberListModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isMemberModalOpen}
+        onClose={() => setMemberModalOpen(false)}
         chatInfo={chatInfo}
+      />
+
+      {/* Modal danh sách nhóm chung */}
+      <CommonGroupsModal
+        isOpen={isGroupModalOpen}
+        onClose={() => setGroupModalOpen(false)}
+        groups={chatInfo.commonGroups}
       />
     </div>
   );
