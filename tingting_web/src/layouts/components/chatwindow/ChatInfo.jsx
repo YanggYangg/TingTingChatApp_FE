@@ -8,9 +8,11 @@ import GroupLinks from "../../../components/chatInforComponent/GroupLinks";
 import SecuritySettings from "../../../components/chatInforComponent/SecuritySettings";
 import MuteNotificationModal from "../../../components/chatInforComponent/MuteNotificationModal";
 import { Api_chatInfo } from "../../../../apis/Api_chatInfo";
+import AddMemberModal from "../../../components/chatInforComponent/AddMemberModal";
 
 const ChatInfo = () => {
   const [chatInfo, setChatInfo] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(true); // Thêm trạng thái loading
@@ -49,6 +51,13 @@ const ChatInfo = () => {
     alert("Đã sao chép link nhóm!");
   };
 
+  const handleAddMember = () => {
+    setIsAddModalOpen(true);
+  };
+
+      
+
+
   if (loading) {
     return <p className="text-center text-gray-500">⏳ Đang tải thông tin chat...</p>;
   }
@@ -79,7 +88,10 @@ const ChatInfo = () => {
         <div className="flex flex-wrap justify-center gap-4 my-4">
           <GroupActionButton icon="mute" text={isMuted ? "Bật thông báo" : "Tắt thông báo"} onClick={handleMuteNotification} />
           <GroupActionButton icon="pin" text="Ghim tin nhắn" onClick={() => console.log("Ghim tin nhắn")} />
-          <GroupActionButton icon="add" text="Thêm thành viên" onClick={() => console.log("Thêm thành viên")} />
+        <GroupActionButton icon="add" text="Thêm thành viên" onClick={handleAddMember} />
+
+<AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+
         </div>
 
         <GroupMemberList chatInfo={chatInfo} />

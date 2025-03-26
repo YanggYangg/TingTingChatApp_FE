@@ -25,7 +25,7 @@ const MemberListModal = ({ isOpen, onClose, chatInfo }) => {
         {chatInfo.participants.map((member, index) => (
           <li key={index} className="py-2 border-b last:border-none flex items-center">
             <img
-              src={member.avatar || "https://via.placeholder.com/40"}
+              src={member.avatar || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTXq8MYeurVYm6Qhjyvzcgx99vXAlT-BGJ1ow&s"}
               alt={member.name || "Người dùng"}
               className="w-10 h-10 rounded-full mr-3"
             />
