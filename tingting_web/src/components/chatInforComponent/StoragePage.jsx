@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
-import { FaCalendarAlt } from "react-icons/fa";
+import React, { useState, useEffect, useMemo } from "react";
+import { FaCalendarAlt, FaArrowLeft } from "react-icons/fa";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { FaRegFolderOpen, FaDownload } from "react-icons/fa";
+import DocViewer, { DocViewerRenderers } from 'react-doc-viewer';
 
 const StoragePage = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState("images");
@@ -13,6 +14,10 @@ const StoragePage = ({ onClose }) => {
   const [data, setData] = useState({ images: [], files: [], links: [] });
   const [fullScreenImage, setFullScreenImage] = useState(null);
   const chatId = "67e2d6bef1ea6ac96f10bf91";
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [isSelecting, setIsSelecting] = useState(false); // Thêm trạng thái chọn
+  const [previewFile, setPreviewFile] = useState(null); // Thêm trạng thái xem trước file
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,11 +40,13 @@ const StoragePage = ({ onClose }) => {
   }, [chatId]);
 
   const formatData = (items) =>
-    (Array.isArray(items) ? items : []).map(({ linkURL, createdAt, userId, content }) => ({
+    (Array.isArray(items) ? items : []).map(({ linkURL, createdAt, userId, content, _id, messageType }) => ({
       url: linkURL || "#",
       date: createdAt?.split("T")[0] || "",
       sender: userId?.name || "Không tên",
       name: content || "Không có tên",
+      id: _id,
+      type: messageType === "video" ? "video" : "image", // Thêm loại media
     }));
 
   const filteredData = useMemo(() =>
@@ -52,7 +59,7 @@ const StoragePage = ({ onClose }) => {
     [data, activeTab, filterSender, startDate, endDate]
   );
 
-  const getUniqueSenders = () => ["Tất cả", ...new Set(data[activeTab].map(item => item.sender))];
+  const getUniqueSenders = () => ["Tất cả", ...new Set(data[activeTab].map((item) => item.sender))];
 
   const handleDateFilter = (days) => {
     const today = new Date();
@@ -98,23 +105,38 @@ const StoragePage = ({ onClose }) => {
     document.body.removeChild(link);
   };
 
-  const DateFilter = ({ showDateSuggestions, setShowDateSuggestions, handleDateFilter, startDate, setStartDate, endDate, setEndDate }) => (
+
+  const handlePreviewFile = (file) => {
+    setPreviewFile(file);
+  };
+
+
+  const DateFilter = ({
+    showDateSuggestions,
+    setShowDateSuggestions,
+    handleDateFilter,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+  }) => (
     <div className="p-2 border rounded bg-white shadow-lg">
       <button
-        className="w-full text-left p-2 font-semibold text-sm" // Chữ nhỏ hơn
+        className="w-full text-left p-2 font-semibold text-sm"
         onClick={() => setShowDateSuggestions(!showDateSuggestions)}
       >
         Gợi ý thời gian
       </button>
-      {showDateSuggestions && [7, 30, 90].map((days) => (
-        <button
-          key={days}
-          className="block w-full p-2 text-left hover:bg-gray-200 text-sm" // Chữ nhỏ hơn
-          onClick={() => handleDateFilter(days)}
-        >
-          {days} ngày trước
-        </button>
-      ))}
+      {showDateSuggestions &&
+        [7, 30, 90].map((days) => (
+          <button
+            key={days}
+            className="block w-full p-2 text-left hover:bg-gray-200 text-sm"
+            onClick={() => handleDateFilter(days)}
+          >
+            {days} ngày trước
+          </button>
+        ))}
       <div className="mt-2">
         <p className="text-sm">Chọn khoảng thời gian</p>
         <div className="flex gap-2 mt-2">
@@ -123,9 +145,9 @@ const StoragePage = ({ onClose }) => {
               <FaCalendarAlt className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500" />
               <input
                 type="date"
-                className="border p-1 pl-8 rounded text-xs w-full" // Chữ nhỏ hơn
+                className="border p-1 pl-8 rounded text-xs w-full"
                 value={date}
-                onChange={(e) => index === 0 ? setStartDate(e.target.value) : setEndDate(e.target.value)}
+                onChange={(e) => (index === 0 ? setStartDate(e.target.value) : setEndDate(e.target.value))}
               />
             </div>
           ))}
@@ -136,43 +158,76 @@ const StoragePage = ({ onClose }) => {
 
   const DateSection = ({ date, data, activeTab }) => (
     <div className="mt-4">
-      <h2 className="font-bold text-sm text-gray-700">Ngày {date.split("-").reverse().join(" Tháng ")}</h2>
-      <div className={`grid ${activeTab === "images" ? "grid-cols-4" : "grid-cols-1"} gap-2 mt-2`}>
+    <h2 className="font-bold text-sm text-gray-800">Ngày {date.split("-").reverse().join(" Tháng ")}</h2>
+      <div className={`grid ${activeTab === "images" ? "grid-cols-4" : "grid-cols-1"} gap-4 mt-2`}>
         {data.filter((item) => item.date === date).map((item, index) => (
-          <div key={index}>
+          <div key={index} className="flex flex-col items-center">
             {activeTab === "images" ? (
-              <img
-                src={item.url}
-                alt={item.name}
-                className="h-20 w-20 object-cover cursor-pointer"
-                onClick={() => setFullScreenImage(item)}
-              />
+              <div className="relative">
+                {isSelecting && (
+                  <input
+                    type="checkbox"
+                    className="absolute top-2 left-2"
+                    checked={selectedItems.includes(item.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedItems([...selectedItems, item.id]);
+                      } else {
+                        setSelectedItems(selectedItems.filter((id) => id !== item.id));
+                      }
+                    }}
+                  />
+                )}
+                {item.type === "image" ? (
+                  <img
+                    src={item.url}
+                    alt={item.name}
+                     className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
+                    onClick={() => setFullScreenImage(item)}
+                  />
+                ) : (
+                  <video
+                    src={item.url}
+                    controls
+                     className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
+                    onClick={() => setFullScreenImage(item)}
+                  />
+                )}
+              </div>
             ) : activeTab === "files" ? (
-              <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
+              <div className="flex items-center justify-between bg-gray-100 p-2 rounded-md relative w-full">
                 <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="#"
+                  onClick={() => handlePreviewFile(item)} // Gọi hàm xem trước
                   className="text-blue-500 text-sm font-semibold"
                 >
                   {item.name || "Không có tên"}
                 </a>
                 <div className="flex gap-2">
-                  {/* Nút mở file */}
-                  <button className="text-gray-500 hover:text-blue-500">
-                    <FaRegFolderOpen size={18} />
-                  </button>
-                  {/* Nút tải xuống */}
                   <button
                     className="text-gray-500 hover:text-blue-500"
-                    onClick={() => handleDownloadFile(item)}
+                    onClick={() => handleDownloadFile(item)} // Gọi hàm tải xuống
                   >
                     <FaDownload size={18} />
                   </button>
                 </div>
               </div>
             ) : (
-              <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
+              <div className="flex items-center justify-between bg-gray-100 p-2 rounded-md relative w-full">
+                {isSelecting && (
+                  <input
+                    type="checkbox"
+                    className="absolute top-2 left-2"
+                    checked={selectedItems.includes(item.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedItems([...selectedItems, item.id]);
+                      } else {
+                        setSelectedItems(selectedItems.filter((id) => id !== item.id));
+                      }
+                    }}
+                  />
+                )}
                 <div>
                   <p className="text-sm font-semibold">{item.name}</p>
                   <a
@@ -191,20 +246,46 @@ const StoragePage = ({ onClose }) => {
       </div>
     </div>
   );
+  const handleDeleteSelected = () => {
+    const newData = {
+      images: data.images.filter((item) => !selectedItems.includes(item.id)),
+      files: data.files.filter((item) => !selectedItems.includes(item.id)),
+      links: data.links.filter((item) => !selectedItems.includes(item.id)),
+    };
+    setData(newData);
+    setSelectedItems([]);
+    setIsSelecting(false); // Tắt chế độ chọn sau khi xóa
+  };
 
   return (
     <div className="absolute right-0 top-0 h-full w-[410px] bg-white shadow-lg p-4 overflow-y-auto">
       <div className="flex justify-between mb-4">
-        <button onClick={onClose} className="text-blue-500 text-sm">Trở về</button> {/* Chữ nhỏ hơn */}
-        <h1 className="text-lg font-bold">Kho lưu trữ</h1> {/* Chữ nhỏ hơn */}
-        <button className="text-blue-500 text-sm">Chọn</button> {/* Chữ nhỏ hơn */}
+        <button onClick={onClose} className="text-blue-500 text-sm">
+          <FaArrowLeft />
+        </button>
+        <h1 className="text-lg font-bold">Kho lưu trữ</h1>
+        {isSelecting ? (
+          <>
+            <button className="text-red-500 text-sm" onClick={handleDeleteSelected}>
+              Xóa ({selectedItems.length})
+            </button>
+            <button className="text-gray-500 text-sm" onClick={() => { setIsSelecting(false); setSelectedItems([]); }}>
+              Hủy
+            </button>
+          </>
+        ) : (
+          <button className="text-blue-500 text-sm" onClick={() => setIsSelecting(true)}>
+            Chọn
+          </button>
+        )}
       </div>
 
       <div className="flex border-b justify-between">
         {["images", "files", "links"].map((tab) => (
           <button
             key={tab}
-            className={`px-4 py-2 font-medium text-sm ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"}`} // Chữ nhỏ hơn
+            className={`px-4 py-2 font-medium text-sm ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"
+              }`}
             onClick={() => setActiveTab(tab)}
           >
             {tab === "images" ? "Ảnh/Video" : tab === "files" ? "Files" : "Links"}
@@ -216,11 +297,20 @@ const StoragePage = ({ onClose }) => {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
           <div className="relative flex bg-white rounded-lg shadow-lg">
             <div className="relative flex items-center justify-center w-[60vw] h-[90vh] p-4">
-              <img
-                src={fullScreenImage.url}
-                alt={fullScreenImage.name}
-                className="max-h-full max-w-full object-contain rounded-lg shadow-lg"
-              />
+              {fullScreenImage.type === "image" ? (
+                <img
+                  src={fullScreenImage.url}
+                  alt={fullScreenImage.name}
+                  className="max-h-full max-w-full object-contain rounded-lg shadow-lg"
+                />
+              ) : (
+                <video
+                  src={fullScreenImage.url}
+                  controls
+                  className="max-h-full max-w-full object-contain rounded-lg shadow-lg"
+                />
+              )}
+
               <button
                 className="absolute top-2 right-2 text-white bg-gray-800 hover:bg-gray-700 rounded-full p-2"
                 onClick={() => setFullScreenImage(null)}
@@ -249,6 +339,34 @@ const StoragePage = ({ onClose }) => {
           </div>
         </div>
       )}
+      {previewFile && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-90 z-50">
+          <div className="relative bg-white rounded-lg shadow-lg p-4 w-full h-full flex flex-col">
+            <h2 className="font-bold text-xl text-center mb-4">{previewFile.name || "Xem nội dung"}</h2>
+            <div className="flex-grow overflow-auto">
+              <DocViewer
+                documents={[{ uri: previewFile.url }]}
+                pluginRenderers={DocViewerRenderers}
+                style={{ height: '100%' }} // Đặt chiều cao cho DocViewer
+              />
+            </div>
+            <div className="flex justify-between mt-4">
+              <button
+                className="absolute top-2 right-2 text-gray-500 hover:text-red-500"
+                onClick={() => setPreviewFile(null)}
+              >
+                ✖
+              </button>
+              <button
+                className="bg-blue-500 text-white px-4 py-2 rounded"
+                onClick={() => handleDownloadFile(previewFile)} // Tải xuống khi nhấn nút
+              >
+                Tải xuống
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2 my-2">
         <select
@@ -257,7 +375,9 @@ const StoragePage = ({ onClose }) => {
           onChange={(e) => setFilterSender(e.target.value)}
         >
           {getUniqueSenders().map((sender) => (
-            <option key={sender} value={sender}>{sender}</option>
+            <option key={sender} value={sender}>
+              {sender}
+            </option>
           ))}
         </select>
         <button

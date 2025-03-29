@@ -23,7 +23,7 @@ const MuteNotificationModal = ({ isOpen, onClose, onConfirm }) => {
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      overlayClassName="fixed inset-0  flex justify-center items-center"
+      overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]" 
       className="bg-white p-5 rounded-lg shadow-lg w-96"
     >
       <h2 className="text-lg font-bold mb-4">Xác nhận</h2>

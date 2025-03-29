@@ -30,5 +30,5 @@ export const ApiManager = {
   get: (url, params = {}) => request("get", url, null, params),
   post: (url, data) => request("post", url, data),
   put: (url, data) => request("put", url, data),
-  delete: (url) => request("delete", url),
+  delete: (url, data = null) => request("delete", url, data), // Có thể thêm data nếu cần
 };

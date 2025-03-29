@@ -80,7 +80,7 @@ const AddMemberModal = ({ isOpen, onClose }) => {
       isOpen={isOpen}
       onRequestClose={onClose}
       contentLabel="Thêm thành viên"
-      overlayClassName="fixed inset-0 flex items-center justify-center z-50 "
+      overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]" 
       className="bg-white p-4 rounded-lg shadow-lg w-96 max-h-[70vh] flex flex-col"
     >
       <h2 className="text-lg font-semibold mb-3 text-center">Thêm thành viên</h2>

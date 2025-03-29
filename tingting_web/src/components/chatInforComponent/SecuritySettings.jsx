@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import Switch from "react-switch";
 import { FaExclamationTriangle, FaTrash, FaDoorOpen, FaBell, FaBellSlash } from "react-icons/fa";
 import axios from "axios";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const SecuritySettings = ({ chatId }) => {
+const SecuritySettings = ({ chatId, userId, setChat  }) => { // Thêm userId vào props
   const [isHidden, setIsHidden] = useState(false);
   const [pin, setPin] = useState("");
   const [showPinInput, setShowPinInput] = useState(false);
@@ -61,14 +62,38 @@ const SecuritySettings = ({ chatId }) => {
   };
 
   const handleLeaveGroup = async () => {
+    if (!isGroup) return;
+  
+    console.log("userId:", userId);
+    console.log("chatId:", chatId);
+  
+    if (!userId) {
+      console.error("❌ userId không tồn tại!");
+      return;
+    }
+  
     try {
-      await axios.delete(`http://localhost:5000/conversations/${chatId}/participants`);
-      alert("Bạn đã rời khỏi nhóm!");
+      // Gọi API để xóa thành viên khỏi nhóm (Truyền object { userId })
+      await Api_chatInfo.removeParticipant(chatId, { userId });
+  
+      alert("✅ Bạn đã rời khỏi nhóm!");
+  
+      // Cập nhật UI bằng cách xóa user khỏi danh sách participants
+      setChat((prevChat) => ({
+        ...prevChat,
+        participants: prevChat?.participants?.filter(p => p.userId !== userId) || [],
+
+      }));
     } catch (error) {
-      console.error("Lỗi khi rời nhóm:", error);
+      console.error("❌ Lỗi khi rời nhóm:", error);
+      if (error.response) {
+        console.error("⚠ Phản hồi từ máy chủ:", error.response.data);
+        console.error("⚠ Mã lỗi:", error.response.status);
+      }
     }
   };
-
+  
+  
   const toggleMute = async () => {
     try {
       await axios.put(`http://localhost:5000/conversations/${chatId}/mute`, {
@@ -84,14 +109,7 @@ const SecuritySettings = ({ chatId }) => {
     <div className="mb-4">
       <h3 className="text-md font-semibold mb-2">Thiết lập bảo mật</h3>
 
-      {/* Bật/tắt thông báo */}
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm">Thông báo</span>
-        <button onClick={toggleMute} className="text-gray-600 hover:text-gray-800">
-          {isMuted ? <FaBellSlash size={18} /> : <FaBell size={18} />}
-        </button>
-      </div>
-
+      
       {/* Ẩn trò chuyện */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm">Ẩn trò chuyện</span>

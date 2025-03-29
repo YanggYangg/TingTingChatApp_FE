@@ -15,13 +15,13 @@ const MemberListModal = ({ isOpen, onClose, chatInfo }) => {
       isOpen={isOpen}
       onRequestClose={onClose}
       className="bg-white w-96 p-5 rounded-lg shadow-lg mx-auto mt-20 outline-none"
-      overlayClassName="fixed inset-0 flex justify-center items-center transition-opacity"
+      overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]" 
     >
       <h2 className="text-lg font-bold mb-3">
         Thành viên ({chatInfo.participants.length || 0})
       </h2>
 
-      <ul className="max-h-60 overflow-y-auto">
+      <ul className="max-h-80 overflow-y-auto">
         {chatInfo.participants.map((member, index) => (
           <li key={index} className="py-2 border-b last:border-none flex items-center">
             <img
