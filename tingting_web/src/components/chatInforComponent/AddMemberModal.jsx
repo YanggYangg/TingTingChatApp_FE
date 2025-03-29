@@ -22,15 +22,16 @@ const AddMemberModal = ({ isOpen, onClose }) => {
     const fetchExistingMembers = async () => {
       try {
         const response = await Api_chatInfo.getParticipants(chatId);
-        setExistingMembers(response.data); // Lưu danh sách thành viên trong nhóm
+        setExistingMembers(response.data || []); // Đảm bảo luôn là mảng
       } catch (error) {
         console.error("Lỗi khi lấy danh sách thành viên:", error);
+        setExistingMembers([]); // Đặt giá trị mặc định để tránh lỗi
       }
     };
-
+  
     if (isOpen) fetchExistingMembers();
   }, [isOpen]);
-
+  
   // Sắp xếp danh sách theo họ tên (A-Z)
   const sortedMembers = [...members].sort((a, b) => {
     return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
@@ -43,9 +44,9 @@ const AddMemberModal = ({ isOpen, onClose }) => {
 
   // Lọc những thành viên chưa có trong nhóm
   const availableMembers = filteredMembers.filter(
-    (member) => !existingMembers.some((m) => m.id === member.id)
+    (member) => existingMembers?.some && !existingMembers.some((m) => m.id === member.id)
   );
-
+  
   // Thêm thành viên vào nhóm chat
   const addMember = async (memberId) => {
     if (!chatId) {
