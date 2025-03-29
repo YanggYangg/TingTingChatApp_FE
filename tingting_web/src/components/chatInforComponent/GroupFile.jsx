@@ -13,21 +13,34 @@ const GroupFile = ({ chatId }) => {
 
     const fetchFiles = async () => {
       try {
-        console.log("🔍 Gửi request đến API...");
+        console.log("Gửi request đến API...");
         const response = await Api_chatInfo.getChatFiles(chatId);
-        
-        console.log("✅ Dữ liệu API trả về:", response);
-        
+
+        console.log("Dữ liệu API trả về:", response);
+
         const fileData = Array.isArray(response) ? response : response?.data;
-        
+
         if (Array.isArray(fileData)) {
-          setFiles(fileData);
+          // Sắp xếp file theo thời gian (nếu có trường thời gian trong file)
+          // Nếu không có trường thời gian, có thể bỏ qua bước này hoặc sắp xếp theo cách khác
+          const sortedFiles = fileData.sort((a, b) => {
+            // Giả sử mỗi file có trường 'createdAt' hoặc 'uploadDate'
+            // Nếu không có, bạn cần điều chỉnh theo trường thời gian của file trong API
+            if (a.createdAt && b.createdAt) {
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            } else {
+                return 0; // Giữ nguyên thứ tự nếu không có thông tin thời gian
+            }
+          });
+
+          // Lấy 3 file đầu tiên
+          setFiles(sortedFiles.slice(0, 3));
         } else {
           setFiles([]);
-          console.warn("⚠️ API không trả về mảng hợp lệ");
+          console.warn("API không trả về mảng hợp lệ");
         }
       } catch (error) {
-        console.error("❌ Lỗi khi lấy danh sách file:", error);
+        console.error("Lỗi khi lấy danh sách file:", error);
       }
     };
 
@@ -40,7 +53,7 @@ const GroupFile = ({ chatId }) => {
       console.error("Không có link file để tải.");
       return;
     }
-  
+
     const link = document.createElement("a");
     link.href = file.linkURL;
     link.setAttribute("download", file.content || "file"); // Đặt tên file
@@ -48,8 +61,7 @@ const GroupFile = ({ chatId }) => {
     link.click();
     document.body.removeChild(link);
   };
-  
-  
+
   return (
     <div className="mb-4">
       <h3 className="text-md font-semibold mb-2">Tệp tin</h3>

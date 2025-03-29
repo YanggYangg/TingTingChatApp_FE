@@ -42,8 +42,6 @@ const StoragePage = ({ onClose }) => {
       name: content || "Không có tên",
     }));
 
- 
-
   const filteredData = useMemo(() =>
     (data[activeTab] || []).filter(
       ({ sender, date }) =>
@@ -85,25 +83,25 @@ const StoragePage = ({ onClose }) => {
       document.body.removeChild(fallbackLink);
     }
   };
-// Hàm tải file về máy
-const handleDownloadFile = (file) => {
-  if (!file?.url) {
-    console.error("Không có link file để tải.");
-    return;
-  }
 
-  const link = document.createElement("a");
-  link.href = file.url;
-  link.setAttribute("download", file.content || "file"); // Đặt tên file mặc định là "file" nếu không có content
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
+  const handleDownloadFile = (file) => {
+    if (!file?.url) {
+      console.error("Không có link file để tải.");
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = file.url;
+    link.setAttribute("download", file.content || "file");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const DateFilter = ({ showDateSuggestions, setShowDateSuggestions, handleDateFilter, startDate, setStartDate, endDate, setEndDate }) => (
     <div className="p-2 border rounded bg-white shadow-lg">
       <button
-        className="w-full text-left p-2 font-semibold"
+        className="w-full text-left p-2 font-semibold text-sm" // Chữ nhỏ hơn
         onClick={() => setShowDateSuggestions(!showDateSuggestions)}
       >
         Gợi ý thời gian
@@ -111,7 +109,7 @@ const handleDownloadFile = (file) => {
       {showDateSuggestions && [7, 30, 90].map((days) => (
         <button
           key={days}
-          className="block w-full p-2 text-left hover:bg-gray-200"
+          className="block w-full p-2 text-left hover:bg-gray-200 text-sm" // Chữ nhỏ hơn
           onClick={() => handleDateFilter(days)}
         >
           {days} ngày trước
@@ -125,7 +123,7 @@ const handleDownloadFile = (file) => {
               <FaCalendarAlt className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500" />
               <input
                 type="date"
-                className="border p-1 pl-8 rounded text-sm w-full"
+                className="border p-1 pl-8 rounded text-xs w-full" // Chữ nhỏ hơn
                 value={date}
                 onChange={(e) => index === 0 ? setStartDate(e.target.value) : setEndDate(e.target.value)}
               />
@@ -138,7 +136,7 @@ const handleDownloadFile = (file) => {
 
   const DateSection = ({ date, data, activeTab }) => (
     <div className="mt-4">
-      <h2 className="font-bold text-base text-gray-700">Ngày {date.split("-").reverse().join(" Tháng ")}</h2>
+      <h2 className="font-bold text-sm text-gray-700">Ngày {date.split("-").reverse().join(" Tháng ")}</h2>
       <div className={`grid ${activeTab === "images" ? "grid-cols-4" : "grid-cols-1"} gap-2 mt-2`}>
         {data.filter((item) => item.date === date).map((item, index) => (
           <div key={index}>
@@ -150,9 +148,15 @@ const handleDownloadFile = (file) => {
                 onClick={() => setFullScreenImage(item)}
               />
             ) : activeTab === "files" ? (
-              <div className="flex items-center justify-between p-2 border rounded">
-                {/* Tên file */}
-                <p className="text-sm text-gray-600 truncate">{item.name}</p>
+              <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 text-sm font-semibold"
+                >
+                  {item.name || "Không có tên"}
+                </a>
                 <div className="flex gap-2">
                   {/* Nút mở file */}
                   <button className="text-gray-500 hover:text-blue-500">
@@ -161,21 +165,26 @@ const handleDownloadFile = (file) => {
                   {/* Nút tải xuống */}
                   <button
                     className="text-gray-500 hover:text-blue-500"
-                    onClick={() => handleDownloadFile(item)} // Sử dụng item thay vì file
+                    onClick={() => handleDownloadFile(item)}
                   >
                     <FaDownload size={18} />
                   </button>
                 </div>
               </div>
             ) : (
-              <a
-                href={item.url}
-                className="text-blue-500 text-base font-medium block break-words border p-2 rounded"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {item.url}
-              </a>
+              <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
+                <div>
+                  <p className="text-sm font-semibold">{item.name}</p>
+                  <a
+                    href={item.url}
+                    className="text-blue-500 text-xs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {item.url}
+                  </a>
+                </div>
+              </div>
             )}
           </div>
         ))}
@@ -183,22 +192,19 @@ const handleDownloadFile = (file) => {
     </div>
   );
 
-
-
-
   return (
     <div className="absolute right-0 top-0 h-full w-[410px] bg-white shadow-lg p-4 overflow-y-auto">
       <div className="flex justify-between mb-4">
-        <button onClick={onClose} className="text-blue-500">Trở về</button>
-        <h1 className="text-xl font-bold">Kho lưu trữ</h1>
-        <button className="text-blue-500">Chọn</button>
+        <button onClick={onClose} className="text-blue-500 text-sm">Trở về</button> {/* Chữ nhỏ hơn */}
+        <h1 className="text-lg font-bold">Kho lưu trữ</h1> {/* Chữ nhỏ hơn */}
+        <button className="text-blue-500 text-sm">Chọn</button> {/* Chữ nhỏ hơn */}
       </div>
 
       <div className="flex border-b justify-between">
         {["images", "files", "links"].map((tab) => (
           <button
             key={tab}
-            className={`px-4 py-2 font-medium ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"}`}
+            className={`px-4 py-2 font-medium text-sm ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"}`} // Chữ nhỏ hơn
             onClick={() => setActiveTab(tab)}
           >
             {tab === "images" ? "Ảnh/Video" : tab === "files" ? "Files" : "Links"}
