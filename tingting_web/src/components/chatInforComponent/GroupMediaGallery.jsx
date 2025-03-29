@@ -16,9 +16,9 @@ const GroupMediaGallery = ({ chatId }) => {
 
     const fetchImages = async () => {
       try {
-        console.log("🔍 Đang lấy dữ liệu từ API...");
+        console.log("Đang lấy dữ liệu từ API...");
         const response = await Api_chatInfo.getChatMedia(chatId);
-        console.log("✅ Dữ liệu API nhận được:", response);
+        console.log("Dữ liệu API nhận được:", response);
 
         const mediaData = Array.isArray(response?.data) ? response.data : response;
 
@@ -32,11 +32,11 @@ const GroupMediaGallery = ({ chatId }) => {
 
           setImages(filteredImages);
         } else {
-          console.warn("⚠️ API không trả về dữ liệu hợp lệ.");
+          console.warn("API không trả về dữ liệu hợp lệ.");
           setImages([]);
         }
       } catch (error) {
-        console.error("❌ Lỗi khi lấy dữ liệu ảnh:", error);
+        console.error(" Lỗi khi lấy dữ liệu ảnh:", error);
       }
     };
 
@@ -51,43 +51,43 @@ const GroupMediaGallery = ({ chatId }) => {
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      alert("Vui lòng chọn một file!");
-      return;
-    }
+  // const handleUpload = async () => {
+  //   if (!selectedFile) {
+  //     alert("Vui lòng chọn một file!");
+  //     return;
+  //   }
 
-    setUploading(true);
-    const tempImage = { src: previewImage, isTemporary: true };
-    setImages((prevImages) => [tempImage, ...prevImages]);
+  //   setUploading(true);
+  //   const tempImage = { src: previewImage, isTemporary: true };
+  //   setImages((prevImages) => [tempImage, ...prevImages]);
 
-    const formData = new FormData();
-    formData.append("image", selectedFile);
-    formData.append("chatId", chatId);
+  //   const formData = new FormData();
+  //   formData.append("image", selectedFile);
+  //   formData.append("chatId", chatId);
 
-    try {
-      const response = await axios.post(
-        "http://localhost:5000/api/messages/send-image",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
+  //   try {
+  //     const response = await axios.post(
+  //       "http://localhost:5000/api/messages/send-image",
+  //       formData,
+  //       { headers: { "Content-Type": "multipart/form-data" } }
+  //     );
 
-      setImages((prevImages) =>
-        prevImages.map((img) =>
-          img.isTemporary ? { src: response.data.imageUrl, isTemporary: false } : img
-        )
-      );
+  //     setImages((prevImages) =>
+  //       prevImages.map((img) =>
+  //         img.isTemporary ? { src: response.data.imageUrl, isTemporary: false } : img
+  //       )
+  //     );
 
-      setPreviewImage(null);
-      setSelectedFile(null);
-    } catch (error) {
-      console.error("Lỗi khi tải ảnh lên:", error);
-      alert("Lỗi khi tải ảnh lên!");
-      setImages((prevImages) => prevImages.filter((img) => !img.isTemporary));
-    } finally {
-      setUploading(false);
-    }
-  };
+  //     setPreviewImage(null);
+  //     setSelectedFile(null);
+  //   } catch (error) {
+  //     console.error("Lỗi khi tải ảnh lên:", error);
+  //     alert("Lỗi khi tải ảnh lên!");
+  //     setImages((prevImages) => prevImages.filter((img) => !img.isTemporary));
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
 
   // Hàm tải ảnh bằng fetch, tạo Blob và download
   const downloadImage = async (url, filename) => {
@@ -142,7 +142,7 @@ const GroupMediaGallery = ({ chatId }) => {
           ))}
         </div>
 
-        {/* Upload Image */}
+        {/* Upload Image
         <input type="file" accept="image/*" onChange={handleFileChange} className="mt-2" />
         <button
           onClick={handleUpload}
@@ -152,7 +152,7 @@ const GroupMediaGallery = ({ chatId }) => {
           disabled={uploading}
         >
           {uploading ? "Đang gửi..." : "Tải lên ảnh"}
-        </button>
+        </button> */}
 
         {/* Open Storage Page */}
         <button

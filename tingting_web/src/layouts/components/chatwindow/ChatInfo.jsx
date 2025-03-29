@@ -29,14 +29,14 @@ const ChatInfo = () => {
         setLoading(false);  // Đặt loading = false khi gặp lỗi
       }
     };
-  
+
     if (chatId) {
       fetchChatInfo();
     }
   }, [chatId]);
-  
-  
-  
+
+
+
 
   const handleMuteNotification = () => {
     if (isMuted) {
@@ -55,7 +55,7 @@ const ChatInfo = () => {
     setIsAddModalOpen(true);
   };
 
-      
+
 
 
   if (loading) {
@@ -86,12 +86,12 @@ const ChatInfo = () => {
         </div>
 
         <div className="flex flex-nowrap justify-center gap-4 my-4">
-  <GroupActionButton icon="mute" text={isMuted ? "Bật thông báo" : "Tắt thông báo"} onClick={handleMuteNotification} />
-  <GroupActionButton icon="pin" text="Ghim cuộc trò chuyện" onClick={() => console.log("Ghim cuộc trò chuyện")} />
-  <GroupActionButton icon="add" text="Thêm thành viên" onClick={handleAddMember} />
+          <GroupActionButton icon="mute" text={isMuted ? "Bật thông báo" : "Tắt thông báo"} onClick={handleMuteNotification} />
+          <GroupActionButton icon="pin" text="Ghim cuộc trò chuyện" onClick={() => console.log("Ghim cuộc trò chuyện")} />
+          <GroupActionButton icon="add" text="Thêm thành viên" onClick={handleAddMember} />
 
-  <AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
-</div>
+          <AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+        </div>
 
         <GroupMemberList chatInfo={chatInfo} />
 
