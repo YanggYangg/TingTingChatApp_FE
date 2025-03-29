@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
+import { FaEdit } from 'react-icons/fa';
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
 import GroupMemberList from "../../../components/chatInforComponent/GroupMemberList";
 import GroupMediaGallery from "../../../components/chatInforComponent/GroupMediaGallery";
@@ -9,28 +10,30 @@ import SecuritySettings from "../../../components/chatInforComponent/SecuritySet
 import MuteNotificationModal from "../../../components/chatInforComponent/MuteNotificationModal";
 import { Api_chatInfo } from "../../../../apis/Api_chatInfo";
 import AddMemberModal from "../../../components/chatInforComponent/AddMemberModal";
+import EditNameModal from "../../../components/chatInforComponent/EditNameModal"; // Import EditNameModal
 
 const ChatInfo = () => {
   const [chatInfo, setChatInfo] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
   const [chat, setChat] = useState({ participants: [] });
-
+  const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false); // State cho EditNameModal
 
   const chatId = "67e2d6bef1ea6ac96f10bf91";
-  const userId = "67e2d6bef1ea6ac96f10bf9b"; // Thay thế bằng userId thực tế
+  const userId = "67e2d6bef1ea6ac96f10bf9b";
+
   useEffect(() => {
     const fetchChatInfo = async () => {
       try {
         const response = await Api_chatInfo.getChatInfo(chatId);
         console.log("Thông tin chat nhận được từ API:", response);
         setChatInfo(response);
-        setLoading(false);  // Đặt loading = false sau khi nhận data
+        setLoading(false);
       } catch (error) {
         console.error("Lỗi khi lấy thông tin chat:", error);
-        setLoading(false);  // Đặt loading = false khi gặp lỗi
+        setLoading(false);
       }
     };
 
@@ -38,9 +41,6 @@ const ChatInfo = () => {
       fetchChatInfo();
     }
   }, [chatId]);
-
-
-
 
   const handleMuteNotification = () => {
     if (isMuted) {
@@ -59,41 +59,58 @@ const ChatInfo = () => {
     setIsAddModalOpen(true);
   };
 
+  const handleOpenEditNameModal = () => {
+    setIsEditNameModalOpen(true);
+  };
 
+  const handleCloseEditNameModal = () => {
+    setIsEditNameModalOpen(false);
+  };
 
+  const handleSaveChatName = (newName) => {
+    if (chatInfo && newName) {
+      setChatInfo({ ...chatInfo, name: newName });
+    }
+    handleCloseEditNameModal();
+  };
 
   if (loading) {
-    return <p className="text-center text-gray-500">⏳ Đang tải thông tin chat...</p>;
+    return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
   }
 
   if (!chatInfo) {
-    return <p className="text-center text-red-500">❌ Không thể tải thông tin chat.</p>;
+    return <p className="text-center text-red-500"> Không thể tải thông tin chat.</p>;
   }
 
   return (
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
-      {/* Phần tiêu đề cố định */}
       <div className="flex-shrink-0">
         <h2 className="text-xl font-bold text-center mb-4">
           {chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại"}
         </h2>
       </div>
 
-      {/* Nội dung có thể cuộn */}
       <div className="flex-1 overflow-y-auto">
         <div className="text-center my-4">
           <img
             src={chatInfo?.avatar?.trim() ? chatInfo.avatar : "https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg"}
             className="w-20 h-20 rounded-full mx-auto"
           />
-          <h2 className="text-lg font-semibold">{chatInfo?.name || "Không có tên"}</h2>
+          <div className="flex items-center justify-center mt-2">
+            <h2 className="text-lg font-semibold">{chatInfo?.name || 'Không có tên'}</h2>
+            <button
+              onClick={handleOpenEditNameModal}
+              className="text-gray-500 hover:text-blue-500 ml-2"
+            >
+              <FaEdit size={16} />
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-nowrap justify-center gap-4 my-4">
           <GroupActionButton icon="mute" text={isMuted ? "Bật thông báo" : "Tắt thông báo"} onClick={handleMuteNotification} />
           <GroupActionButton icon="pin" text="Ghim cuộc trò chuyện" onClick={() => console.log("Ghim cuộc trò chuyện")} />
           <GroupActionButton icon="add" text="Thêm thành viên" onClick={handleAddMember} />
-
           <AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
         </div>
 
@@ -116,6 +133,12 @@ const ChatInfo = () => {
       </div>
 
       <MuteNotificationModal isOpen={isMuteModalOpen} onClose={() => setIsMuteModalOpen(false)} onConfirm={() => setIsMuted(true)} />
+      <EditNameModal
+        isOpen={isEditNameModalOpen}
+        onClose={handleCloseEditNameModal}
+        onSave={handleSaveChatName}
+        initialName={chatInfo?.name}
+      />
     </div>
   );
 };
