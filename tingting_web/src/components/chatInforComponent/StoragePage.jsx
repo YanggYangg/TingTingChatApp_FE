@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { FaCalendarAlt } from "react-icons/fa";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import { FaRegFolderOpen, FaDownload } from "react-icons/fa";
 
 const StoragePage = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState("images");
@@ -10,8 +11,8 @@ const StoragePage = ({ onClose }) => {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [showDateSuggestions, setShowDateSuggestions] = useState(false);
   const [data, setData] = useState({ images: [], files: [], links: [] });
+  const [fullScreenImage, setFullScreenImage] = useState(null);
   const chatId = "67e2d6bef1ea6ac96f10bf91";
-  const [fullScreenImage, setFullScreenImage] = useState(null); // State modal ảnh
 
   useEffect(() => {
     const fetchData = async () => {
@@ -21,7 +22,6 @@ const StoragePage = ({ onClose }) => {
           Api_chatInfo.getChatFiles(chatId),
           Api_chatInfo.getChatLinks(chatId),
         ]);
-
         setData({
           images: formatData(images),
           files: formatData(files),
@@ -42,17 +42,20 @@ const StoragePage = ({ onClose }) => {
       name: content || "Không có tên",
     }));
 
-  const filteredData = useMemo(
-    () =>
-      (data[activeTab] || []).filter(
-        ({ sender, date }) =>
-          (filterSender === "Tất cả" || sender === filterSender) &&
-          (!startDate || new Date(date) >= new Date(startDate)) &&
-          (!endDate || new Date(date) <= new Date(endDate))
-      ),
+ 
+
+  const filteredData = useMemo(() =>
+    (data[activeTab] || []).filter(
+      ({ sender, date }) =>
+        (filterSender === "Tất cả" || sender === filterSender) &&
+        (!startDate || new Date(date) >= new Date(startDate)) &&
+        (!endDate || new Date(date) <= new Date(endDate))
+    ),
     [data, activeTab, filterSender, startDate, endDate]
   );
+
   const getUniqueSenders = () => ["Tất cả", ...new Set(data[activeTab].map(item => item.sender))];
+
   const handleDateFilter = (days) => {
     const today = new Date();
     const pastDate = new Date();
@@ -60,13 +63,11 @@ const StoragePage = ({ onClose }) => {
     setStartDate(pastDate.toISOString().split("T")[0]);
     setEndDate(today.toISOString().split("T")[0]);
   };
-  // Hàm tải ảnh bằng fetch, tạo Blob và download
+
   const downloadImage = async (url, filename) => {
     try {
       const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
+      if (!response.ok) throw new Error("Network response was not ok");
       const blob = await response.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -75,23 +76,46 @@ const StoragePage = ({ onClose }) => {
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error("Lỗi khi tải file (CORS hoặc khác):", error);
-      alert("Fetch bị chặn, thử tải trực tiếp!");
-
-      // Fallback: Tải bằng <a> trực tiếp
+      console.error("Lỗi khi tải file:", error);
       const fallbackLink = document.createElement("a");
-      fallbackLink.href = url;       // Mở link ảnh trực tiếp
+      fallbackLink.href = url;
       fallbackLink.download = filename;
       document.body.appendChild(fallbackLink);
       fallbackLink.click();
       document.body.removeChild(fallbackLink);
     }
   };
+// Hàm tải file về máy
+const handleDownloadFile = (file) => {
+  if (!file?.url) {
+    console.error("Không có link file để tải.");
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = file.url;
+  link.setAttribute("download", file.content || "file"); // Đặt tên file mặc định là "file" nếu không có content
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
   const DateFilter = ({ showDateSuggestions, setShowDateSuggestions, handleDateFilter, startDate, setStartDate, endDate, setEndDate }) => (
     <div className="p-2 border rounded bg-white shadow-lg">
-      <button className="w-full text-left p-2 font-semibold" onClick={() => setShowDateSuggestions(!showDateSuggestions)}>Gợi ý thời gian</button>
+      <button
+        className="w-full text-left p-2 font-semibold"
+        onClick={() => setShowDateSuggestions(!showDateSuggestions)}
+      >
+        Gợi ý thời gian
+      </button>
       {showDateSuggestions && [7, 30, 90].map((days) => (
-        <button key={days} className="block w-full p-2 text-left hover:bg-gray-200" onClick={() => handleDateFilter(days)}>{days} ngày trước</button>
+        <button
+          key={days}
+          className="block w-full p-2 text-left hover:bg-gray-200"
+          onClick={() => handleDateFilter(days)}
+        >
+          {days} ngày trước
+        </button>
       ))}
       <div className="mt-2">
         <p className="text-sm">Chọn khoảng thời gian</p>
@@ -99,7 +123,12 @@ const StoragePage = ({ onClose }) => {
           {[startDate, endDate].map((date, index) => (
             <div key={index} className="relative w-1/2">
               <FaCalendarAlt className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500" />
-              <input type="date" className="border p-1 pl-8 rounded text-sm w-full" value={date} onChange={(e) => (index === 0 ? setStartDate(e.target.value) : setEndDate(e.target.value))} />
+              <input
+                type="date"
+                className="border p-1 pl-8 rounded text-sm w-full"
+                value={date}
+                onChange={(e) => index === 0 ? setStartDate(e.target.value) : setEndDate(e.target.value)}
+              />
             </div>
           ))}
         </div>
@@ -113,14 +142,50 @@ const StoragePage = ({ onClose }) => {
       <div className={`grid ${activeTab === "images" ? "grid-cols-4" : "grid-cols-1"} gap-2 mt-2`}>
         {data.filter((item) => item.date === date).map((item, index) => (
           <div key={index}>
-            {activeTab === "images" ? <img src={item.url} alt="Hình ảnh" className="h-20 w-20 object-cover" onClick={() => setFullScreenImage(img)} /> :
-              activeTab === "files" ? <p className="text-sm text-gray-600 truncate border p-2 rounded">{item.name}</p> :
-                <a href={item.url} className="text-blue-500 text-base font-medium block text-left break-words border p-2 rounded w-full">{item.url}</a>}
+            {activeTab === "images" ? (
+              <img
+                src={item.url}
+                alt={item.name}
+                className="h-20 w-20 object-cover cursor-pointer"
+                onClick={() => setFullScreenImage(item)}
+              />
+            ) : activeTab === "files" ? (
+              <div className="flex items-center justify-between p-2 border rounded">
+                {/* Tên file */}
+                <p className="text-sm text-gray-600 truncate">{item.name}</p>
+                <div className="flex gap-2">
+                  {/* Nút mở file */}
+                  <button className="text-gray-500 hover:text-blue-500">
+                    <FaRegFolderOpen size={18} />
+                  </button>
+                  {/* Nút tải xuống */}
+                  <button
+                    className="text-gray-500 hover:text-blue-500"
+                    onClick={() => handleDownloadFile(item)} // Sử dụng item thay vì file
+                  >
+                    <FaDownload size={18} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <a
+                href={item.url}
+                className="text-blue-500 text-base font-medium block break-words border p-2 rounded"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {item.url}
+              </a>
+            )}
           </div>
         ))}
       </div>
     </div>
   );
+
+
+
+
   return (
     <div className="absolute right-0 top-0 h-full w-[410px] bg-white shadow-lg p-4 overflow-y-auto">
       <div className="flex justify-between mb-4">
@@ -128,6 +193,7 @@ const StoragePage = ({ onClose }) => {
         <h1 className="text-xl font-bold">Kho lưu trữ</h1>
         <button className="text-blue-500">Chọn</button>
       </div>
+
       <div className="flex border-b justify-between">
         {["images", "files", "links"].map((tab) => (
           <button
@@ -140,49 +206,35 @@ const StoragePage = ({ onClose }) => {
         ))}
       </div>
 
-      {/*  Modal hiển thị ảnh toàn màn hình */}
       {fullScreenImage && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
           <div className="relative flex bg-white rounded-lg shadow-lg">
-            {/* Khu vực hiển thị ảnh lớn */}
             <div className="relative flex items-center justify-center w-[60vw] h-[90vh] p-4">
               <img
-                src={fullScreenImage.src}
+                src={fullScreenImage.url}
                 alt={fullScreenImage.name}
-                className="max-h-full max-w-full object-contain rounded-lg shadow-lg transition-all"
+                className="max-h-full max-w-full object-contain rounded-lg shadow-lg"
               />
-
-              {/* Nút đóng */}
               <button
                 className="absolute top-2 right-2 text-white bg-gray-800 hover:bg-gray-700 rounded-full p-2"
                 onClick={() => setFullScreenImage(null)}
-                aria-label="Đóng"
               >
                 ✖
               </button>
-
-              {/* Nút tải xuống dùng JavaScript để fetch file, fallback nếu lỗi */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  downloadImage(fullScreenImage.src, fullScreenImage.name);
-                }}
-                className="absolute bottom-2 right-2 bg-white px-4 py-2 rounded text-sm text-gray-800 hover:bg-gray-200 transition-all"
+                onClick={() => downloadImage(fullScreenImage.url, fullScreenImage.name)}
+                className="absolute bottom-2 right-2 bg-white px-4 py-2 rounded text-sm text-gray-800 hover:bg-gray-200"
               >
                 ⬇ Tải xuống
               </button>
             </div>
-
-            {/* Sidebar chứa danh sách ảnh (bên phải) */}
             <div className="w-40 h-[90vh] bg-gray-900 p-2 overflow-y-auto flex flex-col items-center">
-              {images.map((img, index) => (
+              {data.images.map((img, index) => (
                 <img
                   key={index}
-                  src={img.src}
+                  src={img.url}
                   alt={img.name}
-                  className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${fullScreenImage.src === img.src
-                      ? "opacity-100 border-2 border-blue-400"
-                      : "opacity-50 hover:opacity-100"
+                  className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${fullScreenImage.url === img.url ? "opacity-100 border-2 border-blue-400" : "opacity-50 hover:opacity-100"
                     }`}
                   onClick={() => setFullScreenImage(img)}
                 />
@@ -191,14 +243,25 @@ const StoragePage = ({ onClose }) => {
           </div>
         </div>
       )}
+
       <div className="flex gap-2 my-2">
-        <select className="border p-1 rounded text-sm w-1/2" value={filterSender} onChange={(e) => setFilterSender(e.target.value)}>
+        <select
+          className="border p-1 rounded text-sm w-1/2"
+          value={filterSender}
+          onChange={(e) => setFilterSender(e.target.value)}
+        >
           {getUniqueSenders().map((sender) => (
             <option key={sender} value={sender}>{sender}</option>
           ))}
         </select>
-        <button className="border p-1 rounded text-sm w-1/2" onClick={() => setShowDateFilter(!showDateFilter)}>Ngày gửi</button>
+        <button
+          className="border p-1 rounded text-sm w-1/2"
+          onClick={() => setShowDateFilter(!showDateFilter)}
+        >
+          Ngày gửi
+        </button>
       </div>
+
       {showDateFilter && (
         <DateFilter
           showDateSuggestions={showDateSuggestions}
@@ -210,6 +273,7 @@ const StoragePage = ({ onClose }) => {
           setEndDate={setEndDate}
         />
       )}
+
       <div className="mt-4">
         {[...new Set(filteredData.map(({ date }) => date))].map((date) => (
           <DateSection key={date} date={date} data={filteredData} activeTab={activeTab} />
@@ -218,7 +282,5 @@ const StoragePage = ({ onClose }) => {
     </div>
   );
 };
-
-
 
 export default StoragePage;
