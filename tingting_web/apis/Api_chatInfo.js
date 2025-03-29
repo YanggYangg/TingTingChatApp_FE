@@ -9,7 +9,7 @@ export const Api_chatInfo = {
 
     // Quản lý thành viên trong hội thoại
     getParticipants: (chatId) => ApiManager.get(`/conversations/${chatId}/participants`),
-    addParticipant: (chatId, participantData) => ApiManager.post(`/chats/${chatId}/participants`, participantData),
+    addParticipant: (chatId, participantData) => ApiManager.post(`/conversations/${chatId}/participants`, participantData),
     removeParticipant: (chatId, participantData) => ApiManager.delete(`/chats/${chatId}/participants`, { data: participantData }),
     changeParticipantRole: (chatId, roleData) => ApiManager.put(`/chats/${chatId}/participants/role`, roleData),
 
