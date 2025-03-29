@@ -85,14 +85,13 @@ const ChatInfo = () => {
           <h2 className="text-lg font-semibold">{chatInfo?.name || "Không có tên"}</h2>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-4 my-4">
-          <GroupActionButton icon="mute" text={isMuted ? "Bật thông báo" : "Tắt thông báo"} onClick={handleMuteNotification} />
-          <GroupActionButton icon="pin" text="Ghim tin nhắn" onClick={() => console.log("Ghim tin nhắn")} />
-        <GroupActionButton icon="add" text="Thêm thành viên" onClick={handleAddMember} />
+        <div className="flex flex-nowrap justify-center gap-4 my-4">
+  <GroupActionButton icon="mute" text={isMuted ? "Bật thông báo" : "Tắt thông báo"} onClick={handleMuteNotification} />
+  <GroupActionButton icon="pin" text="Ghim cuộc trò chuyện" onClick={() => console.log("Ghim cuộc trò chuyện")} />
+  <GroupActionButton icon="add" text="Thêm thành viên" onClick={handleAddMember} />
 
-<AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
-
-        </div>
+  <AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+</div>
 
         <GroupMemberList chatInfo={chatInfo} />
 
