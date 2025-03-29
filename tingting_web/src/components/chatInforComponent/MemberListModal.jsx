@@ -15,7 +15,7 @@ const MemberListModal = ({ isOpen, onClose, chatInfo }) => {
       isOpen={isOpen}
       onRequestClose={onClose}
       className="bg-white w-96 p-5 rounded-lg shadow-lg mx-auto mt-20 outline-none"
-      overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center transition-opacity"
+      overlayClassName="fixed inset-0 flex justify-center items-center transition-opacity"
     >
       <h2 className="text-lg font-bold mb-3">
         Thành viên ({chatInfo.participants.length || 0})

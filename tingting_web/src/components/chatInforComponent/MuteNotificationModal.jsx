@@ -7,7 +7,7 @@ const MuteNotificationModal = ({ isOpen, onClose, onConfirm }) => {
   const [selectedMuteTime, setSelectedMuteTime] = useState("1h");
 
   const handleConfirmMute = () => {
-    console.log(`🔕 Đã tắt thông báo trong ${selectedMuteTime}`);
+    console.log(`Đã tắt thông báo trong ${selectedMuteTime}`);
     if (onConfirm) {
       onConfirm(selectedMuteTime);
     } else {
@@ -23,7 +23,7 @@ const MuteNotificationModal = ({ isOpen, onClose, onConfirm }) => {
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center"
+      overlayClassName="fixed inset-0  flex justify-center items-center"
       className="bg-white p-5 rounded-lg shadow-lg w-96"
     >
       <h2 className="text-lg font-bold mb-4">Xác nhận</h2>
