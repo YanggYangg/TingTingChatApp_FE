@@ -33,4 +33,7 @@
 
         // Thông báo
         updateNotification: (chatId, muteData) => ApiManager.put(`/conversations/${chatId}/mute`, muteData),
+
+        // Ẩn trò chuyện
+        hideChat: (chatId, isHidden) => ApiManager.put(`/conversations/${chatId}/hide`, { isHidden }),
     };
