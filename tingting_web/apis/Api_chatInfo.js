@@ -1,38 +1,33 @@
-import { ApiManager } from './ApiManager';
+    import { ApiManager } from './ApiManager';
 
-export const Api_chatInfo = {
-    // Quản lý hội thoại
-    getAllConversations: () => ApiManager.get(`/chats`), 
-    getChatInfo: (chatId) => ApiManager.get(`/conversations/${chatId}`),
+    export const Api_chatInfo = {
+        // Quản lý hội thoại
+        getAllConversations: () => ApiManager.get(`/chats`), 
+        getChatInfo: (chatId) => ApiManager.get(`/conversations/${chatId}`),
 
-    updateChatName: (chatId, name) => ApiManager.put(`/conversations/${chatId}`, { name }),
+        updateChatName: (chatId, name) => ApiManager.put(`/conversations/${chatId}`, { name }),
 
-    // Quản lý thành viên trong hội thoại
-    getParticipants: (chatId) => ApiManager.get(`/conversations/${chatId}/participants`),
-    addParticipant: (chatId, participantData) => ApiManager.post(`/conversations/${chatId}/participants`, participantData),
-    // removeParticipant: (chatId, participantData) => ApiManager.delete(`/conversations/${chatId}/participants`, { data: participantData }),
-    
-    removeParticipant: (chatId, participantData) =>
-        ApiManager.delete(`/conversations/${chatId}/participants`, {
-          headers: { "Content-Type": "application/json" },
-          data: participantData,
-        }),
-      
-    changeParticipantRole: (chatId, roleData) => ApiManager.put(`/conversations/${chatId}/participants/role`, roleData),
+        // Quản lý thành viên trong hội thoại
+        getParticipants: (chatId) => ApiManager.get(`/conversations/${chatId}/participants`),
+        addParticipant: (chatId, participantData) => ApiManager.post(`/conversations/${chatId}/participants`, participantData),
+        removeParticipant: (chatId, participantData) => ApiManager.delete(`/conversations/${chatId}/participants`, participantData), // Gửi participantData trực tiếp
+        
+        
+        changeParticipantRole: (chatId, roleData) => ApiManager.put(`/conversations/${chatId}/participants/role`, roleData),
 
-    // Tin nhắn
-    getMessages: (chatId) => ApiManager.get(`/conversations/${chatId}/messages`),
-    sendMessage: (chatId, message) => ApiManager.post(`/conversations/${chatId}/messages`, message),
-    deleteMessage: (chatId, messageId) => ApiManager.delete(`/conversations/${chatId}/messages/${messageId}`),
+        // Tin nhắn
+        getMessages: (chatId) => ApiManager.get(`/conversations/${chatId}/messages`),
+        sendMessage: (chatId, message) => ApiManager.post(`/conversations/${chatId}/messages`, message),
+        deleteMessage: (chatId, messageId) => ApiManager.delete(`/conversations/${chatId}/messages/${messageId}`),
 
-    // Media, File, Links, Pin, Reminder
-    getChatMedia: (chatId) => ApiManager.get(`/messages/${chatId}/media`),
-    getChatFiles: (chatId) => ApiManager.get(`/messages/${chatId}/files`),
-    getChatLinks: (chatId) => ApiManager.get(`/messages/${chatId}/links`),
-    getPinnedMessages: (chatId) => ApiManager.get(`/messages/${chatId}/pinned-messages`),
-    getReminders: (chatId) => ApiManager.get(`/messages/${chatId}/reminders`),
+        // Media, File, Links, Pin, Reminder
+        getChatMedia: (chatId) => ApiManager.get(`/messages/${chatId}/media`),
+        getChatFiles: (chatId) => ApiManager.get(`/messages/${chatId}/files`),
+        getChatLinks: (chatId) => ApiManager.get(`/messages/${chatId}/links`),
+        getPinnedMessages: (chatId) => ApiManager.get(`/messages/${chatId}/pinned-messages`),
+        getReminders: (chatId) => ApiManager.get(`/messages/${chatId}/reminders`),
 
-    // Ghim/Bỏ ghim tin nhắn
-    pinMessage: (messageId) => ApiManager.post(`/conversations/pin/${messageId}`),
-    unpinMessage: (messageId) => ApiManager.post(`/conversations/unpin/${messageId}`),
-};
+        // Ghim/Bỏ ghim tin nhắn
+        pinMessage: (messageId) => ApiManager.post(`/conversations/pin/${messageId}`),
+        unpinMessage: (messageId) => ApiManager.post(`/conversations/unpin/${messageId}`),
+    };

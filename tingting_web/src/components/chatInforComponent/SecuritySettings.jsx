@@ -4,7 +4,7 @@ import { FaExclamationTriangle, FaTrash, FaDoorOpen, FaBell, FaBellSlash } from 
 import axios from "axios";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const SecuritySettings = ({ chatId, userId, setChat  }) => { // Thêm userId vào props
+const SecuritySettings = ({ chatId, userId, setChatInfo  }) => { // Thêm userId vào props
   const [isHidden, setIsHidden] = useState(false);
   const [pin, setPin] = useState("");
   const [showPinInput, setShowPinInput] = useState(false);
@@ -68,7 +68,7 @@ const SecuritySettings = ({ chatId, userId, setChat  }) => { // Thêm userId và
     console.log("chatId:", chatId);
   
     if (!userId) {
-      console.error("❌ userId không tồn tại!");
+      console.error("userId không tồn tại!");
       return;
     }
   
@@ -76,19 +76,18 @@ const SecuritySettings = ({ chatId, userId, setChat  }) => { // Thêm userId và
       // Gọi API để xóa thành viên khỏi nhóm (Truyền object { userId })
       await Api_chatInfo.removeParticipant(chatId, { userId });
   
-      alert("✅ Bạn đã rời khỏi nhóm!");
+      alert("Bạn đã rời khỏi nhóm!");
   
       // Cập nhật UI bằng cách xóa user khỏi danh sách participants
-      setChat((prevChat) => ({
-        ...prevChat,
-        participants: prevChat?.participants?.filter(p => p.userId !== userId) || [],
-
-      }));
+      setChatInfo((prevChatInfo) => ({
+        ...prevChatInfo,
+        participants: prevChatInfo?.participants?.filter(p => p.userId !== userId) || [],
+    }));
     } catch (error) {
-      console.error("❌ Lỗi khi rời nhóm:", error);
+      console.error("Lỗi khi rời nhóm:", error);
       if (error.response) {
-        console.error("⚠ Phản hồi từ máy chủ:", error.response.data);
-        console.error("⚠ Mã lỗi:", error.response.status);
+        console.error("Phản hồi từ máy chủ:", error.response.data);
+        console.error("Mã lỗi:", error.response.status);
       }
     }
   };

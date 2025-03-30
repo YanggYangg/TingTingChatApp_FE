@@ -19,11 +19,10 @@ const ChatInfo = () => {
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [chat, setChat] = useState({ participants: [] });
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false); // State cho EditNameModal
 
   const chatId = "67e2d6bef1ea6ac96f10bf91";
-  const userId = "67e2d6bef1ea6ac96f10bf9b";
+  const userId = "8";
 
   useEffect(() => {
     const fetchChatInfo = async () => {
@@ -132,7 +131,7 @@ const ChatInfo = () => {
         <GroupMediaGallery chatId={chatId} />
         <GroupFile chatId={chatId} />
         <GroupLinks chatId={chatId} />
-        <SecuritySettings chatId={chatId} userId={userId} setChat={setChat} />
+        <SecuritySettings chatId={chatId} userId={userId} setChatInfo={setChatInfo} />
       </div>
 
       <MuteNotificationModal isOpen={isMuteModalOpen} onClose={() => setIsMuteModalOpen(false)} onConfirm={() => setIsMuted(true)} />
