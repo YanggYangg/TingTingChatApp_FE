@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from 'react-icons/fa';
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
@@ -10,7 +11,7 @@ import SecuritySettings from "../../../components/chatInforComponent/SecuritySet
 import MuteNotificationModal from "../../../components/chatInforComponent/MuteNotificationModal";
 import { Api_chatInfo } from "../../../../apis/Api_chatInfo";
 import AddMemberModal from "../../../components/chatInforComponent/AddMemberModal";
-import EditNameModal from "../../../components/chatInforComponent/EditNameModal"; // Import EditNameModal
+import EditNameModal from "../../../components/chatInforComponent/EditNameModal"; 
 
 const ChatInfo = () => {
   const [chatInfo, setChatInfo] = useState(null);
@@ -49,6 +50,13 @@ const ChatInfo = () => {
       setIsMuteModalOpen(true);
     }
   };
+ if (loading) {
+    return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
+  }
+
+  if (!chatInfo) {
+    return <p className="text-center text-red-500"> Không thể tải thông tin chat.</p>;
+  }
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(chatInfo?.linkGroup || "https://zalo.me/g/bamwwg826");
@@ -59,29 +67,24 @@ const ChatInfo = () => {
     setIsAddModalOpen(true);
   };
 
-  const handleOpenEditNameModal = () => {
-    setIsEditNameModalOpen(true);
-  };
+  const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
+  const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);
 
-  const handleCloseEditNameModal = () => {
-    setIsEditNameModalOpen(false);
-  };
+  const handleSaveChatName = async (newName) => {
+    if (!chatInfo || !newName.trim()) return;
 
-  const handleSaveChatName = (newName) => {
-    if (chatInfo && newName) {
-      setChatInfo({ ...chatInfo, name: newName });
+    try {
+      await Api_chatInfo.updateChatName(chatId, newName.trim());
+      setChatInfo({ ...chatInfo, name: newName.trim() });
+    } catch (error) {
+      console.error('Lỗi khi cập nhật tên:', error);
+      alert('Cập nhật tên thất bại, vui lòng thử lại.');
+    } finally {
+      handleCloseEditNameModal();
     }
-    handleCloseEditNameModal();
   };
 
-  if (loading) {
-    return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
-  }
-
-  if (!chatInfo) {
-    return <p className="text-center text-red-500"> Không thể tải thông tin chat.</p>;
-  }
-
+ 
   return (
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
       <div className="flex-shrink-0">

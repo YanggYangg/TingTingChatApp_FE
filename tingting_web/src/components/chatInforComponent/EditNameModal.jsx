@@ -1,21 +1,22 @@
-// EditNameModal.js
+import React, { useState, useEffect } from 'react';
 
-import React, { useState } from 'react';
+const EditNameModal = ({ isOpen, onClose, initialName = '', onSave }) => {
+  const [newName, setNewName] = useState(initialName);
 
-const EditNameModal = ({ isOpen, onClose, onSave, initialName }) => {
-  const [newName, setNewName] = useState(initialName || '');
+  useEffect(() => {
+    setNewName(initialName); // Cập nhật giá trị khi modal mở lại
+  }, [initialName, isOpen]);
 
   const handleSave = () => {
-    onSave(newName);
+    if (!newName.trim()) return;
+    onSave(newName.trim()); // Gửi giá trị mới về ChatInfo
     onClose();
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50"  overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]" >
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
       <div className="bg-white p-6 rounded-lg shadow-lg w-96">
         <h2 className="text-xl font-semibold mb-4">Chỉnh sửa tên</h2>
         <input
@@ -24,6 +25,7 @@ const EditNameModal = ({ isOpen, onClose, onSave, initialName }) => {
           onChange={(e) => setNewName(e.target.value)}
           className="border p-2 rounded w-full mb-4"
           placeholder="Nhập tên mới"
+          autoFocus
         />
         <div className="flex justify-end">
           <button
@@ -34,7 +36,8 @@ const EditNameModal = ({ isOpen, onClose, onSave, initialName }) => {
           </button>
           <button
             onClick={handleSave}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
+            className={`px-4 py-2 rounded ${newName.trim() ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+            disabled={!newName.trim()}
           >
             Lưu
           </button>

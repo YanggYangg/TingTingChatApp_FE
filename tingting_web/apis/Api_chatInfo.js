@@ -5,7 +5,7 @@ export const Api_chatInfo = {
     getAllConversations: () => ApiManager.get(`/chats`), 
     getChatInfo: (chatId) => ApiManager.get(`/conversations/${chatId}`),
 
-    updateChatInfo: (chatId, data) => ApiManager.put(`/chats/${chatId}`, data),
+    updateChatName: (chatId, name) => ApiManager.put(`/conversations/${chatId}`, { name }),
 
     // Quản lý thành viên trong hội thoại
     getParticipants: (chatId) => ApiManager.get(`/conversations/${chatId}/participants`),
