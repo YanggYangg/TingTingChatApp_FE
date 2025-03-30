@@ -44,11 +44,15 @@ const ChatInfo = () => {
 
   const handleMuteNotification = () => {
     if (isMuted) {
-      setIsMuted(false);
+        setIsMuted(false);
     } else {
-      setIsMuteModalOpen(true);
+        setIsMuteModalOpen(true);
     }
-  };
+};
+
+const handleMuteSuccess = (muted) => {
+  setIsMuted(muted);
+};
  if (loading) {
     return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
   }
@@ -134,7 +138,12 @@ const ChatInfo = () => {
         <SecuritySettings chatId={chatId} userId={userId} setChatInfo={setChatInfo} />
       </div>
 
-      <MuteNotificationModal isOpen={isMuteModalOpen} onClose={() => setIsMuteModalOpen(false)} onConfirm={() => setIsMuted(true)} />
+      <MuteNotificationModal
+            isOpen={isMuteModalOpen}
+            onClose={() => setIsMuteModalOpen(false)}
+            chatId={chatId}
+            onMuteSuccess={handleMuteSuccess}
+        />
       <EditNameModal
         isOpen={isEditNameModalOpen}
         onClose={handleCloseEditNameModal}

@@ -30,4 +30,7 @@
         // Ghim/Bỏ ghim tin nhắn
         pinMessage: (messageId) => ApiManager.post(`/conversations/pin/${messageId}`),
         unpinMessage: (messageId) => ApiManager.post(`/conversations/unpin/${messageId}`),
+
+        // Thông báo
+        updateNotification: (chatId, muteData) => ApiManager.put(`/conversations/${chatId}/mute`, muteData),
     };
