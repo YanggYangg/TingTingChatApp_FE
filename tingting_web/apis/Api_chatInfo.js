@@ -27,10 +27,8 @@
         getPinnedMessages: (chatId) => ApiManager.get(`/messages/${chatId}/pinned-messages`),
         getReminders: (chatId) => ApiManager.get(`/messages/${chatId}/reminders`),
 
-        // Ghim/Bỏ ghim tin nhắn
-        pinMessage: (messageId) => ApiManager.post(`/conversations/pin/${messageId}`),
-        unpinMessage: (messageId) => ApiManager.post(`/conversations/unpin/${messageId}`),
-
+        // Ghim/Bỏ ghim trò chuyện
+        pinChat: (chatId, isPinned) => ApiManager.put(`/conversations/${chatId}/pin`, { isPinned }),
         // Thông báo
         updateNotification: (chatId, muteData) => ApiManager.put(`/conversations/${chatId}/mute`, muteData),
 

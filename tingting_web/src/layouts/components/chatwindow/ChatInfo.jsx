@@ -11,7 +11,7 @@ import SecuritySettings from "../../../components/chatInforComponent/SecuritySet
 import MuteNotificationModal from "../../../components/chatInforComponent/MuteNotificationModal";
 import { Api_chatInfo } from "../../../../apis/Api_chatInfo";
 import AddMemberModal from "../../../components/chatInforComponent/AddMemberModal";
-import EditNameModal from "../../../components/chatInforComponent/EditNameModal"; 
+import EditNameModal from "../../../components/chatInforComponent/EditNameModal";
 
 const ChatInfo = () => {
   const [chatInfo, setChatInfo] = useState(null);
@@ -44,23 +44,45 @@ const ChatInfo = () => {
 
   const handleMuteNotification = () => {
     if (isMuted) {
-        setIsMuted(false);
+      setIsMuted(false);
     } else {
-        setIsMuteModalOpen(true);
+      setIsMuteModalOpen(true);
     }
-};
+  };
 
-const handleMuteSuccess = (muted) => {
-  setIsMuted(muted);
-};
- if (loading) {
+  const handleMuteSuccess = (muted) => {
+    setIsMuted(muted);
+  };
+  if (loading) {
     return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
   }
 
   if (!chatInfo) {
     return <p className="text-center text-red-500"> Không thể tải thông tin chat.</p>;
   }
+  const handlePinChat = async () => {
+    if (!chatInfo) return;
 
+    try {
+        const newIsPinned = !chatInfo.isPinned; // Đảo ngược trạng thái
+        console.log("Dữ liệu gửi lên BE:", { isPinned: newIsPinned });
+        await Api_chatInfo.pinChat(chatId, newIsPinned); // Truyền newIsPinned vào đây
+        setChatInfo({ ...chatInfo, isPinned: newIsPinned }); // Cập nhật state
+    } catch (error) {
+        console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
+        if (error.response) {
+            console.error("Response data:", error.response.data);
+            console.error("Response status:", error.response.status);
+            alert(`Lỗi: ${error.response.data.message || "Lỗi khi ghim/bỏ ghim cuộc trò chuyện. Vui lòng thử lại."}`);
+        } else if (error.request) {
+            console.error("Request error:", error.request);
+            alert("Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.");
+        } else {
+            console.error("Error message:", error.message);
+            alert("Lỗi không xác định. Vui lòng thử lại.");
+        }
+    }
+};
   const copyToClipboard = () => {
     navigator.clipboard.writeText(chatInfo?.linkGroup || "https://zalo.me/g/bamwwg826");
     alert("Đã sao chép link nhóm!");
@@ -87,7 +109,7 @@ const handleMuteSuccess = (muted) => {
     }
   };
 
- 
+
   return (
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
       <div className="flex-shrink-0">
@@ -115,7 +137,11 @@ const handleMuteSuccess = (muted) => {
 
         <div className="flex flex-nowrap justify-center gap-4 my-4">
           <GroupActionButton icon="mute" text={isMuted ? "Bật thông báo" : "Tắt thông báo"} onClick={handleMuteNotification} />
-          <GroupActionButton icon="pin" text="Ghim cuộc trò chuyện" onClick={() => console.log("Ghim cuộc trò chuyện")} />
+          <GroupActionButton
+                icon="pin"
+                text={chatInfo?.isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
+                onClick={handlePinChat}
+            />
           <GroupActionButton icon="add" text="Thêm thành viên" onClick={handleAddMember} />
           <AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
         </div>
@@ -139,11 +165,11 @@ const handleMuteSuccess = (muted) => {
       </div>
 
       <MuteNotificationModal
-            isOpen={isMuteModalOpen}
-            onClose={() => setIsMuteModalOpen(false)}
-            chatId={chatId}
-            onMuteSuccess={handleMuteSuccess}
-        />
+        isOpen={isMuteModalOpen}
+        onClose={() => setIsMuteModalOpen(false)}
+        chatId={chatId}
+        onMuteSuccess={handleMuteSuccess}
+      />
       <EditNameModal
         isOpen={isEditNameModalOpen}
         onClose={handleCloseEditNameModal}
