@@ -4,6 +4,8 @@ import ChatPage from './pages/Chat/ChatPage';
 import ContactsPage from './pages/Chat/ContactsPage';
 import Login from './pages/Login';
 import HomePage from './pages/HomePage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotAccountPage from './pages/ForgotAccountPage';
 
 
 function App() {
@@ -19,6 +21,8 @@ function App() {
                 </Route>
                 <Route path="/login" element={<Login />} />
                 <Route path="/homepage" element={<HomePage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgotAccount" element={<ForgotAccountPage />} />
             </Routes>
      </Router>
   )

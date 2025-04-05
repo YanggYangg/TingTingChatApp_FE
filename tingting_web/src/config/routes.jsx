@@ -3,7 +3,8 @@ const routes = {
     contacts: '/contact',
     login: '/login',
     register: '/register',
-    homepage: '/homepage'
+    homepage: '/homepage',
+    forgotAccount: '/forgotAccount',
     
 };
 

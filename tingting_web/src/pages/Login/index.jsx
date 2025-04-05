@@ -1,16 +1,31 @@
 import classNames from "classnames/bind";
 import styles from "./Login.module.scss";
+import { Link } from "react-router-dom";
 import { MdOutlinePhoneIphone } from "react-icons/md";
 import { IoLockClosed } from "react-icons/io5";
+import { useState } from "react";
+
+
+import config from "../../config";
 
 const cx = classNames.bind(styles);
 
 function Login() {
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Xử lý logic đăng ký ở đây
+    console.log({
+     phoneNumber, password
+    });
+  };
   return (
     <div className={cx("wrapper")}>
       <div className={cx("login-layout")}>
         <div className={cx("logo")}>
-          <h1>TingTing</h1>
+          <Link to={config.routes.homepage}><h1>TingTing</h1></Link> 
         </div>
         <div className={cx("title")}>
           <h2>
@@ -23,15 +38,22 @@ function Login() {
           </div>
           <div className={cx("card-body")}>
             <div className={cx("form-signin")}>
-              <form action="">
+              <form onSubmit={handleSubmit} method="post" > 
                 <div className={cx("form-group")}>
                   <label htmlFor="phoneNumber">
                     <MdOutlinePhoneIphone className={cx("text-lg")} />
                   </label>
                   <input
-                    type="phoneNumber"
+                    type="text"
                     id="phoneNumber"
                     name="phoneNumber"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className={cx("w-full")}
+                    required
+                    pattern="[0-9]{10}"
+                    title="Số điện thoại phải là 10 chữ số"
+                    maxLength="10"
                     placeholder="Số điện thoại"
                   />
                 </div>
@@ -43,18 +65,26 @@ function Login() {
                     type="password"
                     id="password"
                     name="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
                     placeholder="Nhập mật khẩu"
                   />
                 </div>
                 <div className={cx("form-bottom")}>
                   <div className={cx("btn-submit")}>
                     <button type="submit">Đăng nhập với mật khẩu</button>
-                     <a href="#">Quên mật khẩu?</a>
-                  </div>
-                    <div className={cx("another")}>
-                      <button>Đăng nhập bằng mã QR</button>
+                    <div className={cx("hover:text-red-500")}>
+                      <Link to={config.routes.forgotAccount}>Quên tài khoản?</Link>
                     </div>
-                  
+                  </div>
+                  <div className={cx("another")}>
+                    <Link to={config.routes.register}>
+                      <button className={cx("hover:text-blue-800")}>
+                        Đăng ký tài khoản TingTing
+                      </button>{" "}
+                    </Link>
+                  </div>
                 </div>
               </form>
             </div>
@@ -64,11 +94,16 @@ function Login() {
               <img src="image.png" alt="Image" />
             </div>
             <div>
-              <h2 className={cx('font-medium')}>Nâng cao hiệu quả công việc với TingTing PC</h2>
-              <p>Gửi file lớn lên đến 1GB, chụp màn hình, gọi video và nhiều tiện ích hơn nữa</p>
+              <h2 className={cx("font-medium")}>
+                Nâng cao hiệu quả công việc với TingTing PC
+              </h2>
+              <p>
+                Gửi file lớn lên đến 1GB, chụp màn hình, gọi video và nhiều tiện
+                ích hơn nữa
+              </p>
             </div>
             <div className={cx("w-30")}>
-              <button className={cx('btn-down-app')}>Tải ngay</button>
+              <button className={cx("btn-down-app")}>Tải ngay</button>
             </div>
           </div>
         </div>
