@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react"; // Thêm useRef
 import { FaCalendarAlt, FaArrowLeft } from "react-icons/fa";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { FaRegFolderOpen, FaDownload } from "react-icons/fa";
@@ -13,11 +13,10 @@ const StoragePage = ({ onClose, chatId }) => {
   const [showDateSuggestions, setShowDateSuggestions] = useState(false);
   const [data, setData] = useState({ images: [], files: [], links: [] });
   const [fullScreenImage, setFullScreenImage] = useState(null);
-  // const chatId = "67e2d6bef1ea6ac96f10bf91";
   const [selectedItems, setSelectedItems] = useState([]);
-  const [isSelecting, setIsSelecting] = useState(false); // Thêm trạng thái chọn
-  const [previewFile, setPreviewFile] = useState(null); // Thêm trạng thái xem trước file
-
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
+  const videoRef = useRef(null); // Thêm ref để kiểm soát video
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,7 +45,7 @@ const StoragePage = ({ onClose, chatId }) => {
       sender: userId?.name || "Không tên",
       name: content || "Không có tên",
       id: _id,
-      type: messageType === "video" ? "video" : "image", // Thêm loại media
+      type: messageType === "video" ? "video" : "image",
     }));
 
   const filteredData = useMemo(() =>
@@ -96,7 +95,6 @@ const StoragePage = ({ onClose, chatId }) => {
       console.error("Không có link file để tải.");
       return;
     }
-
     const link = document.createElement("a");
     link.href = file.url;
     link.setAttribute("download", file.content || "file");
@@ -105,11 +103,21 @@ const StoragePage = ({ onClose, chatId }) => {
     document.body.removeChild(link);
   };
 
-
   const handlePreviewFile = (file) => {
     setPreviewFile(file);
   };
 
+  // Xử lý khi fullScreenImage thay đổi (video play/pause)
+  useEffect(() => {
+    if (fullScreenImage && fullScreenImage.type === "video" && videoRef.current) {
+      videoRef.current.play(); // Phát video khi vào full screen
+    }
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause(); // Dừng video khi thoát full screen
+      }
+    };
+  }, [fullScreenImage]);
 
   const DateFilter = ({
     showDateSuggestions,
@@ -158,7 +166,7 @@ const StoragePage = ({ onClose, chatId }) => {
 
   const DateSection = ({ date, data, activeTab }) => (
     <div className="mt-4">
-    <h2 className="font-bold text-sm text-gray-800">Ngày {date.split("-").reverse().join(" Tháng ")}</h2>
+      <h2 className="font-bold text-sm text-gray-800">Ngày {date.split("-").reverse().join(" Tháng ")}</h2>
       <div className={`grid ${activeTab === "images" ? "grid-cols-4" : "grid-cols-1"} gap-4 mt-2`}>
         {data.filter((item) => item.date === date).map((item, index) => (
           <div key={index} className="flex flex-col items-center">
@@ -182,14 +190,13 @@ const StoragePage = ({ onClose, chatId }) => {
                   <img
                     src={item.url}
                     alt={item.name}
-                     className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
+                    className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
                     onClick={() => setFullScreenImage(item)}
                   />
                 ) : (
                   <video
                     src={item.url}
-                    controls
-                     className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
+                    className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
                     onClick={() => setFullScreenImage(item)}
                   />
                 )}
@@ -198,7 +205,7 @@ const StoragePage = ({ onClose, chatId }) => {
               <div className="flex items-center justify-between bg-gray-100 p-2 rounded-md relative w-full">
                 <a
                   href="#"
-                  onClick={() => handlePreviewFile(item)} // Gọi hàm xem trước
+                  onClick={() => handlePreviewFile(item)}
                   className="text-blue-500 text-sm font-semibold"
                 >
                   {item.name || "Không có tên"}
@@ -206,7 +213,7 @@ const StoragePage = ({ onClose, chatId }) => {
                 <div className="flex gap-2">
                   <button
                     className="text-gray-500 hover:text-blue-500"
-                    onClick={() => handleDownloadFile(item)} // Gọi hàm tải xuống
+                    onClick={() => handleDownloadFile(item)}
                   >
                     <FaDownload size={18} />
                   </button>
@@ -246,6 +253,7 @@ const StoragePage = ({ onClose, chatId }) => {
       </div>
     </div>
   );
+
   const handleDeleteSelected = () => {
     const newData = {
       images: data.images.filter((item) => !selectedItems.includes(item.id)),
@@ -254,7 +262,7 @@ const StoragePage = ({ onClose, chatId }) => {
     };
     setData(newData);
     setSelectedItems([]);
-    setIsSelecting(false); // Tắt chế độ chọn sau khi xóa
+    setIsSelecting(false);
   };
 
   return (
@@ -284,8 +292,7 @@ const StoragePage = ({ onClose, chatId }) => {
         {["images", "files", "links"].map((tab) => (
           <button
             key={tab}
-            className={`px-4 py-2 font-medium text-sm ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"
-              }`}
+            className={`px-4 py-2 font-medium text-sm ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"}`}
             onClick={() => setActiveTab(tab)}
           >
             {tab === "images" ? "Ảnh/Video" : tab === "files" ? "Files" : "Links"}
@@ -305,12 +312,12 @@ const StoragePage = ({ onClose, chatId }) => {
                 />
               ) : (
                 <video
+                  ref={videoRef} // Gắn ref vào video
                   src={fullScreenImage.url}
                   controls
                   className="max-h-full max-w-full object-contain rounded-lg shadow-lg"
                 />
               )}
-
               <button
                 className="absolute top-2 right-2 text-white bg-gray-800 hover:bg-gray-700 rounded-full p-2"
                 onClick={() => setFullScreenImage(null)}
@@ -330,8 +337,7 @@ const StoragePage = ({ onClose, chatId }) => {
                   key={index}
                   src={img.url}
                   alt={img.name}
-                  className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${fullScreenImage.url === img.url ? "opacity-100 border-2 border-blue-400" : "opacity-50 hover:opacity-100"
-                    }`}
+                  className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${fullScreenImage.url === img.url ? "opacity-100 border-2 border-blue-400" : "opacity-50 hover:opacity-100"}`}
                   onClick={() => setFullScreenImage(img)}
                 />
               ))}
@@ -339,6 +345,7 @@ const StoragePage = ({ onClose, chatId }) => {
           </div>
         </div>
       )}
+
       {previewFile && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-90 z-50">
           <div className="relative bg-white rounded-lg shadow-lg p-4 w-full h-full flex flex-col">
@@ -347,7 +354,7 @@ const StoragePage = ({ onClose, chatId }) => {
               <DocViewer
                 documents={[{ uri: previewFile.url }]}
                 pluginRenderers={DocViewerRenderers}
-                style={{ height: '100%' }} // Đặt chiều cao cho DocViewer
+                style={{ height: '100%' }}
               />
             </div>
             <div className="flex justify-between mt-4">
@@ -359,7 +366,7 @@ const StoragePage = ({ onClose, chatId }) => {
               </button>
               <button
                 className="bg-blue-500 text-white px-4 py-2 rounded"
-                onClick={() => handleDownloadFile(previewFile)} // Tải xuống khi nhấn nút
+                onClick={() => handleDownloadFile(previewFile)}
               >
                 Tải xuống
               </button>

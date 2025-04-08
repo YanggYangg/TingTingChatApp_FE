@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react"; // Thêm useRef
 import axios from "axios";
 import StoragePage from "./StoragePage";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+
 const GroupMediaGallery = ({ chatId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [media, setMedia] = useState([]);
   const [fullScreenMedia, setFullScreenMedia] = useState(null);
+  const videoRef = useRef(null); // Thêm ref để kiểm soát video
 
   useEffect(() => {
     if (!chatId) return;
@@ -22,9 +24,8 @@ const GroupMediaGallery = ({ chatId }) => {
           const filteredMedia = mediaData.map((item) => ({
             src: item?.linkURL || "#",
             name: item?.content || "Không có tên",
-            type: item?.messageType || "image", // Thêm type để kiểm tra
+            type: item?.messageType || "image",
           }));
-
           setMedia(filteredMedia);
         } else {
           console.warn("API không trả về dữ liệu hợp lệ.");
@@ -38,14 +39,10 @@ const GroupMediaGallery = ({ chatId }) => {
     fetchMedia();
   }, [chatId]);
 
-
-  // Hàm tải ảnh bằng fetch, tạo Blob và download
   const downloadImage = async (url, filename) => {
     try {
       const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
+      if (!response.ok) throw new Error("Network response was not ok");
       const blob = await response.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -56,16 +53,28 @@ const GroupMediaGallery = ({ chatId }) => {
     } catch (error) {
       console.error("Lỗi khi tải file (CORS hoặc khác):", error);
       alert("Fetch bị chặn, thử tải trực tiếp!");
-
-      // Fallback: Tải bằng <a> trực tiếp
       const fallbackLink = document.createElement("a");
-      fallbackLink.href = url;       // Mở link ảnh trực tiếp
-      fallbackLink.download = filename; 
+      fallbackLink.href = url;
+      fallbackLink.download = filename;
       document.body.appendChild(fallbackLink);
       fallbackLink.click();
       document.body.removeChild(fallbackLink);
     }
   };
+
+  // Xử lý khi fullScreenMedia thay đổi (video play/pause)
+  useEffect(() => {
+    if (fullScreenMedia && fullScreenMedia.type === "video" && videoRef.current) {
+      videoRef.current.play().catch((error) => {
+        console.error("Lỗi khi phát video:", error);
+      });
+    }
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+    };
+  }, [fullScreenMedia]);
 
   return (
     <div>
@@ -85,7 +94,6 @@ const GroupMediaGallery = ({ chatId }) => {
               ) : (
                 <video
                   src={item.src}
-                  controls
                   className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
                   onClick={() => setFullScreenMedia(item)}
                 />
@@ -101,7 +109,7 @@ const GroupMediaGallery = ({ chatId }) => {
         >
           Xem tất cả
         </button>
-        {isOpen && <StoragePage chatId={chatId}  files={media} onClose={() => setIsOpen(false)} />}
+        {isOpen && <StoragePage chatId={chatId} files={media} onClose={() => setIsOpen(false)} />}
       </div>
 
       {/* Modal hiển thị media toàn màn hình */}
@@ -118,6 +126,7 @@ const GroupMediaGallery = ({ chatId }) => {
                 />
               ) : (
                 <video
+                  ref={videoRef} // Gắn ref vào video
                   src={fullScreenMedia.src}
                   controls
                   className="max-h-full max-w-full object-contain rounded-lg shadow-lg transition-all"
@@ -132,7 +141,7 @@ const GroupMediaGallery = ({ chatId }) => {
                 ✖
               </button>
 
-              {/* Nút tải xuống dùng JavaScript để fetch file, fallback nếu lỗi */}
+              {/* Nút tải xuống */}
               <button
                 onClick={() => downloadImage(fullScreenMedia.src, fullScreenMedia.name)}
                 className="absolute bottom-2 right-2 bg-white px-4 py-2 rounded text-sm text-gray-800 hover:bg-gray-200 transition-all"
