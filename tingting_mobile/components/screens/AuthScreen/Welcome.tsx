@@ -3,8 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import CustomButton from "../../../components/button/CustomButton";
 
-function Welcome() {
-  const navigation = useNavigation();
+const Welcome: React.FC<{ navigation: any }> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.titleContainer}>
@@ -26,7 +25,7 @@ function Welcome() {
       </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
