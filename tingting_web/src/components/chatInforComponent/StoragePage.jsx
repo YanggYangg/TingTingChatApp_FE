@@ -4,7 +4,7 @@ import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { FaRegFolderOpen, FaDownload } from "react-icons/fa";
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer';
 
-const StoragePage = ({ onClose }) => {
+const StoragePage = ({ onClose, chatId }) => {
   const [activeTab, setActiveTab] = useState("images");
   const [filterSender, setFilterSender] = useState("Tất cả");
   const [startDate, setStartDate] = useState("");
@@ -13,7 +13,7 @@ const StoragePage = ({ onClose }) => {
   const [showDateSuggestions, setShowDateSuggestions] = useState(false);
   const [data, setData] = useState({ images: [], files: [], links: [] });
   const [fullScreenImage, setFullScreenImage] = useState(null);
-  const chatId = "67e2d6bef1ea6ac96f10bf91";
+  // const chatId = "67e2d6bef1ea6ac96f10bf91";
   const [selectedItems, setSelectedItems] = useState([]);
   const [isSelecting, setIsSelecting] = useState(false); // Thêm trạng thái chọn
   const [previewFile, setPreviewFile] = useState(null); // Thêm trạng thái xem trước file

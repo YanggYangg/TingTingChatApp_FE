@@ -101,7 +101,7 @@ const GroupMediaGallery = ({ chatId }) => {
         >
           Xem tất cả
         </button>
-        {isOpen && <StoragePage files={media} onClose={() => setIsOpen(false)} />}
+        {isOpen && <StoragePage chatId={chatId}  files={media} onClose={() => setIsOpen(false)} />}
       </div>
 
       {/* Modal hiển thị media toàn màn hình */}

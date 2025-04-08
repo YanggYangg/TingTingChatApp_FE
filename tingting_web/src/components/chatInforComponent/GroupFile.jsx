@@ -93,7 +93,7 @@ const GroupFile = ({ chatId }) => {
       >
         Xem tất cả
       </button>
-      {isOpen && <StoragePage files={files} onClose={() => setIsOpen(false)} />}
+      {isOpen && <StoragePage chatId={chatId}  files={files} onClose={() => setIsOpen(false)} />}
       
       {/* Modal xem trước file */}
       {previewFile && (

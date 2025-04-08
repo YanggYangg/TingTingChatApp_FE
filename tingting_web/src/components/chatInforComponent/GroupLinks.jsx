@@ -12,11 +12,7 @@ const GroupLinks = ({ chatId }) => {
 
     const fetchLinks = async () => {
       try {
-        console.log("Gửi request đến API...");
         const response = await Api_chatInfo.getChatLinks(chatId);
-
-        console.log("Dữ liệu API trả về:", response);
-
         const linkData = Array.isArray(response) ? response : response?.data;
 
         if (Array.isArray(linkData)) {
@@ -42,7 +38,7 @@ const GroupLinks = ({ chatId }) => {
           setLinks(sortedLinks.slice(0, 3));
         } else {
           setLinks([]);
-          console.warn("API không trả về mảng hợp lệ");
+          console.error("Dữ liệu không hợp lệ:", response);
         }
       } catch (error) {
         console.error("Lỗi khi lấy danh sách link:", error);
@@ -83,7 +79,7 @@ const GroupLinks = ({ chatId }) => {
         Xem tất cả
       </button>
 
-      {isOpen && <StoragePage links={links} onClose={() => setIsOpen(false)} />}
+      {isOpen && <StoragePage chatId={chatId} links={links} onClose={() => setIsOpen(false)} />}
     </div>
   );
 };
