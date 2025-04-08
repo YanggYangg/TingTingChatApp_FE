@@ -22,7 +22,7 @@ const ChatInfo = () => {
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false); // State cho EditNameModal
 
   const chatId = "67e2d6bef1ea6ac96f10bf91";
-  const userId = "8";
+  const userId = "3";
 
   useEffect(() => {
     const fetchChatInfo = async () => {

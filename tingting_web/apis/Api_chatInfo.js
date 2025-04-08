@@ -34,4 +34,9 @@
 
         // Ẩn trò chuyện
         hideChat: (chatId, isHidden) => ApiManager.put(`/conversations/${chatId}/hide`, { isHidden }),
+
+        // Xóa lịch sử cuộc trò chuyện (chỉ mình tôi)
+        deleteHistory: (chatId, participantData) => ApiManager.delete(`/conversations/${chatId}`, participantData ),
+        
+        
     };

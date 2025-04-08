@@ -52,13 +52,18 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
     };
 
     const handleDeleteHistory = async () => {
+        console.log("userId:", userId);
+        console.log("chatId:", chatId);
+
         try {
-            await axios.delete(`http://localhost:5000/conversations/${chatId}/messages`);
-            alert("Đã xóa lịch sử trò chuyện!");
+            await Api_chatInfo.deleteHistory(chatId, {userId});
+            alert("Đã ẩn lịch sử trò chuyện khỏi tài khoản của bạn!");
         } catch (error) {
             console.error("Lỗi khi xóa lịch sử trò chuyện:", error);
+            alert("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
         }
     };
+    
 
     const handleLeaveGroup = async () => {
         if (!isGroup) return;
