@@ -19,7 +19,7 @@
         // getReminders: (chatId) => ApiManager.get(`/messages/${chatId}/reminders`),
 
         // Ghim/Bỏ ghim trò chuyện
-        pinChat: (chatId, isPinned) => ApiManager.put(`/conversations/${chatId}/pin`, { isPinned }),
+        pinChat: (chatId, pinData) => ApiManager.put(`/conversations/${chatId}/pin`, pinData),
         // Thông báo
         updateNotification: (chatId, muteData) => ApiManager.put(`/conversations/${chatId}/mute`, muteData),
 

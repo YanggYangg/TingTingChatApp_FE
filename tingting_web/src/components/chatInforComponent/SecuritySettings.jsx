@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Switch from "react-switch";
-import { FaTrash, FaDoorOpen, FaEye } from "react-icons/fa"; // Thêm FaEye cho nút "Hiện"
+import { FaTrash, FaDoorOpen } from "react-icons/fa";
 import axios from "axios";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
@@ -15,8 +15,6 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
             try {
                 const response = await axios.get(`http://localhost:5000/conversations/${chatId}`);
                 setIsGroup(response.data.isGroup);
-
-                // Tìm participant tương ứng với userId để kiểm tra isHidden
                 const participant = response.data.participants.find(p => p.userId === userId);
                 setIsHidden(participant ? participant.isHidden : false);
             } catch (error) {
@@ -26,21 +24,20 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
         fetchChatInfo();
     }, [chatId, userId]);
 
-    const handleToggle = (checked) => {
-        if (checked) {
-            setShowPinInput(true);
+    const handleToggle = async (checked) => {
+        if (checked && !isHidden) {
+            setShowPinInput(true); // Hiển thị form PIN khi ẩn lần đầu
         } else {
-            handleHideChat(false); // Gọi API để hiện trò chuyện ngay lập tức
+            await handleHideChat(checked, null); // Hiện lại không cần PIN
         }
     };
 
-    const handleHideChat = async (hide) => {
+    const handleHideChat = async (hide, pin) => {
         try {
-            await Api_chatInfo.hideChat(chatId, { userId, isHidden: hide });
+            await Api_chatInfo.hideChat(chatId, { userId, isHidden: hide, pin });
             setIsHidden(hide);
-            if (!hide) {
-                setShowPinInput(false); // Đóng form PIN khi hiện lại trò chuyện
-            }
+            setShowPinInput(false);
+            setPin("");
         } catch (error) {
             console.error("Lỗi khi ẩn/hiện trò chuyện:", error);
             alert("Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.");
@@ -49,18 +46,13 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
 
     const handleSubmitPin = () => {
         if (pin.length === 4) {
-            handleHideChat(true); // Gọi API để ẩn trò chuyện
-            setShowPinInput(false);
-            setPin(""); // Reset mã PIN sau khi thành công
+            handleHideChat(true, pin); // Gửi mã PIN lên backend
         } else {
             alert("Mã PIN phải có 4 chữ số!");
         }
     };
 
     const handleDeleteHistory = async () => {
-        console.log("userId:", userId);
-        console.log("chatId:", chatId);
-
         try {
             await Api_chatInfo.deleteHistory(chatId, { userId });
             alert("Đã ẩn lịch sử trò chuyện khỏi tài khoản của bạn!");
@@ -72,9 +64,6 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
 
     const handleLeaveGroup = async () => {
         if (!isGroup) return;
-
-        console.log("userId:", userId);
-        console.log("chatId:", chatId);
 
         if (!userId) {
             console.error("userId không tồn tại!");
@@ -90,10 +79,6 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
             }));
         } catch (error) {
             console.error("Lỗi khi rời nhóm:", error);
-            if (error.response) {
-                console.error("Phản hồi từ máy chủ:", error.response.data);
-                console.error("Mã lỗi:", error.response.status);
-            }
         }
     };
 
@@ -116,17 +101,6 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
                     handleDiameter={18}
                 />
             </div>
-
-            {/* Nút "Hiện" nếu trò chuyện đã ẩn */}
-            {isHidden && (
-                <button
-                    className="w-full text-green-500 text-left flex items-center gap-2 mt-2"
-                    onClick={() => handleHideChat(false)}
-                >
-                    <FaEye size={16} />
-                    Hiện trò chuyện
-                </button>
-            )}
 
             {/* Form nhập mã PIN */}
             {showPinInput && (

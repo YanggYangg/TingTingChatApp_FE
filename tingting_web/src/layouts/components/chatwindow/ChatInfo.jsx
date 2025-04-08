@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from 'react-icons/fa';
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
@@ -19,7 +18,7 @@ const ChatInfo = () => {
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false); // State cho EditNameModal
+  const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
   const chatId = "67e2d6bef1ea6ac96f10bf91";
   const userId = "5";
@@ -30,6 +29,16 @@ const ChatInfo = () => {
         const response = await Api_chatInfo.getChatInfo(chatId);
         console.log("Thông tin chat nhận được từ API:", response);
         setChatInfo(response);
+
+        // Kiểm tra trạng thái mute và isPinned của user 
+        const participant = response.participants.find(p => p.userId === userId);
+        if (participant) {
+          setIsMuted(!!participant.mute); // true nếu mute không phải null
+          setChatInfo(prev => ({ ...prev, isPinned: participant.isPinned })); // Cập nhật trạng thái ghim
+        } else {
+          setIsMuted(false);
+        }
+
         setLoading(false);
       } catch (error) {
         console.error("Lỗi khi lấy thông tin chat:", error);
@@ -40,7 +49,7 @@ const ChatInfo = () => {
     if (chatId) {
       fetchChatInfo();
     }
-  }, [chatId]);
+  }, [chatId, userId]);
 
   if (loading) {
     return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
@@ -52,7 +61,9 @@ const ChatInfo = () => {
 
   const handleMuteNotification = () => {
     if (isMuted) {
-      setIsMuted(false);
+      Api_chatInfo.updateNotification(chatId, { userId, mute: null })
+        .then(() => setIsMuted(false))
+        .catch(error => console.error("Lỗi khi bật thông báo:", error));
     } else {
       setIsMuteModalOpen(true);
     }
@@ -67,14 +78,11 @@ const ChatInfo = () => {
 
     try {
       const newIsPinned = !chatInfo.isPinned; // Đảo ngược trạng thái
-      console.log("Dữ liệu gửi lên BE:", { isPinned: newIsPinned });
-      await Api_chatInfo.pinChat(chatId, newIsPinned); // Truyền newIsPinned vào đây
+      await Api_chatInfo.pinChat(chatId, { isPinned: newIsPinned, userId });
       setChatInfo({ ...chatInfo, isPinned: newIsPinned }); // Cập nhật state
     } catch (error) {
       console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
       if (error.response) {
-        console.error("Response data:", error.response.data);
-        console.error("Response status:", error.response.status);
         alert(`Lỗi: ${error.response.data.message || "Lỗi khi ghim/bỏ ghim cuộc trò chuyện. Vui lòng thử lại."}`);
       } else if (error.request) {
         console.error("Request error:", error.request);
@@ -85,6 +93,7 @@ const ChatInfo = () => {
       }
     }
   };
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(chatInfo?.linkGroup || "https://zalo.me/g/bamwwg826");
     alert("Đã sao chép link nhóm!");
@@ -110,7 +119,6 @@ const ChatInfo = () => {
       handleCloseEditNameModal();
     }
   };
-
 
   return (
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
@@ -138,13 +146,21 @@ const ChatInfo = () => {
         </div>
 
         <div className="flex flex-nowrap justify-center gap-4 my-4">
-          <GroupActionButton icon="mute" text={isMuted ? "Bật thông báo" : "Tắt thông báo"} onClick={handleMuteNotification} />
+          <GroupActionButton
+            icon="mute"
+            text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
+            onClick={handleMuteNotification}
+          />
           <GroupActionButton
             icon="pin"
             text={chatInfo?.isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
             onClick={handlePinChat}
           />
-          <GroupActionButton icon="add" text = {chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"} onClick={handleAddMember} />
+          <GroupActionButton
+            icon="add"
+            text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
+            onClick={handleAddMember}
+          />
           <AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
         </div>
 
