@@ -28,7 +28,7 @@ const CommonGroupsModal = ({ isOpen, onClose, groups }) => {
             className="py-2 border-b last:border-none flex items-center"
           >
             <img
-              src={group.avatar || "https://via.placeholder.com/40"}
+              src={group.imageGroup || "https://via.placeholder.com/40"}
               alt={group.name || "Nhóm"}
               className="w-10 h-10 rounded-full mr-3"
             />
