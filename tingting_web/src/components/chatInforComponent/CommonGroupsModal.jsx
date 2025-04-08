@@ -24,7 +24,7 @@ const CommonGroupsModal = ({ isOpen, onClose, groups }) => {
       <ul className="max-h-60 overflow-y-auto">
         {groups.map((group) => (
           <li
-            key={group._id}
+            key={group._idfix }
             className="py-2 border-b last:border-none flex items-center"
           >
             <img

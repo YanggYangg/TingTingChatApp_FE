@@ -21,7 +21,7 @@ const ChatInfo = () => {
   const [loading, setLoading] = useState(true);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false); // State cho EditNameModal
 
-  const chatId = "67e2d6bef1ea6ac96f10bf92";
+  const chatId = "67e2d6bef1ea6ac96f10bf91";
   const userId = "3";
 
   useEffect(() => {
