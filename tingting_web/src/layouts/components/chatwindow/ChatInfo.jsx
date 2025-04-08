@@ -121,7 +121,7 @@ const ChatInfo = () => {
       <div className="flex-1 overflow-y-auto">
         <div className="text-center my-4">
           <img
-            src={chatInfo?.avatar?.trim() ? chatInfo.avatar : "https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg"}
+            src={chatInfo?.imageGroup?.trim() ? chatInfo.imageGroup : "https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg"}
             className="w-20 h-20 rounded-full mx-auto"
           />
           <div className="flex items-center justify-center mt-2">
