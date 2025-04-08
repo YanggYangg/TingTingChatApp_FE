@@ -1,11 +1,11 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { Image, StyleSheet, Platform } from "react-native";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { HelloWave } from "@/components/HelloWave";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
 //import { View } from 'react-native-reanimated/lib/typescript/Animated';
-import { View, Text } from 'react-native';
+import { View, Text } from "react-native";
 
 export default function App() {
   return (
@@ -53,9 +53,9 @@ export default function App() {
     //     </ThemedText>
     //   </ThemedView>
     // </ParallaxScrollView>
-    <View >
-    <Text style={{ color: 'black', fontSize: 20 }}>Giang</Text>
-  </View>
+    <View>
+      <Text style={{ color: "black", fontSize: 20 }}>Giang</Text>
+    </View>
   );
 }
 
