@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Switch from "react-switch";
-import { FaTrash, FaDoorOpen } from "react-icons/fa";
+import { FaTrash, FaDoorOpen, FaEye } from "react-icons/fa"; // Thêm FaEye cho nút "Hiện"
 import axios from "axios";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
@@ -15,13 +15,16 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
             try {
                 const response = await axios.get(`http://localhost:5000/conversations/${chatId}`);
                 setIsGroup(response.data.isGroup);
-                setIsHidden(response.data.isHidden);
+
+                // Tìm participant tương ứng với userId để kiểm tra isHidden
+                const participant = response.data.participants.find(p => p.userId === userId);
+                setIsHidden(participant ? participant.isHidden : false);
             } catch (error) {
                 console.error("Lỗi khi lấy thông tin cuộc trò chuyện:", error);
             }
         };
         fetchChatInfo();
-    }, [chatId]);
+    }, [chatId, userId]);
 
     const handleToggle = (checked) => {
         if (checked) {
@@ -33,8 +36,11 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
 
     const handleHideChat = async (hide) => {
         try {
-            await Api_chatInfo.hideChat(chatId, hide);
+            await Api_chatInfo.hideChat(chatId, { userId, isHidden: hide });
             setIsHidden(hide);
+            if (!hide) {
+                setShowPinInput(false); // Đóng form PIN khi hiện lại trò chuyện
+            }
         } catch (error) {
             console.error("Lỗi khi ẩn/hiện trò chuyện:", error);
             alert("Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.");
@@ -56,14 +62,13 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
         console.log("chatId:", chatId);
 
         try {
-            await Api_chatInfo.deleteHistory(chatId, {userId});
+            await Api_chatInfo.deleteHistory(chatId, { userId });
             alert("Đã ẩn lịch sử trò chuyện khỏi tài khoản của bạn!");
         } catch (error) {
             console.error("Lỗi khi xóa lịch sử trò chuyện:", error);
             alert("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
         }
     };
-    
 
     const handleLeaveGroup = async () => {
         if (!isGroup) return;
@@ -78,9 +83,7 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
 
         try {
             await Api_chatInfo.removeParticipant(chatId, { userId });
-
             alert("Bạn đã rời khỏi nhóm!");
-
             setChatInfo((prevChatInfo) => ({
                 ...prevChatInfo,
                 participants: prevChatInfo?.participants?.filter(p => p.userId !== userId) || [],
@@ -113,6 +116,17 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
                     handleDiameter={18}
                 />
             </div>
+
+            {/* Nút "Hiện" nếu trò chuyện đã ẩn */}
+            {isHidden && (
+                <button
+                    className="w-full text-green-500 text-left flex items-center gap-2 mt-2"
+                    onClick={() => handleHideChat(false)}
+                >
+                    <FaEye size={16} />
+                    Hiện trò chuyện
+                </button>
+            )}
 
             {/* Form nhập mã PIN */}
             {showPinInput && (
