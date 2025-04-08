@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   faUser,
   faUsers,
@@ -14,6 +14,7 @@ const cx = classNames.bind(styles);
 
 const SibarContact = () => {
   const navigate = useNavigate(); 
+
   return (
     <div className="w-full h-screen bg-white  border-gray-200">
       <div>

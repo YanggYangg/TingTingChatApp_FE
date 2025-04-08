@@ -1,4 +1,4 @@
-import React,  {useState } from "react";
+import React,  { useState, useEffect } from "react";
 import classNames from "classnames";
 import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
@@ -13,11 +13,14 @@ import GroupInvites from "../contact-form/GroupInvites";
 import ContactList from "../contact-form/ContactList";
 import ContactsPage from "../../../pages/Chat/ContactsPage";
 
+import { Api_Conversation } from "../../../../apis/Api_Conversation";
+
 
 const cx = classNames.bind(styles);
 
 function ChatList({ activeTab }) {
   console.log("Current activeTab:", activeTab);
+  const [messages, setMessages] = useState([]);  // State để lưu dữ liệu từ API
   const [selectedTab, setSelectedTab] = useState("priority");
 
   // Hàm xử lý khi click vào tin nhắn
@@ -31,6 +34,18 @@ function ChatList({ activeTab }) {
   const handleTabClick = (tab) => {
     setSelectedTab(tab);
   }
+
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        const data = await Api_Conversation.getAllConversations();
+        setMessages(data); // Cập nhật danh sách tin nhắn
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách cuộc trò chuyện:", error);
+      }
+    }
+    fetchConversations();
+  }, []);
 
   // Dữ liệu mẫu
   const sampleMessages = [
@@ -196,7 +211,7 @@ function ChatList({ activeTab }) {
       <div className="flex-grow overflow-y-auto  text-gray-700">
         {activeTab === "/chat" && (
           <MessageList
-            messages={sampleMessages}
+            messages={messages}
             onMessageClick={handleMessageClick}
           />
         )}
