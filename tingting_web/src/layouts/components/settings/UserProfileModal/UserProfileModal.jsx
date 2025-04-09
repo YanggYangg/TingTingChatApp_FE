@@ -1,12 +1,9 @@
+"use client"
 
 import { useState, useEffect, useRef } from "react"
 import { FaTimes, FaEdit, FaCamera } from "react-icons/fa"
-import { useState, useEffect, useRef } from "react";
-import { FaTimes, FaEdit, FaCamera } from "react-icons/fa";
-import InfoModal from "../../../../components/profile/InfoModal.jsx";
 
 function UserProfileModal({ isOpen, onClose }) {
-  const [openModal, setOpenModal] = useState(null);
   const [userData, setUserData] = useState({
     name: "Nguyễn Châu Tình",
     gender: "Nam",
@@ -198,11 +195,8 @@ function UserProfileModal({ isOpen, onClose }) {
   }
 
   return (
-    <><div className="fixed inset-0 bg-[rgba(0,0,0,0.6)] flex items-center justify-center z-50 text-black">
-      <div
-        ref={modalRef}
-        className="bg-white w-full max-w-md rounded-md overflow-hidden"
-      >
+    <div className="fixed inset-0 bg-[rgba(0,0,0,0.6)] flex items-center justify-center z-50 text-black">
+      <div ref={modalRef} className="bg-white w-full max-w-md rounded-md overflow-hidden">
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-lg font-medium">Thông tin tài khoản</h2>
@@ -216,14 +210,16 @@ function UserProfileModal({ isOpen, onClose }) {
           <img
             src="https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg"
             alt=""
-            className="w-full h-60 object-cover" />
+            className="w-full h-60 object-cover"
+          />
           <div className="flex flex-row ml-4 py-6 bg-gray-150 absolute mt-20 items-center top-28">
             <div className="relative">
               <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-white">
                 <img
                   src="https://images2.thanhnien.vn/528068263637045248/2024/1/25/e093e9cfc9027d6a142358d24d2ee350-65a11ac2af785880-17061562929701875684912.jpg"
                   alt="Profile"
-                  className="w-full h-full object-cover" />
+                  className="w-full h-full object-cover"
+                />
               </div>
               <button className="absolute bottom-0 left-16 bg-white rounded-full p-1 shadow">
                 <FaCamera className="text-blue-600" />
@@ -264,15 +260,14 @@ function UserProfileModal({ isOpen, onClose }) {
 
         {/* Update button */}
         <div className="p-4 border-t-2 border-gray-200 flex justify-center">
-          <button className="flex items-center text-blue-600 font-medium"
-          onClick={() => setOpenModal("profile")}>
+          <button className="flex items-center text-blue-600 font-medium" onClick={handleUpdateClick}>
             <FaEdit className="mr-2" />
             Cập nhật
           </button>
         </div>
       </div>
-    </div><InfoModal isOpen={openModal === "profile"} onClose={() => setOpenModal(null)} /></>
-  );
+    </div>
+  )
 }
 
 export default UserProfileModal
