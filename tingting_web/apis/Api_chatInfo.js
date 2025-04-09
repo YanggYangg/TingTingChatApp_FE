@@ -28,6 +28,9 @@
 
         // Xóa lịch sử cuộc trò chuyện (chỉ mình tôi)
         deleteHistory: (conversationId, participantData) => ApiManager.delete(`/conversations/${conversationId}`, participantData ),
+
+        // Danh sách nhóm chung
+        getCommonGroups: (conversationId) => ApiManager.get(`/conversations/${conversationId}/common`),
         
         
     };

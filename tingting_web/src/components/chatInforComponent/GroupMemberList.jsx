@@ -1,10 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MemberListModal from "./MemberListModal";
-import CommonGroupsModal from "./CommonGroupsModal"; // Thêm import modal nhóm chung
+import CommonGroupsModal from "./CommonGroupsModal";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
 const GroupMemberList = ({ chatInfo }) => {
   const [isMemberModalOpen, setMemberModalOpen] = useState(false);
   const [isGroupModalOpen, setGroupModalOpen] = useState(false);
+  const [commonGroups, setCommonGroups] = useState([]);
+
+  useEffect(() => {
+    const fetchCommonGroups = async () => {
+      if (!chatInfo?.isGroup && chatInfo?._id) {
+        try {
+          const res = await Api_chatInfo.getCommonGroups(chatInfo._id);
+          setCommonGroups(res?.commonGroups || []);
+          console.log("API Response nhóm:", res);
+
+        } catch (err) {
+          console.error("Lỗi khi lấy nhóm chung", err);
+          setCommonGroups([]);
+        }
+      }
+    };
+
+    fetchCommonGroups();
+  }, [chatInfo]);
 
   if (!chatInfo) return null;
 
@@ -12,7 +32,6 @@ const GroupMemberList = ({ chatInfo }) => {
     <div className="mb-4">
       <h3 className="text-md font-semibold mb-2">Thông tin hội thoại</h3>
 
-      {/* Hiển thị số thành viên */}
       {chatInfo.isGroup ? (
         <p
           className="text-blue-500 cursor-pointer"
@@ -25,22 +44,20 @@ const GroupMemberList = ({ chatInfo }) => {
           className="text-blue-500 cursor-pointer"
           onClick={() => setGroupModalOpen(true)}
         >
-          {chatInfo.commonGroups?.length || 0} nhóm chung
+          {commonGroups.length} nhóm chung
         </p>
       )}
 
-      {/* Modal danh sách thành viên */}
       <MemberListModal
         isOpen={isMemberModalOpen}
         onClose={() => setMemberModalOpen(false)}
         chatInfo={chatInfo}
       />
 
-      {/* Modal danh sách nhóm chung */}
       <CommonGroupsModal
         isOpen={isGroupModalOpen}
         onClose={() => setGroupModalOpen(false)}
-        groups={chatInfo.commonGroups}
+        commonGroups={commonGroups}
       />
     </div>
   );

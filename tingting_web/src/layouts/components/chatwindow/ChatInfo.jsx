@@ -20,7 +20,7 @@ const ChatInfo = () => {
   const [loading, setLoading] = useState(true);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
-  const conversationId = "67e2d6bef1ea6ac96f10bf91";
+  const conversationId = "67f6021d024c4c5b2e43ffcb";
   const userId = "5";
 
   useEffect(() => {
@@ -164,7 +164,7 @@ const ChatInfo = () => {
           <AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
         </div>
 
-        <GroupMemberList chatInfo={chatInfo} />
+        <GroupMemberList chatInfo={chatInfo} conversationId={conversationId} />
 
         {chatInfo?.linkGroup && (
           <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">

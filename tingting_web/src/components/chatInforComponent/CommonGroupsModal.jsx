@@ -1,30 +1,30 @@
 import { useEffect } from "react";
 import Modal from "react-modal";
 
-const CommonGroupsModal = ({ isOpen, onClose, groups }) => {
+const CommonGroupsModal = ({ isOpen, onClose, commonGroups }) => {
   useEffect(() => {
     if (document.getElementById("root")) {
       Modal.setAppElement("#root");
     }
   }, []);
 
-  if (!groups?.length) return null;
+  if (!commonGroups?.length) return null;
 
   return (
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
       className="bg-white w-96 p-5 rounded-lg shadow-lg mx-auto mt-20 outline-none"
-      overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center transition-opacity"
+      overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]" 
     >
       <h2 className="text-lg font-bold mb-3">
-        Nhóm chung ({groups.length})
+        Nhóm chung ({commonGroups.length})
       </h2>
 
       <ul className="max-h-60 overflow-y-auto">
-        {groups.map((group) => (
+        {commonGroups.map((group, index) => (
           <li
-            key={group._idfix }
+            key={group._id || index}
             className="py-2 border-b last:border-none flex items-center"
           >
             <img
@@ -32,7 +32,9 @@ const CommonGroupsModal = ({ isOpen, onClose, groups }) => {
               alt={group.name || "Nhóm"}
               className="w-10 h-10 rounded-full mr-3"
             />
-            <span className="text-gray-800 font-medium">{group.name || "Nhóm không tên"}</span>
+            <span className="text-gray-800 font-medium">
+              {group.name || "Nhóm không tên"}
+            </span>
           </li>
         ))}
       </ul>
