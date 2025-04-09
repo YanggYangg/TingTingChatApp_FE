@@ -7,10 +7,12 @@ import HomePage from "./pages/HomePage";
 import RegisterPage from "./pages/RegisterPage";
 import { forgotPasswordRoutes } from "./routes";
 import ForgotAccountLayout from "./layouts/ForgotPasswordLayout";
-// import ContactList from "./layouts/components/contact-form/ContactList/ContactList";
-// import GroupList from "./layouts/components/contact-form/GroupList/GroupList";
-// import FriendRequests from "./layouts/components/contact-form/FriendRequests";
-// import ChatList from "./layouts/components/chatlist";
+
+import Contact from "./layouts/components/contact-form/Contact";
+import ContactList from "./layouts/components/contact-form/ContactList/ContactList";
+import GroupList from "./layouts/components/contact-form/GroupList/GroupList";
+import FriendRequests from "./layouts/components/contact-form/FriendRequests";
+import ChatList from "./layouts/components/chatlist";
 
 import { Provider } from "react-redux";
 import store from "./redux/store";
@@ -18,6 +20,7 @@ import store from "./redux/store";
 
 function App() {
   return (
+    <Provider store={store}>
     <Router>
       <Routes>
         <Route path="/" element={<DefaultLayout />}>
@@ -46,6 +49,7 @@ function App() {
         })}
       </Routes>
     </Router>
+    </Provider>
   );
 }
 

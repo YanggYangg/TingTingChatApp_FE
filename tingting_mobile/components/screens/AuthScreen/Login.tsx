@@ -10,18 +10,13 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
-    if (!phoneNumber || !password) {
+    
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
-      return;
-    }
+  
 
     // Sau này gọi API login ở đây
     console.log("Logging in with:", { phoneNumber, password });
 
-    // Ví dụ: gọi BE và điều hướng khi thành công
-    // loginAPI(phoneNumber, password)
-    //   .then(res => navigation.navigate("Home"))
-    //   .catch(err => Alert.alert("Lỗi", "Đăng nhập thất bại"));
   };
 
   return (
