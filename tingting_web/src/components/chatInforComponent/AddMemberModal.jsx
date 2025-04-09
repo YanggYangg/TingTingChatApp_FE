@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const AddMemberModal = ({ isOpen, onClose, conversationId }) => {
+const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -45,20 +45,25 @@ const AddMemberModal = ({ isOpen, onClose, conversationId }) => {
       setError("");
       setSuccessMessage("");
 
-      const participantData = { userID: memberId, role: "member" };
+      const participantData = { userID: memberId, role: "member" }; 
       await Api_chatInfo.addParticipant(conversationId, participantData);
 
       setAvailableMembers((prev) =>
         prev.filter((m) => getMemberId(m) !== memberId)
       );
       setSuccessMessage("Thêm thành viên thành công!");
+
+      // Gọi callback để cập nhật chatInfo trong ChatInfo
+      if (onMemberAdded) {
+        onMemberAdded();
+      }
     } catch (error) {
       console.error("Lỗi khi thêm thành viên:", error);
       setError("Không thể thêm thành viên. Vui lòng thử lại!");
     }
   };
 
-  const getMemberId = (member) => member.id || member._id || member.userID;
+  const getMemberId = (member) => member.id || member._id || member.userID; // Sửa userID thành userID
 
   return (
     <Modal

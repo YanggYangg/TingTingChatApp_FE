@@ -21,7 +21,7 @@ const ChatInfo = () => {
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
   const conversationId = "67e2d6bef1ea6ac96f10bf91";
-  const userId = "5";
+  const userId = "6";
 
   useEffect(() => {
     const fetchChatInfo = async () => {
@@ -30,11 +30,10 @@ const ChatInfo = () => {
         console.log("Thông tin chat nhận được từ API:", response);
         setChatInfo(response);
 
-        // Kiểm tra trạng thái mute và isPinned của user 
         const participant = response.participants.find(p => p.userId === userId);
         if (participant) {
-          setIsMuted(!!participant.mute); // true nếu mute không phải null
-          setChatInfo(prev => ({ ...prev, isPinned: participant.isPinned })); // Cập nhật trạng thái ghim
+          setIsMuted(!!participant.mute);
+          setChatInfo(prev => ({ ...prev, isPinned: participant.isPinned }));
         } else {
           setIsMuted(false);
         }
@@ -50,6 +49,16 @@ const ChatInfo = () => {
       fetchChatInfo();
     }
   }, [conversationId, userId]);
+
+  // Callback khi thêm thành viên thành công
+  const handleMemberAdded = async () => {
+    try {
+      const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId); // Lấy lại thông tin chat mới nhất
+      setChatInfo(updatedChatInfo); // Cập nhật chatInfo
+    } catch (error) {
+      console.error("Lỗi khi cập nhật chatInfo sau khi thêm thành viên:", error);
+    }
+  };
 
   if (loading) {
     return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
@@ -77,19 +86,17 @@ const ChatInfo = () => {
     if (!chatInfo) return;
 
     try {
-      const newIsPinned = !chatInfo.isPinned; // Đảo ngược trạng thái
+      const newIsPinned = !chatInfo.isPinned;
       await Api_chatInfo.pinChat(conversationId, { isPinned: newIsPinned, userId });
-      setChatInfo({ ...chatInfo, isPinned: newIsPinned }); // Cập nhật state
+      setChatInfo({ ...chatInfo, isPinned: newIsPinned });
     } catch (error) {
       console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
       if (error.response) {
-        alert(`Lỗi: ${error.response.data.message || "Lỗi khi ghim/bỏ ghim cuộc trò chuyện. Vui lòng thử lại."}`);
+        alert(`Lỗi: ${error.response.data.message || "Lỗi khi ghim/bỏ ghim cuộc trò chuyện."}`);
       } else if (error.request) {
-        console.error("Request error:", error.request);
-        alert("Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.");
+        alert("Không thể kết nối đến server.");
       } else {
-        console.error("Error message:", error.message);
-        alert("Lỗi không xác định. Vui lòng thử lại.");
+        alert("Lỗi không xác định.");
       }
     }
   };
@@ -161,7 +168,12 @@ const ChatInfo = () => {
             text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
             onClick={handleAddMember}
           />
-          <AddMemberModal isOpen={isAddModalOpen} conversationId={conversationId} onClose={() => setIsAddModalOpen(false)} />
+          <AddMemberModal
+            isOpen={isAddModalOpen}
+            conversationId={conversationId}
+            onClose={() => setIsAddModalOpen(false)}
+            onMemberAdded={handleMemberAdded} // Truyền callback
+          />
         </div>
 
         <GroupMemberList chatInfo={chatInfo} conversationId={conversationId} />
