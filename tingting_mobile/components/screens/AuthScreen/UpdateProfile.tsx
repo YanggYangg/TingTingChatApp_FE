@@ -12,18 +12,13 @@ import { useNavigation } from "@react-navigation/native";
 import CustomTextInput from "../../textfield/CustomTextInput";
 import CustomButton from "@/components/button/CustomButton";
 
-function Register() {
+function UpdateProfile() {
   const navigation = useNavigation();
 
   const [day, setDay] = useState("1");
   const [month, setMonth] = useState("1");
   const [year, setYear] = useState("2000");
   const [selectedGender, setSelectedGender] = useState("");
-
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   const isSelected = (gender: string) => selectedGender === gender;
 
@@ -111,30 +106,16 @@ function Register() {
           ))}
         </View>
         <CustomTextInput 
-        placeholder="Địa chỉ email"
-        value = {email}
-        onChangeText={setEmail}
-        />
+        placeholder="Địa chỉ email" />
         <CustomTextInput 
-        placeholder="Số điện thoại di động"
-        value={phone}
-        onChangeText={setPhone}
-        />
+        placeholder="Số điện thoại di động" />
         <CustomTextInput 
-        placeholder="Nhập mật khẩu mới" 
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword} 
-        />
+        placeholder="Nhập mật khẩu mới" secureTextEntry />
         <CustomTextInput 
-        placeholder="Nhập lại mật khẩu" 
-        secureTextEntry 
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        />
+        placeholder="Nhập lại mật khẩu" secureTextEntry />
 
-        <CustomButton title="Đăng ký" 
-        onPress={() => console.log('Đăng ký')} />
+        <CustomButton title="Cập nhật thông tin" 
+        onPress={() => console.log('Cập nhật thông tin')} />
       </View>
     </View>
   );
@@ -220,4 +201,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Register;
+export default UpdateProfile;

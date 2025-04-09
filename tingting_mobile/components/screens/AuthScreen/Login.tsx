@@ -10,7 +10,6 @@ function Login() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.headerContainer}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons
@@ -23,13 +22,11 @@ function Login() {
         <Text style={styles.headerText}>Đăng nhập</Text>
       </View>
 
-      {/* Body */}
       <View style={styles.bodyContainer}>
         <CustomTextInput placeholder="Nhập số điện thoại của bạn" />
         <CustomTextInput placeholder="Nhập mật khẩu của bạn" secureTextEntry={true} />
       </View>
 
-      {/* Button */}
       <View style={styles.buttonContainer}>
         <CustomButton
           title="Đăng nhập"
@@ -49,7 +46,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: '#1E90FF',
+    backgroundColor: '#007AFF',
     paddingTop: 10,
     paddingBottom: 20,
     paddingHorizontal: 16,

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import CustomButton from "../../../components/button/CustomButton";
 
@@ -8,7 +8,8 @@ const Welcome: React.FC<{ navigation: any }> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.titleContainer}>
-        <Text style={styles.text}>Welcome to TingTingChatApp</Text>
+        <Text style={styles.text}>Welcome to {'\n'} TingTingChatApp</Text>
+        <Image source={require('../../../assets/images/TingTing_Chat.png')} style={styles.image} />
       </View>
 
       <View style={styles.buttonContainer}>
@@ -42,10 +43,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   text: {
-    color: "#000",
-    fontSize: 24,
+    color: "#007AFF",
+    fontSize: 30,
     fontWeight: "bold",
     textAlign: "center",
+    marginBottom: 20,
+  },
+  image:{
+    width: 300,
+    height: 300,
+    borderRadius: 100,
     marginBottom: 20,
   },
   buttonContainer: {
