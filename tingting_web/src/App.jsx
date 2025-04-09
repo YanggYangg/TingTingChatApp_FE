@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import DefaultLayout from "./layouts/DefaultLayout";
 import ChatPage from "./pages/Chat/ChatPage";
 import ContactsPage from "./pages/Chat/ContactsPage";
@@ -7,6 +7,14 @@ import HomePage from "./pages/HomePage";
 import RegisterPage from "./pages/RegisterPage";
 import { forgotPasswordRoutes } from "./routes";
 import ForgotAccountLayout from "./layouts/ForgotPasswordLayout";
+// import ContactList from "./layouts/components/contact-form/ContactList/ContactList";
+// import GroupList from "./layouts/components/contact-form/GroupList/GroupList";
+// import FriendRequests from "./layouts/components/contact-form/FriendRequests";
+// import ChatList from "./layouts/components/chatlist";
+
+import { Provider } from "react-redux";
+import store from "./redux/store";
+
 
 function App() {
   return (
@@ -16,6 +24,7 @@ function App() {
           <Route index element={<h1>Chat window</h1>} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="contact" element={<ContactsPage />} />
+          <Route path="*" element={<Navigate to="/contacts/friends" />} />{" "}
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/homepage" element={<HomePage />} />
