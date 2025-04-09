@@ -12,36 +12,45 @@ import { useNavigate } from "react-router-dom";
 
 const cx = classNames.bind(styles);
 
-const SibarContact = () => {
-  const navigate = useNavigate(); 
+const SidebarContact = () => {
+  const navigate = useNavigate();
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const handleItemClick = (path) => {
+    setSelectedItem(path); // Cập nhật mục đang chọn
+    navigate(path);
+  };
 
   return (
-    <div className="w-full h-screen bg-white  border-gray-200">
+    <div className="w-full h-screen bg-white border-gray-200">
       <div>
         <ContactItem
           label="Danh sách bạn bè"
           icon={faUser}
-          onClick={() => navigate("/contacts/friends")}
+          isSelected={selectedItem === "/contacts/friends"}
+          onClick={() => handleItemClick("/contacts/friends")}
         />
         <ContactItem
           label="Danh sách nhóm và cộng đồng"
           icon={faUsers}
-          onClick={() => navigate("/contacts/groups")}
-
+          isSelected={selectedItem === "/contacts/groups"}
+          onClick={() => handleItemClick("/contacts/groups")}
         />
         <ContactItem
           label="Lời mời kết bạn"
           icon={faUserPlus}
-          onClick={() => navigate("/contacts/friend-requests")}
+          isSelected={selectedItem === "/contacts/friend-requests"}
+          onClick={() => handleItemClick("/contacts/friend-requests")}
         />
         <ContactItem
           label="Lời mời vào nhóm và cộng đồng"
           icon={faUserGear}
-          onClick={() => navigate("/contacts/group-invites")}
+          isSelected={selectedItem === "/contacts/group-invites"}
+          onClick={() => handleItemClick("/contacts/group-invites")}
         />
       </div>
     </div>
   );
 };
 
-export default SibarContact;
+export default SidebarContact;
