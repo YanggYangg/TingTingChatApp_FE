@@ -97,9 +97,6 @@ function InfoModal({ isOpen, onClose }) {
                         </div>
                     </div>
 
-                    <input name="email" type="email" placeholder="Địa chỉ email" value={formData.email} onChange={handleChange} className="border px-3 py-2 w-full rounded" />
-                    <input name="phone" placeholder="Số điện thoại di động" value={formData.phone} onChange={handleChange} className="border px-3 py-2 w-full rounded" />
-
 
                     <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded mt-4">
                         Cập nhật

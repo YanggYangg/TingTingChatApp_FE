@@ -181,8 +181,8 @@ function ChatList({ activeTab }) {
       </div>
 
       {activeTab === "/chat" && (
-      <div className="flex justify-start space-x-4 px-4 py-2 border-b">
-     <button
+        <div className="flex justify-start space-x-4 px-4 py-2 border-b">
+          <button
             className={`font-semibold px-2 ${
               selectedTab === "priority"
                 ? "text-blue-600 border-b-2 border-blue-600"
@@ -205,10 +205,8 @@ function ChatList({ activeTab }) {
         </div>
       )}
 
-  
-
       {/* Danh sách chat */}
-      <div className="flex-grow overflow-y-auto  text-gray-700">
+      <div className="flex-grow  text-gray-700">
         {activeTab === "/chat" && (
           <MessageList
             //messages={messages}
@@ -217,10 +215,7 @@ function ChatList({ activeTab }) {
           />
         )}
 
-
-    {activeTab === "/contact" && (
-          <SibarContact  />
-      )}
+        {activeTab === "/contact" && <SibarContact />}
       </div>
     </div>
   );
