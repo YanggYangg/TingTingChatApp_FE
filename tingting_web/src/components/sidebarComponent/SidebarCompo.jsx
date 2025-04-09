@@ -10,10 +10,13 @@ import {
 import routes from "../../config/routes";
 
 import SettingsMenu from "../../layouts/components/settings/SettingsMenu/SettingsMenu";
+import ModalProfile from "../profile/ModalProfile";
 
 function SidebarCompo({ setActiveTab }) {
   // Start Menu setting
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const toggleModal = () => setIsModalOpen(!isModalOpen);
 
   const toggleSettings = () => {
     setSettingsOpen(!settingsOpen);
@@ -21,12 +24,12 @@ function SidebarCompo({ setActiveTab }) {
 
   // End Menu setting
 
-  return (
-    <div className="w-16 h-screen bg-blue-600 flex flex-col items-center py-4">
-      {/* Avatar */}
-      <div className="w-12 h-12 rounded-full overflow-hidden border-white mb-4">
-        <SidebarItem icon={FaUserCircle} />
-      </div>
+  return(
+        <div className="w-16 h-screen bg-blue-600 flex flex-col items-center py-4">
+        {/* Avatar */}
+        <div className="w-12 h-12 rounded-full overflow-hidden border-white mb-4" onClick={toggleModal}>
+            <SidebarItem icon={FaUserCircle} />
+        </div>
 
       {/* Top*/}
       <SidebarItem
@@ -57,6 +60,9 @@ function SidebarCompo({ setActiveTab }) {
         onClose={() => setSettingsOpen(false)}
         position="left"
       />
+
+
+        <ModalProfile isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
