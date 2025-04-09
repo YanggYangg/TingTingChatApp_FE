@@ -9,6 +9,7 @@
         // Quản lý thành viên trong hội thoại
         getParticipants: (conversationId) => ApiManager.get(`/conversations/${conversationId}/participants`),
         addParticipant: (conversationId, participantData) => ApiManager.post(`/conversations/${conversationId}/participants`, participantData),
+        getAvailableMembers: (conversationId) => ApiManager.get(`/conversations/${conversationId}/available`),
         removeParticipant: (conversationId, participantData) => ApiManager.delete(`/conversations/${conversationId}/participants`, participantData), // Gửi participantData trực tiếp
    
         // Media, File, Links, Pin, Reminder

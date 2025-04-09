@@ -20,7 +20,7 @@ const ChatInfo = () => {
   const [loading, setLoading] = useState(true);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
-  const conversationId = "67f6021d024c4c5b2e43ffcb";
+  const conversationId = "67e2d6bef1ea6ac96f10bf91";
   const userId = "5";
 
   useEffect(() => {
@@ -161,7 +161,7 @@ const ChatInfo = () => {
             text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
             onClick={handleAddMember}
           />
-          <AddMemberModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+          <AddMemberModal isOpen={isAddModalOpen} conversationId={conversationId} onClose={() => setIsAddModalOpen(false)} />
         </div>
 
         <GroupMemberList chatInfo={chatInfo} conversationId={conversationId} />
