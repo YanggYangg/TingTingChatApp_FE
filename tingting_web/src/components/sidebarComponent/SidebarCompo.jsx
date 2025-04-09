@@ -44,7 +44,11 @@ function SidebarCompo({ setActiveTab }) {
       <div className="flex-grow"></div>
 
       {/*Bottom */}
-      <SidebarItem icon={FaCloud} />
+      <SidebarItem
+        icon={FaCloud}
+        to={routes.cloud}
+        onClick={() => setActiveTab(routes.cloud)}
+      />
       <SidebarItem icon={FaCog} onClick={toggleSettings} />
 
       {/* Settings Menu */}

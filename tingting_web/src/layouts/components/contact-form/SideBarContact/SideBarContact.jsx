@@ -22,7 +22,7 @@ const SidebarContact = () => {
   };
 
   return (
-    <div className="w-full h-screen bg-white border-gray-200">
+    <div className="w-full h-screen bg-white border-gray-200 cursor-default">
       <div>
         <ContactItem
           label="Danh sách bạn bè"

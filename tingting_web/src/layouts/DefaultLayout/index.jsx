@@ -22,6 +22,8 @@ function DefaultLayout({ children }) {
     } else {
       const basePath = location.pathname.startsWith("/contact")
         ? "/contact"
+        : location.pathname.startsWith("/cloud")
+        ? "/cloud"
         : "/chat";
       setActiveTab(basePath);
     }
