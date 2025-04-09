@@ -21,7 +21,7 @@ const ChatInfo = () => {
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
   const conversationId = "67e2d6bef1ea6ac96f10bf91";
-  const userId = "6";
+  const userId = "6601a1b2c3d4e5f678901238";
 
   useEffect(() => {
     const fetchChatInfo = async () => {

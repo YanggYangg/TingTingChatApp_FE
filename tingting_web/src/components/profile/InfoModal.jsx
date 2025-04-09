@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 function InfoModal({ isOpen, onClose }) {
-    if (!isOpen) return null;
+   
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -14,7 +14,7 @@ function InfoModal({ isOpen, onClose }) {
         phone: '0123456789',
         avatar: null
     });
-
+    if (!isOpen) return null;
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
