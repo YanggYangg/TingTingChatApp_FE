@@ -1,41 +1,43 @@
-import classNames from "classnames/bind";
-import styles from "./Login.module.scss";
-import { Link } from "react-router-dom";
-import { MdOutlinePhoneIphone } from "react-icons/md";
-import { IoLockClosed } from "react-icons/io5";
-import { useState } from "react";
-import { useNavigate } from 'react-router-dom';
+"use client"
 
-import { Api_Auth } from "../../../apis/api_auth";
-import Modal from '../../components/Modal/Modal';
-import config from "../../config";
+import classNames from "classnames/bind"
+import styles from "./Login.module.scss"
+import { Link } from "react-router-dom"
+import { MdOutlinePhoneIphone } from "react-icons/md"
+import { IoLockClosed } from "react-icons/io5"
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 
-const cx = classNames.bind(styles);
+import { Api_Auth } from "../../../apis/api_auth"
+import Modal from "../../components/Modal/Modal"
+import config from "../../config"
+
+const cx = classNames.bind(styles)
 
 function Login() {
-  const navigator = useNavigate();
-  const [isError, setIsError] = useState(false);
-  const [messageError, setMessageError] = useState("");
-  const [phone, setPhoneNumber] = useState("");
-  const [password, setPassword] = useState("");
+  const navigator = useNavigate()
+  const [isError, setIsError] = useState(false)
+  const [messageError, setMessageError] = useState("")
+  const [phone, setPhoneNumber] = useState("")
+  const [password, setPassword] = useState("")
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    const data = { phone, password };
+    e.preventDefault()
+    const data = { phone, password }
     try {
-      const response = await Api_Auth.login(data); 
-      localStorage.setItem("token", response.data.token);
-     
-      navigator(config.routes.chat);
-      
+      const response = await Api_Auth.login(data)
+      localStorage.setItem("token", response.data.token)
+
+      navigator(config.routes.chat)
     } catch (err) {
-      setMessageError(err.response.data.message);
-      setIsError(true);
+      setMessageError(err.response?.data?.message || "Login failed")
+      setIsError(true)
     }
-  };
+  }
+
   const handleTryAgain = () => {
-    setIsError(false);
-};
+    setIsError(false)
+  }
 
   return (
     <div className={cx("wrapper")}>
@@ -46,9 +48,7 @@ function Login() {
           </Link>
         </div>
         <div className={cx("title")}>
-          <h2>
-            Đăng nhập tài khoản TingTing để kết nối với ứng dụng TingTing Web
-          </h2>
+          <h2>Đăng nhập tài khoản TingTing để kết nối với ứng dụng TingTing Web</h2>
         </div>
         <div className={cx("body")}>
           <div className={cx("card-head")}>
@@ -93,34 +93,25 @@ function Login() {
                   <div className={cx("btn-submit")}>
                     <button type="submit">Đăng nhập với mật khẩu</button>
                     <div className={cx("hover:text-red-500")}>
-                      <Link to={config.routes.verifyUser}>
-                        Quên tài khoản?
-                      </Link>
+                      <Link to={config.routes.verifyUser}>Quên tài khoản?</Link>
                     </div>
                   </div>
                   <div className={cx("another")}>
                     <Link to={config.routes.register}>
-                      <button className={cx("hover:text-blue-800")}>
-                        Đăng ký tài khoản TingTing
-                      </button>{" "}
+                      <button className={cx("hover:text-blue-800")}>Đăng ký tài khoản TingTing</button>
                     </Link>
                   </div>
                 </div>
               </form>
             </div>
           </div>
-          <div className={cx("card-bottom", "flex")}>
-            <div className={cx("w-30")}>
+          <div className={cx("card-bottom")}>
+            {/* <div className={cx("w-30")}>
               <img src="image.png" alt="Image" />
-            </div>
+            </div> */}
             <div>
-              <h2 className={cx("font-medium")}>
-                Nâng cao hiệu quả công việc với TingTing PC
-              </h2>
-              <p>
-                Gửi file lớn lên đến 1GB, chụp màn hình, gọi video và nhiều tiện
-                ích hơn nữa
-              </p>
+              <h2 className={cx("font-medium")}>Nâng cao hiệu quả công việc với TingTing PC</h2>
+              <p>Gửi file lớn lên đến 1GB, chụp màn hình, gọi video và nhiều tiện ích hơn nữa</p>
             </div>
             <div className={cx("w-30")}>
               <button className={cx("btn-down-app")}>Tải ngay</button>
@@ -128,22 +119,19 @@ function Login() {
           </div>
         </div>
       </div>
-      {
-                isError && (
-                    <Modal
-                        valid={false}
-                        title="Login Failed!"
-                        message={messageError}
-                        isConfirm={true}                      
-                        onConfirm={handleTryAgain}
-                        contentConfirm={'Try again'}
-                        contentCancel="Login page"
-                    />
-                )
-            }
+      {isError && (
+        <Modal
+          valid={false}
+          title="Login Failed!"
+          message={messageError}
+          isConfirm={true}
+          onConfirm={handleTryAgain}
+          contentConfirm={"Try again"}
+          contentCancel="Login page"
+        />
+      )}
     </div>
-    
-  );
+  )
 }
 
-export default Login;
+export default Login
