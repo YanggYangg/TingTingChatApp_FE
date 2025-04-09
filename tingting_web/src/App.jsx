@@ -4,15 +4,17 @@ import ChatPage from "./pages/Chat/ChatPage";
 import ContactsPage from "./pages/Chat/ContactsPage";
 import Login from "./pages/Login";
 import HomePage from "./pages/HomePage";
-import RegisterPage from "./pages/RegisterPage";
-import { forgotPasswordRoutes } from "./routes";
-import ForgotAccountLayout from "./layouts/ForgotPasswordLayout";
+<<<<<<<<< Temporary merge branch 1
 
 import Contact from "./layouts/components/contact-form/Contact";
 import ContactList from "./layouts/components/contact-form/ContactList/ContactList";
 import GroupList from "./layouts/components/contact-form/GroupList/GroupList";
 import FriendRequests from "./layouts/components/contact-form/FriendRequests";
 import ChatList from "./layouts/components/chatlist";
+
+import RegisterPage from "./pages/RegisterPage";
+import { forgotPasswordRoutes } from "./routes";
+import ForgotAccountLayout from "./layouts/ForgotPasswordLayout";
 
 import { Provider } from "react-redux";
 import store from "./redux/store";
@@ -53,4 +55,5 @@ function App() {
   );
 }
 
+>>>>>>>>> Temporary merge branch 2
 export default App;

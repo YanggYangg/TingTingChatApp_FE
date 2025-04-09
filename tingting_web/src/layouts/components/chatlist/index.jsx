@@ -13,7 +13,7 @@ import GroupInvites from "../contact-form/GroupInvites";
 import ContactList from "../contact-form/ContactList";
 import ContactsPage from "../../../pages/Chat/ContactsPage";
 
-import { Api_Conversation } from "../../../../apis/Api_Conversation";
+// import { Api_Conversation } from "../../../../apis/Api_Conversation";
 
 
 const cx = classNames.bind(styles);
@@ -35,17 +35,17 @@ function ChatList({ activeTab }) {
     setSelectedTab(tab);
   }
 
-  useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        const data = await Api_Conversation.getAllConversations();
-        setMessages(data); // Cập nhật danh sách tin nhắn
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách cuộc trò chuyện:", error);
-      }
-    }
-    fetchConversations();
-  }, []);
+  // useEffect(() => {
+  //   const fetchConversations = async () => {
+  //     try {
+  //       const data = await Api_Conversation.getAllConversations();
+  //       setMessages(data); // Cập nhật danh sách tin nhắn
+  //     } catch (error) {
+  //       console.error("Lỗi khi lấy danh sách cuộc trò chuyện:", error);
+  //     }
+  //   }
+  //   fetchConversations();
+  // }, []);
 
   // Dữ liệu mẫu
   const sampleMessages = [
@@ -181,8 +181,8 @@ function ChatList({ activeTab }) {
       </div>
 
       {activeTab === "/chat" && (
-      <div className="flex justify-start space-x-4 px-4 py-2 border-b">
-     <button
+        <div className="flex justify-start space-x-4 px-4 py-2 border-b">
+          <button
             className={`font-semibold px-2 ${
               selectedTab === "priority"
                 ? "text-blue-600 border-b-2 border-blue-600"
@@ -205,21 +205,17 @@ function ChatList({ activeTab }) {
         </div>
       )}
 
-  
-
       {/* Danh sách chat */}
-      <div className="flex-grow overflow-y-auto  text-gray-700">
+      <div className="flex-grow  text-gray-700">
         {activeTab === "/chat" && (
           <MessageList
-            messages={messages}
+            //messages={messages}
+            messages={sampleMessages}
             onMessageClick={handleMessageClick}
           />
         )}
 
-
-    {activeTab === "/contact" && (
-          <SibarContact  />
-      )}
+        {activeTab === "/contact" && <SibarContact />}
       </div>
     </div>
   );
