@@ -1,36 +1,44 @@
 import classNames from "classnames/bind";
-import styles from "./RegisterPage.module.scss";
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import config from "../../config";
-
+import styles from "./RegisterPage.module.scss";
+import Modal from "../../components/Modal/Modal";
+import { Api_Auth } from "../../../apis/api_auth";
 const cx = classNames.bind(styles);
 
 function RegisterPage() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const navigator = useNavigate();
+  const [firstname, setFirstName] = useState("");
+  const [surname, setSurName] = useState("");
   const [day, setDay] = useState("1");
   const [month, setMonth] = useState("Jan");
   const [year, setYear] = useState("2025");
   const [gender, setGender] = useState("Male");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
 
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [messageError, setMessageError] = useState("");
+
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
   ];
   const years = Array.from(
     { length: 100 },
@@ -38,23 +46,40 @@ function RegisterPage() {
   );
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     // Xử lý logic đăng ký ở đây
     if (password !== passwordConfirm) {
       alert("Mật khẩu không khớp!");
       return;
     }
-    console.log({
-      firstName,
-      lastName,
-      day,
-      month,
-      year,
-      gender,
-      phone,
-      password,
-    });
+    try {
+      const data = {
+        firstname,
+        surname,
+        day,
+        month,
+        year,
+        gender,
+        email,
+        phone,
+        password,
+      };
+      const response = await Api_Auth.signUp(data);
+      console.log(response.data.user._id);
+
+      setIsSuccess(true);
+    } catch (err) {
+      setMessageError(err.response.data.message);
+      setIsError(true);
+    }
+  };
+  const handleLoginRedirect = () => {
+    navigator("/login");
+  };
+
+  const handleTryAgain = () => {
+    setIsError(false);
   };
 
   return (
@@ -76,20 +101,20 @@ function RegisterPage() {
                 <input
                   type="text"
                   placeholder="Tên"
-                  value={firstName}
+                  value={firstname}
                   onChange={(e) => setFirstName(e.target.value)}
                   className="border p-2 rounded w-1/2 border-gray-300"
-                  pattern="[A-Za-z]{1,}"
+                  pattern="[A-Za-z]{1,30}"
                   title="Tên chỉ được chứa chữ cái"
                   required
                 />
                 <input
                   type="text"
                   placeholder="Họ"
-                  pattern="[A-Za-z]{1,}"
+                  pattern="[A-Za-z]{1,30}"
                   title="Họ chỉ được chứa chữ cái"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  value={surname}
+                  onChange={(e) => setSurName(e.target.value)}
                   className="border p-2 rounded w-1/2  border-gray-300"
                   required
                 />
@@ -173,6 +198,21 @@ function RegisterPage() {
                   </label>
                 </div>
               </div>
+              <div>
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Thông tin liên hệ của bạn ?
+                </label>
+              </div>
+              <input
+                type="email"
+                placeholder="Địa chỉ email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="border p-2 rounded w-full mb-2  border-gray-300"
+                pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+                title="Địa chỉ email không hợp lệ"
+                required
+              />
 
               <input
                 type="text"
@@ -272,6 +312,29 @@ function RegisterPage() {
           </div>
         </div>
       </div>
+      {isSuccess && (
+        <Modal
+          valid={true}
+          title="Registration Successful!"
+          message="You may now login with your account"
+          isConfirm={true}
+          onConfirm={handleLoginRedirect}
+          contentConfirm={"OK"}
+        />
+      )}
+      {isError && (
+        <Modal
+          valid={false}
+          title="Registration Failed!"
+          message={messageError}
+          isConfirm={true}
+          isCancel={true}
+          onConfirm={handleTryAgain}
+          onCancel={handleLoginRedirect}
+          contentConfirm={"Try again"}
+          contentCancel="Login page"
+        />
+      )}
     </div>
   );
 }

@@ -4,28 +4,46 @@ import { Link } from "react-router-dom";
 import { MdOutlinePhoneIphone } from "react-icons/md";
 import { IoLockClosed } from "react-icons/io5";
 import { useState } from "react";
+import { useNavigate } from 'react-router-dom';
 
-
+import { Api_Auth } from "../../../apis/api_auth";
+import Modal from '../../components/Modal/Modal';
 import config from "../../config";
 
 const cx = classNames.bind(styles);
 
 function Login() {
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
+  const navigator = useNavigate();
+  const [isError, setIsError] = useState(false);
+  const [messageError, setMessageError] = useState("");
+  const [phone, setPhoneNumber] = useState("");
+  const [password, setPassword] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Xử lý logic đăng ký ở đây
-    console.log({
-     phoneNumber, password
-    });
+    const data = { phone, password };
+    try {
+      const response = await Api_Auth.login(data); 
+      localStorage.setItem("token", response.data.token);
+     
+      navigator(config.routes.chat);
+      
+    } catch (err) {
+      setMessageError(err.response.data.message);
+      setIsError(true);
+    }
   };
+  const handleTryAgain = () => {
+    setIsError(false);
+};
+
   return (
     <div className={cx("wrapper")}>
       <div className={cx("login-layout")}>
         <div className={cx("logo")}>
-          <Link to={config.routes.homepage}><h1>TingTing</h1></Link> 
+          <Link to={config.routes.homepage}>
+            <h1>TingTing</h1>
+          </Link>
         </div>
         <div className={cx("title")}>
           <h2>
@@ -38,7 +56,7 @@ function Login() {
           </div>
           <div className={cx("card-body")}>
             <div className={cx("form-signin")}>
-              <form onSubmit={handleSubmit} method="post" > 
+              <form onSubmit={handleSubmit} method="post">
                 <div className={cx("form-group")}>
                   <label htmlFor="phoneNumber">
                     <MdOutlinePhoneIphone className={cx("text-lg")} />
@@ -47,7 +65,7 @@ function Login() {
                     type="text"
                     id="phoneNumber"
                     name="phoneNumber"
-                    value={phoneNumber}
+                    value={phone}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     className={cx("w-full")}
                     required
@@ -75,7 +93,9 @@ function Login() {
                   <div className={cx("btn-submit")}>
                     <button type="submit">Đăng nhập với mật khẩu</button>
                     <div className={cx("hover:text-red-500")}>
-                      <Link to={config.routes.forgotAccount}>Quên tài khoản?</Link>
+                      <Link to={config.routes.verifyUser}>
+                        Quên tài khoản?
+                      </Link>
                     </div>
                   </div>
                   <div className={cx("another")}>
@@ -108,7 +128,21 @@ function Login() {
           </div>
         </div>
       </div>
+      {
+                isError && (
+                    <Modal
+                        valid={false}
+                        title="Login Failed!"
+                        message={messageError}
+                        isConfirm={true}                      
+                        onConfirm={handleTryAgain}
+                        contentConfirm={'Try again'}
+                        contentCancel="Login page"
+                    />
+                )
+            }
     </div>
+    
   );
 }
 

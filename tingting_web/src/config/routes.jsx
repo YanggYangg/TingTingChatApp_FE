@@ -4,7 +4,9 @@ const routes = {
     login: '/login',
     register: '/register',
     homepage: '/homepage',
-    forgotAccount: '/forgotAccount',
+    verifyUser: '/verify-user',
+    enterOTP: '/enter-otp',
+    updatePassword: '/update-password',
     
 };
 
