@@ -38,10 +38,6 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
         <Text style={styles.headerText}>Đăng nhập</Text>
       </View>
 
-<<<<<<< HEAD
-=======
-      {/* Form */}
->>>>>>> 323497703f3ad89f51bf0aaaf6b5d93afe087f56
       <View style={styles.bodyContainer}>
         <CustomTextInput
           placeholder="Nhập số điện thoại của bạn"
@@ -56,9 +52,6 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
         />
       </View>
 
-<<<<<<< HEAD
-=======
-      {/* Quên mật khẩu */}
       <View style={styles.forgetPass}>
         <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
           <Text style={{ color: "#007AFF", textAlign: "right" }}>
@@ -66,9 +59,6 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* Nút đăng nhập */}
->>>>>>> 323497703f3ad89f51bf0aaaf6b5d93afe087f56
       <View style={styles.buttonContainer}>
         <CustomButton
           title="Đăng nhập"
@@ -88,11 +78,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
-<<<<<<< HEAD
-    backgroundColor: '#007AFF',
-=======
     backgroundColor: "#007AFF",
->>>>>>> 323497703f3ad89f51bf0aaaf6b5d93afe087f56
     paddingTop: 10,
     paddingBottom: 20,
     paddingHorizontal: 16,
