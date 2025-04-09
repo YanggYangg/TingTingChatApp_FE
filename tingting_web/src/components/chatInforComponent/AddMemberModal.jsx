@@ -8,7 +8,6 @@ const AddMemberModal = ({ isOpen, onClose, conversationId }) => {
   const [successMessage, setSuccessMessage] = useState("");
   const [availableMembers, setAvailableMembers] = useState([]);
 
-  // Lấy danh sách thành viên khả dụng từ API khi mở modal
   useEffect(() => {
     const fetchAvailableMembers = async () => {
       if (!conversationId || !isOpen) return;
@@ -27,18 +26,15 @@ const AddMemberModal = ({ isOpen, onClose, conversationId }) => {
     fetchAvailableMembers();
   }, [isOpen, conversationId]);
 
-  // Lọc danh sách theo từ khóa tìm kiếm (họ + tên)
   const filteredMembers = availableMembers.filter((member) => {
     const fullName = `${member.lastName} ${member.firstName}`.toLowerCase();
     return fullName.includes(searchTerm.toLowerCase());
   });
 
-  // Sắp xếp theo tên A-Z
   const sortedMembers = filteredMembers.sort((a, b) => {
     return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
   });
 
-  // Hàm thêm thành viên
   const addMember = async (memberId) => {
     if (!conversationId || !memberId) {
       setError("Thiếu thông tin để thêm thành viên.");
@@ -49,17 +45,20 @@ const AddMemberModal = ({ isOpen, onClose, conversationId }) => {
       setError("");
       setSuccessMessage("");
 
-      const participantData = { userId: memberId, role: "member" };
+      const participantData = { userID: memberId, role: "member" };
       await Api_chatInfo.addParticipant(conversationId, participantData);
 
-      // Cập nhật danh sách sau khi thêm
-      setAvailableMembers((prev) => prev.filter((m) => m.id !== memberId));
+      setAvailableMembers((prev) =>
+        prev.filter((m) => getMemberId(m) !== memberId)
+      );
       setSuccessMessage("Thêm thành viên thành công!");
     } catch (error) {
       console.error("Lỗi khi thêm thành viên:", error);
       setError("Không thể thêm thành viên. Vui lòng thử lại!");
     }
   };
+
+  const getMemberId = (member) => member.id || member._id || member.userID;
 
   return (
     <Modal
@@ -87,27 +86,30 @@ const AddMemberModal = ({ isOpen, onClose, conversationId }) => {
           {sortedMembers.length === 0 ? (
             <p className="text-center text-sm text-gray-500">Không tìm thấy thành viên nào</p>
           ) : (
-            sortedMembers.map((member) => (
-              <li
-                key={member.id}
-                className="flex items-center gap-2 p-2 border rounded-md"
-              >
-                <img
-                  src={member.avatar}
-                  alt={`${member.firstName} ${member.lastName}`}
-                  className="w-8 h-8 rounded-full"
-                />
-                <p className="flex-1 text-sm">
-                  {member.lastName} {member.firstName}
-                </p>
-                <button
-                  className="bg-blue-500 text-white px-2 py-1 rounded-md text-xs"
-                  onClick={() => addMember(member.id)}
+            sortedMembers.map((member) => {
+              const memberId = getMemberId(member);
+              return (
+                <li
+                  key={memberId}
+                  className="flex items-center gap-2 p-2 border rounded-md"
                 >
-                  Thêm
-                </button>
-              </li>
-            ))
+                  <img
+                    src={member.avatar}
+                    alt={`${member.firstName} ${member.lastName}`}
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <p className="flex-1 text-sm">
+                    {member.lastName} {member.firstName}
+                  </p>
+                  <button
+                    className="bg-blue-500 text-white px-2 py-1 rounded-md text-xs"
+                    onClick={() => addMember(memberId)}
+                  >
+                    Thêm
+                  </button>
+                </li>
+              );
+            })
           )}
         </ul>
       </div>
