@@ -113,7 +113,7 @@ function SettingsMenu({ isOpen, onClose, position }) {
       />
       <UserProfileModal
         isOpen={userProfileModalOpen}
-        onClose={() => setUserProfileModalOpen(false)}
+        onCloseUserProfile={() => setUserProfileModalOpen(false)}
       />
     </>
   );

@@ -25,7 +25,7 @@ function Login() {
     try {
       const response = await Api_Auth.login(data); 
       localStorage.setItem("token", response.data.token);
-     
+      localStorage.setItem("userId", response.data.user.userId);
       navigator(config.routes.chat);
       
     } catch (err) {

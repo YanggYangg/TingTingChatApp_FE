@@ -4,7 +4,6 @@ import ChatPage from "./pages/Chat/ChatPage";
 import ContactsPage from "./pages/Chat/ContactsPage";
 import Login from "./pages/Login";
 import HomePage from "./pages/HomePage";
-<<<<<<<<< Temporary merge branch 1
 
 import Contact from "./layouts/components/contact-form/Contact";
 import ContactList from "./layouts/components/contact-form/ContactList/ContactList";
@@ -54,6 +53,4 @@ function App() {
     </Provider>
   );
 }
-
->>>>>>>>> Temporary merge branch 2
 export default App;
