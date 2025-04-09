@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from "react";
-import { FaTimes, FaEdit, FaCamera } from "react-icons/fa";
+"use client"
+
+import { useState, useEffect, useRef } from "react"
+import { FaTimes, FaEdit, FaCamera } from "react-icons/fa"
 
 function UserProfileModal({ isOpen, onClose }) {
   const [userData, setUserData] = useState({
@@ -7,35 +9,194 @@ function UserProfileModal({ isOpen, onClose }) {
     gender: "Nam",
     birthdate: "05 tháng 12, 2002",
     phone: "+84 372 374 650",
-  });
+  })
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "Nguyễn Châu Tình",
+    gender: "Nam",
+    day: "05",
+    month: "12",
+    year: "2002",
+  })
 
-  const modalRef = useRef(null);
+  const modalRef = useRef(null)
 
   // Close modal when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (modalRef.current && !modalRef.current.contains(event.target)) {
-        onClose();
+        onClose()
       }
     }
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside)
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, onClose]);
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isOpen, onClose])
 
-  if (!isOpen) return null;
+  const handleUpdateClick = () => {
+    setIsEditMode(true)
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false)
+  }
+
+  const handleSaveChanges = () => {
+    // Update the user data with form data
+    setUserData({
+      ...userData,
+      name: formData.name,
+      gender: formData.gender,
+      birthdate: `${formData.day} tháng ${formData.month}, ${formData.year}`,
+    })
+    setIsEditMode(false)
+  }
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData({
+      ...formData,
+      [name]: value,
+    })
+  }
+
+  if (!isOpen) return null
+
+  if (isEditMode) {
+    return (
+      <div className="fixed inset-0 bg-[rgba(0,0,0,0.6)] flex items-center justify-center z-50 text-black">
+        <div ref={modalRef} className="bg-white w-full max-w-md rounded-md overflow-hidden">
+          {/* Header */}
+          <div className="flex justify-between items-center p-4 border-b">
+            <button onClick={handleCancelEdit} className="text-black hover:text-gray-700">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h2 className="text-lg font-medium">Cập nhật thông tin cá nhân</h2>
+            <div className="w-6"></div> {/* Empty div for spacing */}
+          </div>
+
+          {/* Form */}
+          <div className="p-4">
+            <div className="mb-4">
+              <label className="block text-sm mb-1">Tên hiển thị</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+
+            <div className="mb-4">
+              <h4 className="text-lg font-medium mb-2">Thông tin cá nhân</h4>
+
+              <div className="mb-4">
+                <div className="flex items-center mb-2">
+                  <input
+                    type="radio"
+                    id="male"
+                    name="gender"
+                    value="Nam"
+                    checked={formData.gender === "Nam"}
+                    onChange={handleInputChange}
+                    className="mr-2"
+                  />
+                  <label htmlFor="male">Nam</label>
+
+                  <input
+                    type="radio"
+                    id="female"
+                    name="gender"
+                    value="Nữ"
+                    checked={formData.gender === "Nữ"}
+                    onChange={handleInputChange}
+                    className="ml-6 mr-2"
+                  />
+                  <label htmlFor="female">Nữ</label>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm mb-1">Ngày sinh</label>
+                <div className="flex gap-2">
+                  <select
+                    name="day"
+                    value={formData.day}
+                    onChange={handleInputChange}
+                    className="p-2 border rounded flex-1"
+                  >
+                    {[...Array(31)].map((_, i) => (
+                      <option key={i + 1} value={String(i + 1).padStart(2, "0")}>
+                        {String(i + 1).padStart(2, "0")}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    name="month"
+                    value={formData.month}
+                    onChange={handleInputChange}
+                    className="p-2 border rounded flex-1"
+                  >
+                    {[...Array(12)].map((_, i) => (
+                      <option key={i + 1} value={String(i + 1).padStart(2, "0")}>
+                        {String(i + 1).padStart(2, "0")}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    name="year"
+                    value={formData.year}
+                    onChange={handleInputChange}
+                    className="p-2 border rounded flex-1"
+                  >
+                    {[...Array(50)].map((_, i) => (
+                      <option key={2024 - i} value={String(2024 - i)}>
+                        {2024 - i}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="p-4 border-t flex justify-between">
+            <button onClick={handleCancelEdit} className="px-4 py-2 bg-gray-200 rounded">
+              Hủy
+            </button>
+            <button onClick={handleSaveChanges} className="px-4 py-2 bg-blue-500 text-white rounded">
+              Cập nhật
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 bg-[rgba(0,0,0,0.6)] flex items-center justify-center z-50 text-black">
-      <div
-        ref={modalRef}
-        className="bg-white w-full max-w-md rounded-md overflow-hidden"
-      >
+      <div ref={modalRef} className="bg-white w-full max-w-md rounded-md overflow-hidden">
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-lg font-medium">Thông tin tài khoản</h2>
@@ -93,22 +254,20 @@ function UserProfileModal({ isOpen, onClose }) {
               <div>{userData.phone}</div>
             </div>
 
-            <div className="text-sm  mt-4">
-              Chỉ bạn bè có lưu số của bạn trong danh bạ máy xem được số này
-            </div>
+            <div className="text-sm  mt-4">Chỉ bạn bè có lưu số của bạn trong danh bạ máy xem được số này</div>
           </div>
         </div>
 
         {/* Update button */}
         <div className="p-4 border-t-2 border-gray-200 flex justify-center">
-          <button className="flex items-center text-blue-600 font-medium">
+          <button className="flex items-center text-blue-600 font-medium" onClick={handleUpdateClick}>
             <FaEdit className="mr-2" />
             Cập nhật
           </button>
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export default UserProfileModal;
+export default UserProfileModal
