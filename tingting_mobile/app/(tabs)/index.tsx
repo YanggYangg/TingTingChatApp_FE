@@ -7,12 +7,9 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Login from "../../components/screens/AuthScreen/Login";
 import Register from "../../components/screens/AuthScreen/Register";
 import Welcome from "../../components/screens/AuthScreen/Welcome";
-
-import Chat from "../../components/screens/MainScreen/Chat";
-import Contact from "../../components/screens/MainScreen/Contact";
-import Diary from "../../components/screens/MainScreen/Diary";
-import Profile from "../../components/screens/MainScreen/Profile";
-import CustomTabBar from "@/components/navigate/CustomTabBar";
+import ForgotPassword from "../../components/screens/AuthScreen/ForgotPassword";
+import ResetPassword from "@/components/screens/AuthScreen/ResetPassword";
+import EnterCodeForForgotPassword from "@/components/screens/AuthScreen/EnterCodeforForgotPassword";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -25,38 +22,29 @@ export default function App() {
         component={Welcome}
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="Login"
+        component={Login}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ForgotPassword"
+        component={ForgotPassword}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ResetPassword"
+        component={ResetPassword}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EnterCodeForForgotPassword"
+        component={EnterCodeForForgotPassword}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen name="Register" component={Register} />
       <Stack.Screen name="Login" component={Login} options={{ headerShown: false }} />
       <Stack.Screen name="Register" component={Register} options={{ headerShown: false }}/>
-      <Stack.Screen name="Main" component={MainTabNavigator} options={{ headerShown: false }} />
     </Stack.Navigator>
-  );
-}
-
-function MainTabNavigator() {
-  return (
-    <Tab.Navigator
-      initialRouteName="Home"
-      tabBar={(props) => <CustomTabBar {...props} />} // <- dùng tab bar của bạn
-      screenOptions={{
-        headerShown: false, // Ẩn header từng screen trong tab
-      }}
-    >
-      <Tab.Screen
-        name="Home"
-        component={Chat}
-      />
-      <Tab.Screen
-        name="MyCourse"
-        component={Contact}
-      />
-      <Tab.Screen
-        name="Search"
-        component={Diary}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={Profile}
-      />
-    </Tab.Navigator>
   );
 }
