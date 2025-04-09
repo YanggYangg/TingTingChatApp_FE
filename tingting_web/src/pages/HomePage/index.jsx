@@ -15,10 +15,10 @@ const cx = classNames.bind(styles);
 function HomePage() {
     return ( 
         <div className={cx("wrapper")}>
-            <div className={cx("header")}>
-                <div className={cx("logo")}>
-                    <img src="" alt="" />
+             <div className={cx("logo")}>
+             <Link to={config.routes.homepage}><p className={cx('text-3xl text-blue-500 font-bold fixed top-2 left-2  h-16 z-50')}>TingTing</p></Link>
                 </div>
+            <div className={cx("header")}>
                 <div className={cx("nav")}>
                     <ul>
                         <Link to ><button className={cx('nav-item', 'text-blue-500')}>TINGTING WEB</button></Link>
@@ -29,6 +29,7 @@ function HomePage() {
                         <Link to ><button className={cx('nav-item')}>LIÊN HỆ</button></Link>
                         <Link to ><button className={cx('nav-item')}>BÁO CÁO VI PHẠM</button></Link>
                         <Link to={config.routes.login} ><button className={cx('nav-item', 'text-blue-500')}>ĐĂNG NHẬP</button></Link>
+                        <Link to={config.routes.register} ><button className={cx('nav-item', 'text-blue-500')}>ĐĂNG KÝ</button></Link>
 
                     </ul>
                 </div>

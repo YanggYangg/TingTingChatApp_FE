@@ -23,6 +23,7 @@
     "classnames": "^2.5.1",
     "emoji-picker-react": "^4.12.2",
     "lucide-react": "^0.479.0",
+    "prop-types": "^15.8.1",
     "react": "^19.0.0",
     "react-doc-viewer": "^0.1.14",
     "react-dom": "^19.0.0",
