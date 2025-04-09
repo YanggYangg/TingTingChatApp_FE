@@ -3,7 +3,7 @@ import Modal from "react-modal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
 const AddMemberModal = ({ isOpen, onClose }) => {
-  const chatId = "67e2d6bef1ea6ac96f10bf91";
+  const conversationId = "67e2d6bef1ea6ac96f10bf91";
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -21,7 +21,7 @@ const AddMemberModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     const fetchExistingMembers = async () => {
       try {
-        const response = await Api_chatInfo.getParticipants(chatId);
+        const response = await Api_chatInfo.getParticipants(conversationId);
         setExistingMembers(response.data || []); // Đảm bảo luôn là mảng
       } catch (error) {
         console.error("Lỗi khi lấy danh sách thành viên:", error);
@@ -49,7 +49,7 @@ const AddMemberModal = ({ isOpen, onClose }) => {
   
   // Thêm thành viên vào nhóm chat
   const addMember = async (memberId) => {
-    if (!chatId) {
+    if (!conversationId) {
       setError("Lỗi: Không tìm thấy ID cuộc trò chuyện!");
       return;
     }
@@ -64,7 +64,7 @@ const AddMemberModal = ({ isOpen, onClose }) => {
       setSuccessMessage("");
 
       const participantData = { userId: memberId, role: "member" };
-      await Api_chatInfo.addParticipant(chatId, participantData);
+      await Api_chatInfo.addParticipant(conversationId, participantData);
 
       // Cập nhật danh sách thành viên đã có trong nhóm
       setExistingMembers([...existingMembers, { id: memberId }]);

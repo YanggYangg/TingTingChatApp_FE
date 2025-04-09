@@ -4,7 +4,7 @@ import { FaTrash, FaDoorOpen } from "react-icons/fa";
 import axios from "axios";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
+const SecuritySettings = ({ conversationId, userId, setChatInfo }) => {
     const [isHidden, setIsHidden] = useState(false);
     const [pin, setPin] = useState("");
     const [showPinInput, setShowPinInput] = useState(false);
@@ -13,7 +13,7 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
     useEffect(() => {
         const fetchChatInfo = async () => {
             try {
-                const response = await axios.get(`http://localhost:5000/conversations/${chatId}`);
+                const response = await axios.get(`http://localhost:5000/conversations/${conversationId}`);
                 setIsGroup(response.data.isGroup);
                 const participant = response.data.participants.find(p => p.userId === userId);
                 setIsHidden(participant ? participant.isHidden : false);
@@ -22,7 +22,7 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
             }
         };
         fetchChatInfo();
-    }, [chatId, userId]);
+    }, [conversationId, userId]);
 
     const handleToggle = async (checked) => {
         if (checked && !isHidden) {
@@ -34,7 +34,7 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
 
     const handleHideChat = async (hide, pin) => {
         try {
-            await Api_chatInfo.hideChat(chatId, { userId, isHidden: hide, pin });
+            await Api_chatInfo.hideChat(conversationId, { userId, isHidden: hide, pin });
             setIsHidden(hide);
             setShowPinInput(false);
             setPin("");
@@ -54,7 +54,7 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
 
     const handleDeleteHistory = async () => {
         try {
-            await Api_chatInfo.deleteHistory(chatId, { userId });
+            await Api_chatInfo.deleteHistory(conversationId, { userId });
             alert("Đã ẩn lịch sử trò chuyện khỏi tài khoản của bạn!");
         } catch (error) {
             console.error("Lỗi khi xóa lịch sử trò chuyện:", error);
@@ -71,7 +71,7 @@ const SecuritySettings = ({ chatId, userId, setChatInfo }) => {
         }
 
         try {
-            await Api_chatInfo.removeParticipant(chatId, { userId });
+            await Api_chatInfo.removeParticipant(conversationId, { userId });
             alert("Bạn đã rời khỏi nhóm!");
             setChatInfo((prevChatInfo) => ({
                 ...prevChatInfo,

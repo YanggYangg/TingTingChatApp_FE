@@ -4,12 +4,12 @@ import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
 Modal.setAppElement("#root");
 
-const MuteNotificationModal = ({ isOpen, onClose, chatId, userId, onMuteSuccess }) => {
+const MuteNotificationModal = ({ isOpen, onClose, conversationId, userId, onMuteSuccess }) => {
     const [selectedMuteTime, setSelectedMuteTime] = useState("1h");
 
     const handleConfirmMute = async () => {
         try {
-            await Api_chatInfo.updateNotification(chatId, { mute: selectedMuteTime , userId: userId });
+            await Api_chatInfo.updateNotification(conversationId, { mute: selectedMuteTime , userId: userId });
             onClose();
             if (onMuteSuccess) {
                 onMuteSuccess(true); // Gọi callback khi tắt thông báo thành công

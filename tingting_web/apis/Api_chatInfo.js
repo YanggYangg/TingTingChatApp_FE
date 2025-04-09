@@ -3,31 +3,31 @@
     export const Api_chatInfo = {
         // Quản lý hội thoại
         getAllConversations: () => ApiManager.get(`/chats`), 
-        getChatInfo: (chatId) => ApiManager.get(`/conversations/${chatId}`),
-        updateChatName: (chatId, name) => ApiManager.put(`/conversations/${chatId}`, { name }),
+        getChatInfo: (conversationId) => ApiManager.get(`/conversations/${conversationId}`),
+        updateChatName: (conversationId, name) => ApiManager.put(`/conversations/${conversationId}`, { name }),
 
         // Quản lý thành viên trong hội thoại
-        getParticipants: (chatId) => ApiManager.get(`/conversations/${chatId}/participants`),
-        addParticipant: (chatId, participantData) => ApiManager.post(`/conversations/${chatId}/participants`, participantData),
-        removeParticipant: (chatId, participantData) => ApiManager.delete(`/conversations/${chatId}/participants`, participantData), // Gửi participantData trực tiếp
+        getParticipants: (conversationId) => ApiManager.get(`/conversations/${conversationId}/participants`),
+        addParticipant: (conversationId, participantData) => ApiManager.post(`/conversations/${conversationId}/participants`, participantData),
+        removeParticipant: (conversationId, participantData) => ApiManager.delete(`/conversations/${conversationId}/participants`, participantData), // Gửi participantData trực tiếp
    
         // Media, File, Links, Pin, Reminder
-        getChatMedia: (chatId) => ApiManager.get(`/messages/${chatId}/media`),
-        getChatFiles: (chatId) => ApiManager.get(`/messages/${chatId}/files`),
-        getChatLinks: (chatId) => ApiManager.get(`/messages/${chatId}/links`),
-        getPinnedMessages: (chatId) => ApiManager.get(`/messages/${chatId}/pinned-messages`),
-        // getReminders: (chatId) => ApiManager.get(`/messages/${chatId}/reminders`),
+        getChatMedia: (conversationId) => ApiManager.get(`/messages/${conversationId}/media`),
+        getChatFiles: (conversationId) => ApiManager.get(`/messages/${conversationId}/files`),
+        getChatLinks: (conversationId) => ApiManager.get(`/messages/${conversationId}/links`),
+        getPinnedMessages: (conversationId) => ApiManager.get(`/messages/${conversationId}/pinned-messages`),
+        // getReminders: (conversationId) => ApiManager.get(`/messages/${conversationId}/reminders`),
 
         // Ghim/Bỏ ghim trò chuyện
-        pinChat: (chatId, pinData) => ApiManager.put(`/conversations/${chatId}/pin`, pinData),
+        pinChat: (conversationId, pinData) => ApiManager.put(`/conversations/${conversationId}/pin`, pinData),
         // Thông báo
-        updateNotification: (chatId, muteData) => ApiManager.put(`/conversations/${chatId}/mute`, muteData),
+        updateNotification: (conversationId, muteData) => ApiManager.put(`/conversations/${conversationId}/mute`, muteData),
 
         // Ẩn trò chuyện
-        hideChat: (chatId, hideData) => ApiManager.put(`/conversations/${chatId}/hide`, hideData),
+        hideChat: (conversationId, hideData) => ApiManager.put(`/conversations/${conversationId}/hide`, hideData),
 
         // Xóa lịch sử cuộc trò chuyện (chỉ mình tôi)
-        deleteHistory: (chatId, participantData) => ApiManager.delete(`/conversations/${chatId}`, participantData ),
+        deleteHistory: (conversationId, participantData) => ApiManager.delete(`/conversations/${conversationId}`, participantData ),
         
         
     };

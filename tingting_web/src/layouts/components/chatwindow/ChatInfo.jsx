@@ -20,13 +20,13 @@ const ChatInfo = () => {
   const [loading, setLoading] = useState(true);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
-  const chatId = "67e2d6bef1ea6ac96f10bf91";
+  const conversationId = "67e2d6bef1ea6ac96f10bf91";
   const userId = "5";
 
   useEffect(() => {
     const fetchChatInfo = async () => {
       try {
-        const response = await Api_chatInfo.getChatInfo(chatId);
+        const response = await Api_chatInfo.getChatInfo(conversationId);
         console.log("Thông tin chat nhận được từ API:", response);
         setChatInfo(response);
 
@@ -46,10 +46,10 @@ const ChatInfo = () => {
       }
     };
 
-    if (chatId) {
+    if (conversationId) {
       fetchChatInfo();
     }
-  }, [chatId, userId]);
+  }, [conversationId, userId]);
 
   if (loading) {
     return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
@@ -61,7 +61,7 @@ const ChatInfo = () => {
 
   const handleMuteNotification = () => {
     if (isMuted) {
-      Api_chatInfo.updateNotification(chatId, { userId, mute: null })
+      Api_chatInfo.updateNotification(conversationId, { userId, mute: null })
         .then(() => setIsMuted(false))
         .catch(error => console.error("Lỗi khi bật thông báo:", error));
     } else {
@@ -78,7 +78,7 @@ const ChatInfo = () => {
 
     try {
       const newIsPinned = !chatInfo.isPinned; // Đảo ngược trạng thái
-      await Api_chatInfo.pinChat(chatId, { isPinned: newIsPinned, userId });
+      await Api_chatInfo.pinChat(conversationId, { isPinned: newIsPinned, userId });
       setChatInfo({ ...chatInfo, isPinned: newIsPinned }); // Cập nhật state
     } catch (error) {
       console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
@@ -110,7 +110,7 @@ const ChatInfo = () => {
     if (!chatInfo || !newName.trim()) return;
 
     try {
-      await Api_chatInfo.updateChatName(chatId, newName.trim());
+      await Api_chatInfo.updateChatName(conversationId, newName.trim());
       setChatInfo({ ...chatInfo, name: newName.trim() });
     } catch (error) {
       console.error('Lỗi khi cập nhật tên:', error);
@@ -176,16 +176,16 @@ const ChatInfo = () => {
           </div>
         )}
 
-        <GroupMediaGallery chatId={chatId} />
-        <GroupFile chatId={chatId} />
-        <GroupLinks chatId={chatId} />
-        <SecuritySettings chatId={chatId} userId={userId} setChatInfo={setChatInfo} />
+        <GroupMediaGallery conversationId={conversationId} />
+        <GroupFile conversationId={conversationId} />
+        <GroupLinks conversationId={conversationId} />
+        <SecuritySettings conversationId={conversationId} userId={userId} setChatInfo={setChatInfo} />
       </div>
 
       <MuteNotificationModal
         isOpen={isMuteModalOpen}
         onClose={() => setIsMuteModalOpen(false)}
-        chatId={chatId}
+        conversationId={conversationId}
         userId={userId}
         onMuteSuccess={handleMuteSuccess}
       />

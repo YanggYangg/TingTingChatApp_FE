@@ -3,16 +3,16 @@ import { AiOutlineLink } from "react-icons/ai";
 import StoragePage from "./StoragePage";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const GroupLinks = ({ chatId }) => {
+const GroupLinks = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [links, setLinks] = useState([]);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!conversationId) return;
 
     const fetchLinks = async () => {
       try {
-        const response = await Api_chatInfo.getChatLinks(chatId);
+        const response = await Api_chatInfo.getChatLinks(conversationId);
         const linkData = Array.isArray(response) ? response : response?.data;
 
         if (Array.isArray(linkData)) {
@@ -46,7 +46,7 @@ const GroupLinks = ({ chatId }) => {
     };
 
     fetchLinks();
-  }, [chatId]);
+  }, [conversationId]);
 
   return (
     <div className="mb-4">
@@ -79,7 +79,7 @@ const GroupLinks = ({ chatId }) => {
         Xem tất cả
       </button>
 
-      {isOpen && <StoragePage chatId={chatId} links={links} onClose={() => setIsOpen(false)} />}
+      {isOpen && <StoragePage conversationId={conversationId} links={links} onClose={() => setIsOpen(false)} />}
     </div>
   );
 };

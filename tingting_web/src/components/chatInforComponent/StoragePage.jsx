@@ -4,7 +4,7 @@ import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { FaRegFolderOpen, FaDownload } from "react-icons/fa";
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer';
 
-const StoragePage = ({ onClose, chatId }) => {
+const StoragePage = ({ onClose, conversationId }) => {
   const [activeTab, setActiveTab] = useState("images");
   const [filterSender, setFilterSender] = useState("Tất cả");
   const [startDate, setStartDate] = useState("");
@@ -22,9 +22,9 @@ const StoragePage = ({ onClose, chatId }) => {
     const fetchData = async () => {
       try {
         const [images, files, links] = await Promise.all([
-          Api_chatInfo.getChatMedia(chatId),
-          Api_chatInfo.getChatFiles(chatId),
-          Api_chatInfo.getChatLinks(chatId),
+          Api_chatInfo.getChatMedia(conversationId),
+          Api_chatInfo.getChatFiles(conversationId),
+          Api_chatInfo.getChatLinks(conversationId),
         ]);
         setData({
           images: formatData(images),
@@ -36,7 +36,7 @@ const StoragePage = ({ onClose, chatId }) => {
       }
     };
     fetchData();
-  }, [chatId]);
+  }, [conversationId]);
 
   const formatData = (items) =>
     (Array.isArray(items) ? items : []).map(({ linkURL, createdAt, userId, content, _id, messageType }) => ({

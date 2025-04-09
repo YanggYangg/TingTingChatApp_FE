@@ -4,18 +4,18 @@ import StoragePage from "./StoragePage";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer';
 
-const GroupFile = ({ chatId }) => {
+const GroupFile = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [files, setFiles] = useState([]);
   const [previewFile, setPreviewFile] = useState(null);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!conversationId) return;
 
     const fetchFiles = async () => {
       try {
         console.log("Gửi request đến API...");
-        const response = await Api_chatInfo.getChatFiles(chatId);
+        const response = await Api_chatInfo.getChatFiles(conversationId);
         console.log("Dữ liệu API trả về:", response);
 
         const fileData = Array.isArray(response) ? response : response?.data;
@@ -36,7 +36,7 @@ const GroupFile = ({ chatId }) => {
     };
 
     fetchFiles();
-  }, [chatId]);
+  }, [conversationId]);
 
   const handleDownload = (file) => {
     if (!file?.linkURL) {
@@ -93,7 +93,7 @@ const GroupFile = ({ chatId }) => {
       >
         Xem tất cả
       </button>
-      {isOpen && <StoragePage chatId={chatId}  files={files} onClose={() => setIsOpen(false)} />}
+      {isOpen && <StoragePage conversationId={conversationId}  files={files} onClose={() => setIsOpen(false)} />}
       
       {/* Modal xem trước file */}
       {previewFile && (

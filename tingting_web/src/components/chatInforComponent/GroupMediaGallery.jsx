@@ -3,19 +3,19 @@ import axios from "axios";
 import StoragePage from "./StoragePage";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const GroupMediaGallery = ({ chatId }) => {
+const GroupMediaGallery = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [media, setMedia] = useState([]);
   const [fullScreenMedia, setFullScreenMedia] = useState(null);
   const videoRef = useRef(null); // Thêm ref để kiểm soát video
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!conversationId) return;
 
     const fetchMedia = async () => {
       try {
         console.log("Đang lấy dữ liệu từ API...");
-        const response = await Api_chatInfo.getChatMedia(chatId);
+        const response = await Api_chatInfo.getChatMedia(conversationId);
         console.log("Dữ liệu API nhận được:", response);
 
         const mediaData = Array.isArray(response?.data) ? response.data : response;
@@ -37,7 +37,7 @@ const GroupMediaGallery = ({ chatId }) => {
     };
 
     fetchMedia();
-  }, [chatId]);
+  }, [conversationId]);
 
   const downloadImage = async (url, filename) => {
     try {
@@ -109,7 +109,7 @@ const GroupMediaGallery = ({ chatId }) => {
         >
           Xem tất cả
         </button>
-        {isOpen && <StoragePage chatId={chatId} files={media} onClose={() => setIsOpen(false)} />}
+        {isOpen && <StoragePage conversationId={conversationId} files={media} onClose={() => setIsOpen(false)} />}
       </div>
 
       {/* Modal hiển thị media toàn màn hình */}
