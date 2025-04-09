@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from "react";
+import { View, TextInput, StyleSheet, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 type CustomTextInputProps = {
   placeholder: string;
@@ -33,7 +33,7 @@ export default function CustomTextInput({
           style={styles.eyeIcon}
         >
           <Ionicons
-            name={isPasswordVisible ? 'eye-off' : 'eye'}
+            name={isPasswordVisible ? "eye-off" : "eye"}
             size={20}
             color="#555"
           />
@@ -45,11 +45,11 @@ export default function CustomTextInput({
 
 const styles = StyleSheet.create({
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 30,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000',
+    color: "#000",
   },
   eyeIcon: {
     marginLeft: 8,

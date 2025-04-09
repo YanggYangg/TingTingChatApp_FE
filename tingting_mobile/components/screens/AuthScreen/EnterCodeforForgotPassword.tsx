@@ -3,26 +3,32 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import CustomTextInput from "../../textfield/CustomTextInput";
 import CustomButton from "@/components/button/CustomButton";
 import { Ionicons } from "@expo/vector-icons";
+import { Api_Auth } from "@/apis/api_auth";
 
-const EnterCodeForForgotPassword: React.FC<{ navigation: any }> = ({
+const EnterotpForForgotPassword: React.FC<{ navigation: any; route: any }> = ({
   navigation,
+  route,
 }) => {
-  const [code, setCode] = useState("");
+  const { phone, email } = route.params; // Lấy thông tin từ route params
+  const [otp, setotp] = useState("");
 
-  const handleVerifyCode = async () => {
-    // if (!code) {
-    //   Alert.alert("Lỗi", "Vui lòng nhập mã xác nhận.");
-    //   return;
-    // }
+  const handleVerifyotp = async () => {
+    if (!otp) {
+      Alert.alert("Lỗi", "Vui lòng nhập mã xác nhận.");
+      return;
+    }
+    const patternOTP = /^\d{6}$/; // Giả sử mã OTP là 6 chữ số
+    if (!patternOTP.test(otp)) {
+      Alert.alert("Lỗi", "Mã xác nhận không hợp lệ!");
+      return;
+    }
 
     try {
-      // Gọi API xác thực mã ở đây
-      // const response = await fetch("https://your-api/verify-code", { ... })
-      // const result = await response.json();
-
-      console.log("Mã xác nhận:", code);
-      Alert.alert("Thành công", "Mã xác nhận hợp lệ.");
-      navigation.navigate("ResetPassword"); // Chuyển đến đặt lại mật khẩu
+      const data = { otp, email };
+      const response = await Api_Auth.verifyOTP(data);
+      if (response.success === true) {
+        navigation.navigate("ResetPassword", { phone, email });
+      }
     } catch (error) {
       Alert.alert("Lỗi", "Mã xác nhận không đúng.");
     }
@@ -51,8 +57,8 @@ const EnterCodeForForgotPassword: React.FC<{ navigation: any }> = ({
 
         <CustomTextInput
           placeholder="Nhập mã xác nhận"
-          value={code}
-          onChangeText={setCode}
+          value={otp}
+          onChangeText={setotp}
         />
       </View>
 
@@ -62,7 +68,7 @@ const EnterCodeForForgotPassword: React.FC<{ navigation: any }> = ({
           <CustomButton
             title="Xác nhận"
             backgroundColor="#007AFF"
-            onPress={handleVerifyCode}
+            onPress={handleVerifyotp}
           />
         </View>
         <View style={[styles.buttonWrapper, styles.leftMargin]}>
@@ -121,4 +127,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default EnterCodeForForgotPassword;
+export default EnterotpForForgotPassword;

@@ -3,25 +3,48 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import CustomTextInput from "../../textfield/CustomTextInput";
 import CustomButton from "@/components/button/CustomButton";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { Api_Auth } from "../../../apis/api_auth"; // Đường dẫn đến Api_Auth của bạn
 
 const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phone, setphone] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
-    if (!phoneNumber || !password) {
+  const handleLogin = async () => {
+    if (!phone || !password) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
       return;
     }
+    const patternPhone = /0\d{9,10}/;
+    if (!patternPhone.test(phone)) {
+      Alert.alert("Lỗi", "Số điện thoại không hợp lệ!");
+      return;
+    }
 
-    // Sau này gọi API login ở đây
-    console.log("Logging in with:", { phoneNumber, password });
+    if (password.length < 6 || password.length > 32) {
+      Alert.alert("Lỗi", "Mật khẩu phải từ 6 đến 32 ký tự!");
+      return;
+    }
 
-    // Ví dụ: gọi BE và điều hướng khi thành công
-    // loginAPI(phoneNumber, password)
-    //   .then(res => navigation.navigate("Home"))
-    //   .catch(err => Alert.alert("Lỗi", "Đăng nhập thất bại"));
+    try {
+      const response = await Api_Auth.login({ phone, password });
+
+      if (response.status === "success") {
+        const { token, user } = response.data;
+
+        console.log("Token:", token);
+        console.log("User info:", user);
+
+        // TODO: Lưu token vào AsyncStorage hoặc Redux nếu cần
+
+        // Chuyển sang màn hình chính (hoặc màn nào bạn muốn)
+        navigation.navigate("Chat");
+      } else {
+        Alert.alert("Lỗi", response.message || "Đăng nhập thất bại");
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      Alert.alert("Lỗi", error.response?.data?.message || "Đã có lỗi xảy ra");
+    }
   };
 
   return (
@@ -41,8 +64,8 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
       <View style={styles.bodyContainer}>
         <CustomTextInput
           placeholder="Nhập số điện thoại của bạn"
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
+          value={phone}
+          onChangeText={setphone}
         />
         <CustomTextInput
           placeholder="Nhập mật khẩu của bạn"
