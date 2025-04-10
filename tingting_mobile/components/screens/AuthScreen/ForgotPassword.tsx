@@ -3,30 +3,40 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import CustomTextInput from "../../textfield/CustomTextInput";
 import CustomButton from "@/components/button/CustomButton";
 import { Ionicons } from "@expo/vector-icons";
+import { Api_Auth } from "../../../apis/api_auth";
 
 const ForgotPassword: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phone, setphone] = useState("");
   const [email, setEmail] = useState("");
 
   const handleConfirm = async () => {
-    // Validate input
-    // if (!phoneNumber || !email) {
-    //   Alert.alert("Lỗi", "Vui lòng nhập đầy đủ số điện thoại và email.");
-    //   return;
-    // }
+    if (!phone || !email) {
+      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ số điện thoại và email.");
+      return;
+    }
+    const patternPhone = /0\d{9,10}/;
+    if (!patternPhone.test(phone)) {
+      Alert.alert("Lỗi", "Số điện thoại không hợp lệ!");
+      return;
+    }
+    const patternEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!patternEmail.test(email)) {
+      Alert.alert("Lỗi", "Email không hợp lệ!");
+      return;
+    }
 
     try {
-      // Gọi API gửi mã OTP hoặc email xác nhận
-      // const response = await fetch("https://your-api/forgot-password", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ phoneNumber, email }),
-      // });
-      // const data = await response.json();
-
-      console.log("Thông tin xác nhận:", { phoneNumber, email });
-      Alert.alert("Thành công", "Thông tin đã được gửi. Vui lòng kiểm tra.");
-      navigation.navigate("EnterCodeForForgotPassword");
+      const data = { phone, email };
+      const response = await Api_Auth.forgotPassword(data);
+      if (response.success === true) {
+        console.log("Thông tin xác nhận:", { phone, email });
+        Alert.alert("Thành công", "Thông tin đã được gửi. Vui lòng kiểm tra.");
+        //chuyển trang và truyền phone , email
+        navigation.navigate("EnterCodeForForgotPassword", {
+          phone: phone,
+          email: email,
+        });
+      }
     } catch (error) {
       console.error(error);
       Alert.alert("Lỗi", "Đã xảy ra lỗi. Vui lòng thử lại sau.");
@@ -52,8 +62,8 @@ const ForgotPassword: React.FC<{ navigation: any }> = ({ navigation }) => {
       <View style={styles.bodyContainer}>
         <CustomTextInput
           placeholder="Nhập số điện thoại của bạn"
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
+          value={phone}
+          onChangeText={setphone}
         />
         <CustomTextInput
           placeholder="Nhập email"

@@ -3,15 +3,25 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import CustomTextInput from "../../textfield/CustomTextInput";
 import CustomButton from "@/components/button/CustomButton";
 import { Ionicons } from "@expo/vector-icons";
+import { Api_Auth } from "../../../apis/api_auth";
 
-const ResetPassword: React.FC<{ navigation: any }> = ({ navigation }) => {
+const ResetPassword: React.FC<{ navigation: any; route: any }> = ({
+  navigation,
+  route,
+}) => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const { email, phone } = route.params; // Lấy thông tin từ route params
 
   const handleConfirm = async () => {
+    const data = { email, newPassword };
     // Simple client-side validation
     if (!newPassword || !confirmPassword) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ mật khẩu.");
+      return;
+    }
+    if (newPassword.length < 6 || newPassword.length > 32) {
+      Alert.alert("Lỗi", "Mật khẩu phải từ 6 đến 32 ký tự!");
       return;
     }
 
@@ -21,17 +31,11 @@ const ResetPassword: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
 
     try {
-      // Gọi API đổi mật khẩu sau này
-      // const response = await fetch("https://your-api/reset-password", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ password: newPassword }),
-      // });
-      // const data = await response.json();
-      // Xử lý kết quả response ở đây
-
-      console.log("Password confirmed:", newPassword);
-      Alert.alert("Thành công", "Đổi mật khẩu thành công!");
+      const response = await Api_Auth.updateNewPassword(data);
+      if (response.success === true) {
+        //chuyển trang vào login
+        navigation.navigate("Login");
+      }
     } catch (error) {
       console.error(error);
       Alert.alert("Lỗi", "Đã xảy ra lỗi. Vui lòng thử lại sau.");

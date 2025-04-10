@@ -3,10 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import CustomTextInput from "../../textfield/CustomTextInput";
 import CustomButton from "@/components/button/CustomButton";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { Api_Auth } from "../../../apis/api_auth"; // Đường dẫn đến Api_Auth của bạn
 
 const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phone, setphone] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
@@ -36,8 +36,8 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
       <View style={styles.bodyContainer}>
         <CustomTextInput
           placeholder="Nhập số điện thoại của bạn"
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
+          value={phone}
+          onChangeText={setphone}
         />
         <CustomTextInput
           placeholder="Nhập mật khẩu của bạn"

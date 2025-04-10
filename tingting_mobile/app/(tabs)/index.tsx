@@ -10,6 +10,7 @@ import Welcome from "../../components/screens/AuthScreen/Welcome";
 import ForgotPassword from "../../components/screens/AuthScreen/ForgotPassword";
 import ResetPassword from "@/components/screens/AuthScreen/ResetPassword";
 import EnterCodeForForgotPassword from "@/components/screens/AuthScreen/EnterCodeforForgotPassword";
+import Chat from "../../components/screens/MainScreen/Chat";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -42,7 +43,16 @@ export default function App() {
         component={EnterCodeForForgotPassword}
         options={{ headerShown: false }}
       />
-      <Stack.Screen name="Register" component={Register} options={{ headerShown: false }}/>
+      <Stack.Screen
+        name="Register"
+        component={Register}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Chat"
+        component={Chat}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
