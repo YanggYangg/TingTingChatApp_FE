@@ -48,7 +48,7 @@ const FooterTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
               color={isFocused ? '#007AFF' : '#888'}
             />
             <Text style={[styles.label, isFocused && styles.activeLabel]}>
-              {label}
+              {typeof label === 'string' ? label : ''}
             </Text>
           </TouchableOpacity>
         );
