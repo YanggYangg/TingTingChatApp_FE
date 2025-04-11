@@ -37,7 +37,7 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
         // TODO: Lưu token vào AsyncStorage hoặc Redux nếu cần
 
         // Chuyển sang màn hình chính (hoặc màn nào bạn muốn)
-        navigation.navigate("Chat");
+        navigation.replace("Main");
       } else {
         Alert.alert("Lỗi", response.message || "Đăng nhập thất bại");
       }
