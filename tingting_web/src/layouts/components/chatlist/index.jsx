@@ -23,6 +23,8 @@ function ChatList({ activeTab }) {
   const [messages, setMessages] = useState([]);  // State để lưu dữ liệu từ API
   const [selectedTab, setSelectedTab] = useState("priority");
 
+  
+
   // Hàm xử lý khi click vào tin nhắn
   const dispatch = useDispatch();
 
@@ -46,6 +48,8 @@ function ChatList({ activeTab }) {
   //   }
   //   fetchConversations();
   // }, []);
+
+  
 
   // Dữ liệu mẫu
   const sampleMessages = [
@@ -87,7 +91,7 @@ function ChatList({ activeTab }) {
       time: "5 giờ",
     },
     {
-      id: 4,
+      id: 5,
       name: "Lớp ReactJS",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -96,7 +100,7 @@ function ChatList({ activeTab }) {
       time: "5 giờ",
     },
     {
-      id: 4,
+      id: 6,
       name: "Lớp ReactJS",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -105,7 +109,7 @@ function ChatList({ activeTab }) {
       time: "5 giờ",
     },
     {
-      id: 4,
+      id: 7,
       name: "Lớp ReactJS",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -114,7 +118,7 @@ function ChatList({ activeTab }) {
       time: "5 giờ",
     },
     {
-      id: 4,
+      id: 8,
       name: "Lớp ReactJS",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -123,7 +127,7 @@ function ChatList({ activeTab }) {
       time: "5 giờ",
     },
     {
-      id: 4,
+      id: 9,
       name: "Lớp ReactJS",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -132,7 +136,7 @@ function ChatList({ activeTab }) {
       time: "5 giờ",
     },
     {
-      id: 4,
+      id: 10,
       name: "Lớp ReactJS",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -141,7 +145,7 @@ function ChatList({ activeTab }) {
       time: "5 giờ",
     },
     {
-      id: 4,
+      id: 11,
       name: "Lớp ReactJS",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -150,7 +154,7 @@ function ChatList({ activeTab }) {
       time: "5 giờ",
     },
     {
-      id: 4,
+      id: 12,
       name: "Lớp ReactJS",
       avatar: "https://picsum.photos/200",
       type: "group",
@@ -159,6 +163,21 @@ function ChatList({ activeTab }) {
       time: "5 giờ",
     },
   ];
+
+  // Cloud của tôi item
+  const myCloudItem = {
+    id: "my-cloud",
+    name: "Cloud của tôi",
+    avatar: "https://help.zalo.me/wp-content/uploads/2023/08/z4650065944256_2971e71cc06a5cfcb0aef41782e5f30e.jpg", // Hoặc link avatar của bạn
+    type: "personal",
+    lastMessage: "Lưu trữ tin nhắn và file cá nhân",
+    isCall: false,
+    time: "",
+    isCloud: true // Thêm flag để xác định đây là cloud item
+  };
+
+  // Thêm cloud item vào đầu danh sách tin nhắn
+  const messagesWithCloud = [myCloudItem, ...sampleMessages];
 
   const renderComponent = () => {
     switch (activeComponent) {
@@ -210,7 +229,7 @@ function ChatList({ activeTab }) {
         {activeTab === "/chat" && (
           <MessageList
             //messages={messages}
-            messages={sampleMessages}
+            messages={messagesWithCloud}
             onMessageClick={handleMessageClick}
           />
         )}
