@@ -1,8 +1,11 @@
 import React from "react";
 import { View, TextInput, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+
 
 const SearchHeader = () => {
+  const navigation = useNavigation<any>();
     return(
         <View style={styles.container}>
         <View style={styles.searchBox}>
@@ -15,7 +18,9 @@ const SearchHeader = () => {
         </View>
   
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={() => navigation.navigate("QRScannerScreen")}>
             <Ionicons name="qr-code-outline" size={24} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton}>
@@ -28,7 +33,7 @@ const SearchHeader = () => {
 
 const styles = StyleSheet.create({
     container: {
-      backgroundColor: "#007AFF",
+      backgroundColor: "#0196fc",
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",  

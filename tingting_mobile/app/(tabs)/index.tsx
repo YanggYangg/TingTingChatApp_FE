@@ -18,6 +18,7 @@ import DiaryScreen from "@/components/screens/MainScreen/DiaryScreen";
 import ProfileScreen from "@/components/screens/MainScreen/ProfileScreen";
 import FooterTabBar from "@/components/navigate/FooterTabBar";
 import MainLayout from "@/components/screens/MainScreen/MainLayout";
+import MessageScreen from "@/components/screens/MainScreen/Chat/MessageScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -29,9 +30,9 @@ function MainTabNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="ChatScreen" options={{ tabBarLabel: "Tin nhắn" }}>
-        {() => (
+        {(props) => (
           <MainLayout>
-            <ChatScreen navigation={undefined} />
+            <ChatScreen {...props} />
           </MainLayout>
         )}
       </Tab.Screen>
@@ -62,48 +63,63 @@ function MainTabNavigator() {
 
 export default function App() {
   return (
-    <Stack.Navigator initialRouteName="Welcome">
-      <Stack.Screen
-        name="Welcome"
-        component={Welcome}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Login"
-        component={Login}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="ForgotPassword"
-        component={ForgotPassword}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="ResetPassword"
-        component={ResetPassword}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="EnterCodeForForgotPassword"
-        component={EnterCodeForForgotPassword}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Register"
-        component={Register}
-        options={{ headerShown: false }}
-      />
-      {/* <Stack.Screen
-        name="ChatScreen"
-        component={ChatScreen}
-        options={{ headerShown: false }}
-      /> */}
-      {/* Khi login thành công thì chuyển vào đây */}
+    // <Stack.Navigator initialRouteName="Welcome">
+    //   <Stack.Screen
+    //     name="Welcome"
+    //     component={Welcome}
+    //     options={{ headerShown: false }}
+    //   />
+    //   <Stack.Screen
+    //     name="Login"
+    //     component={Login}
+    //     options={{ headerShown: false }}
+    //   />
+    //   <Stack.Screen
+    //     name="ForgotPassword"
+    //     component={ForgotPassword}
+    //     options={{ headerShown: false }}
+    //   />
+    //   <Stack.Screen
+    //     name="ResetPassword"
+    //     component={ResetPassword}
+    //     options={{ headerShown: false }}
+    //   />
+    //   <Stack.Screen
+    //     name="EnterCodeForForgotPassword"
+    //     component={EnterCodeForForgotPassword}
+    //     options={{ headerShown: false }}
+    //   />
+    //   <Stack.Screen
+    //     name="Register"
+    //     component={Register}
+    //     options={{ headerShown: false }}
+    //   />
+    //   {/* <Stack.Screen
+    //     name="ChatScreen"
+    //     component={ChatScreen}
+    //     options={{ headerShown: false }}
+    //   /> */}
+    //   {/* Khi login thành công thì chuyển vào đây */}
+    //   <Stack.Screen
+    //     name="Main"
+    //     component={MainTabNavigator}
+    //     options={{ headerShown: false }}
+    //   />
+      
+    // </Stack.Navigator>
+    <Stack.Navigator initialRouteName="Main">
       <Stack.Screen
         name="Main"
         component={MainTabNavigator}
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="MessageScreen"
+        component={MessageScreen}
+        options={{ headerShown: false }}
+      />
+    
     </Stack.Navigator>
+
   );
 }
