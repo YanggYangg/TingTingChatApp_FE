@@ -11,7 +11,7 @@ const ChatHeaderCloud = ({
   setIsChatInfoVisible,
 }) => {
   return (
-    <div className={`flex items-center justify-between p-2 border-b bg-white`}>
+    <div className={`flex items-center justify-between p-2 border-b border-gray-200 bg-white`}>
       {/* Thông tin nhóm/người chat */}
       <div className="flex items-center">
         <img
@@ -28,7 +28,7 @@ const ChatHeaderCloud = ({
             </p>
           ) : (
             <p className="text-sm text-gray-400">
-              Truy cập {lastActive} phút trước
+              Lưu trữ và đồng bộ dữ liệu giữa các thiết bị
             </p>
           )}
         </div>

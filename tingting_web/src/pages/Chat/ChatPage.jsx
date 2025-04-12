@@ -18,6 +18,13 @@ function ChatPage() {
   const [cloudMessages, setCloudMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
+  const [contextMenu, setContextMenu] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    message: null,
+    fileIndex: null,
+  });
   const cloudChatContainerRef = useRef(null);
 
   const cloudChat = {
@@ -81,7 +88,6 @@ function ChatPage() {
     }
   };
 
-  // ⬇️ Scroll xuống tin nhắn mới nhất sau khi DOM cập nhật xong
   useLayoutEffect(() => {
     if (shouldScrollToBottom && cloudChatContainerRef.current) {
       const container = cloudChatContainerRef.current;
@@ -96,9 +102,142 @@ function ChatPage() {
     }
   }, [selectedMessageId]);
 
-  const renderCloudMessage = (message) => {
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setContextMenu((prev) => ({ ...prev, visible: false }));
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, []);
+
+  const ContextMenu = ({ x, y, message, fileIndex, onClose }) => {
+    const isFile = fileIndex !== null;
+    const fileUrl = isFile ? message.fileUrls[fileIndex] : null;
+    const isImage = isFile && /\.(jpg|jpeg|png|gif)$/i.test(fileUrl);
+
+    const handleCopyText = () => {
+      if (message.content) {
+        navigator.clipboard.writeText(message.content);
+      }
+      onClose();
+    };
+
+    const handleCopyImage = () => {
+      if (fileUrl) {
+        navigator.clipboard.writeText(fileUrl);
+      }
+      onClose();
+    };
+
+    const handleDelete = async () => {
+      try {
+        await axios.delete(
+          `http://localhost:3000/api/messages/${message.messageId}`
+        );
+        setCloudMessages((prev) =>
+          prev.filter((msg) => msg.messageId !== message.messageId)
+        );
+      } catch (error) {
+        console.error("Lỗi khi xóa tin nhắn:", error);
+      }
+      onClose();
+    };
+
+    const handleDownload = () => {
+      if (fileUrl) {
+        const link = document.createElement("a");
+        link.href = fileUrl;
+        link.download = message.filenames?.[fileIndex] || fileUrl.split("/").pop();
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      onClose();
+    };
+
     return (
-      <div className="flex justify-end mb-4">
+      <div
+        className="fixed bg-white shadow-lg rounded-md py-2 z-50"
+        style={{ top: y, left: x }}
+      >
+        {!isFile && message.content && (
+          <button
+            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+            onClick={handleCopyText}
+          >
+            Sao Chép
+          </button>
+        )}
+        {!isFile && (
+          <button
+            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+            onClick={handleDelete}
+          >
+            Xóa
+          </button>
+        )}
+        {isFile && !isImage && (
+          <>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={handleDownload}
+            >
+              Tải xuống
+            </button>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={handleDelete}
+            >
+              Xóa
+            </button>
+          </>
+        )}
+        {isFile && isImage && (
+          <>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={handleCopyImage}
+            >
+              Sao Chép
+            </button>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={handleDownload}
+            >
+              Tải xuống
+            </button>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={handleDelete}
+            >
+              Xóa
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const renderCloudMessage = (message) => {
+    const handleContextMenu = (e, fileIndex = null) => {
+      e.preventDefault();
+      setContextMenu({
+        visible: true,
+        x: e.clientX,
+        y: e.clientY,
+        message,
+        fileIndex,
+      });
+    };
+
+    return (
+      <div
+        className="flex justify-end mb-4"
+        onContextMenu={(e) => handleContextMenu(e)}
+      >
         <div className="bg-blue-100 p-3 rounded-lg max-w-md relative min-w-64">
           {message.content && (
             <p className="text-sm text-gray-800 mb-4">{message.content}</p>
@@ -112,7 +251,11 @@ function ChatPage() {
                 const isImage = /\.(jpg|jpeg|png|gif)$/i.test(url);
 
                 return (
-                  <div key={index} className="flex items-center space-x-2">
+                  <div
+                    key={index}
+                    className="flex items-center space-x-2"
+                    onContextMenu={(e) => handleContextMenu(e, index)}
+                  >
                     {isImage ? (
                       <div className="flex items-center space-x-2">
                         <img
@@ -190,6 +333,8 @@ function ChatPage() {
                 <ChatHeaderCloud
                   name={selectedChat.name}
                   avatar={selectedChat.avatar}
+                  isChatInfoVisible={isChatInfoVisible}
+                  setIsChatInfoVisible={setIsChatInfoVisible}
                 />
               ) : (
                 <ChatHeader
@@ -227,9 +372,7 @@ function ChatPage() {
                             index === 0 || currentDate !== prevDate;
 
                           return (
-                            <React.Fragment
-                              key={message.messageId || index}
-                            >
+                            <React.Fragment key={message.messageId || index}>
                               {showDateSeparator && (
                                 <div className="flex justify-center my-4">
                                   <span className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
@@ -261,7 +404,7 @@ function ChatPage() {
               )}
             </div>
 
-            {isChatInfoVisible && selectedChat.type !== "cloud" && (
+            {isChatInfoVisible && (
               <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
                 <ChatInfo />
               </div>
@@ -273,8 +416,8 @@ function ChatPage() {
               Chào mừng đến với TingTing PC!
             </h1>
             <p className="text-gray-600">
-              Khám phá các tiện ích hỗ trợ làm việc và trò chuyện cùng người
-              thân, bạn bè.
+              Khám phá các tiện ích hỗ trợ làm việc và trò chuyện cùng người thân,
+              bạn bè.
             </p>
             <img
               src={TingTingImage}
@@ -284,6 +427,16 @@ function ChatPage() {
           </div>
         )}
       </div>
+
+      {contextMenu.visible && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          message={contextMenu.message}
+          fileIndex={contextMenu.fileIndex}
+          onClose={() => setContextMenu((prev) => ({ ...prev, visible: false }))}
+        />
+      )}
     </div>
   );
 }
