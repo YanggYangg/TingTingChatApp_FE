@@ -72,11 +72,6 @@ function ChatFooter({ onReload }) {
           multiple
           onChange={handleFileChange}
         />
-
-        <button className="p-2 text-gray-500 hover:text-gray-700">
-          <FaRegImage size={20} />
-        </button>
-
         <button
           className="p-2 text-gray-500 hover:text-gray-700"
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
