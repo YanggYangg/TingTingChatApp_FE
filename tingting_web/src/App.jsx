@@ -17,7 +17,6 @@ import ForgotAccountLayout from "./layouts/ForgotPasswordLayout";
 
 import { Provider } from "react-redux";
 import store from "./redux/store";
-import ChatInfo from "./layouts/components/chatwindow/ChatInfo";
 
 function App() {
   return (
@@ -26,8 +25,8 @@ function App() {
         <Routes>
         <Route path="/" element={<DefaultLayout />}>
           <Route index element={<h1>Chat window</h1>} />
-          {/* <Route path="chat" element={<ChatPage />} /> */}
-          <Route path="chat" element={<ChatInfo />} />
+          <Route path="chat" element={<ChatPage />} />
+          
           <Route path="/contacts/:tab" element={<ContactsPage />} />
           <Route path="*" element={<Navigate to="/contacts/friends" />} />{" "}
         </Route>
