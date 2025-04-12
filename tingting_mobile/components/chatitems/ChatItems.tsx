@@ -6,7 +6,8 @@ type ChatItemProps = {
   username: string;
   lastMessage: string;
   time: string;
-  onPress?: () => void;
+  // Method to handle press event onPress={() => navigation.navigate('Chat')}
+  onPress: () => void;
 };
 
 const ChatItems: React.FC<ChatItemProps> = ({ avatar, username, lastMessage, time, onPress }) => {

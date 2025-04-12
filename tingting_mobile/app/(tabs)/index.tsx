@@ -19,8 +19,15 @@ import ProfileScreen from "@/components/screens/MainScreen/ProfileScreen";
 import FooterTabBar from "@/components/navigate/FooterTabBar";
 import MainLayout from "@/components/screens/MainScreen/MainLayout";
 import MessageScreen from "@/components/screens/MainScreen/Chat/MessageScreen";
+import ChatScreenCloud from "@/components/screens/MainScreen/Cloud/ChatScreenCloud";
 
-const Stack = createNativeStackNavigator();
+type RootStackParamList = {
+  Main: undefined;
+  MessageScreen: { userId?: string; username?: string };
+  ChatScreenCloud: undefined;
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 
 function MainTabNavigator() {
@@ -116,6 +123,11 @@ export default function App() {
       <Stack.Screen
         name="MessageScreen"
         component={MessageScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ChatScreenCloud"
+        component={ChatScreenCloud}
         options={{ headerShown: false }}
       />
     
