@@ -1,6 +1,5 @@
-"use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
@@ -11,6 +10,7 @@ import {
   FlatList,
   StatusBar,
   ScrollView,
+  Image,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import type { NativeStackScreenProps } from "@react-navigation/native-stack"
@@ -20,46 +20,151 @@ type RootStackParamList = {
   Main: undefined
   MessageScreen: { userId?: string; username?: string }
   ChatScreenCloud: undefined
-  // Add other routes as needed
 }
 
-// Create a type for the component props using NativeStackScreenProps
+// Create a type for the component props
 type ChatScreenCloudProps = NativeStackScreenProps<RootStackParamList, "ChatScreenCloud">
 
-const ChatScreenCloud = ({ navigation, route }: ChatScreenCloudProps) => {
+// Define interfaces for message types
+interface UserMessage {
+  id: string
+  text: string
+  sender: "user"
+  time: string
+  fileUrls: string[]
+  thumbnailUrls: string[]
+  filenames: string[]
+  timestamp: string
+}
+
+interface TimestampMessage {
+  id: string
+  sender: "timestamp"
+  time: string
+}
+
+// Union type for messages
+type Message = UserMessage | TimestampMessage
+
+const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   const [message, setMessage] = useState("")
   const [activeTab, setActiveTab] = useState("Tất cả")
-  const [messages, setMessages] = useState([
-    { id: "1", text: "Vinh 15", sender: "user", time: "" },
-    { id: "2", text: "Khương 15", sender: "user", time: "17:56" },
-    { id: "3", text: "", sender: "timestamp", time: "13:23 09/04/2025" },
-    { id: "4", text: "Khương 35", sender: "user", time: "" },
-    { id: "5", text: "", sender: "timestamp", time: "02:20 11/04/2025" },
-    { id: "6", text: "Khương 60", sender: "user", time: "" },
-    { id: "7", text: "", sender: "timestamp", time: "17:17 11/04/2025" },
-    { id: "8", text: "Khương 25", sender: "user", time: "" },
-    { id: "9", text: "", sender: "timestamp", time: "18:37 11/04/2025" },
-    { id: "10", text: "Khương 178", sender: "user", time: "" },
-    { id: "11", text: "Vinh 108", sender: "user", time: "" },
-    { id: "12", text: "Cường 108", sender: "user", time: "18:37" },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
 
   const tabs = ["Tất cả", "Văn bản", "Ảnh", "File", "Link"]
 
+  // Hàm định dạng thời gian sang múi giờ Việt Nam (UTC+7)
+  const formatDate = (isoString: string): { time: string; dateStr: string } => {
+    const date = new Date(isoString)
+    // Giả định timestamp từ API là UTC, cộng 7 giờ để chuyển sang UTC+7
+    const vnDate = new Date(date.getTime() + 7 * 60 * 60 * 1000)
+    const time = `${vnDate.getHours()}:${String(vnDate.getMinutes()).padStart(2, "0")}`
+    const dateStr = `${vnDate.getDate().toString().padStart(2, "0")}/${(vnDate.getMonth() + 1).toString().padStart(2, "0")}/${vnDate.getFullYear()}`
+    return { time, dateStr }
+  }
+
+  // Fetch messages from API
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch("http://192.168.1.35:3000/api/messages/user/user123")
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`)
+        }
+        const data = await response.json()
+
+        // Sắp xếp tin nhắn theo timestamp
+        const sortedData = data.sort(
+          (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        )
+
+        // Nhóm tin nhắn theo ngày
+        const formattedMessages: Message[] = []
+        let lastDate: string | null = null
+
+        sortedData.forEach((msg: any) => {
+          const { time, dateStr } = formatDate(msg.timestamp)
+
+          // Chỉ thêm timestamp nếu ngày thay đổi
+          if (lastDate !== dateStr) {
+            formattedMessages.push({
+              id: `ts-${msg.messageId}`,
+              sender: "timestamp",
+              time: dateStr,
+            })
+            lastDate = dateStr
+          }
+
+          // Thêm tin nhắn
+          formattedMessages.push({
+            id: msg.messageId,
+            text: msg.content || "",
+            sender: "user",
+            time,
+            fileUrls: msg.fileUrls || [],
+            thumbnailUrls: msg.thumbnailUrls || [],
+            filenames: msg.filenames || [],
+            timestamp: msg.timestamp,
+          })
+        })
+
+        setMessages(formattedMessages)
+      } catch (error: any) {
+        console.error("Error fetching messages:", {
+          message: error.message,
+          stack: error.stack,
+        })
+      }
+    }
+
+    fetchMessages()
+  }, [])
+
   const sendMessage = () => {
     if (message.trim()) {
-      const newMessage = {
-        id: String(messages.length + 1),
+      // Sử dụng giờ hệ thống trực tiếp (giả định đã là UTC+7)
+      const now = new Date()
+      const isoTimestamp = now.toISOString() // Lưu timestamp dạng ISO
+      const { time, dateStr } = formatDate(isoTimestamp)
+
+      // Debug để kiểm tra giờ
+      console.log("New message timestamp:", isoTimestamp, "Formatted time:", time)
+
+      // Kiểm tra ngày của tin nhắn cuối
+      const lastMessage = messages[messages.length - 1] as UserMessage | undefined
+      const lastDate = lastMessage?.timestamp
+        ? formatDate(lastMessage.timestamp).dateStr
+        : null
+
+      const newMessages: Message[] = []
+
+      // Thêm timestamp nếu ngày khác
+      if (lastDate !== dateStr) {
+        newMessages.push({
+          id: `ts-${Date.now()}`,
+          sender: "timestamp",
+          time: dateStr,
+        })
+      }
+
+      // Thêm tin nhắn mới
+      newMessages.push({
+        id: String(Date.now()),
         text: message,
         sender: "user",
-        time: new Date().getHours() + ":" + String(new Date().getMinutes()).padStart(2, "0"),
-      }
-      setMessages([...messages, newMessage])
+        time,
+        fileUrls: [],
+        thumbnailUrls: [],
+        filenames: [],
+        timestamp: isoTimestamp,
+      })
+
+      setMessages([...messages, ...newMessages])
       setMessage("")
     }
   }
 
-  const renderMessage = ({ item }: { item: any }) => {
+  const renderMessage = ({ item }: { item: Message }) => {
     if (item.sender === "timestamp") {
       return (
         <View style={styles.timestampContainer}>
@@ -68,10 +173,33 @@ const ChatScreenCloud = ({ navigation, route }: ChatScreenCloudProps) => {
       )
     }
 
+    const userMessage = item as UserMessage
+
     return (
-      <View style={[styles.messageContainer, item.sender === "user" ? styles.userMessage : styles.otherMessage]}>
-        <Text style={styles.messageText}>{item.text}</Text>
-        {item.time ? <Text style={styles.messageTime}>{item.time}</Text> : null}
+      <View style={[styles.messageContainer, styles.userMessage]}>
+        {userMessage.text ? <Text style={styles.messageText}>{userMessage.text}</Text> : null}
+        {userMessage.thumbnailUrls && userMessage.thumbnailUrls.length > 0 ? (
+          <View style={styles.fileContainer}>
+            {userMessage.thumbnailUrls.map((url, index) => (
+              <Image
+                key={index}
+                source={{ uri: url }}
+                style={styles.thumbnail}
+                resizeMode="cover"
+              />
+            ))}
+          </View>
+        ) : null}
+        {userMessage.filenames && userMessage.filenames.length > 0 && !userMessage.thumbnailUrls.length ? (
+          <View style={styles.fileContainer}>
+            {userMessage.filenames.map((name, index) => (
+              <Text key={index} style={styles.fileName}>
+                {name}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        {userMessage.time ? <Text style={styles.messageTime}>{userMessage.time}</Text> : null}
       </View>
     )
   }
@@ -107,7 +235,7 @@ const ChatScreenCloud = ({ navigation, route }: ChatScreenCloudProps) => {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.tabsContainer}
-        contentContainerStyle={{ paddingHorizontal: 10, alignItems: "center" }} // <- thêm dòng này
+        contentContainerStyle={{ paddingHorizontal: 10, alignItems: "center" }}
       >
         {tabs.map((tab) => (
           <TouchableOpacity
@@ -142,23 +270,17 @@ const ChatScreenCloud = ({ navigation, route }: ChatScreenCloudProps) => {
         <TouchableOpacity style={styles.inputIcon}>
           <Ionicons name="happy-outline" size={24} color="#888" />
         </TouchableOpacity>
-
         <TextInput style={styles.input} placeholder="Tin nhắn" value={message} onChangeText={setMessage} multiline />
-
         <TouchableOpacity style={styles.inputIcon}>
           <Ionicons name="mic-outline" size={24} color="#888" />
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
           <Ionicons name="image-outline" size={24} color="#FF9500" />
         </TouchableOpacity>
       </View>
-
-      
     </SafeAreaView>
   )
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -204,9 +326,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
     alignItems: "center",
     justifyContent: "center",
-    height: 32, // <- thêm dòng này để fix chiều cao
+    height: 32,
   },
-  
   activeTab: {
     backgroundColor: "#e0e0e0",
   },
@@ -214,7 +335,7 @@ const styles = StyleSheet.create({
     color: "#333",
     fontSize: 13,
     textAlign: "center",
-    lineHeight: 16, // Nếu muốn tinh chỉnh chiều cao chữ
+    lineHeight: 16,
   },
   collectionContainer: {
     flexDirection: "row",
@@ -232,7 +353,6 @@ const styles = StyleSheet.create({
     color: "#0066CC",
   },
   messagesContainer: {
-    // flex: 1,
     backgroundColor: "#f0f0f5",
   },
   messagesList: {
@@ -295,18 +415,19 @@ const styles = StyleSheet.create({
   sendButton: {
     padding: 5,
   },
-  sentIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-    backgroundColor: "white",
+  fileContainer: {
+    marginTop: 8,
   },
-  sentText: {
-    fontSize: 12,
-    color: "#888",
-    marginRight: 5,
+  thumbnail: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    marginVertical: 4,
+  },
+  fileName: {
+    fontSize: 14,
+    color: "#0066CC",
+    marginVertical: 4,
   },
 })
 
