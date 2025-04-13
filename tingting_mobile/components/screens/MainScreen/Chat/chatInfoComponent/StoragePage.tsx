@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,10 @@ import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import {Api_chatInfo} from '../../../../../apis/Api_chatInfo';
 
 interface Media {
+  id: string; // Thêm id để hỗ trợ xóa
   src: string;
   name: string;
   type: 'image' | 'video' | 'file' | 'link';
@@ -44,100 +46,122 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [previewFile, setPreviewFile] = useState<Media | null>(null);
-
-  // Thêm state cho tính năng chọn/xóa
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Media[]>([]);
 
-  // Mock Data bên trong StoragePage
-  const mockData = {
-    images: [
-      {
-        src: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c',
-        name: 'House 1',
-        type: 'image' as const,
-        date: '2025-04-13',
-        sender: 'Người dùng A',
-      },
-      {
-        src: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        name: 'Big Buck Bunny',
-        type: 'video' as const,
-        date: '2025-04-13',
-        sender: 'Người dùng B',
-      },
-      {
-        src: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2',
-        name: 'Room 1',
-        type: 'image' as const,
-        date: '2025-04-12',
-        sender: 'Người dùng A',
-      },
-    ],
-    files: [
-      {
-        src: 'https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx',
-        name: 'File1.pdf',
-        type: 'file' as const,
-        date: '2025-04-10',
-        sender: 'Người dùng A',
-      },
-      {
-        src: 'https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx',
-        name: 'File2.doc',
-        type: 'file' as const,
-        date: '2025-04-09',
-        sender: 'Người dùng B',
-      },
-    ],
-    links: [
-      {
-        src: 'https://example.com/link1',
-        name: 'Link 1',
-        type: 'link' as const,
-        date: '2025-04-10',
-        sender: 'Người dùng A',
-      },
-      {
-        src: 'https://example.com/link2',
-        name: 'Link 2',
-        type: 'link' as const,
-        date: '2025-04-09',
-        sender: 'Người dùng B',
-      },
-    ],
-  };
+  // State để lưu dữ liệu từ API
+  const [data, setData] = useState<{
+    images: Media[];
+    files: Media[];
+    links: Media[];
+  }>({
+    images: [],
+    files: [],
+    links: [],
+  });
+
+  // Lấy dữ liệu từ API khi component mount hoặc conversationId thay đổi
+  useEffect(() => {
+    if (!conversationId || !isVisible) return;
+
+    const fetchData = async () => {
+      try {
+        // Lấy media (ảnh và video)
+        const mediaResponse = await Api_chatInfo.getChatMedia(conversationId);
+        const mediaData = Array.isArray(mediaResponse) ? mediaResponse : mediaResponse?.data?.media || [];
+        const images = mediaData
+          .filter((item: any) => item.messageType === 'image' || item.messageType === 'video')
+          .map((item: any) => ({
+            id: item._id,
+            src: item.linkURL,
+            name: item.content || 'Không có tiêu đề',
+            type: item.messageType as 'image' | 'video',
+            date: item.createdAt?.split('T')[0] || 'Không có ngày',
+            sender: item.userId || 'Không rõ người gửi',
+          }));
+
+        // Lấy files
+        const filesResponse = await Api_chatInfo.getChatFiles(conversationId);
+        const filesData = Array.isArray(filesResponse) ? filesResponse : filesResponse?.data?.files || [];
+        const files = filesData
+          .filter((item: any) => item.messageType === 'file')
+          .map((item: any) => ({
+            id: item._id,
+            src: item.linkURL,
+            name: item.content || 'Không có tiêu đề',
+            type: 'file' as const,
+            date: item.createdAt?.split('T')[0] || 'Không có ngày',
+            sender: item.userId || 'Không rõ người gửi',
+          }));
+
+        // Lấy links
+        const linksResponse = await Api_chatInfo.getChatLinks(conversationId);
+        const linksData = Array.isArray(linksResponse) ? linksResponse : linksResponse?.data?.links || [];
+        const links = linksData
+          .filter((item: any) => item.messageType === 'link')
+          .map((item: any) => ({
+            id: item._id,
+            src: item.linkURL,
+            name: item.content || 'Không có tiêu đề',
+            type: 'link' as const,
+            date: item.createdAt?.split('T')[0] || 'Không có ngày',
+            sender: item.userId || 'Không rõ người gửi',
+          }));
+
+        setData({ images, files, links });
+      } catch (error) {
+        console.error('Lỗi khi lấy dữ liệu:', error);
+        Alert.alert('Lỗi', 'Không thể tải dữ liệu. Vui lòng thử lại.');
+        setData({ images: [], files: [], links: [] });
+      }
+    };
+
+    fetchData();
+  }, [conversationId, isVisible]);
 
   // Hàm xử lý xóa các mục đã chọn
-  const handleDeleteSelected = () => {
-    const newData = { ...mockData };
-    selectedItems.forEach((item) => {
-      newData[activeTab] = newData[activeTab].filter((dataItem) => dataItem.src !== item.src);
-    });
-    mockData[activeTab] = newData[activeTab]; // Cập nhật lại mockData
-    setSelectedItems([]);
-    setIsSelecting(false);
-    Alert.alert('Thành công', `Đã xóa ${selectedItems.length} mục.`);
+  const handleDeleteSelected = async () => {
+    try {
+      // Gọi API để xóa từng mục
+      for (const item of selectedItems) {
+        await Api_chatInfo.deleteChatItem(conversationId, item.id);
+      }
+
+      // Cập nhật lại dữ liệu sau khi xóa
+      setData((prevData) => ({
+        ...prevData,
+        [activeTab]: prevData[activeTab].filter(
+          (dataItem) => !selectedItems.some((selected) => selected.id === dataItem.id)
+        ),
+      }));
+
+      setSelectedItems([]);
+      setIsSelecting(false);
+      Alert.alert('Thành công', `Đã xóa ${selectedItems.length} mục.`);
+    } catch (error) {
+      console.error('Lỗi khi xóa mục:', error);
+      Alert.alert('Lỗi', 'Không thể xóa các mục. Vui lòng thử lại.');
+    }
   };
 
   // Hàm xử lý chọn/bỏ chọn mục
   const toggleSelectItem = (item: Media) => {
-    if (selectedItems.some((selected) => selected.src === item.src)) {
-      setSelectedItems(selectedItems.filter((selected) => selected.src !== item.src));
+    if (selectedItems.some((selected) => selected.id === item.id)) {
+      setSelectedItems(selectedItems.filter((selected) => selected.id !== item.id));
     } else {
       setSelectedItems([...selectedItems, item]);
     }
   };
 
   const filteredData = useMemo(() => {
-    const items = mockData[activeTab] || [];
+    const items = data[activeTab] || [];
     return items.filter(
       (item: Media) =>
         (filterSender === 'Tất cả' || item.sender === filterSender) &&
         (!startDate || (item.date && new Date(item.date) >= startDate)) &&
         (!endDate || (item.date && new Date(item.date) <= endDate))
     );
-  }, [mockData, activeTab, filterSender, startDate, endDate]);
+  }, [data, activeTab, filterSender, startDate, endDate]);
 
   const getUniqueSenders = (items: Media[]): string[] => {
     const senders = items.map((item) => item.sender || 'Không xác định');
@@ -164,9 +188,9 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
         '.jpeg': '.jpg',
         '.png': '.png',
         '.mp4': '.mp4',
-        '.pdf': '.pdf',
-        '.doc': '.doc',
-        '.xls': '.xls',
+        '.mkv': '.mkv',
+        '.pptx': '.pptx',
+        '.docx': '.docx',
       };
 
       let extension = '.bin';
@@ -204,7 +228,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
 
   const handleSwipe = (index: number) => {
     setCurrentIndex(index);
-    setFullScreenMedia(mockData.images[index]);
+    setFullScreenMedia(data.images[index]);
   };
 
   const DateFilter = () => (
@@ -304,15 +328,19 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           .filter((item: Media) => (item.date || 'Không xác định') === date)
           .map((item: Media, index: number) => (
             <TouchableOpacity
-              key={`${item.src}-${index}`}
+              key={`${item.id}-${index}`}
               style={[
                 styles.itemContainer,
-                isSelecting && selectedItems.some((selected) => selected.src === item.src)
+                isSelecting && selectedItems.some((selected) => selected.id === item.id)
                   ? styles.selectedItem
                   : null,
               ]}
               onPress={() =>
-                isSelecting ? toggleSelectItem(item) : activeTab === 'images' ? setFullScreenMedia(item) : setPreviewFile(item)
+                isSelecting
+                  ? toggleSelectItem(item)
+                  : activeTab === 'images'
+                  ? setFullScreenMedia(item)
+                  : setPreviewFile(item)
               }
             >
               {activeTab === 'images' ? (
@@ -370,13 +398,13 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                 <View style={styles.checkbox}>
                   <Ionicons
                     name={
-                      selectedItems.some((selected) => selected.src === item.src)
+                      selectedItems.some((selected) => selected.id === item.id)
                         ? 'checkbox'
                         : 'checkbox-outline'
                     }
                     size={24}
                     color={
-                      selectedItems.some((selected) => selected.src === item.src)
+                      selectedItems.some((selected) => selected.id === item.id)
                         ? '#3B82F6'
                         : '#666'
                     }
@@ -464,8 +492,8 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                 loop={false}
                 showsPagination={false}
               >
-                {mockData.images.map((item, index) => (
-                  <View key={`${item.src}-${index}`} style={styles.swiperSlide}>
+                {data.images.map((item, index) => (
+                  <View key={`${item.id}-${index}`} style={styles.swiperSlide}>
                     {item.type === 'image' ? (
                       <Image
                         source={{ uri: item.src }}
@@ -557,7 +585,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
               onValueChange={(itemValue) => setFilterSender(itemValue)}
               style={styles.picker}
             >
-              {getUniqueSenders(mockData[activeTab]).map((sender) => (
+              {getUniqueSenders(data[activeTab]).map((sender) => (
                 <Picker.Item key={sender} label={sender} value={sender} />
               ))}
             </Picker>
@@ -580,7 +608,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                 key={date}
                 date={date}
                 data={filteredData}
-                allImages={mockData.images}
+                allImages={data.images}
               />
             ))}
         </ScrollView>

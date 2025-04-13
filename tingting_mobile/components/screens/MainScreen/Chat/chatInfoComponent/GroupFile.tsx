@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Linking, Alert, StyleSheet } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import StoragePage from './StoragePage';
+import {Api_chatInfo} from '../../../../../apis/Api_chatInfo';
 
 interface File {
   linkURL: string;
@@ -13,31 +14,37 @@ interface Props {
   conversationId: string;
 }
 
-
 const GroupFile: React.FC<Props> = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
-  const mockFiles = [
-    {
-      linkURL: "https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx",
-      content: "File1.pdf",
-      createdAt: "2025-04-10T10:00:00Z",
-    },
-    {
-      linkURL: "https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx",
-      content: "File2.doc",
-      createdAt: "2025-04-09T10:00:00Z",
-    },
-  ];
+
   useEffect(() => {
     if (!conversationId) return;
 
-    const fetchFiles = () => {
-      const sortedFiles = mockFiles.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setFiles(sortedFiles.slice(0, 3));
+    const fetchFiles = async () => {
+      try {
+        console.log("Gửi request đến API...");
+        const response = await Api_chatInfo.getChatFiles(conversationId);
+        console.log("Dữ liệu API trả về:", response);
+
+        const fileData = Array.isArray(response) ? response : response?.data;
+
+        if (Array.isArray(fileData)) {
+          const sortedFiles = fileData.sort((a, b) => {
+            return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || 0;
+          });
+
+          setFiles(sortedFiles.slice(0, 3));
+        } else {
+          setFiles([]);
+          console.warn("API không trả về mảng hợp lệ");
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách file:", error);
+        Alert.alert('Lỗi', 'Không thể tải danh sách file. Vui lòng thử lại.');
+        setFiles([]);
+      }
     };
 
     fetchFiles();

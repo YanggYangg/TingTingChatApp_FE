@@ -16,6 +16,7 @@
         getChatMedia: (conversationId) => ApiManager.get(`/messages/${conversationId}/media`),
         getChatFiles: (conversationId) => ApiManager.get(`/messages/${conversationId}/files`),
         getChatLinks: (conversationId) => ApiManager.get(`/messages/${conversationId}/links`),
+        getChatStogaes: (conversationId) => ApiManager.get(`/messages/${conversationId}/storage`),
         getPinnedMessages: (conversationId) => ApiManager.get(`/messages/${conversationId}/pinned-messages`),
         // getReminders: (conversationId) => ApiManager.get(`/messages/${conversationId}/reminders`),
 
@@ -29,6 +30,8 @@
 
         // Xóa lịch sử cuộc trò chuyện (chỉ mình tôi)
         deleteHistory: (conversationId, participantData) => ApiManager.delete(`/conversations/${conversationId}`, participantData ),
+
+        deleteMessages: (messageId) => ApiManager.delete(`/messages/${messageId}`), // Gửi messageData trực tiếp
 
         // Danh sách nhóm chung
         getCommonGroups: (conversationId) => ApiManager.get(`/conversations/${conversationId}/common`),

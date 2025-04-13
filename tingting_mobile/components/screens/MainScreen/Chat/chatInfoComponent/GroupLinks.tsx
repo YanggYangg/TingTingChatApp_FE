@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Linking, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import StoragePage from './StoragePage';
+import {Api_chatInfo} from '../../../../../apis/Api_chatInfo';
 
 interface Link {
   title: string;
@@ -17,32 +18,60 @@ interface Props {
 const GroupLinks: React.FC<Props> = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [links, setLinks] = useState<Link[]>([]);
-  const mockLinks = [
-    {
-      title: "Link 1",
-      url: "https://example.com/link1",
-      date: "2025-04-10",
-      sender: "6601a1b2c3d4e5f678901238",
-    },
-    {
-      title: "Link 2",
-      url: "https://example.com/link2",
-      date: "2025-04-09",
-      sender: "6601a1b2c3d4e5f678901239",
-    },
-  ];
+
   useEffect(() => {
     if (!conversationId) return;
 
-    const fetchLinks = () => {
-      const sortedLinks = mockLinks.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-      setLinks(sortedLinks.slice(0, 3));
+    const fetchLinks = async () => {
+      try {
+        const response = await Api_chatInfo.getChatLinks(conversationId);
+        const linkData = Array.isArray(response) ? response : response?.data;
+
+        if (Array.isArray(linkData)) {
+          const filteredLinks = linkData
+            .filter((item) => item?.messageType === "link")
+            .map((item) => ({
+              title: item?.content || "Không có tiêu đề",
+              url: item?.linkURL || "#",
+              date: item?.createdAt?.split("T")[0] || "Không có ngày",
+              sender: item?.userId || "Không rõ người gửi",
+            }));
+
+          // Sắp xếp link theo thời gian
+          const sortedLinks = filteredLinks.sort((a, b) => {
+            if (a.date && b.date) {
+              return new Date(b.date).getTime() - new Date(a.date).getTime();
+            } else {
+              return 0;
+            }
+          });
+
+          // Lấy 3 link đầu tiên
+          setLinks(sortedLinks.slice(0, 3));
+        } else {
+          setLinks([]);
+          console.error("Dữ liệu không hợp lệ:", response);
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách link:", error);
+        Alert.alert('Lỗi', 'Không thể tải danh sách link. Vui lòng thử lại.');
+        setLinks([]);
+      }
     };
 
     fetchLinks();
   }, [conversationId]);
+
+  const handleOpenLink = (url: string) => {
+    if (!url || url === "#") {
+      Alert.alert("Lỗi", "Link không hợp lệ.");
+      return;
+    }
+
+    Linking.openURL(url).catch((err) =>
+      Alert.alert("Lỗi", "Không thể mở link: " + err.message)
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -53,7 +82,7 @@ const GroupLinks: React.FC<Props> = ({ conversationId }) => {
             <View key={index} style={styles.linkItem}>
               <View>
                 <Text style={styles.linkTitle}>{link.title}</Text>
-                <TouchableOpacity onPress={() => Linking.openURL(link.url)}>
+                <TouchableOpacity onPress={() => handleOpenLink(link.url)}>
                   <Text style={styles.linkUrl}>{link.url}</Text>
                 </TouchableOpacity>
               </View>
@@ -73,7 +102,7 @@ const GroupLinks: React.FC<Props> = ({ conversationId }) => {
         <StoragePage
           conversationId={conversationId}
           links={links}
-          isVisible={isOpen} // Pass isVisible to control the modal
+          isVisible={isOpen}
           onClose={() => setIsOpen(false)}
         />
       )}
