@@ -1,10 +1,14 @@
-"use client"
+import classNames from "classnames/bind";
+import styles from "./ForgotAccountPage.module.scss";
+import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import { Api_Auth } from "../../../apis/api_auth";
 import Modal from "../../components/Notification/Modal";
 import config from "../../config";
 
-const cx = classNames.bind(styles)
+const cx = classNames.bind(styles);
 
 function EnterOTP() {
   const navigator = useNavigate();

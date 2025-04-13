@@ -30,7 +30,7 @@ function UpdateNewPass() {
         return;
       }
 
-      const data = { newPassword, email }
+      
       const response = await Api_Auth.updateNewPassword(data)
       setIsSuccess(true)
     } catch (error) {
