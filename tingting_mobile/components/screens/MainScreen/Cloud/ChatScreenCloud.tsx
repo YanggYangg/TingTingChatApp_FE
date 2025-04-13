@@ -271,7 +271,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     if (!message.trim()) return;
 
     try {
-      const response = await fetch("http://192.168.1.28:3000/api/messages", {
+      const response = await fetch("http://192.168.1.28:3000/api/messages/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
