@@ -11,10 +11,17 @@ import {
   StatusBar,
   ScrollView,
   Image,
+  Modal,
+  TouchableWithoutFeedback,
+  Dimensions,
+  TouchableHighlight,
 } from "react-native"
 import type { FlatList as FlatListType } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import type { NativeStackScreenProps } from "@react-navigation/native-stack"
+import * as ImagePicker from "expo-image-picker"
+import * as FileSystem from "expo-file-system"; // Thêm để xử lý tải file
+import * as MediaLibrary from "expo-media-library"; // Thêm để lưu vào thư viện ảnh
 
 // Define the type for the navigation stack params
 type RootStackParamList = {
@@ -30,7 +37,7 @@ type ChatScreenCloudProps = NativeStackScreenProps<RootStackParamList, "ChatScre
 interface UserMessage {
   id: string
   text: string
-  sender: "user"
+  userId: "user123"
   time: string
   fileUrls: string[]
   thumbnailUrls: string[]
@@ -40,7 +47,7 @@ interface UserMessage {
 
 interface TimestampMessage {
   id: string
-  sender: "timestamp"
+  userId: "timestamp"
   time: string
 }
 
@@ -54,6 +61,8 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   const [filteredMessages, setFilteredMessages] = useState<Message[]>([])
   const flatListRef = useRef<FlatListType>(null)
   const [initialIndex, setInitialIndex] = useState<number | null>(null)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null); // Lưu URL ảnh full màn hình
+  const [modalVisible, setModalVisible] = useState(false); // Điều khiển modal
 
 
 
@@ -69,6 +78,108 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     const dateStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`
     return { time, dateStr }
   }
+
+  // Hàm tải ảnh về thiết bị
+  const downloadImage = async (url: string) => {
+    try {
+      const fileName = url.split("/").pop() || "downloaded_image.jpg";
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      
+      // Tải ảnh từ URL
+      const { uri } = await FileSystem.downloadAsync(url, fileUri);
+      
+      // Lưu vào thư viện ảnh
+      const permission = await MediaLibrary.requestPermissionsAsync();
+      if (permission.granted) {
+        await MediaLibrary.createAssetAsync(uri);
+        console.log("Ảnh đã được lưu vào thư viện!");
+      } else {
+        console.warn("Quyền truy cập thư viện ảnh bị từ chối!");
+      }
+    } catch (error: any) {
+      console.error("Tải ảnh thất bại:", error.message || error);
+    }
+  };
+
+  const pickImageAndUpload = async () => {
+    try {
+      // Bước 1: Chọn nhiều ảnh
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true, // Cho phép chọn nhiều ảnh
+        quality: 1,
+      });
+  
+      if (result.canceled) {
+        return;
+      }
+  
+      // Bước 2: Tạo FormData
+      const formData = new FormData();
+      result.assets.forEach((image, index) => {
+        formData.append("files", {
+          uri: image.uri,
+          name: image.uri.split("/").pop() || `image_${index}.jpg`,
+          type: image.mimeType || "image/jpeg",
+        } as any);
+      });
+      formData.append("userId", "user123"); // Gửi userId
+      formData.append("content", ""); // Gửi content (rỗng nếu chỉ gửi file)
+  
+      // Bước 3: Gửi request lên API upload
+      const res = await fetch("http://192.168.1.28:3000/api/files/upload", {
+        method: "POST",
+        body: formData,
+      });
+  
+      // Kiểm tra phản hồi từ server
+      const contentType = res.headers.get("content-type");
+      if (!res.ok || !contentType?.includes("application/json")) {
+        const errorText = await res.text();
+        throw new Error("Upload failed: " + errorText);
+      }
+  
+      const data = await res.json();
+      console.log("Upload success:", data);
+  
+      // Bước 4: Cập nhật tin nhắn sau khi upload thành công
+      const now = new Date();
+      const isoTimestamp = now.toISOString();
+      const { time, dateStr } = formatDate(isoTimestamp);
+  
+      const newMessages: Message[] = [];
+  
+      const lastMessage = messages[messages.length - 1] as UserMessage | undefined;
+      const lastDate = lastMessage?.timestamp ? formatDate(lastMessage.timestamp).dateStr : null;
+  
+      // Thêm timestamp nếu ngày thay đổi
+      if (lastDate !== dateStr) {
+        newMessages.push({
+          id: `ts-${Date.now()}`,
+          userId: "timestamp",
+          time: dateStr,
+        });
+      }
+  
+      // Thêm tin nhắn mới với nhiều file
+      newMessages.push({
+        id: data.data.messageId || String(Date.now()), // Sử dụng messageId từ backend
+        text: data.data.content || "",
+        userId: "user123",
+        time,
+        fileUrls: data.data.fileUrls || [], // Mảng fileUrls từ backend
+        thumbnailUrls: data.data.thumbnailUrls || [], // Mảng thumbnailUrls từ backend
+        filenames: data.data.filenames || [], // Mảng filenames từ backend
+        timestamp: data.data.timestamp || isoTimestamp,
+      });
+  
+      setMessages([...messages, ...newMessages]);
+    } catch (error: any) {
+      console.error("Upload failed:", error.message || error);
+    }
+  };
+  
+  
 
   useEffect(() => {
     if (filteredMessages.length > 0) {
@@ -86,7 +197,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
       }
   
       const filtered = messages.filter((msg) => {
-        if (msg.sender === "timestamp") return true // giữ timestamp
+        if (msg.userId === "timestamp") return true // giữ timestamp
   
         const m = msg as UserMessage
   
@@ -123,7 +234,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const response = await fetch("http://192.168.1.35:3000/api/messages/user/user123")
+        const response = await fetch("http://192.168.1.28:3000/api/messages/user/user123")
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`)
         }
@@ -145,7 +256,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
           if (lastDate !== dateStr) {
             formattedMessages.push({
               id: `ts-${msg.messageId}`,
-              sender: "timestamp",
+              userId: "timestamp",
               time: dateStr,
             })
             lastDate = dateStr
@@ -155,7 +266,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
           formattedMessages.push({
             id: msg.messageId,
             text: msg.content || "",
-            sender: "user",
+            userId: "user123",
             time,
             fileUrls: msg.fileUrls || [],
             thumbnailUrls: msg.thumbnailUrls || [],
@@ -198,7 +309,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
       if (lastDate !== dateStr) {
         newMessages.push({
           id: `ts-${Date.now()}`,
-          sender: "timestamp",
+          userId: "timestamp",
           time: dateStr,
         })
       }
@@ -207,7 +318,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
       newMessages.push({
         id: String(Date.now()),
         text: message,
-        sender: "user",
+        userId: "user123",
         time,
         fileUrls: [],
         thumbnailUrls: [],
@@ -221,15 +332,15 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   }
 
   const renderMessage = ({ item }: { item: Message }) => {
-    if (item.sender === "timestamp") {
+    if (item.userId === "timestamp") {
       return (
         <View style={styles.timestampContainer}>
           <Text style={styles.timestamp}>{item.time}</Text>
         </View>
-      )
+      );
     }
 
-    const userMessage = item as UserMessage
+    const userMessage = item as UserMessage;
 
     return (
       <View style={[styles.messageContainer, styles.userMessage]}>
@@ -237,12 +348,20 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         {userMessage.thumbnailUrls && userMessage.thumbnailUrls.length > 0 ? (
           <View style={styles.fileContainer}>
             {userMessage.thumbnailUrls.map((url, index) => (
-              <Image
+              <TouchableOpacity
                 key={index}
-                source={{ uri: url }}
-                style={styles.thumbnail}
-                resizeMode="cover"
-              />
+                onPress={() => {
+                  // Mở modal với ảnh gốc từ fileUrls
+                  setSelectedImage(userMessage.fileUrls[index] || url);
+                  setModalVisible(true);
+                }}
+              >
+                <Image
+                  source={{ uri: url }}
+                  style={styles.thumbnail}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
             ))}
           </View>
         ) : null}
@@ -257,12 +376,42 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         ) : null}
         {userMessage.time ? <Text style={styles.messageTime}>{userMessage.time}</Text> : null}
       </View>
-    )
-  }
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
+
+      {/* Modal hiển thị ảnh full màn hình */}
+      <Modal
+        visible={modalVisible}
+        transparent={false}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+            <View style={styles.modalBackground} />
+          </TouchableWithoutFeedback>
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+            <Image
+              source={{ uri: selectedImage || "" }}
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+          </TouchableWithoutFeedback>
+          <View style={styles.downloadButtonContainer}>
+            <TouchableOpacity
+              style={styles.downloadButton}
+              onPress={() => selectedImage && downloadImage(selectedImage)}
+            >
+              <Ionicons name="download-outline" size={24} color="white" />
+              <Text style={styles.downloadText}>Tải xuống</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Header */}
       <View style={styles.header}>
@@ -330,16 +479,13 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         initialNumToRender={10}
         initialScrollIndex={initialIndex ?? 0}
         getItemLayout={(data, index) => ({
-          length: 100, // ước lượng chiều cao mỗi item để tránh crash
+          length: 100,
           offset: 100 * index,
           index,
         })}
         nestedScrollEnabled={true}
       />
 
-
-
-      {/* Message Input */}
       <View style={styles.inputContainer}>
         <TouchableOpacity style={styles.inputIcon}>
           <Ionicons name="happy-outline" size={24} color="#888" />
@@ -348,7 +494,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         <TouchableOpacity style={styles.inputIcon}>
           <Ionicons name="mic-outline" size={24} color="#888" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+        <TouchableOpacity style={styles.sendButton} onPress={pickImageAndUpload}>
           <Ionicons name="image-outline" size={24} color="#FF9500" />
         </TouchableOpacity>
       </View>
@@ -499,8 +645,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   thumbnail: {
-    width: 100,
-    height: 100,
+    width: 200,
+    height: 200,
     borderRadius: 8,
     marginVertical: 4,
   },
@@ -508,6 +654,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#0066CC",
     marginVertical: 4,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "black",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+  },
+  fullImage: {
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height * 0.8,
+  },
+  downloadButtonContainer: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+  },
+  downloadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    padding: 10,
+    borderRadius: 8,
+  },
+  downloadText: {
+    color: "white",
+    marginLeft: 8,
+    fontSize: 16,
   },
 })
 
