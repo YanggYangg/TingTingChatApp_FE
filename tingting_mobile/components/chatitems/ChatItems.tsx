@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 
 type ChatItemProps = {
-  avatar: string;
+  avatar: string | number;
   username: string;
   lastMessage: string;
   time: string;
@@ -12,7 +12,10 @@ type ChatItemProps = {
 const ChatItems: React.FC<ChatItemProps> = ({ avatar, username, lastMessage, time, onPress }) => {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
-      <Image source={{ uri: avatar }} style={styles.avatar} />
+      <Image
+        source={typeof avatar === "string" ? { uri: avatar } : avatar}
+        style={styles.avatar}
+      />
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.username} numberOfLines={1}>
