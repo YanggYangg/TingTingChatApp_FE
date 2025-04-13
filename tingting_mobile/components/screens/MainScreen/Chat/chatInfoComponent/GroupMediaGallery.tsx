@@ -201,7 +201,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
               style={styles.closeButton}
               onPress={() => setFullScreenMedia(null)}
             >
-              <Ionicons name="close" size={32} color="#fff" />
+              <Ionicons name="close" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         )}
@@ -267,18 +267,18 @@ const styles = StyleSheet.create({
     zIndex: 60,
   },
   iconButton: {
-    backgroundColor: '#4B5563', // Gray-800 equivalent
+    backgroundColor: '#4B5563',
     borderRadius: 20,
     padding: 8,
   },
   closeButton: {
     position: 'absolute',
-    bottom: 16,
-    alignSelf: 'center',
-    backgroundColor: '#4B5563', // Gray-800 equivalent
+    top: 16,
+    left: 16,
+    zIndex: 100,
+    backgroundColor: '#4B5563',
     borderRadius: 20,
     padding: 8,
-    zIndex: 60,
   },
   swiperSlide: {
     flex: 1,

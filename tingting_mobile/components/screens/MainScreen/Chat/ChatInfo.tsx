@@ -11,7 +11,6 @@ import MuteNotificationModal from './chatInfoComponent/MuteNotificationModal';
 import AddMemberModal from './chatInfoComponent/AddMemberModal';
 import EditNameModal from './chatInfoComponent/EditNameModal';
 import GroupActionButton from './chatInfoComponent/GroupActionButton';
-import Api_chatInfo from '../../../../apis/Api_chatInfo';
 
 interface Participant {
   userId: string;
@@ -43,33 +42,6 @@ const ChatInfo: React.FC = () => {
   const conversationId = "67e2d6bef1ea6ac96f10bf91";
   const userId = "6601a1b2c3d4e5f678901238";
 
-
-  useEffect(() => {
-    const fetchChatInfo = async () => {
-      try {
-        const response = await Api_chatInfo.getChatInfo(conversationId);
-        console.log("Thông tin chat nhận được từ API:", response);
-        setChatInfo(response);
-
-        const participant = response.participants.find(p => p.userId === userId);
-        if (participant) {
-          setIsMuted(!!participant.mute);
-          setChatInfo(prev => ({ ...prev, isPinned: participant.isPinned }));
-        } else {
-          setIsMuted(false);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Lỗi khi lấy thông tin chat:", error);
-        setLoading(false);
-      }
-    };
-
-    if (conversationId) {
-      fetchChatInfo();
-    }
-  }, [conversationId, userId]);
   const mockChatInfo = {
     isGroup: true,
     name: "Nhóm bạn thân",
