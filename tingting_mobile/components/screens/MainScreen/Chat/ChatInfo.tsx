@@ -151,7 +151,9 @@ const ChatInfo: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Icon name="arrow-left" size={24} color="#000" onPress={() => {}} />
+         {/* <TouchableOpacity  style={styles.iconHeader} onPress={() => navigation.goBack()}>
+        <Icon name="arrow-left" size={16} color="#000" onPress={() => {}} />
+        </TouchableOpacity> */}
         <Text style={styles.headerTitle}>
           {chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại"}
         </Text>
@@ -251,6 +253,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
   },
+  iconHeader: {
+    position: 'absolute',
+    left: 10,
+    top: 10,
+    zIndex: 1,
+    padding: 10,
+    marginRight: 10,
+  },
+
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
