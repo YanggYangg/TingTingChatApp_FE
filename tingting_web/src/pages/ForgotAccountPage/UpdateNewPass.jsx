@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import { Api_Auth } from "../../../apis/api_auth";
-import Modal from "../../components/Modal/Modal";
+import Modal from "../../components/Notification/Modal";
 import config from "../../config";
 
 const cx = classNames.bind(styles)
@@ -13,7 +13,7 @@ const cx = classNames.bind(styles)
 function UpdateNewPass() {
   const navigator = useNavigate();
   const location = useLocation();
-  const { phone, email } = location.state || {};
+  const { phone } = location.state || {};
   const [newPassword, setNewPassword] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [isError, setIsError] = useState(false);
@@ -23,7 +23,7 @@ function UpdateNewPass() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      const data = { newPassword, email };
+      const data = { newPassword, phone };
       if(newPassword !== confirmPass) {
         setMessageError("Mật khẩu không khớp, vui lòng nhập lại!");
         setIsError(true);
@@ -132,12 +132,12 @@ function UpdateNewPass() {
       {isError && (
         <Modal
           valid={false}
+          isNotification={true}
           title="Update Failed!"
           message={messageError}
-          isConfirm={true}
-          onConfirm={handleTryAgain}
-          contentConfirm={"Try again"}
-          contentCancel="Login page"
+          
+          onClose={handleTryAgain}
+         
         />
       )}
 
@@ -146,9 +146,9 @@ function UpdateNewPass() {
                 valid={true}
                 title="Update New Password Successful!"
                 message="You may now login with new password"
-                isConfirm={true}
+                isNotification={true}
                 onConfirm={handleSuccess}
-                contentConfirm={"OK"}
+                onClose={() => console.log("close")}
               />
             )}
     </div>
