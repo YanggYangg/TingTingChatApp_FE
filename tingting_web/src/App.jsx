@@ -17,21 +17,24 @@ import ForgotAccountLayout from "./layouts/ForgotPasswordLayout";
 
 import { Provider } from "react-redux";
 import store from "./redux/store";
+import VerifyOTP from "./pages/VerifyOTP";
+
 
 function App() {
   return (
     <Provider store={store}>
-      <Router>
-        <Routes>
+    <Router>
+      <Routes>
         <Route path="/" element={<DefaultLayout />}>
           <Route index element={<h1>Chat window</h1>} />
           <Route path="chat" element={<ChatPage />} />
-          <Route path="/contacts/:tab" element={<ContactsPage />} />
+          <Route path="contact" element={<ContactsPage />} />
           <Route path="*" element={<Navigate to="/contacts/friends" />} />{" "}
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/homepage" element={<HomePage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
         {forgotPasswordRoutes.map((route, index) => {
           const Page = route.component;
           const Layout = ForgotAccountLayout;
@@ -47,8 +50,8 @@ function App() {
             />
           );
         })}
-        </Routes>
-      </Router>
+      </Routes>
+    </Router>
     </Provider>
   );
 }

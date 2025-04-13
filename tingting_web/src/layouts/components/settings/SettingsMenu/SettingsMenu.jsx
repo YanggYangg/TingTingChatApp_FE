@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import SettingsModal from "../SettingsModal/SettingsModal";
 import UserProfileModal from "../UserProfileModal/UserProfileModal";
+import { Api_Auth } from "../../../../../apis/api_auth";
 
 function SettingsMenu({ isOpen, onClose, position }) {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -52,6 +53,18 @@ function SettingsMenu({ isOpen, onClose, position }) {
     onClose(); // Close the menu
     setUserProfileModalOpen(true); // Open the user profile modal
   };
+  const handleLogout = async () => {
+    onClose(); // Close the menu
+     try {
+     await Api_Auth.logout(); // Call the logout API
+      localStorage.removeItem("token"); // Remove token from local storage
+      localStorage.removeItem("userId"); // Remove userId from local storage
+      window.location.reload(); // Reload the page to reflect the changes
+    }catch (error) {
+      console.error("Logout failed:", error); // Log any errors
+    }
+  };
+  
 
   if (!isOpen && !settingsModalOpen && !userProfileModalOpen) return null;
 
@@ -102,7 +115,7 @@ function SettingsMenu({ isOpen, onClose, position }) {
               textClass="text-red-600"
             />
 
-            <MenuItem icon={<FaTimes className="text-black" />} text="Thoát" />
+            <MenuItem icon={<FaTimes className="text-black" />} text="Thoát" onClick={handleLogout} />
           </ul>
         </div>
       )}
@@ -113,7 +126,7 @@ function SettingsMenu({ isOpen, onClose, position }) {
       />
       <UserProfileModal
         isOpen={userProfileModalOpen}
-        onClose={() => setUserProfileModalOpen(false)}
+        onCloseUserProfile={() => setUserProfileModalOpen(false)}
       />
     </>
   );

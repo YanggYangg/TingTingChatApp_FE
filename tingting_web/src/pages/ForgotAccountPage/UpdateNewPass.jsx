@@ -1,37 +1,33 @@
-"use client"
+import classNames from "classnames/bind";
+import styles from "./ForgotAccountPage.module.scss";
+import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 
-import classNames from "classnames/bind"
-import styles from "./ForgotAccountPage.module.scss"
-import { Link } from "react-router-dom"
-import { useState } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
-import { Api_Auth } from "../../../apis/api_auth"
-import Modal from "../../components/Modal/Modal"
-import config from "../../config"
-import { ArrowLeft, Eye, EyeOff } from "lucide-react"
+import { Api_Auth } from "../../../apis/api_auth";
+import Modal from "../../components/Modal/Modal";
+import config from "../../config";
 
 const cx = classNames.bind(styles)
 
 function UpdateNewPass() {
-  const navigator = useNavigate()
-  const location = useLocation()
-  const { phone, email } = location.state || {}
-
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPass, setConfirmPass] = useState("")
-  const [isError, setIsError] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [messageError, setMessageError] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const navigator = useNavigate();
+  const location = useLocation();
+  const { phone, email } = location.state || {};
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [messageError, setMessageError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      if (newPassword !== confirmPass) {
-        setMessageError("Mật khẩu không khớp, vui lòng nhập lại!")
-        setIsError(true)
-        return
+      const data = { newPassword, email };
+      if(newPassword !== confirmPass) {
+        setMessageError("Mật khẩu không khớp, vui lòng nhập lại!");
+        setIsError(true);
+        return;
       }
 
       const data = { newPassword, email }
@@ -136,25 +132,25 @@ function UpdateNewPass() {
       {isError && (
         <Modal
           valid={false}
-          title="Cập nhật thất bại"
+          title="Update Failed!"
           message={messageError}
           isConfirm={true}
           onConfirm={handleTryAgain}
-          contentConfirm={"Thử lại"}
-          contentCancel="Đăng nhập"
+          contentConfirm={"Try again"}
+          contentCancel="Login page"
         />
       )}
 
       {isSuccess && (
-        <Modal
-          valid={true}
-          title="Cập nhật mật khẩu thành công!"
-          message="Bạn có thể đăng nhập với mật khẩu mới"
-          isConfirm={true}
-          onConfirm={handleSuccess}
-          contentConfirm={"Đăng nhập ngay"}
-        />
-      )}
+              <Modal
+                valid={true}
+                title="Update New Password Successful!"
+                message="You may now login with new password"
+                isConfirm={true}
+                onConfirm={handleSuccess}
+                contentConfirm={"OK"}
+              />
+            )}
     </div>
   )
 }

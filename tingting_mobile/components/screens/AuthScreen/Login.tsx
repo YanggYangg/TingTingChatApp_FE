@@ -9,42 +9,16 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [phone, setphone] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = async () => {
-    if (!phone || !password) {
+  const handleLogin = () => {
+    
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
-      return;
-    }
-    const patternPhone = /0\d{9,10}/;
-    if (!patternPhone.test(phone)) {
-      Alert.alert("Lỗi", "Số điện thoại không hợp lệ!");
-      return;
-    }
+  
 
     if (password.length < 6 || password.length > 32) {
       Alert.alert("Lỗi", "Mật khẩu phải từ 6 đến 32 ký tự!");
       return;
     }
 
-    try {
-      const response = await Api_Auth.login({ phone, password });
-
-      if (response.status === "success") {
-        const { token, user } = response.data;
-
-        console.log("Token:", token);
-        console.log("User info:", user);
-
-        // TODO: Lưu token vào AsyncStorage hoặc Redux nếu cần
-
-        // Chuyển sang màn hình chính (hoặc màn nào bạn muốn)
-        navigation.navigate("Chat");
-      } else {
-        Alert.alert("Lỗi", response.message || "Đăng nhập thất bại");
-      }
-    } catch (error: any) {
-      console.error("Login error:", error);
-      Alert.alert("Lỗi", error.response?.data?.message || "Đã có lỗi xảy ra");
-    }
   };
 
   return (
