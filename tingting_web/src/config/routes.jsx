@@ -8,6 +8,7 @@ const routes = {
     verifyUser: '/verify-user',
     enterOTP: '/enter-otp',
     updatePassword: '/update-password',
+    verifyOTP: '/verify-otp',
     
     chatInfo: '/chatInfo',
     storagePage: '/storagePage',    

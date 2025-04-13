@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 import config from "../../config";
 import styles from "./RegisterPage.module.scss";
-import Modal from "../../components/Modal/Modal";
+import Modal from "../../components/Notification/Modal";
 import { Api_Auth } from "../../../apis/api_auth";
 const cx = classNames.bind(styles);
 
@@ -14,14 +14,13 @@ function RegisterPage() {
   const [firstname, setFirstName] = useState("");
   const [surname, setSurName] = useState("");
   const [day, setDay] = useState("1");
-  const [month, setMonth] = useState("Jan");
+  const [month, setMonth] = useState("1");
   const [year, setYear] = useState("2025");
   const [gender, setGender] = useState("Male");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-
   const [isSuccess, setIsSuccess] = useState(false);
   const [isError, setIsError] = useState(false);
   const [messageError, setMessageError] = useState("");
@@ -66,12 +65,23 @@ function RegisterPage() {
         password,
       };
       const response = await Api_Auth.signUp(data);
-      console.log(response.data.user._id);
-
       setIsSuccess(true);
+      
+      navigator(config.routes.verifyOTP, {
+        state: {
+          phone, ...data
+        },
+      });
     } catch (err) {
-      setMessageError(err.response.data.message);
+      console.log(err.response.data.message);
+
       setIsError(true);
+      if (err.code === "ERR_NETWORK") {
+        setMessageError("Không thể kết nối đến máy chủ!");
+      } else {
+        setMessageError(err.response.data.message);
+      }
+      
     }
   };
   const handleLoginRedirect = () => {
@@ -312,29 +322,28 @@ function RegisterPage() {
           </div>
         </div>
       </div>
-      {isSuccess && (
-        <Modal
-          valid={true}
-          title="Registration Successful!"
-          message="You may now login with your account"
-          isConfirm={true}
-          onConfirm={handleLoginRedirect}
-          contentConfirm={"OK"}
-        />
-      )}
-      {isError && (
-        <Modal
-          valid={false}
-          title="Registration Failed!"
-          message={messageError}
-          isConfirm={true}
-          isCancel={true}
-          onConfirm={handleTryAgain}
-          onCancel={handleLoginRedirect}
-          contentConfirm={"Try again"}
-          contentCancel="Login page"
-        />
-      )}
+       {
+                      isError && (
+                          <Modal
+                              isNotification={true}
+                              valid={false}
+                              title="Register Failed!"
+                              message={messageError}
+                              onClose= {handleTryAgain}
+                          />
+                      )
+                  }
+                   {
+                      isSuccess && (
+                          <Modal
+                              isNotification={true}
+                              valid={true}
+                              title="Register successful!"
+                              message={messageError}
+                              onClose= {handleTryAgain}
+                          />
+                      )
+                  }
     </div>
   );
 }

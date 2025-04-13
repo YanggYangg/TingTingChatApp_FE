@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Api_Auth } from "../../../apis/api_auth";
 import config from "../../config";
-import Modal from "../../components/Modal/Modal";
+import Modal from "../../components/Notification/Modal";
 
 const cx = classNames.bind(styles);
 

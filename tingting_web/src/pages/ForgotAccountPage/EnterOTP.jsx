@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import { Api_Auth } from "../../../apis/api_auth";
-import Modal from "../../components/Modal/Modal";
+import Modal from "../../components/Notification/Modal";
 import config from "../../config";
 
 const cx = classNames.bind(styles);
@@ -13,10 +13,10 @@ const cx = classNames.bind(styles);
 function EnterOTP() {
   const navigator = useNavigate();
   const location = useLocation();
-  const { phone, email } = location.state || {}; // Lấy giá trị từ state nếu có
+  const { phone } = location.state || {}; // Lấy giá trị từ state nếu có
 
   const [otp, setOTP] = useState("");
-  
+
   const [isError, setIsError] = useState(false);
   const [messageError, setMessageError] = useState("");
 
@@ -24,12 +24,11 @@ function EnterOTP() {
     e.preventDefault();
     // Xử lý logic tìm tài khoản ở đây
     try {
-      const data = { otp , email };
+      const data = { phone, otp };
       const response = await Api_Auth.verifyOTP(data);
       navigator(config.routes.updatePassword, {
-        state: { phone, email },
+        state: { phone },
       });
-      
     } catch (error) {
       setMessageError(error.response.data.message);
       setIsError(true);
@@ -54,7 +53,9 @@ function EnterOTP() {
           </div>
           <div>
             <p>
-              Vui lòng nhập mã OTP đã được gửi đến email <span className="text-red-400">{email}</span> của bạn để xác nhận tài khoản.
+              Vui lòng nhập mã OTP đã được gửi đến số điện thoại :{" "}
+              <span className="text-red-400">{phone}</span> của bạn để xác nhận
+              tài khoản.
             </p>
             <form
               onSubmit={handleSubmit}
@@ -72,7 +73,7 @@ function EnterOTP() {
                 maxLength={6}
                 required
               />
-             
+
               <div className={cx("border-t-1 border-gray-300 w-full mt-3 ")}>
                 <input
                   type="submit"
@@ -94,12 +95,10 @@ function EnterOTP() {
       {isError && (
         <Modal
           valid={false}
+          isNotification={true}
           title="Verified Failed!"
           message={messageError}
-          isConfirm={true}
-          onConfirm={handleTryAgain}
-          contentConfirm={"Try again"}
-          contentCancel="Login page"
+          onClose={handleTryAgain}
         />
       )}
     </div>

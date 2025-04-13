@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useNavigate } from 'react-router-dom';
 
 import { Api_Auth } from "../../../apis/api_auth";
-import Modal from '../../components/Modal/Modal';
+import Modal from '../../components/Notification/Modal';
 import config from "../../config";
 
 const cx = classNames.bind(styles);
@@ -24,18 +24,30 @@ function Login() {
     const data = { phone, password };
     try {
       const response = await Api_Auth.login(data); 
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("userId", response.data.user.userId);
-      navigator(config.routes.chat);
+      navigator(config.routes.verifyOTP, {
+        state: { phone }
+      });
       
     } catch (err) {
-      setMessageError(err.response.data.message);
-      setIsError(true);
+      if(err.code === "ERR_NETWORK"){
+        setMessageError("Không thể kết nối đến máy chủ!");
+        setIsError(true);
+      }
+      else{
+        setMessageError(err.response.data.message);
+        setIsError(true);
+      }
+      
+
     }
   };
   const handleTryAgain = () => {
     setIsError(false);
+
 };
+
+
+
 
   return (
     <div className={cx("wrapper")}>
@@ -131,13 +143,11 @@ function Login() {
       {
                 isError && (
                     <Modal
+                        isNotification={true}
                         valid={false}
                         title="Login Failed!"
                         message={messageError}
-                        isConfirm={true}                      
-                        onConfirm={handleTryAgain}
-                        contentConfirm={'Try again'}
-                        contentCancel="Login page"
+                        onClose= {handleTryAgain}
                     />
                 )
             }

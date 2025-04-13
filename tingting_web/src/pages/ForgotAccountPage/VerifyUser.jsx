@@ -5,16 +5,15 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Api_Auth } from "../../../apis/api_auth";
-import Modal from "../../components/Modal/Modal";
+import Modal from "../../components/Notification/Modal";
 import config from "../../config";
 
 const cx = classNames.bind(styles);
 
 function VerifyUser() {
   const navigator = useNavigate();
-
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
+  // const [email, setEmail] = useState("");
   const [isError, setIsError] = useState(false);
   const [messageError, setMessageError] = useState("");
 
@@ -22,11 +21,11 @@ function VerifyUser() {
     e.preventDefault();
     // Xử lý logic tìm tài khoản ở đây
     try {
-      const data = { phone, email };
+      const data = { phone };
       const response = await Api_Auth.forgotPassword(data);
       if (response.success === true) {
         navigator(config.routes.enterOTP, {
-          state: { phone, email },
+          state: { phone },
         });
       }
       
@@ -71,7 +70,7 @@ function VerifyUser() {
                 title="Vui lòng nhập số điện thoại hợp lệ (bắt đầu bằng 0 - gồm 10, 11 chữ số)"
                 required
               />
-              <input
+              {/* <input
                 type="text"
                 name="email"
                 value={email}
@@ -81,7 +80,7 @@ function VerifyUser() {
                 pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
                 title="Vui lòng nhập địa chỉ email hợp lệ"
                 required
-              />
+              /> */}
               <div className={cx("border-t-1 border-gray-300 w-full mt-3 ")}>
                 <input
                   type="submit"
@@ -103,12 +102,10 @@ function VerifyUser() {
       {isError && (
         <Modal
           valid={false}
+          isNotification={true}
           title="Verified Failed!"
           message={messageError}
-          isConfirm={true}
-          onConfirm={handleTryAgain}
-          contentConfirm={"Try again"}
-          contentCancel="Login page"
+          onClose={handleTryAgain}
         />
       )}
     </div>

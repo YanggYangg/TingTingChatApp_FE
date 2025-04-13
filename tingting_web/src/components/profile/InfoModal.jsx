@@ -17,8 +17,7 @@ function InfoModal({ isOpen, onClose }) {
     gender: "female",
     phone: "",
     avatar: null,
-    coverPhoto: null,
-    file: null,
+    coverPhoto: null
   });
   useEffect(() => {
     const fetchProfile = async () => {
@@ -56,33 +55,37 @@ function InfoModal({ isOpen, onClose }) {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
+    const selectedFile = e.target.files && e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      console.log("File đã chọn:", selectedFile);
+    } else {
+      console.warn("Không có file nào được chọn.");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-    //   if (!selectedFile) return alert("Vui lòng chọn một ảnh!");
+      // if (selectedFile === null) return alert("Vui lòng chọn một ảnh!");
 
-    //   const formData2 = new FormData();
-    //   formData2.append("avatar", selectedFile);
+      // const formData2 = new FormData();
+      // formData2.append("avatar", selectedFile);
+      // console.log("formData2", formData2);
 
-    //   const resp = await axios.post(
-    //     "http://localhost:3001/api/v1/profile/upload",
-    //     formData2,
-    //     {
-    //       headers: {
-    //         "Content-Type": "multipart/form-data",
-    //         'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    //       },
-    //       withCredentials: true, // nếu bạn đang dùng cookie cho auth
-    //     }
-    //   );
+      // const resp = await axios.post(
+      //   "http://localhost:3001/api/v1/profile/upload",
+      //   formData2,
+      //   {
+      //     headers: {
+      //       "Content-Type": "multipart/form-data",
+      //       'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      //     },
+      //     withCredentials: true, // nếu bạn đang dùng cookie cho auth
+      //   }
+      // );
   
-    //   console.log("Upload thành công!", resp.data);
+      // console.log("Upload thành công!", resp.data);
       const response = await Api_Profile.updateProfile(
         localStorage.getItem("userId"),
         formData
