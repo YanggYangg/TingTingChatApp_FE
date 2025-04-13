@@ -45,6 +45,10 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [previewFile, setPreviewFile] = useState<Media | null>(null);
 
+  // Thêm state cho tính năng chọn/xóa
+  const [isSelecting, setIsSelecting] = useState<boolean>(false);
+  const [selectedItems, setSelectedItems] = useState<Media[]>([]);
+
   // Mock Data bên trong StoragePage
   const mockData = {
     images: [
@@ -104,6 +108,27 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     ],
   };
 
+  // Hàm xử lý xóa các mục đã chọn
+  const handleDeleteSelected = () => {
+    const newData = { ...mockData };
+    selectedItems.forEach((item) => {
+      newData[activeTab] = newData[activeTab].filter((dataItem) => dataItem.src !== item.src);
+    });
+    mockData[activeTab] = newData[activeTab]; // Cập nhật lại mockData
+    setSelectedItems([]);
+    setIsSelecting(false);
+    Alert.alert('Thành công', `Đã xóa ${selectedItems.length} mục.`);
+  };
+
+  // Hàm xử lý chọn/bỏ chọn mục
+  const toggleSelectItem = (item: Media) => {
+    if (selectedItems.some((selected) => selected.src === item.src)) {
+      setSelectedItems(selectedItems.filter((selected) => selected.src !== item.src));
+    } else {
+      setSelectedItems([...selectedItems, item]);
+    }
+  };
+
   const filteredData = useMemo(() => {
     const items = mockData[activeTab] || [];
     return items.filter(
@@ -112,7 +137,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
         (!startDate || (item.date && new Date(item.date) >= startDate)) &&
         (!endDate || (item.date && new Date(item.date) <= endDate))
     );
-  }, [activeTab, filterSender, startDate, endDate]);
+  }, [mockData, activeTab, filterSender, startDate, endDate]);
 
   const getUniqueSenders = (items: Media[]): string[] => {
     const senders = items.map((item) => item.sender || 'Không xác định');
@@ -278,15 +303,20 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
         {dateData
           .filter((item: Media) => (item.date || 'Không xác định') === date)
           .map((item: Media, index: number) => (
-            <View key={`${item.src}-${index}`} style={styles.itemContainer}>
+            <TouchableOpacity
+              key={`${item.src}-${index}`}
+              style={[
+                styles.itemContainer,
+                isSelecting && selectedItems.some((selected) => selected.src === item.src)
+                  ? styles.selectedItem
+                  : null,
+              ]}
+              onPress={() =>
+                isSelecting ? toggleSelectItem(item) : activeTab === 'images' ? setFullScreenMedia(item) : setPreviewFile(item)
+              }
+            >
               {activeTab === 'images' ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    setFullScreenMedia(item);
-                    const idx = allImages.findIndex((i) => i.src === item.src);
-                    if (idx !== -1) setCurrentIndex(idx);
-                  }}
-                >
+                <>
                   {item.type === 'image' ? (
                     <Image
                       source={{ uri: item.src }}
@@ -319,19 +349,15 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                       </View>
                     </View>
                   )}
-                </TouchableOpacity>
+                </>
               ) : activeTab === 'files' ? (
                 <View style={styles.fileItem}>
-                  <TouchableOpacity onPress={() => setPreviewFile(item)}>
-                    <Text style={styles.fileName}>
-                      {item.name || 'Không có tên'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => downloadMediaFile(item.src, item.name)}
-                  >
-                    <Ionicons name="download-outline" size={24} color="#666" />
-                  </TouchableOpacity>
+                  <Text style={styles.fileName}>{item.name || 'Không có tên'}</Text>
+                  {!isSelecting && (
+                    <TouchableOpacity onPress={() => downloadMediaFile(item.src, item.name)}>
+                      <Ionicons name="download-outline" size={24} color="#666" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : (
                 <View style={styles.linkItem}>
@@ -340,7 +366,24 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                   </View>
                 </View>
               )}
-            </View>
+              {isSelecting && (
+                <View style={styles.checkbox}>
+                  <Ionicons
+                    name={
+                      selectedItems.some((selected) => selected.src === item.src)
+                        ? 'checkbox'
+                        : 'checkbox-outline'
+                    }
+                    size={24}
+                    color={
+                      selectedItems.some((selected) => selected.src === item.src)
+                        ? '#3B82F6'
+                        : '#666'
+                    }
+                  />
+                </View>
+              )}
+            </TouchableOpacity>
           ))}
       </View>
     </View>
@@ -359,6 +402,29 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
             <Ionicons name="arrow-back" size={24} color="#3B82F6" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Kho lưu trữ</Text>
+          <View style={styles.selectionContainer}>
+            {isSelecting ? (
+              <>
+                <TouchableOpacity onPress={handleDeleteSelected}>
+                  <Text style={styles.deleteButton}>
+                    Xóa ({selectedItems.length})
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsSelecting(false);
+                    setSelectedItems([]);
+                  }}
+                >
+                  <Text style={styles.cancelButton}>Hủy</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity onPress={() => setIsSelecting(true)}>
+                <Text style={styles.selectButton}>Chọn</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <View style={styles.tabContainer}>
@@ -366,7 +432,11 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
             <TouchableOpacity
               key={tab}
               style={[styles.tab, activeTab === tab && styles.activeTab]}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => {
+                setActiveTab(tab);
+                setIsSelecting(false);
+                setSelectedItems([]);
+              }}
             >
               <Text
                 style={[styles.tabText, activeTab === tab && styles.activeTabText]}
@@ -537,6 +607,23 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  selectionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  selectButton: {
+    fontSize: 14,
+    color: '#3B82F6',
+  },
+  deleteButton: {
+    fontSize: 14,
+    color: '#EF4444',
+  },
+  cancelButton: {
+    fontSize: 14,
+    color: '#666',
   },
   tabContainer: {
     flexDirection: 'row',
@@ -749,6 +836,18 @@ const styles = StyleSheet.create({
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'relative',
+  },
+  selectedItem: {
+    backgroundColor: '#E0F7FA',
+    borderColor: '#3B82F6',
+    borderWidth: 1,
+    borderRadius: 5,
+  },
+  checkbox: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
   },
   mediaItem: {
     width: 80,
