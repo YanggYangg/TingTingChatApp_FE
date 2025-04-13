@@ -171,10 +171,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
         style={styles.modal}
         useNativeDriver
       >
-        {/* Guard clause to prevent rendering when fullScreenMedia is null */}
-        {!fullScreenMedia ? (
-          <View />
-        ) : (
+             {fullScreenMedia && (
           <View style={styles.fullScreenContainer}>
             <Swiper
               index={currentIndex}
@@ -183,45 +180,28 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
               showsPagination={false}
             >
               {media.map((item, index) => (
-                <View key={index} style={styles.fullScreenMediaContainer}>
+                <View key={index} style={styles.swiperSlide}>
                   {item.type === 'image' ? (
-                    <Image
-                      source={{ uri: item.src }}
-                      style={styles.fullScreenMedia}
-                      resizeMode="contain"
-                    />
+                    <Image source={{ uri: item.src }} style={styles.fullScreenMedia} />
                   ) : (
                     <Video
-                      ref={videoRef}
+                      ref={index === currentIndex ? videoRef : undefined}
                       source={{ uri: item.src }}
                       style={styles.fullScreenMedia}
                       useNativeControls
                       resizeMode="contain"
-                      isLooping
                     />
                   )}
+                  <Text style={styles.mediaName}>{item.name}</Text>
                 </View>
               ))}
             </Swiper>
-
-            {/* Top Bar with Close and Download Icons */}
-            <View style={styles.topBar}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => setFullScreenMedia(null)}
-              >
-                <Ionicons name="close-outline" size={24} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => downloadMedia(fullScreenMedia.src, fullScreenMedia.name)}
-              >
-                <Ionicons name="download-outline" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-       
-         
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setFullScreenMedia(null)}
+            >
+              <Ionicons name="close" size={32} color="#fff" />
+            </TouchableOpacity>
           </View>
         )}
       </Modal>
@@ -290,7 +270,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
   },
-  bottomCloseButton: {
+  closeButton: {
     position: 'absolute',
     bottom: 16,
     alignSelf: 'center',

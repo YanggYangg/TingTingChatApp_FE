@@ -151,6 +151,7 @@ const ChatInfo: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <Icon name="arrow-left" size={24} color="#000" onPress={() => {}} />
         <Text style={styles.headerTitle}>
           {chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại"}
         </Text>
