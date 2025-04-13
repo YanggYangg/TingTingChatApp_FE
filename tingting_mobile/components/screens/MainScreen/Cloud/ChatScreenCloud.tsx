@@ -50,18 +50,62 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   const [message, setMessage] = useState("")
   const [activeTab, setActiveTab] = useState("Tất cả")
   const [messages, setMessages] = useState<Message[]>([])
+  const [filteredMessages, setFilteredMessages] = useState<Message[]>([])
+
 
   const tabs = ["Tất cả", "Văn bản", "Ảnh", "File", "Link"]
 
   // Hàm định dạng thời gian sang múi giờ Việt Nam (UTC+7)
+  // Sửa lại hàm formatDate
   const formatDate = (isoString: string): { time: string; dateStr: string } => {
     const date = new Date(isoString)
-    // Giả định timestamp từ API là UTC, cộng 7 giờ để chuyển sang UTC+7
-    const vnDate = new Date(date.getTime() + 7 * 60 * 60 * 1000)
-    const time = `${vnDate.getHours()}:${String(vnDate.getMinutes()).padStart(2, "0")}`
-    const dateStr = `${vnDate.getDate().toString().padStart(2, "0")}/${(vnDate.getMonth() + 1).toString().padStart(2, "0")}/${vnDate.getFullYear()}`
+    const hours = date.getHours()
+    const minutes = String(date.getMinutes()).padStart(2, "0")
+    const time = `${hours}:${minutes}`
+    const dateStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`
     return { time, dateStr }
   }
+
+  useEffect(() => {
+    const filterMessages = () => {
+      if (activeTab === "Tất cả") {
+        setFilteredMessages(messages)
+        return
+      }
+  
+      const filtered = messages.filter((msg) => {
+        if (msg.sender === "timestamp") return true // giữ timestamp
+  
+        const m = msg as UserMessage
+  
+        switch (activeTab) {
+          case "Văn bản":
+            return (
+              m.text?.trim() &&
+              (!m.thumbnailUrls || m.thumbnailUrls.length === 0) &&
+              (!m.filenames || m.filenames.length === 0)
+            )
+          case "Ảnh":
+            return m.thumbnailUrls && m.thumbnailUrls.length > 0
+          case "File":
+            return (
+              m.filenames && m.filenames.length > 0 &&
+              (!m.thumbnailUrls || m.thumbnailUrls.length === 0)
+            )
+          case "Link":
+            return m.text && /(https?:\/\/[^\s]+)/.test(m.text)
+          default:
+            return true
+        }
+      })
+  
+      setFilteredMessages(filtered)
+    }
+  
+    filterMessages()
+  }, [activeTab, messages])
+  
+
 
   // Fetch messages from API
   useEffect(() => {
@@ -231,38 +275,48 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
       </View>
 
       {/* Filter Tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabsContainer}
-        contentContainerStyle={{ paddingHorizontal: 10, alignItems: "center" }}
-      >
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={styles.tabText}>{tab}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={{ height: 52, backgroundColor: "white" }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabsContainer}
+          contentContainerStyle={{
+            paddingHorizontal: 10,
+            alignItems: "center",
+          }}
+          removeClippedSubviews={false}
+        >
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              onPress={() => setActiveTab(tab)}
+              
+            >
+              <Text style={styles.tabText}>{tab}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Collection Section */}
-      <View style={styles.collectionContainer}>
+      {/* <View style={styles.collectionContainer}>
         <Text style={styles.collectionTitle}>Bộ sưu tập</Text>
         <TouchableOpacity>
           <Ionicons name="chevron-down" size={24} color="#333" />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Messages */}
       <FlatList
-        data={messages}
+      
+        data={filteredMessages}
         renderItem={renderMessage}
         keyExtractor={(item) => item.id}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesList}
+        initialNumToRender={10}
+        nestedScrollEnabled={true} // Thêm thuộc tính này
       />
 
       {/* Message Input */}
@@ -315,8 +369,11 @@ const styles = StyleSheet.create({
     marginLeft: 20,
   },
   tabsContainer: {
+    // flex: 1,
     backgroundColor: "white",
-    paddingVertical: 10,
+    height: 52, // Cố định chiều cao
+    maxHeight: 52, // Ngăn chiều cao vượt quá
+    minHeight: 52, // Ngăn chiều cao bị thu nhỏ
   },
   tab: {
     paddingHorizontal: 12,
@@ -326,7 +383,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
     alignItems: "center",
     justifyContent: "center",
-    height: 32,
+    minWidth: 60, // Đảm bảo kích thước tối thiểu
+    height: 32, // Cố định chiều cao
   },
   activeTab: {
     backgroundColor: "#e0e0e0",
@@ -353,9 +411,11 @@ const styles = StyleSheet.create({
     color: "#0066CC",
   },
   messagesContainer: {
+    // flex: 1,
     backgroundColor: "#f0f0f5",
   },
   messagesList: {
+    // flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 15,
   },
