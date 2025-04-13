@@ -107,7 +107,7 @@ const MessageScreen = ({ route, navigation }: any) => {
             <Ionicons name="videocam-outline" size={28} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => console.log("Menu")}
+            onPress={() => navigation.navigate("ChatInfo")}
             style={{ marginLeft: 15 }}
           >
             <Ionicons name="menu-outline" size={28} color="#fff" />
