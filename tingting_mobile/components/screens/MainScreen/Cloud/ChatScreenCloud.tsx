@@ -368,49 +368,65 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     fetchMessages()
   }, [])
 
-  const sendMessage = () => {
-    if (message.trim()) {
-      // Sử dụng giờ hệ thống trực tiếp (giả định đã là UTC+7)
-      const now = new Date()
-      const isoTimestamp = now.toISOString() // Lưu timestamp dạng ISO
-      const { time, dateStr } = formatDate(isoTimestamp)
+  // Hàm gửi tin nhắn
+  const sendMessage = async () => {
+    if (!message.trim()) return;
 
-      // Debug để kiểm tra giờ
-      console.log("New message timestamp:", isoTimestamp, "Formatted time:", time)
+    try {
+      // Gửi tin nhắn lên backend
+      const response = await fetch("http://192.168.1.28:3000/api/messages/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: "user123",
+          content: message.trim(),
+          timestamp: new Date().toISOString(),
+        }),
+      });
 
-      // Kiểm tra ngày của tin nhắn cuối
-      const lastMessage = messages[messages.length - 1] as UserMessage | undefined
-      const lastDate = lastMessage?.timestamp
-        ? formatDate(lastMessage.timestamp).dateStr
-        : null
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
 
-      const newMessages: Message[] = []
+      const data = await response.json();
 
-      // Thêm timestamp nếu ngày khác
+      // Cập nhật giao diện
+      const now = new Date();
+      const isoTimestamp = now.toISOString();
+      const { time, dateStr } = formatDate(isoTimestamp);
+
+      const lastMessage = messages[messages.length - 1] as UserMessage | undefined;
+      const lastDate = lastMessage?.timestamp ? formatDate(lastMessage.timestamp).dateStr : null;
+
+      const newMessages: Message[] = [];
+
       if (lastDate !== dateStr) {
         newMessages.push({
           id: `ts-${Date.now()}`,
           userId: "timestamp",
           time: dateStr,
-        })
+        });
       }
 
-      // Thêm tin nhắn mới
       newMessages.push({
-        id: String(Date.now()),
-        text: message,
+        id: data.messageId || String(Date.now()),
+        text: message.trim(),
         userId: "user123",
         time,
         fileUrls: [],
         thumbnailUrls: [],
         filenames: [],
-        timestamp: isoTimestamp,
-      })
+        timestamp: data.timestamp || isoTimestamp,
+      });
 
-      setMessages([...messages, ...newMessages])
-      setMessage("")
+      setMessages([...messages, ...newMessages]);
+      setMessage("");
+    } catch (error: any) {
+      console.error("Gửi tin nhắn thất bại:", error.message || error);
     }
-  }
+  };
 
   // Hàm lấy icon theo loại file
   const getFileIcon = (filename: string) => {
@@ -455,7 +471,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
           <View style={styles.fileContainer}>
             {userMessage.filenames.map((name, index) => (
               <View key={index} style={styles.fileItem}>
-                <Ionicons name={getFileIcon(name)} size={40} color="#0066CC" style={styles.fileIcon} />
+                <Ionicons name={getFileIcon(name)} size={28} color="#0066CC" style={styles.fileIcon} />
                 <Text style={styles.fileName}>{name}</Text>
               </View>
             ))}
@@ -566,9 +582,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         />
 
         <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.inputIcon}>
-            <Ionicons name="happy-outline" size={24} color="#888" />
-          </TouchableOpacity>
+
           <TextInput
             style={styles.input}
             placeholder="Tin nhắn"
@@ -576,16 +590,30 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             onChangeText={setMessage}
             multiline
           />
-          <TouchableOpacity style={styles.inputIcon} onPress={pickFileAndUpload}>
-            <Ionicons name="attach-outline" size={24} color="#888" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sendButton} onPress={pickImageAndUpload}>
-            <Ionicons name="image-outline" size={24} color="#FF9500" />
-          </TouchableOpacity>
+          
+          {message.trim() ? (
+            <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+              <Ionicons name="send" size={24} color="#FF9500" />
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity style={styles.inputIcon} onPress={pickFileAndUpload}>
+                <Ionicons name="attach-outline" size={24} color="#888" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.inputIcon} onPress={pickImageAndUpload}>
+                <Ionicons name="image-outline" size={24} color="#888" />
+              </TouchableOpacity>
+            </>
+          )}
+
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+
+  // <TouchableOpacity style={styles.inputIcon}>
+  //    <Ionicons name="happy-outline" size={24} color="#888" />
+  // </TouchableOpacity>
 }
 const styles = StyleSheet.create({
   fileItem: {
@@ -733,6 +761,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 16,
+    marginHorizontal: 5, // Thêm khoảng cách để cân đối
   },
   sendButton: {
     padding: 5,
