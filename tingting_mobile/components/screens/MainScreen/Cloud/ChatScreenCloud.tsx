@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef  } from "react"
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ScrollView,
   Image,
 } from "react-native"
+import type { FlatList as FlatListType } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import type { NativeStackScreenProps } from "@react-navigation/native-stack"
 
@@ -51,6 +52,9 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   const [activeTab, setActiveTab] = useState("Tất cả")
   const [messages, setMessages] = useState<Message[]>([])
   const [filteredMessages, setFilteredMessages] = useState<Message[]>([])
+  const flatListRef = useRef<FlatListType>(null)
+  const [initialIndex, setInitialIndex] = useState<number | null>(null)
+
 
 
   const tabs = ["Tất cả", "Văn bản", "Ảnh", "File", "Link"]
@@ -65,6 +69,14 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     const dateStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`
     return { time, dateStr }
   }
+
+  useEffect(() => {
+    if (filteredMessages.length > 0) {
+      setInitialIndex(filteredMessages.length - 1)
+    }
+  }, [filteredMessages])
+  
+  
 
   useEffect(() => {
     const filterMessages = () => {
@@ -309,15 +321,23 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
 
       {/* Messages */}
       <FlatList
-      
+        ref={flatListRef}
         data={filteredMessages}
         renderItem={renderMessage}
         keyExtractor={(item) => item.id}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesList}
         initialNumToRender={10}
-        nestedScrollEnabled={true} // Thêm thuộc tính này
+        initialScrollIndex={initialIndex ?? 0}
+        getItemLayout={(data, index) => ({
+          length: 100, // ước lượng chiều cao mỗi item để tránh crash
+          offset: 100 * index,
+          index,
+        })}
+        nestedScrollEnabled={true}
       />
+
+
 
       {/* Message Input */}
       <View style={styles.inputContainer}>
