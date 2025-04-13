@@ -3,9 +3,10 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import Modal from 'react-native-modal';
-import Swiper from 'react-native-swiper'; // Import Swiper for swiping functionality
+import Swiper from 'react-native-swiper';
 import StoragePage from './StoragePage';
 import { Alert } from 'react-native';
+import {Api_chatInfo} from '../../../../../apis/Api_chatInfo';
 
 interface Media {
   src: string;
@@ -21,77 +22,36 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [media, setMedia] = useState<Media[]>([]);
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
-  const [currentIndex, setCurrentIndex] = useState<number>(0); // Track the current media index
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
   const videoRef = useRef<any>(null);
-
-  const mockMedia = [
-    {
-      src: "https://image.nhandan.vn/Uploaded/2025/unqxwpejw/2023_09_24/anh-dep-giao-thong-1626.jpg",
-      name: "Image 1",
-      type: "image",
-    },
-    {
-      src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-      name: "Image 1",
-      type: "image",
-    },
-    {
-      src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      name: "Video 1",
-      type: "video",
-    },
-    {
-      src: "https://image.nhandan.vn/Uploaded/2025/unqxwpejw/2023_09_24/anh-dep-giao-thong-1626.jpg",
-      name: "Image 1",
-      type: "image",
-    },
-    {
-      src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-      name: "Image 1",
-      type: "image",
-    },
-    {
-      src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      name: "Video 1",
-      type: "video",
-    },
-    {
-      src: "https://image.nhandan.vn/Uploaded/2025/unqxwpejw/2023_09_24/anh-dep-giao-thong-1626.jpg",
-      name: "Image 1",
-      type: "image",
-    },
-    {
-      src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-      name: "Image 1",
-      type: "image",
-    },
-    {
-      src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      name: "Video 1",
-      type: "video",
-    },
-    {
-      src: "https://image.nhandan.vn/Uploaded/2025/unqxwpejw/2023_09_24/anh-dep-giao-thong-1626.jpg",
-      name: "Image 1",
-      type: "image",
-    },
-    {
-      src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-      name: "Image 1",
-      type: "image",
-    },
-    {
-      src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      name: "Video 1",
-      type: "video",
-    },
-  ];
 
   useEffect(() => {
     if (!conversationId) return;
 
-    const fetchMedia = () => {
-      setMedia(mockMedia);
+    const fetchMedia = async () => {
+      try {
+        console.log("Đang lấy dữ liệu từ API...");
+        const response = await Api_chatInfo.getChatMedia(conversationId);
+        console.log("Dữ liệu API nhận được:", response);
+
+        const mediaData = Array.isArray(response?.data) ? response.data : response;
+
+        if (Array.isArray(mediaData)) {
+          const filteredMedia = mediaData.map((item) => ({
+            src: item?.linkURL || "#",
+            name: item?.content || "Không có tên",
+            type: item?.messageType || "image",
+          }));
+          setMedia(filteredMedia);
+        } else {
+          console.warn("API không trả về dữ liệu hợp lệ.");
+          setMedia([]);
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy dữ liệu media:", error);
+        Alert.alert('Lỗi', 'Không thể tải dữ liệu media. Vui lòng thử lại.');
+        setMedia([]);
+      }
     };
 
     fetchMedia();
@@ -101,7 +61,6 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
     Alert.alert("Thông báo", "Tải xuống: " + filename);
   };
 
-  // Update video playback when fullScreenMedia changes
   useEffect(() => {
     if (fullScreenMedia && fullScreenMedia.type === 'video' && videoRef.current) {
       videoRef.current.playAsync().catch((error: any) => {
@@ -115,7 +74,6 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
     };
   }, [fullScreenMedia]);
 
-  // Update currentIndex when fullScreenMedia changes
   useEffect(() => {
     if (fullScreenMedia) {
       const index = media.findIndex((item) => item.src === fullScreenMedia.src);
@@ -125,7 +83,6 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
     }
   }, [fullScreenMedia, media]);
 
-  // Handle swipe to update fullScreenMedia
   const handleSwipe = (index: number) => {
     setCurrentIndex(index);
     setFullScreenMedia(media[index]);
@@ -134,27 +91,33 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Ảnh/Video</Text>
-      <View style={styles.grid}>
-        {media.slice(0, 8).map((item, index) => (
-          <TouchableOpacity key={index} onPress={() => setFullScreenMedia(item)}>
-            {item.type === 'image' ? (
-              <Image source={{ uri: item.src }} style={styles.mediaItem} />
-            ) : (
-              <Video
-                source={{ uri: item.src }}
-                style={styles.mediaItem}
-                useNativeControls={false}
-                isMuted={true}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
+      {media.length === 0 ? (
+        <Text style={styles.noDataText}>Không có ảnh hoặc video nào.</Text>
+      ) : (
+        <>
+          <View style={styles.grid}>
+            {media.slice(0, 8).map((item, index) => (
+              <TouchableOpacity key={index} onPress={() => setFullScreenMedia(item)}>
+                {item.type === 'image' ? (
+                  <Image source={{ uri: item.src }} style={styles.mediaItem} />
+                ) : (
+                  <Video
+                    source={{ uri: item.src }}
+                    style={styles.mediaItem}
+                    useNativeControls={false}
+                    isMuted={true}
+                    resizeMode="cover"
+                  />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
 
-      <TouchableOpacity style={styles.viewAllButton} onPress={() => setIsOpen(true)}>
-        <Text style={styles.viewAllText}>Xem tất cả</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.viewAllButton} onPress={() => setIsOpen(true)}>
+            <Text style={styles.viewAllText}>Xem tất cả</Text>
+          </TouchableOpacity>
+        </>
+      )}
 
       {isOpen && (
         <StoragePage
@@ -165,14 +128,13 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
         />
       )}
 
-      {/* Fullscreen Modal using react-native-modal */}
       <Modal
         isVisible={!!fullScreenMedia}
         onBackdropPress={() => setFullScreenMedia(null)}
         style={styles.modal}
         useNativeDriver
       >
-             {fullScreenMedia && (
+        {fullScreenMedia && (
           <View style={styles.fullScreenContainer}>
             <Swiper
               index={currentIndex}
@@ -241,35 +203,15 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   modal: {
-    margin: 0, // Remove all margins to ensure true fullscreen
+    margin: 0,
   },
   fullScreenContainer: {
     flex: 1,
-    backgroundColor: '#000', // Black background for true fullscreen
-  },
-  fullScreenMediaContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#000',
   },
   fullScreenMedia: {
     width: '100%',
     height: '100%',
-  },
-  topBar: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 60,
-  },
-  iconButton: {
-    backgroundColor: '#4B5563',
-    borderRadius: 20,
-    padding: 8,
   },
   closeButton: {
     position: 'absolute',
@@ -289,6 +231,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     marginTop: 10,
+    textAlign: 'center',
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
   },
 });
