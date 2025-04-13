@@ -14,7 +14,9 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Dimensions,
-  TouchableHighlight,
+  KeyboardAvoidingView, // Thêm import
+  Platform, // Thêm để xử lý behavior theo nền tảng
+  
 } from "react-native"
 import type { FlatList as FlatListType } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
@@ -22,6 +24,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack"
 import * as ImagePicker from "expo-image-picker"
 import * as FileSystem from "expo-file-system"; // Thêm để xử lý tải file
 import * as MediaLibrary from "expo-media-library"; // Thêm để lưu vào thư viện ảnh
+import * as DocumentPicker from "expo-document-picker"; // Thêm để chọn file
 
 // Define the type for the navigation stack params
 type RootStackParamList = {
@@ -78,6 +81,84 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     const dateStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`
     return { time, dateStr }
   }
+
+  // Hàm chọn và gửi file
+  const pickFileAndUpload = async () => {
+    try {
+      // Bước 1: Chọn file
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*", // Cho phép chọn mọi loại file
+        multiple: true, // Hỗ trợ chọn nhiều file
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets?.length) {
+        // Bước 2: Tạo FormData
+        const formData = new FormData();
+        result.assets.forEach((file, index) => {
+          formData.append("files", {
+            uri: file.uri,
+            name: file.name || `file_${index}${file.mimeType ? `.${file.mimeType.split("/")[1]}` : ""}`,
+            type: file.mimeType || "application/octet-stream",
+          } as any);
+        });
+        formData.append("userId", "user123");
+        formData.append("content", "");
+
+        // Bước 3: Gửi request lên API upload
+        const res = await fetch("http://192.168.1.28:3000/api/files/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        // Kiểm tra phản hồi từ server
+        const contentType = res.headers.get("content-type");
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`Upload failed: ${res.status} - ${errorText}`);
+        }
+        if (!contentType?.includes("application/json")) {
+          throw new Error("Upload failed: Server did not return JSON");
+        }
+
+        const data = await res.json();
+        console.log("Upload success:", data);
+
+        // Bước 4: Cập nhật tin nhắn sau khi upload thành công
+        const now = new Date();
+        const isoTimestamp = now.toISOString();
+        const { time, dateStr } = formatDate(isoTimestamp);
+
+        const newMessages: Message[] = [];
+
+        const lastMessage = messages[messages.length - 1] as UserMessage | undefined;
+        const lastDate = lastMessage?.timestamp ? formatDate(lastMessage.timestamp).dateStr : null;
+
+        if (lastDate !== dateStr) {
+          newMessages.push({
+            id: `ts-${Date.now()}`,
+            userId: "timestamp",
+            time: dateStr,
+          });
+        }
+
+        newMessages.push({
+          id: data.data.messageId || String(Date.now()),
+          text: data.data.content || "",
+          userId: "user123",
+          time,
+          fileUrls: data.data.fileUrls || [],
+          thumbnailUrls: data.data.thumbnailUrls || [],
+          filenames: data.data.filenames || [],
+          timestamp: data.data.timestamp || isoTimestamp,
+        });
+
+        setMessages([...messages, ...newMessages]);
+      }
+    } catch (error: any) {
+      console.error("Upload failed:", error.message || error);
+    }
+  };
 
   // Hàm tải ảnh về thiết bị
   const downloadImage = async (url: string) => {
@@ -331,6 +412,16 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     }
   }
 
+  // Hàm lấy icon theo loại file
+  const getFileIcon = (filename: string) => {
+    const lowerCaseName = filename.toLowerCase();
+    if (lowerCaseName.endsWith(".pdf")) return "document-text-outline";
+    if (lowerCaseName.endsWith(".doc") || lowerCaseName.endsWith(".docx")) return "document-outline";
+    if (lowerCaseName.endsWith(".xls") || lowerCaseName.endsWith(".xlsx")) return "grid-outline";
+    if (lowerCaseName.endsWith(".txt")) return "reader-outline";
+    return "document";
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     if (item.userId === "timestamp") {
       return (
@@ -351,16 +442,11 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
               <TouchableOpacity
                 key={index}
                 onPress={() => {
-                  // Mở modal với ảnh gốc từ fileUrls
                   setSelectedImage(userMessage.fileUrls[index] || url);
                   setModalVisible(true);
                 }}
               >
-                <Image
-                  source={{ uri: url }}
-                  style={styles.thumbnail}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: url }} style={styles.thumbnail} resizeMode="cover" />
               </TouchableOpacity>
             ))}
           </View>
@@ -368,9 +454,10 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         {userMessage.filenames && userMessage.filenames.length > 0 && !userMessage.thumbnailUrls.length ? (
           <View style={styles.fileContainer}>
             {userMessage.filenames.map((name, index) => (
-              <Text key={index} style={styles.fileName}>
-                {name}
-              </Text>
+              <View key={index} style={styles.fileItem}>
+                <Ionicons name={getFileIcon(name)} size={40} color="#0066CC" style={styles.fileIcon} />
+                <Text style={styles.fileName}>{name}</Text>
+              </View>
             ))}
           </View>
         ) : null}
@@ -383,7 +470,6 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Modal hiển thị ảnh full màn hình */}
       <Modal
         visible={modalVisible}
         transparent={false}
@@ -413,7 +499,6 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         </View>
       </Modal>
 
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -435,7 +520,6 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         </View>
       </View>
 
-      {/* Filter Tabs */}
       <View style={{ height: 52, backgroundColor: "white" }}>
         <ScrollView
           horizontal
@@ -452,7 +536,6 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
               key={tab}
               style={[styles.tab, activeTab === tab && styles.activeTab]}
               onPress={() => setActiveTab(tab)}
-              
             >
               <Text style={styles.tabText}>{tab}</Text>
             </TouchableOpacity>
@@ -460,48 +543,61 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         </ScrollView>
       </View>
 
-      {/* Collection Section */}
-      {/* <View style={styles.collectionContainer}>
-        <Text style={styles.collectionTitle}>Bộ sưu tập</Text>
-        <TouchableOpacity>
-          <Ionicons name="chevron-down" size={24} color="#333" />
-        </TouchableOpacity>
-      </View> */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 50 : 20}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={filteredMessages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          style={styles.messagesContainer}
+          contentContainerStyle={styles.messagesList}
+          initialNumToRender={10}
+          initialScrollIndex={initialIndex ?? 0}
+          getItemLayout={(data, index) => ({
+            length: 100,
+            offset: 100 * index,
+            index,
+          })}
+          nestedScrollEnabled={true}
+        />
 
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={filteredMessages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        style={styles.messagesContainer}
-        contentContainerStyle={styles.messagesList}
-        initialNumToRender={10}
-        initialScrollIndex={initialIndex ?? 0}
-        getItemLayout={(data, index) => ({
-          length: 100,
-          offset: 100 * index,
-          index,
-        })}
-        nestedScrollEnabled={true}
-      />
-
-      <View style={styles.inputContainer}>
-        <TouchableOpacity style={styles.inputIcon}>
-          <Ionicons name="happy-outline" size={24} color="#888" />
-        </TouchableOpacity>
-        <TextInput style={styles.input} placeholder="Tin nhắn" value={message} onChangeText={setMessage} multiline />
-        <TouchableOpacity style={styles.inputIcon}>
-          <Ionicons name="mic-outline" size={24} color="#888" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.sendButton} onPress={pickImageAndUpload}>
-          <Ionicons name="image-outline" size={24} color="#FF9500" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.inputContainer}>
+          <TouchableOpacity style={styles.inputIcon}>
+            <Ionicons name="happy-outline" size={24} color="#888" />
+          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Tin nhắn"
+            value={message}
+            onChangeText={setMessage}
+            multiline
+          />
+          <TouchableOpacity style={styles.inputIcon} onPress={pickFileAndUpload}>
+            <Ionicons name="attach-outline" size={24} color="#888" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sendButton} onPress={pickImageAndUpload}>
+            <Ionicons name="image-outline" size={24} color="#FF9500" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
-  )
+  );
 }
 const styles = StyleSheet.create({
+  fileItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 4,
+  },
+  fileIcon: {
+    marginRight: 20,
+    color: "#0066CC",
+    
+  },
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
