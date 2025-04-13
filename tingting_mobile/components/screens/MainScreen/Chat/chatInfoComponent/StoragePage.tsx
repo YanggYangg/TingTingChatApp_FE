@@ -856,6 +856,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#3B82F6',
   },
+  filterboarderContainer : {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
+
 });
 
 export default StoragePage;
