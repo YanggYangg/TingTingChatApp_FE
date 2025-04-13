@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef  } from "react"
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,86 +13,85 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Dimensions,
-  KeyboardAvoidingView, // Thêm import
-  Platform, // Thêm để xử lý behavior theo nền tảng
-  
-} from "react-native"
-import type { FlatList as FlatListType } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import type { NativeStackScreenProps } from "@react-navigation/native-stack"
-import * as ImagePicker from "expo-image-picker"
-import * as FileSystem from "expo-file-system"; // Thêm để xử lý tải file
-import * as MediaLibrary from "expo-media-library"; // Thêm để lưu vào thư viện ảnh
-import * as DocumentPicker from "expo-document-picker"; // Thêm để chọn file
+  KeyboardAvoidingView,
+  Platform,
+  Alert, // Thêm để hiển thị thông báo lỗi
+} from "react-native";
+import type { FlatList as FlatListType } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
+import * as DocumentPicker from "expo-document-picker";
 
 // Define the type for the navigation stack params
 type RootStackParamList = {
-  Main: undefined
-  MessageScreen: { userId?: string; username?: string }
-  ChatScreenCloud: undefined
-}
+  Main: undefined;
+  MessageScreen: { userId?: string; username?: string };
+  ChatScreenCloud: undefined;
+};
 
 // Create a type for the component props
-type ChatScreenCloudProps = NativeStackScreenProps<RootStackParamList, "ChatScreenCloud">
+type ChatScreenCloudProps = NativeStackScreenProps<RootStackParamList, "ChatScreenCloud">;
 
 // Define interfaces for message types
 interface UserMessage {
-  id: string
-  text: string
-  userId: "user123"
-  time: string
-  fileUrls: string[]
-  thumbnailUrls: string[]
-  filenames: string[]
-  timestamp: string
+  id: string;
+  text: string;
+  userId: "user123";
+  time: string;
+  fileUrls: string[];
+  thumbnailUrls: string[];
+  filenames: string[];
+  timestamp: string;
 }
 
 interface TimestampMessage {
-  id: string
-  userId: "timestamp"
-  time: string
+  id: string;
+  userId: "timestamp";
+  time: string;
 }
 
 // Union type for messages
-type Message = UserMessage | TimestampMessage
+type Message = UserMessage | TimestampMessage;
 
 const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
-  const [message, setMessage] = useState("")
-  const [activeTab, setActiveTab] = useState("Tất cả")
-  const [messages, setMessages] = useState<Message[]>([])
-  const [filteredMessages, setFilteredMessages] = useState<Message[]>([])
-  const flatListRef = useRef<FlatListType>(null)
-  const [initialIndex, setInitialIndex] = useState<number | null>(null)
-  const [selectedImage, setSelectedImage] = useState<string | null>(null); // Lưu URL ảnh full màn hình
-  const [modalVisible, setModalVisible] = useState(false); // Điều khiển modal
+  const [message, setMessage] = useState("");
+  const [activeTab, setActiveTab] = useState("Tất cả");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
+  const flatListRef = useRef<FlatListType>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [isListReady, setIsListReady] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false); // Modal xóa
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null); // ID tin nhắn cần xóa
 
+  const tabs = ["Tất cả", "Văn bản", "Ảnh", "File", "Link"];
 
-
-  const tabs = ["Tất cả", "Văn bản", "Ảnh", "File", "Link"]
-
-  // Hàm định dạng thời gian sang múi giờ Việt Nam (UTC+7)
-  // Sửa lại hàm formatDate
+  // Hàm định dạng thời gian
   const formatDate = (isoString: string): { time: string; dateStr: string } => {
-    const date = new Date(isoString)
-    const hours = date.getHours()
-    const minutes = String(date.getMinutes()).padStart(2, "0")
-    const time = `${hours}:${minutes}`
-    const dateStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getFullYear()}`
-    return { time, dateStr }
-  }
+    const date = new Date(isoString);
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const time = `${hours}:${minutes}`;
+    const dateStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}/${date.getFullYear()}`;
+    return { time, dateStr };
+  };
 
   // Hàm chọn và gửi file
   const pickFileAndUpload = async () => {
     try {
-      // Bước 1: Chọn file
       const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*", // Cho phép chọn mọi loại file
-        multiple: true, // Hỗ trợ chọn nhiều file
+        type: "*/*",
+        multiple: true,
         copyToCacheDirectory: true,
       });
 
       if (!result.canceled && result.assets?.length) {
-        // Bước 2: Tạo FormData
         const formData = new FormData();
         result.assets.forEach((file, index) => {
           formData.append("files", {
@@ -105,13 +103,11 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         formData.append("userId", "user123");
         formData.append("content", "");
 
-        // Bước 3: Gửi request lên API upload
         const res = await fetch("http://192.168.1.28:3000/api/files/upload", {
           method: "POST",
           body: formData,
         });
 
-        // Kiểm tra phản hồi từ server
         const contentType = res.headers.get("content-type");
         if (!res.ok) {
           const errorText = await res.text();
@@ -122,15 +118,12 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         }
 
         const data = await res.json();
-        console.log("Upload success:", data);
 
-        // Bước 4: Cập nhật tin nhắn sau khi upload thành công
         const now = new Date();
         const isoTimestamp = now.toISOString();
         const { time, dateStr } = formatDate(isoTimestamp);
 
         const newMessages: Message[] = [];
-
         const lastMessage = messages[messages.length - 1] as UserMessage | undefined;
         const lastDate = lastMessage?.timestamp ? formatDate(lastMessage.timestamp).dateStr : null;
 
@@ -160,16 +153,12 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     }
   };
 
-  // Hàm tải ảnh về thiết bị
+  // Hàm tải ảnh
   const downloadImage = async (url: string) => {
     try {
       const fileName = url.split("/").pop() || "downloaded_image.jpg";
       const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      
-      // Tải ảnh từ URL
       const { uri } = await FileSystem.downloadAsync(url, fileUri);
-      
-      // Lưu vào thư viện ảnh
       const permission = await MediaLibrary.requestPermissionsAsync();
       if (permission.granted) {
         await MediaLibrary.createAssetAsync(uri);
@@ -182,199 +171,107 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     }
   };
 
+  // Hàm chọn và gửi ảnh
   const pickImageAndUpload = async () => {
     try {
-      // Bước 1: Chọn nhiều ảnh
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true, // Cho phép chọn nhiều ảnh
+        allowsMultipleSelection: true,
         quality: 1,
       });
-  
-      if (result.canceled) {
-        return;
-      }
-  
-      // Bước 2: Tạo FormData
-      const formData = new FormData();
-      result.assets.forEach((image, index) => {
-        formData.append("files", {
-          uri: image.uri,
-          name: image.uri.split("/").pop() || `image_${index}.jpg`,
-          type: image.mimeType || "image/jpeg",
-        } as any);
-      });
-      formData.append("userId", "user123"); // Gửi userId
-      formData.append("content", ""); // Gửi content (rỗng nếu chỉ gửi file)
-  
-      // Bước 3: Gửi request lên API upload
-      const res = await fetch("http://192.168.1.28:3000/api/files/upload", {
-        method: "POST",
-        body: formData,
-      });
-  
-      // Kiểm tra phản hồi từ server
-      const contentType = res.headers.get("content-type");
-      if (!res.ok || !contentType?.includes("application/json")) {
-        const errorText = await res.text();
-        throw new Error("Upload failed: " + errorText);
-      }
-  
-      const data = await res.json();
-      console.log("Upload success:", data);
-  
-      // Bước 4: Cập nhật tin nhắn sau khi upload thành công
-      const now = new Date();
-      const isoTimestamp = now.toISOString();
-      const { time, dateStr } = formatDate(isoTimestamp);
-  
-      const newMessages: Message[] = [];
-  
-      const lastMessage = messages[messages.length - 1] as UserMessage | undefined;
-      const lastDate = lastMessage?.timestamp ? formatDate(lastMessage.timestamp).dateStr : null;
-  
-      // Thêm timestamp nếu ngày thay đổi
-      if (lastDate !== dateStr) {
-        newMessages.push({
-          id: `ts-${Date.now()}`,
-          userId: "timestamp",
-          time: dateStr,
+
+      if (!result.canceled && result.assets?.length) {
+        const formData = new FormData();
+        result.assets.forEach((image, index) => {
+          formData.append("files", {
+            uri: image.uri,
+            name: image.uri.split("/").pop() || `image_${index}.jpg`,
+            type: image.mimeType || "image/jpeg",
+          } as any);
         });
+        formData.append("userId", "user123");
+        formData.append("content", "");
+
+        const res = await fetch("http://192.168.1.28:3000/api/files/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const contentType = res.headers.get("content-type");
+        if (!res.ok || !contentType?.includes("application/json")) {
+          const errorText = await res.text();
+          throw new Error("Upload failed: " + errorText);
+        }
+
+        const data = await res.json();
+
+        const now = new Date();
+        const isoTimestamp = now.toISOString();
+        const { time, dateStr } = formatDate(isoTimestamp);
+
+        const newMessages: Message[] = [];
+        const lastMessage = messages[messages.length - 1] as UserMessage | undefined;
+        const lastDate = lastMessage?.timestamp ? formatDate(lastMessage.timestamp).dateStr : null;
+
+        if (lastDate !== dateStr) {
+          newMessages.push({
+            id: `ts-${Date.now()}`,
+            userId: "timestamp",
+            time: dateStr,
+          });
+        }
+
+        newMessages.push({
+          id: data.data.messageId || String(Date.now()),
+          text: data.data.content || "",
+          userId: "user123",
+          time,
+          fileUrls: data.data.fileUrls || [],
+          thumbnailUrls: data.data.thumbnailUrls || [],
+          filenames: data.data.filenames || [],
+          timestamp: data.data.timestamp || isoTimestamp,
+        });
+
+        setMessages([...messages, ...newMessages]);
       }
-  
-      // Thêm tin nhắn mới với nhiều file
-      newMessages.push({
-        id: data.data.messageId || String(Date.now()), // Sử dụng messageId từ backend
-        text: data.data.content || "",
-        userId: "user123",
-        time,
-        fileUrls: data.data.fileUrls || [], // Mảng fileUrls từ backend
-        thumbnailUrls: data.data.thumbnailUrls || [], // Mảng thumbnailUrls từ backend
-        filenames: data.data.filenames || [], // Mảng filenames từ backend
-        timestamp: data.data.timestamp || isoTimestamp,
-      });
-  
-      setMessages([...messages, ...newMessages]);
     } catch (error: any) {
       console.error("Upload failed:", error.message || error);
     }
   };
-  
-  
 
-  useEffect(() => {
-    if (filteredMessages.length > 0) {
-      setInitialIndex(filteredMessages.length - 1)
-    }
-  }, [filteredMessages])
-  
-  
+  // Hàm xóa tin nhắn
+  const deleteMessage = async () => {
+    if (!messageToDelete) return;
 
-  useEffect(() => {
-    const filterMessages = () => {
-      if (activeTab === "Tất cả") {
-        setFilteredMessages(messages)
-        return
+    try {
+      const response = await fetch(`http://192.168.1.28:3000/api/messages/${messageToDelete}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
-  
-      const filtered = messages.filter((msg) => {
-        if (msg.userId === "timestamp") return true // giữ timestamp
-  
-        const m = msg as UserMessage
-  
-        switch (activeTab) {
-          case "Văn bản":
-            return (
-              m.text?.trim() &&
-              (!m.thumbnailUrls || m.thumbnailUrls.length === 0) &&
-              (!m.filenames || m.filenames.length === 0)
-            )
-          case "Ảnh":
-            return m.thumbnailUrls && m.thumbnailUrls.length > 0
-          case "File":
-            return (
-              m.filenames && m.filenames.length > 0 &&
-              (!m.thumbnailUrls || m.thumbnailUrls.length === 0)
-            )
-          case "Link":
-            return m.text && /(https?:\/\/[^\s]+)/.test(m.text)
-          default:
-            return true
-        }
-      })
-  
-      setFilteredMessages(filtered)
+
+      // Cập nhật danh sách tin nhắn
+      const updatedMessages = messages.filter((msg) => msg.id !== messageToDelete);
+      setMessages(updatedMessages);
+      setDeleteModalVisible(false);
+      setMessageToDelete(null);
+    } catch (error: any) {
+      console.error("Xóa tin nhắn thất bại:", error.message || error);
+      Alert.alert("Lỗi", "Không thể xóa tin nhắn: " + (error.message || "Vui lòng thử lại"));
     }
-  
-    filterMessages()
-  }, [activeTab, messages])
-  
-
-
-  // Fetch messages from API
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const response = await fetch("http://192.168.1.28:3000/api/messages/user/user123")
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`)
-        }
-        const data = await response.json()
-
-        // Sắp xếp tin nhắn theo timestamp
-        const sortedData = data.sort(
-          (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        )
-
-        // Nhóm tin nhắn theo ngày
-        const formattedMessages: Message[] = []
-        let lastDate: string | null = null
-
-        sortedData.forEach((msg: any) => {
-          const { time, dateStr } = formatDate(msg.timestamp)
-
-          // Chỉ thêm timestamp nếu ngày thay đổi
-          if (lastDate !== dateStr) {
-            formattedMessages.push({
-              id: `ts-${msg.messageId}`,
-              userId: "timestamp",
-              time: dateStr,
-            })
-            lastDate = dateStr
-          }
-
-          // Thêm tin nhắn
-          formattedMessages.push({
-            id: msg.messageId,
-            text: msg.content || "",
-            userId: "user123",
-            time,
-            fileUrls: msg.fileUrls || [],
-            thumbnailUrls: msg.thumbnailUrls || [],
-            filenames: msg.filenames || [],
-            timestamp: msg.timestamp,
-          })
-        })
-
-        setMessages(formattedMessages)
-      } catch (error: any) {
-        console.error("Error fetching messages:", {
-          message: error.message,
-          stack: error.stack,
-        })
-      }
-    }
-
-    fetchMessages()
-  }, [])
+  };
 
   // Hàm gửi tin nhắn
   const sendMessage = async () => {
     if (!message.trim()) return;
 
     try {
-      // Gửi tin nhắn lên backend
-      const response = await fetch("http://192.168.1.28:3000/api/messages/send", {
+      const response = await fetch("http://192.168.1.28:3000/api/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -392,7 +289,6 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
 
       const data = await response.json();
 
-      // Cập nhật giao diện
       const now = new Date();
       const isoTimestamp = now.toISOString();
       const { time, dateStr } = formatDate(isoTimestamp);
@@ -423,6 +319,9 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
 
       setMessages([...messages, ...newMessages]);
       setMessage("");
+      if (flatListRef.current) {
+        flatListRef.current.scrollToEnd({ animated: true });
+      }
     } catch (error: any) {
       console.error("Gửi tin nhắn thất bại:", error.message || error);
     }
@@ -438,6 +337,103 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     return "document";
   };
 
+  // Fetch messages từ API
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch("http://192.168.1.28:3000/api/messages/user/user123");
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        const sortedData = data.sort(
+          (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+
+        const formattedMessages: Message[] = [];
+        let lastDate: string | null = null;
+
+        sortedData.forEach((msg: any) => {
+          const { time, dateStr } = formatDate(msg.timestamp);
+
+          if (lastDate !== dateStr) {
+            formattedMessages.push({
+              id: `ts-${msg.messageId}`,
+              userId: "timestamp",
+              time: dateStr,
+            });
+            lastDate = dateStr;
+          }
+
+          formattedMessages.push({
+            id: msg.messageId,
+            text: msg.content || "",
+            userId: "user123",
+            time,
+            fileUrls: msg.fileUrls || [],
+            thumbnailUrls: msg.thumbnailUrls || [],
+            filenames: msg.filenames || [],
+            timestamp: msg.timestamp,
+          });
+        });
+
+        setMessages(formattedMessages);
+      } catch (error: any) {
+        console.error("Error fetching messages:", {
+          message: error.message,
+          stack: error.stack,
+        });
+      }
+    };
+
+    fetchMessages();
+  }, []);
+
+  // Cuộn xuống tin nhắn mới nhất
+  useEffect(() => {
+    if (isListReady && filteredMessages.length > 0 && flatListRef.current) {
+      flatListRef.current.scrollToEnd({ animated: false });
+    }
+  }, [filteredMessages, isListReady]);
+
+  // Lọc tin nhắn theo tab
+  useEffect(() => {
+    const filterMessages = () => {
+      if (activeTab === "Tất cả") {
+        setFilteredMessages(messages);
+        return;
+      }
+
+      const filtered = messages.filter((msg) => {
+        if (msg.userId === "timestamp") return true;
+
+        const m = msg as UserMessage;
+
+        switch (activeTab) {
+          case "Văn bản":
+            return (
+              m.text?.trim() &&
+              (!m.thumbnailUrls || m.thumbnailUrls.length === 0) &&
+              (!m.filenames || m.filenames.length === 0)
+            );
+          case "Ảnh":
+            return m.thumbnailUrls && m.thumbnailUrls.length > 0;
+          case "File":
+            return m.filenames && m.filenames.length > 0 && (!m.thumbnailUrls || m.thumbnailUrls.length === 0);
+          case "Link":
+            return m.text && /(https?:\/\/[^\s]+)/.test(m.text);
+          default:
+            return true;
+        }
+      });
+
+      setFilteredMessages(filtered);
+    };
+
+    filterMessages();
+  }, [activeTab, messages]);
+
   const renderMessage = ({ item }: { item: Message }) => {
     if (item.userId === "timestamp") {
       return (
@@ -450,7 +446,14 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     const userMessage = item as UserMessage;
 
     return (
-      <View style={[styles.messageContainer, styles.userMessage]}>
+      <TouchableOpacity
+        style={[styles.messageContainer, styles.userMessage]}
+        onLongPress={() => {
+          setMessageToDelete(item.id);
+          setDeleteModalVisible(true);
+        }}
+        activeOpacity={0.7}
+      >
         {userMessage.text ? <Text style={styles.messageText}>{userMessage.text}</Text> : null}
         {userMessage.thumbnailUrls && userMessage.thumbnailUrls.length > 0 ? (
           <View style={styles.fileContainer}>
@@ -478,7 +481,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
           </View>
         ) : null}
         {userMessage.time ? <Text style={styles.messageTime}>{userMessage.time}</Text> : null}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -486,6 +489,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
+      {/* Modal xem ảnh */}
       <Modal
         visible={modalVisible}
         transparent={false}
@@ -497,11 +501,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             <View style={styles.modalBackground} />
           </TouchableWithoutFeedback>
           <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-            <Image
-              source={{ uri: selectedImage || "" }}
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: selectedImage || "" }} style={styles.fullImage} resizeMode="contain" />
           </TouchableWithoutFeedback>
           <View style={styles.downloadButtonContainer}>
             <TouchableOpacity
@@ -511,6 +511,40 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
               <Ionicons name="download-outline" size={24} color="white" />
               <Text style={styles.downloadText}>Tải xuống</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal xác nhận xóa */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.deleteModalContainer}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalTitle}>Xóa tin nhắn?</Text>
+            <Text style={styles.deleteModalText}>
+              Bạn có chắc chắn muốn xóa tin nhắn này? Hành động này không thể hoàn tác.
+            </Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.cancelButton]}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setMessageToDelete(null);
+                }}
+              >
+                <Text style={styles.deleteModalButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteButton]}
+                onPress={deleteMessage}
+              >
+                <Text style={[styles.deleteModalButtonText, { color: "white" }]}>Xóa</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -572,17 +606,16 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesList}
           initialNumToRender={10}
-          initialScrollIndex={initialIndex ?? 0}
           getItemLayout={(data, index) => ({
             length: 100,
             offset: 100 * index,
             index,
           })}
           nestedScrollEnabled={true}
+          onLayout={() => setIsListReady(true)}
         />
 
         <View style={styles.inputContainer}>
-
           <TextInput
             style={styles.input}
             placeholder="Tin nhắn"
@@ -590,7 +623,6 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             onChangeText={setMessage}
             multiline
           />
-          
           {message.trim() ? (
             <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
               <Ionicons name="send" size={24} color="#FF9500" />
@@ -605,27 +637,13 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
               </TouchableOpacity>
             </>
           )}
-
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+};
 
-  // <TouchableOpacity style={styles.inputIcon}>
-  //    <Ionicons name="happy-outline" size={24} color="#888" />
-  // </TouchableOpacity>
-}
 const styles = StyleSheet.create({
-  fileItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 4,
-  },
-  fileIcon: {
-    marginRight: 20,
-    color: "#0066CC",
-    
-  },
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
@@ -659,11 +677,9 @@ const styles = StyleSheet.create({
     marginLeft: 20,
   },
   tabsContainer: {
-    // flex: 1,
-    backgroundColor: "white",
-    height: 52, // Cố định chiều cao
-    maxHeight: 52, // Ngăn chiều cao vượt quá
-    minHeight: 52, // Ngăn chiều cao bị thu nhỏ
+    height: 52,
+    maxHeight: 52,
+    minHeight: 52,
   },
   tab: {
     paddingHorizontal: 12,
@@ -673,8 +689,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 60, // Đảm bảo kích thước tối thiểu
-    height: 32, // Cố định chiều cao
+    minWidth: 60,
+    height: 32,
   },
   activeTab: {
     backgroundColor: "#e0e0e0",
@@ -685,29 +701,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 16,
   },
-  collectionContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  collectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#0066CC",
-  },
   messagesContainer: {
-    // flex: 1,
     backgroundColor: "#f0f0f5",
   },
   messagesList: {
-    // flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 15,
+    paddingBottom: 20,
   },
   messageContainer: {
     maxWidth: "70%",
@@ -718,10 +718,6 @@ const styles = StyleSheet.create({
   userMessage: {
     alignSelf: "flex-end",
     backgroundColor: "#E1F5FE",
-  },
-  otherMessage: {
-    alignSelf: "flex-start",
-    backgroundColor: "white",
   },
   messageText: {
     fontSize: 16,
@@ -761,7 +757,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 16,
-    marginHorizontal: 5, // Thêm khoảng cách để cân đối
+    marginHorizontal: 5,
   },
   sendButton: {
     padding: 5,
@@ -774,6 +770,15 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
     marginVertical: 4,
+  },
+  fileItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 4,
+  },
+  fileIcon: {
+    marginRight: 20,
+    color: "#0066CC",
   },
   fileName: {
     fontSize: 14,
@@ -811,6 +816,52 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
   },
-})
+  deleteModalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  deleteModalContent: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
+    width: "80%",
+    alignItems: "center",
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  deleteModalText: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  deleteModalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 5,
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: "#f0f0f0",
+  },
+  deleteButton: {
+    backgroundColor: "#FF3B30",
+  },
+  deleteModalButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+});
 
-export default ChatScreenCloud
+export default ChatScreenCloud;
