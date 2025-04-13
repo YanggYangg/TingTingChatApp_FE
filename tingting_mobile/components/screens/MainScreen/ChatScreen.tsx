@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-const Chat: React.FC<{ navigation: any }> = ({ navigation }) => {
+
+const ChatScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   return (
     <View>
       <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -11,7 +12,7 @@ const Chat: React.FC<{ navigation: any }> = ({ navigation }) => {
           style={styles.backIcon}
         />
       </TouchableOpacity>
-      <Text>Chat LOGIN SUCCESS</Text>
+      <Text>Màn hình tin nhắn</Text>
     </View>
   );
 };
@@ -23,4 +24,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Chat;
+export default ChatScreen;
