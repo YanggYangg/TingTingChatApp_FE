@@ -1,43 +1,4 @@
-import axios from 'axios';
-
-const BASE_URL = 'http://172.27.144.1:3000';
-
-const axiosInstance = axios.create({
-    baseURL: BASE_URL,
-    withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    responseType: 'json',
-});
-
-const request = async (method, url, data = null, params = null) => {
-    try {
-        console.log(`Making ${method.toUpperCase()} request to ${url}`);
-        if (data) console.log('Request data:', data);
-        if (params) console.log('Request params:', params);
-
-        const response = await axiosInstance({
-            method,
-            url,
-            data,
-            params,
-        });
-
-        console.log('Response:', response.data);
-        return response.data;
-    } catch (error) {
-        console.error('API call error:', error);
-        throw error;
-    }
-};
-
-const ApiManager = {
-    get: async (url, { params } = {}) => request('get', url, null, params),
-    post: async (url, data) => request('post', url, data),
-    put: async (url, data) => request('put', url, data),
-    delete: async (url) => request('delete', url),
-};
+    import { ApiManager } from './ApiManager';
 
     export const Api_chatInfo = {
         // Quản lý hội thoại

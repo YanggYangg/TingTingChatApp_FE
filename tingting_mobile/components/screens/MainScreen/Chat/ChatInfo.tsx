@@ -11,6 +11,7 @@ import MuteNotificationModal from './chatInfoComponent/MuteNotificationModal';
 import AddMemberModal from './chatInfoComponent/AddMemberModal';
 import EditNameModal from './chatInfoComponent/EditNameModal';
 import GroupActionButton from './chatInfoComponent/GroupActionButton';
+import {Api_chatInfo} from '../../../../apis/Api_chatInfo';
 
 interface Participant {
   userId: string;
@@ -42,45 +43,29 @@ const ChatInfo: React.FC = () => {
   const conversationId = "67e2d6bef1ea6ac96f10bf91";
   const userId = "6601a1b2c3d4e5f678901238";
 
-  const mockChatInfo = {
-    isGroup: true,
-    name: "Nhóm bạn thân",
-    imageGroup: "https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg",
-    linkGroup: "https://zalo.me/g/bamwwg826",
-    isPinned: false,
-    participants: [
-      {
-        userId: "6601a1b2c3d4e5f678901238",
-        name: "Nguyễn Văn A",
-        avatar: "https://example.com/avatar1.jpg",
-        mute: null,
-        isPinned: false,
-      },
-      {
-        userId: "6601a1b2c3d4e5f678901239",
-        name: "Trần Thị B",
-        avatar: "https://example.com/avatar2.jpg",
-        mute: "2025-04-14T10:00:00Z",
-        isPinned: true,
-      },
-    ],
-  };
-
   useEffect(() => {
-    const fetchChatInfo = () => {
-      setLoading(true);
-      const response = mockChatInfo;
-      setChatInfo(response);
+    const fetchChatInfo = async () => {
+      try {
+        setLoading(true);
+        const response = await Api_chatInfo.getChatInfo(conversationId);
+        console.log("Thông tin chat nhận được từ API:", response);
+        setChatInfo(response);
 
-      const participant = response.participants.find((p) => p.userId === userId);
-      if (participant) {
-        setIsMuted(!!participant.mute);
-        setChatInfo((prev) => prev && { ...prev, isPinned: participant.isPinned });
-      } else {
-        setIsMuted(false);
+        const participant = response.participants.find((p: Participant) => p.userId === userId);
+        if (participant) {
+          setIsMuted(!!participant.mute);
+          setChatInfo((prev: ChatInfoData | null) =>
+            prev ? { ...prev, isPinned: participant.isPinned } : prev
+          );
+        } else {
+          setIsMuted(false);
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy thông tin chat:", error);
+        Alert.alert('Lỗi', 'Không thể tải thông tin chat. Vui lòng thử lại.');
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     if (conversationId) {
@@ -151,8 +136,8 @@ const ChatInfo: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-         {/* <TouchableOpacity  style={styles.iconHeader} onPress={() => navigation.goBack()}>
-        <Icon name="arrow-left" size={16} color="#000" onPress={() => {}} />
+        {/* <TouchableOpacity style={styles.iconHeader} onPress={() => navigation.goBack()}>
+          <Icon name="arrow-left" size={16} color="#000" />
         </TouchableOpacity> */}
         <Text style={styles.headerTitle}>
           {chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại"}
@@ -261,7 +246,6 @@ const styles = StyleSheet.create({
     padding: 10,
     marginRight: 10,
   },
-
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
