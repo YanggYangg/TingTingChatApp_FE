@@ -20,12 +20,12 @@ const GroupFile: React.FC<Props> = ({ conversationId }) => {
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const mockFiles = [
     {
-      linkURL: "https://example.com/file1.pdf",
+      linkURL: "https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx",
       content: "File1.pdf",
       createdAt: "2025-04-10T10:00:00Z",
     },
     {
-      linkURL: "https://example.com/file2.doc",
+      linkURL: "https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx",
       content: "File2.doc",
       createdAt: "2025-04-09T10:00:00Z",
     },

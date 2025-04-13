@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Modal from 'react-native-modal';
 import Swiper from 'react-native-swiper'; // Import Swiper for swiping functionality
 import StoragePage from './StoragePage';
+import { Alert } from 'react-native';
 
 interface Media {
   src: string;
@@ -278,6 +279,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
     zIndex: 60,
+  },
+  swiperSlide: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaName: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 10,
+    textAlign: 'center',
   },
 });
 

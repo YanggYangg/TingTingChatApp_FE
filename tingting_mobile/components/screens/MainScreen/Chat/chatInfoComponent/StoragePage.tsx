@@ -1,18 +1,13 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import Modal from 'react-native-modal';
 import Swiper from 'react-native-swiper';
-import DatePicker from 'react-native-date-picker';
-import { Picker } from '@react-native-picker/picker';
 
 interface Media {
-  url: string;
-  date: string;
-  sender: string;
+  src: string;
   name: string;
-  id: string;
   type: 'image' | 'video' | 'file' | 'link';
 }
 
@@ -20,146 +15,98 @@ interface Props {
   onClose: () => void;
   conversationId: string;
   isVisible: boolean;
+  files: Media[];
 }
 
-const StoragePage: React.FC<Props> = ({ onClose, conversationId, isVisible }) => {
+const StoragePage: React.FC<Props> = ({ onClose, conversationId, isVisible, files }) => {
   const [activeTab, setActiveTab] = useState<"images" | "files" | "links">("images");
-  const [filterSender, setFilterSender] = useState("Tất cả");
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
-  const [showDateFilter, setShowDateFilter] = useState(false);
-  const [showDateSuggestions, setShowDateSuggestions] = useState(false);
   const [data, setData] = useState<{ images: Media[], files: Media[], links: Media[] }>({
     images: [],
     files: [],
     links: [],
   });
-  const [fullScreenImage, setFullScreenImage] = useState<Media | null>(null);
+  const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [isSelecting, setIsSelecting] = useState(false);
   const [previewFile, setPreviewFile] = useState<Media | null>(null);
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const videoRef = useRef<any>(null);
 
-  // Mock Data with Unique IDs
+  // Manage video refs dynamically for each video in the Swiper
+  const videoRefs = useRef<{ [key: string]: any }>({});
+
+  // Mock Data with src, name, and type
   const mockData = {
-    images: [
+    images: files.length > 0 ? files : [
       {
-        url: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-        date: "2023-04-13",
-        sender: "Người dùng A",
+        src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
         name: "Image 1",
-        id: "img1",
         type: "image",
       },
       {
-        url: "https://www.w3schools.com/html/mov_bbb.mp4", // Updated URL for testing
-        date: "2023-04-13",
-        sender: "Người dùng B",
+        src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
         name: "Video 1",
-        id: "vid1",
         type: "video",
       },
       {
-        url: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-        date: "2023-04-12",
-        sender: "Người dùng A",
+        src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
         name: "Image 2",
-        id: "img2",
         type: "image",
       },
       {
-        url: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-        date: "2023-04-13",
-        sender: "Người dùng A",
+        src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
         name: "Image 3",
-        id: "img3",
         type: "image",
       },
       {
-        url: "https://www.w3schools.com/html/mov_bbb.mp4",
-        date: "2023-04-13",
-        sender: "Người dùng B",
+        src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
         name: "Video 2",
-        id: "vid2",
         type: "video",
       },
       {
-        url: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-        date: "2023-04-12",
-        sender: "Người dùng A",
+        src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
         name: "Image 4",
-        id: "img4",
         type: "image",
       },
       {
-        url: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-        date: "2023-04-13",
-        sender: "Người dùng A",
+        src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
         name: "Image 5",
-        id: "img5",
         type: "image",
       },
       {
-        url: "https://www.w3schools.com/html/mov_bbb.mp4",
-        date: "2023-04-13",
-        sender: "Người dùng B",
+        src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
         name: "Video 3",
-        id: "vid3",
         type: "video",
       },
       {
-        url: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
-        date: "2023-04-12",
-        sender: "Người dùng A",
+        src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
         name: "Image 6",
-        id: "img6",
         type: "image",
       },
       {
-        url: "https://www.w3schools.com/html/mov_bbb.mp4",
-        date: "2023-04-12",
-        sender: "Người dùng B",
+        src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
         name: "Video 4",
-        id: "vid4",
         type: "video",
       },
     ],
     files: [
       {
-        url: "https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx",
-        date: "2023-04-13",
-        sender: "Người dùng A",
+        src: "https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx",
         name: "Document.pdf",
-        id: "file1",
         type: "file",
       },
       {
-        url: "https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx",
-        date: "2023-04-12",
-        sender: "Người dùng B",
+        src: "https://storetingting.s3.ap-southeast-2.amazonaws.com/CauHoi+Java.docx",
         name: "Report.docx",
-        id: "file2",
         type: "file",
       },
     ],
     links: [
       {
-        url: "https://example.com/link1",
-        date: "2023-04-13",
-        sender: "Người dùng A",
+        src: "https://example.com/link1",
         name: "Link 1",
-        id: "link1",
         type: "link",
       },
       {
-        url: "https://example.com/link2",
-        date: "2023-04-12",
-        sender: "Người dùng B",
+        src: "https://example.com/link2",
         name: "Link 2",
-        id: "link2",
         type: "link",
       },
     ],
@@ -167,234 +114,34 @@ const StoragePage: React.FC<Props> = ({ onClose, conversationId, isVisible }) =>
 
   useEffect(() => {
     setData(mockData);
-  }, [conversationId]);
-
-  const filteredData = useMemo(() => {
-    return (data[activeTab] || []).filter(
-      ({ sender, date }) =>
-        (filterSender === "Tất cả" || sender === filterSender) &&
-        (!startDate || new Date(date) >= startDate) &&
-        (!endDate || new Date(date) <= endDate)
-    );
-  }, [data, activeTab, filterSender, startDate, endDate]);
-
-  const getUniqueSenders = () => ["Tất cả", ...new Set(data[activeTab].map((item) => item.sender))];
-
-  const handleDateFilter = (days: number) => {
-    const today = new Date();
-    const pastDate = new Date();
-    pastDate.setDate(today.getDate() - days);
-    setStartDate(pastDate);
-    setEndDate(today);
-  };
+  }, [conversationId, files]);
 
   const downloadMedia = async (url: string, filename: string) => {
-    Alert.alert("Thông báo", `Tải xuống: ${filename}`);
+    Alert.alert("Thông báo", `Tải xuống: ${filename || "Không có tên"}`);
   };
 
-  useEffect(() => {
-    if (fullScreenImage && fullScreenImage.type === 'video' && videoRef.current) {
-      videoRef.current.playAsync().catch((error: any) => {
-        console.error("Lỗi khi phát video:", error);
-      });
-    }
-    return () => {
-      if (videoRef.current) {
-        videoRef.current.pauseAsync().catch((error: any) => {
+  // Handle swipe to update fullScreenMedia
+  const handleSwipe = (index: number) => {
+    // Pause all videos before switching to the new slide
+    Object.values(videoRefs.current).forEach((ref) => {
+      if (ref) {
+        ref.pauseAsync().catch((error: any) => {
           console.error("Lỗi khi tạm dừng video:", error);
         });
       }
-    };
-  }, [fullScreenImage]);
+    });
 
-  useEffect(() => {
-    if (fullScreenImage) {
-      const index = data.images.findIndex((item) => item.id === fullScreenImage.id);
-      if (index !== -1) {
-        setCurrentIndex(index);
-      }
-    }
-  }, [fullScreenImage, data.images]);
+    setCurrentIndex(index);
+    setFullScreenMedia(data.images[index]);
 
-  const handleSwipe = (index: number) => {
-    if (videoRef.current) {
-      videoRef.current.pauseAsync().catch((error: any) => {
-        console.error("Lỗi khi tạm dừng video:", error);
+    // Play the video on the new slide if applicable
+    const newItem = data.images[index];
+    if (newItem.type === 'video' && videoRefs.current[newItem.src]) {
+      videoRefs.current[newItem.src].playAsync().catch((error: any) => {
+        console.error("Lỗi khi phát video:", error);
       });
     }
-    setCurrentIndex(index);
-    setFullScreenImage(data.images[index]);
   };
-
-  const handleDeleteSelected = () => {
-    const newData = {
-      images: data.images.filter((item) => !selectedItems.includes(item.id)),
-      files: data.files.filter((item) => !selectedItems.includes(item.id)),
-      links: data.links.filter((item) => !selectedItems.includes(item.id)),
-    };
-    setData(newData);
-    setSelectedItems([]);
-    setIsSelecting(false);
-  };
-
-  const DateFilter = () => (
-    <View style={styles.dateFilterContainer}>
-      <TouchableOpacity
-        style={styles.dateSuggestionButton}
-        onPress={() => setShowDateSuggestions(!showDateSuggestions)}
-      >
-        <Text style={styles.dateSuggestionText}>Gợi ý thời gian</Text>
-      </TouchableOpacity>
-      {showDateSuggestions && (
-        <View style={styles.dateSuggestions}>
-          {[7, 30, 90].map((days) => (
-            <TouchableOpacity
-              key={days}
-              style={styles.dateSuggestionItem}
-              onPress={() => handleDateFilter(days)}
-            >
-              <Text style={styles.dateSuggestionItemText}>{days} ngày trước</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-      <View style={styles.datePickerContainer}>
-        <Text style={styles.datePickerLabel}>Chọn khoảng thời gian</Text>
-        <View style={styles.datePickerRow}>
-          <TouchableOpacity
-            style={styles.datePickerButton}
-            onPress={() => setShowStartDatePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#666" />
-            <Text style={styles.datePickerText}>
-              {startDate ? startDate.toISOString().split("T")[0] : "Từ ngày"}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.datePickerButton}
-            onPress={() => setShowEndDatePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#666" />
-            <Text style={styles.datePickerText}>
-              {endDate ? endDate.toISOString().split("T")[0] : "Đến ngày"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      <DatePicker
-        modal
-        open={showStartDatePicker}
-        date={startDate || new Date()}
-        onConfirm={(date) => {
-          setShowStartDatePicker(false);
-          setStartDate(date);
-        }}
-        onCancel={() => setShowStartDatePicker(false)}
-        mode="date"
-      />
-      <DatePicker
-        modal
-        open={showEndDatePicker}
-        date={endDate || new Date()}
-        onConfirm={(date) => {
-          setShowEndDatePicker(false);
-          setEndDate(date);
-        }}
-        onCancel={() => setShowEndDatePicker(false)}
-        mode="date"
-      />
-    </View>
-  );
-
-  const DateSection = ({ date, data }: { date: string; data: Media[] }) => (
-    <View style={styles.dateSection}>
-      <Text style={styles.dateSectionTitle}>
-        Ngày {date.split("-").reverse().join(" Tháng ")}
-      </Text>
-      <View style={activeTab === "images" ? styles.imageGrid : styles.list}>
-        {data.filter((item) => item.date === date).map((item, index) => (
-          <View key={item.id + index} style={styles.itemContainer}>
-            {activeTab === "images" ? (
-              <View style={styles.imageItem}>
-                {isSelecting && (
-                  <TouchableOpacity
-                    style={styles.checkbox}
-                    onPress={() => {
-                      if (selectedItems.includes(item.id)) {
-                        setSelectedItems(selectedItems.filter((id) => id !== item.id));
-                      } else {
-                        setSelectedItems([...selectedItems, item.id]);
-                      }
-                    }}
-                  >
-                    <Ionicons
-                      name={selectedItems.includes(item.id) ? "checkbox" : "square-outline"}
-                      size={24}
-                      color={selectedItems.includes(item.id) ? "#3B82F6" : "#666"}
-                    />
-                  </TouchableOpacity>
-                )}
-                {item.type === "image" ? (
-                  <Image
-                    source={{ uri: item.url }}
-                    style={styles.mediaItem}
-                    onError={(e) => console.log("Error loading image:", e.nativeEvent.error)}
-                  />
-                ) : (
-                  <Video
-                    source={{ uri: item.url }}
-                    style={styles.mediaItem}
-                    useNativeControls={false}
-                    isMuted={true}
-                    resizeMode="cover"
-                    onError={(error) => console.log("Video Error (Thumbnail):", error)}
-                  />
-                )}
-                <TouchableOpacity
-                  style={styles.imageOverlay}
-                  onPress={() => setFullScreenImage(item)}
-                />
-              </View>
-            ) : activeTab === "files" ? (
-              <View style={styles.fileItem}>
-                <TouchableOpacity onPress={() => setPreviewFile(item)}>
-                  <Text style={styles.fileName}>{item.name || "Không có tên"}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => downloadMedia(item.url, item.name)}>
-                  <Ionicons name="download-outline" size={24} color="#666" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.linkItem}>
-                {isSelecting && (
-                  <TouchableOpacity
-                    style={styles.checkbox}
-                    onPress={() => {
-                      if (selectedItems.includes(item.id)) {
-                        setSelectedItems(selectedItems.filter((id) => id !== item.id));
-                      } else {
-                        setSelectedItems([...selectedItems, item.id]);
-                      }
-                    }}
-                  >
-                    <Ionicons
-                      name={selectedItems.includes(item.id) ? "checkbox" : "square-outline"}
-                      size={24}
-                      color={selectedItems.includes(item.id) ? "#3B82F6" : "#666"}
-                    />
-                  </TouchableOpacity>
-                )}
-                <View style={styles.linkContent}>
-                  <Text style={styles.linkName}>{item.name}</Text>
-                  <Text style={styles.linkUrl}>{item.url}</Text>
-                </View>
-              </View>
-            )}
-          </View>
-        ))}
-      </View>
-    </View>
-  );
 
   return (
     <Modal
@@ -410,20 +157,6 @@ const StoragePage: React.FC<Props> = ({ onClose, conversationId, isVisible }) =>
             <Ionicons name="arrow-back" size={24} color="#3B82F6" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Kho lưu trữ</Text>
-          {isSelecting ? (
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={handleDeleteSelected}>
-                <Text style={styles.deleteText}>Xóa ({selectedItems.length})</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setIsSelecting(false); setSelectedItems([]); }}>
-                <Text style={styles.cancelText}>Hủy</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={() => setIsSelecting(true)}>
-              <Text style={styles.selectText}>Chọn</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Tabs */}
@@ -443,59 +176,76 @@ const StoragePage: React.FC<Props> = ({ onClose, conversationId, isVisible }) =>
 
         {/* Fullscreen Modal for Images/Videos */}
         <Modal
-          isVisible={!!fullScreenImage}
-          onBackdropPress={() => setFullScreenImage(null)}
+          isVisible={!!fullScreenMedia}
+          onBackdropPress={() => {
+            // Pause all videos when closing the modal
+            Object.values(videoRefs.current).forEach((ref) => {
+              if (ref) {
+                ref.pauseAsync().catch((error: any) => {
+                  console.error("Lỗi khi tạm dừng video:", error);
+                });
+              }
+            });
+            setFullScreenMedia(null);
+            setCurrentIndex(0);
+          }}
           style={styles.modal}
           useNativeDriver
         >
-          {!fullScreenImage ? (
-            <View />
-          ) : (
+          {fullScreenMedia && (
             <View style={styles.fullScreenContainer}>
               <Swiper
                 index={currentIndex}
                 onIndexChanged={handleSwipe}
                 loop={false}
                 showsPagination={false}
-                style={styles.swiper}
               >
                 {data.images.map((item, index) => (
-                  <View key={item.id} style={styles.fullScreenMediaContainer}>
+                  <View key={`${item.src}-${index}`} style={styles.swiperSlide}>
                     {item.type === 'image' ? (
                       <Image
-                        source={{ uri: item.url }}
+                        source={{ uri: item.src }}
                         style={styles.fullScreenMedia}
                         resizeMode="contain"
+                        onError={(e) => console.log("Error loading image:", e.nativeEvent.error)}
                       />
                     ) : (
                       <Video
-                        ref={videoRef}
-                        source={{ uri: item.url }}
+                        ref={(ref) => (videoRefs.current[item.src] = ref)}
+                        source={{ uri: item.src }}
                         style={styles.fullScreenMedia}
                         useNativeControls
                         resizeMode="contain"
                         isLooping
-                        onError={(error) => console.log("Video Error (Fullscreen):", error)}
+                        shouldPlay={currentIndex === index}
+                        onPlaybackStatusUpdate={(status) => {
+                          if (!status.isLoaded && status.error) {
+                            console.log("Video Error (Fullscreen):", status.error);
+                          }
+                        }}
+                        onError={(error: any) => console.log("Video Error (Fullscreen):", error)}
                       />
                     )}
+                    <Text style={styles.mediaName}>{item.name}</Text>
                   </View>
                 ))}
               </Swiper>
-
-              <View style={styles.topBar}>
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() => setFullScreenImage(null)}
-                >
-                  <Ionicons name="close-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() => downloadMedia(fullScreenImage.url, fullScreenImage.name)}
-                >
-                  <Ionicons name="download-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => {
+                  Object.values(videoRefs.current).forEach((ref) => {
+                    if (ref) {
+                      ref.pauseAsync().catch((error: any) => {
+                        console.error("Lỗi khi tạm dừng video:", error);
+                      });
+                    }
+                  });
+                  setFullScreenMedia(null);
+                  setCurrentIndex(0);
+                }}
+              >
+                <Ionicons name="close" size={32} color="#fff" />
+              </TouchableOpacity>
             </View>
           )}
         </Modal>
@@ -510,7 +260,7 @@ const StoragePage: React.FC<Props> = ({ onClose, conversationId, isVisible }) =>
           {previewFile && (
             <View style={styles.previewContainer}>
               <View style={styles.previewHeader}>
-                <Text style={styles.previewTitle}>{previewFile.name || "Xem nội dung"}</Text>
+                <Text style={styles.previewTitle}>Xem nội dung</Text>
                 <TouchableOpacity onPress={() => setPreviewFile(null)}>
                   <Ionicons name="close-outline" size={24} color="#666" />
                 </TouchableOpacity>
@@ -519,11 +269,11 @@ const StoragePage: React.FC<Props> = ({ onClose, conversationId, isVisible }) =>
                 <Text style={styles.previewPlaceholder}>
                   Preview not fully supported on mobile. Please download to view.
                 </Text>
-                <Text style={styles.previewUrl}>{previewFile.url}</Text>
+                <Text style={styles.previewUrl}>{previewFile.src}</Text>
               </View>
               <TouchableOpacity
                 style={styles.previewDownloadButton}
-                onPress={() => downloadMedia(previewFile.url, previewFile.name)}
+                onPress={() => downloadMedia(previewFile.src, previewFile.name)}
               >
                 <Text style={styles.downloadText}>Tải xuống</Text>
               </TouchableOpacity>
@@ -531,35 +281,56 @@ const StoragePage: React.FC<Props> = ({ onClose, conversationId, isVisible }) =>
           )}
         </Modal>
 
-        {/* Filters */}
-        <View style={styles.filterboarderContainer}>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={filterSender}
-              onValueChange={(itemValue) => setFilterSender(itemValue)}
-              style={styles.picker}
-            >
-              {getUniqueSenders().map((sender) => (
-                <Picker.Item key={sender} label={sender} value={sender} />
-              ))}
-            </Picker>
-          </View>
-          <TouchableOpacity
-            style={styles.dateFilterButton}
-            onPress={() => setShowDateFilter(!showDateFilter)}
-          >
-            <Text style={styles.dateFilterButtonText}>Ngày gửi</Text>
-          </TouchableOpacity>
-        </View>
-
-        {showDateFilter && <DateFilter />}
-
-        {/* Data Sections */}
-        <ScrollView style={styles.scrollView}>
-          {[...new Set(filteredData.map(({ date }) => date))].map((date) => (
-            <DateSection key={date} date={date} data={filteredData} />
+        {/* Media Grid */}
+        <View style={styles.grid}>
+          {(data[activeTab] || []).map((item: Media, index: number) => (
+            <View key={`${item.src}-${index}`} style={styles.itemContainer}>
+              {activeTab === "images" ? (
+                <TouchableOpacity onPress={() => {
+                  setFullScreenMedia(item);
+                  const index = data.images.findIndex((i) => i.src === item.src);
+                  if (index !== -1) {
+                    setCurrentIndex(index);
+                  }
+                }}>
+                  {item.type === 'image' ? (
+                    <Image
+                      source={{ uri: item.src }}
+                      style={styles.mediaItem}
+                      onError={(e) => console.log("Error loading image:", e.nativeEvent.error)}
+                    />
+                  ) : (
+                    <View style={styles.videoThumbnailContainer}>
+                      <Image
+                        source={{ uri: 'https://via.placeholder.com/80/000000/FFFFFF?text=Video' }}
+                        style={styles.mediaItem}
+                        onError={(e) => console.log("Error loading placeholder:", e.nativeEvent.error)}
+                      />
+                      <View style={styles.playIconOverlay}>
+                        <Ionicons name="play-circle-outline" size={30} color="#fff" accessibilityLabel="Phát video" />
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ) : activeTab === "files" ? (
+                <View style={styles.fileItem}>
+                  <TouchableOpacity onPress={() => setPreviewFile(item)}>
+                    <Text style={styles.fileName}>{item.name || "Không có tên"}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => downloadMedia(item.src, item.name)}>
+                    <Ionicons name="download-outline" size={24} color="#666" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.linkItem}>
+                  <View style={styles.linkContent}>
+                    <Text style={styles.linkUrl}>{item.src}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
           ))}
-        </ScrollView>
+        </View>
       </View>
     </Modal>
   );
@@ -583,22 +354,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  deleteText: {
-    color: '#EF4444',
-    fontSize: 14,
-  },
-  cancelText: {
-    color: '#666',
-    fontSize: 14,
-  },
-  selectText: {
-    color: '#3B82F6',
-    fontSize: 14,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -627,10 +382,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  swiper: {
-    flex: 1,
-  },
-  fullScreenMediaContainer: {
+  swiperSlide: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -639,20 +391,20 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  topBar: {
+  closeButton: {
     position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 60,
-  },
-  iconButton: {
+    bottom: 16,
+    alignSelf: 'center',
     backgroundColor: '#4B5563',
     borderRadius: 20,
     padding: 8,
+    zIndex: 60,
+  },
+  mediaName: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 10,
+    textAlign: 'center',
   },
   previewContainer: {
     flex: 1,
@@ -697,130 +449,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  filterContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  pickerContainer: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-  },
-  picker: {
-    height: 40,
-    color: '#333',
-  },
-  dateFilterButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  dateFilterButtonText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  dateFilterContainer: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-    padding: 8,
-    marginBottom: 16,
-  },
-  dateSuggestionButton: {
-    padding: 8,
-  },
-  dateSuggestionText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  dateSuggestions: {
-    marginTop: 8,
-  },
-  dateSuggestionItem: {
-    padding: 8,
-  },
-  dateSuggestionItemText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  datePickerContainer: {
-    marginTop: 8,
-  },
-  datePickerLabel: {
-    fontSize: 14,
-    color: '#333',
-  },
-  datePickerRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  datePickerButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-    padding: 8,
-    gap: 8,
-  },
-  datePickerText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  dateSection: {
-    marginBottom: 16,
-  },
-  dateSectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  imageGrid: {
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-  },
-  list: {
-    gap: 8,
+    gap: 5,
   },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  imageItem: {
-    position: 'relative',
-  },
-  checkbox: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    zIndex: 10,
   },
   mediaItem: {
     width: 80,
     height: 80,
     borderRadius: 5,
   },
-  imageOverlay: {
+  videoThumbnailContainer: {
+    position: 'relative',
+  },
+  playIconOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 5,
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -15 }, { translateY: -15 }],
+    zIndex: 10,
   },
   fileItem: {
     flexDirection: 'row',
@@ -848,22 +499,10 @@ const styles = StyleSheet.create({
   linkContent: {
     flex: 1,
   },
-  linkName: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
   linkUrl: {
     fontSize: 12,
     color: '#3B82F6',
   },
-  filterboarderContainer : {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-
-
 });
 
 export default StoragePage;
