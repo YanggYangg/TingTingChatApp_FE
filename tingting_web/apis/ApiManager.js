@@ -1,12 +1,12 @@
 import axios from 'axios';
 
 const SERVICES = {
-    conversation: 'http://192.168.1.10:5001'
+    conversation: 'http://localhost:5000',
 };
 
 //Tạo một instance axios theo service
 const createAxiosInstance = (service) => {
-    if(!SERVICES[service]) {
+    if (!SERVICES[service]) {
         throw new Error(`Service ${service} not found`);
     }
 

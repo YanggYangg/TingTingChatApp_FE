@@ -1,13 +1,12 @@
-import {
-  faUser,
-  faUsers,
-  faUserPlus,
-  faUserGear,
-} from "@fortawesome/free-solid-svg-icons";
+"use client";
+
+import { faUser } from "@fortawesome/free-solid-svg-icons";
 import { ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 
 import ContactItem from "../ContactItem";
+// import ContactItem from "@/components/ContactItem";
+
 import Search from "../Search";
 
 const ContactList = () => {
@@ -46,7 +45,12 @@ const ContactList = () => {
     { id: 12, name: "Anh Thư", avatar: "/placeholder.svg?height=40&width=40" },
     { id: 13, name: "Ba", avatar: "/placeholder.svg?height=40&width=40" },
     { id: 14, name: "Bảo Châu", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 15, name: "Bảo Trân", avatar: "/placeholder.svg?height=40&width=40" },
+    { id: 15, name: "Hảo Trân", avatar: "/placeholder.svg?height=40&width=40" },
+    { id: 16, name: "Fnh Khoa", avatar: "/placeholder.svg?height=40&width=40" },
+    { id: 17, name: "Nnh Thư", avatar: "/placeholder.svg?height=40&width=40" },
+    { id: 18, name: "Va", avatar: "/placeholder.svg?height=40&width=40" },
+    { id: 19, name: "Xảo Châu", avatar: "/placeholder.svg?height=40&width=40" },
+    { id: 20, name: "Dảo Trân", avatar: "/placeholder.svg?height=40&width=40" },
   ];
 
   // Filter and group friends when search query changes
@@ -192,22 +196,27 @@ const ContactList = () => {
                 Object.keys(groupedFriends)
                   .sort()
                   .map((letter) => (
-                    <div key={letter}>
-                      {groupedFriends[letter].map((friend, index, array) => (
-                        <ContactItem
-                          key={friend.id}
-                          label={friend.name}
-                          image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpg"
-                          showBorder={index !== array.length - 1}
-                          showMenuIcon={true}
-                          menuOpen={menuOpenId === friend.id}
-                          onMenuToggle={() =>
-                            setMenuOpenId(
-                              menuOpenId === friend.id ? null : friend.id
-                            )
-                          }
-                        />
-                      ))}
+                    <div key={letter} className="">
+                      {/* Letter header */}
+                      <div className="text-base font-medium">{letter}</div>
+                      {/* Contacts under this letter */}
+                      <div className="bg-white rounded-md">
+                        {groupedFriends[letter].map((friend, index, array) => (
+                          <ContactItem
+                            key={friend.id}
+                            label={friend.name}
+                            image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpg"
+                            showBorder={index !== array.length - 1}
+                            showMenuIcon={true}
+                            menuOpen={menuOpenId === friend.id}
+                            onMenuToggle={() =>
+                              setMenuOpenId(
+                                menuOpenId === friend.id ? null : friend.id
+                              )
+                            }
+                          />
+                        ))}
+                      </div>
                     </div>
                   ))
               )}
