@@ -89,6 +89,7 @@ const GroupFile: React.FC<Props> = ({ conversationId }) => {
         <StoragePage
           conversationId={conversationId}
           files={files}
+          isVisible={isOpen}
           onClose={() => setIsOpen(false)}
         />
       )}

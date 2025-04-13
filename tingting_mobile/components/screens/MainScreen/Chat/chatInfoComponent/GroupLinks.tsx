@@ -73,6 +73,7 @@ const GroupLinks: React.FC<Props> = ({ conversationId }) => {
         <StoragePage
           conversationId={conversationId}
           links={links}
+          isVisible={isOpen} // Pass isVisible to control the modal
           onClose={() => setIsOpen(false)}
         />
       )}

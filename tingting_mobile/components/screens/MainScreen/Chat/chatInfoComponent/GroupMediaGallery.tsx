@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import Modal from 'react-native-modal';
+import Swiper from 'react-native-swiper'; // Import Swiper for swiping functionality
 import StoragePage from './StoragePage';
 
 interface Media {
@@ -19,11 +20,62 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [media, setMedia] = useState<Media[]>([]);
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
+  const [currentIndex, setCurrentIndex] = useState<number>(0); // Track the current media index
   const videoRef = useRef<any>(null);
 
   const mockMedia = [
     {
       src: "https://image.nhandan.vn/Uploaded/2025/unqxwpejw/2023_09_24/anh-dep-giao-thong-1626.jpg",
+      name: "Image 1",
+      type: "image",
+    },
+    {
+      src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
+      name: "Image 1",
+      type: "image",
+    },
+    {
+      src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      name: "Video 1",
+      type: "video",
+    },
+    {
+      src: "https://image.nhandan.vn/Uploaded/2025/unqxwpejw/2023_09_24/anh-dep-giao-thong-1626.jpg",
+      name: "Image 1",
+      type: "image",
+    },
+    {
+      src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
+      name: "Image 1",
+      type: "image",
+    },
+    {
+      src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      name: "Video 1",
+      type: "video",
+    },
+    {
+      src: "https://image.nhandan.vn/Uploaded/2025/unqxwpejw/2023_09_24/anh-dep-giao-thong-1626.jpg",
+      name: "Image 1",
+      type: "image",
+    },
+    {
+      src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
+      name: "Image 1",
+      type: "image",
+    },
+    {
+      src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      name: "Video 1",
+      type: "video",
+    },
+    {
+      src: "https://image.nhandan.vn/Uploaded/2025/unqxwpejw/2023_09_24/anh-dep-giao-thong-1626.jpg",
+      name: "Image 1",
+      type: "image",
+    },
+    {
+      src: "https://saigonbanme.vn/wp-content/uploads/2024/12/301-hinh-anh-co-gai-ngoi-buon-tam-trang-duoi-mua.jpg",
       name: "Image 1",
       type: "image",
     },
@@ -48,6 +100,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
     Alert.alert("Thông báo", "Tải xuống: " + filename);
   };
 
+  // Update video playback when fullScreenMedia changes
   useEffect(() => {
     if (fullScreenMedia && fullScreenMedia.type === 'video' && videoRef.current) {
       videoRef.current.playAsync().catch((error: any) => {
@@ -60,6 +113,22 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
       }
     };
   }, [fullScreenMedia]);
+
+  // Update currentIndex when fullScreenMedia changes
+  useEffect(() => {
+    if (fullScreenMedia) {
+      const index = media.findIndex((item) => item.src === fullScreenMedia.src);
+      if (index !== -1) {
+        setCurrentIndex(index);
+      }
+    }
+  }, [fullScreenMedia, media]);
+
+  // Handle swipe to update fullScreenMedia
+  const handleSwipe = (index: number) => {
+    setCurrentIndex(index);
+    setFullScreenMedia(media[index]);
+  };
 
   return (
     <View style={styles.container}>
@@ -90,6 +159,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
         <StoragePage
           conversationId={conversationId}
           files={media}
+          isVisible={isOpen}
           onClose={() => setIsOpen(false)}
         />
       )}
@@ -106,22 +176,33 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
           <View />
         ) : (
           <View style={styles.fullScreenContainer}>
-            {fullScreenMedia.type === 'image' ? (
-              <Image
-                source={{ uri: fullScreenMedia.src }}
-                style={styles.fullScreenMedia}
-                resizeMode="contain"
-              />
-            ) : (
-              <Video
-                ref={videoRef}
-                source={{ uri: fullScreenMedia.src }}
-                style={styles.fullScreenMedia}
-                useNativeControls
-                resizeMode="contain"
-                isLooping
-              />
-            )}
+            <Swiper
+              index={currentIndex}
+              onIndexChanged={handleSwipe}
+              loop={false}
+              showsPagination={false}
+            >
+              {media.map((item, index) => (
+                <View key={index} style={styles.fullScreenMediaContainer}>
+                  {item.type === 'image' ? (
+                    <Image
+                      source={{ uri: item.src }}
+                      style={styles.fullScreenMedia}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Video
+                      ref={videoRef}
+                      source={{ uri: item.src }}
+                      style={styles.fullScreenMedia}
+                      useNativeControls
+                      resizeMode="contain"
+                      isLooping
+                    />
+                  )}
+                </View>
+              ))}
+            </Swiper>
 
             {/* Top Bar with Close and Download Icons */}
             <View style={styles.topBar}>
@@ -139,41 +220,8 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Bottom Close Icon */}
-            <TouchableOpacity
-              style={styles.bottomCloseButton}
-              onPress={() => setFullScreenMedia(null)}
-            >
-              <Ionicons name="close-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-
-            {/* Sidebar */}
-            <View style={styles.sidebar}>
-              {media.map((item, index) => (
-                <TouchableOpacity key={index} onPress={() => setFullScreenMedia(item)}>
-                  {item.type === 'image' ? (
-                    <Image
-                      source={{ uri: item.src }}
-                      style={[
-                        styles.sidebarItem,
-                        fullScreenMedia.src === item.src && styles.sidebarItemActive,
-                      ]}
-                    />
-                  ) : (
-                    <Video
-                      source={{ uri: item.src }}
-                      style={[
-                        styles.sidebarItem,
-                        fullScreenMedia.src === item.src && styles.sidebarItemActive,
-                      ]}
-                      useNativeControls={false}
-                      isMuted={true}
-                      resizeMode="cover"
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
+       
+         
           </View>
         )}
       </Modal>
@@ -216,11 +264,16 @@ const styles = StyleSheet.create({
   },
   fullScreenContainer: {
     flex: 1,
-    flexDirection: 'row',
     backgroundColor: '#000', // Black background for true fullscreen
   },
-  fullScreenMedia: {
+  fullScreenMediaContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenMedia: {
+    width: '100%',
+    height: '100%',
   },
   topBar: {
     position: 'absolute',
@@ -245,23 +298,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
     zIndex: 60,
-  },
-  sidebar: {
-    width: 64,
-    backgroundColor: '#111827', // Gray-900 equivalent
-    padding: 8,
-  },
-  sidebarItem: {
-    width: 48,
-    height: 48,
-    borderRadius: 5,
-    marginBottom: 8,
-    opacity: 0.5,
-  },
-  sidebarItemActive: {
-    opacity: 1,
-    borderWidth: 2,
-    borderColor: '#3B82F6', // Blue-400 equivalent
   },
 });
 
