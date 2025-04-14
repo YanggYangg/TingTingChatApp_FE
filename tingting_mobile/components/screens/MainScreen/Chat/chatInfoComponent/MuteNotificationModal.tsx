@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Modal from 'react-native-modal';
 import { Alert } from 'react-native';
+import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 
 interface Props {
   isOpen: boolean;
@@ -20,14 +21,21 @@ const MuteNotificationModal: React.FC<Props> = ({
 }) => {
   const [selectedMuteTime, setSelectedMuteTime] = useState('1h');
 
-  const handleConfirmMute = () => {
-    onMuteSuccess(true);
-    Alert.alert("Thông báo", `Đã tắt thông báo trong ${selectedMuteTime}!`);
-    onClose();
+  const handleConfirmMute = async () => {
+    try {
+      await Api_chatInfo.updateNotification(conversationId, { mute: selectedMuteTime, userId });
+      onClose();
+      if (onMuteSuccess) {
+        onMuteSuccess(true);
+      }
+    } catch (error) {
+      console.error("Lỗi cập nhật trạng thái tắt thông báo:", error);
+      Alert.alert('Lỗi', 'Không thể tắt thông báo. Vui lòng thử lại.');
+    }
   };
 
   useEffect(() => {
-    console.log('Trạng thái modal:', isOpen);
+    console.log("Trạng thái modal:", isOpen);
   }, [isOpen]);
 
   return (

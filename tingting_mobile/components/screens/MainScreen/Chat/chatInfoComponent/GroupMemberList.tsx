@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import MemberListModal from './MemberListModal';
 import CommonGroupsModal from './CommonGroupsModal';
+import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 
 interface Participant {
   userId: string;
@@ -18,22 +19,26 @@ interface ChatInfoData {
 
 interface Props {
   chatInfo: ChatInfoData;
-  
+  conversationId: string;
 }
 
-const GroupMemberList: React.FC<Props> = ({ chatInfo }) => {
+const GroupMemberList: React.FC<Props> = ({ chatInfo, conversationId }) => {
   const [isMemberModalOpen, setMemberModalOpen] = useState(false);
   const [isGroupModalOpen, setGroupModalOpen] = useState(false);
   const [commonGroups, setCommonGroups] = useState<any[]>([]);
-  const mockCommonGroups = [
-    { id: "group1", name: "Nhóm 1", image: "https://example.com/group1.jpg" },
-    { id: "group2", name: "Nhóm 2", image: "https://example.com/group2.jpg" },
-  ];
+
+  // Lấy danh sách nhóm chung nếu không phải nhóm
   useEffect(() => {
-    const fetchCommonGroups = () => {
+    const fetchCommonGroups = async () => {
       if (!chatInfo?.isGroup && chatInfo?._id) {
-        // Mô phỏng API
-        setCommonGroups(mockCommonGroups);
+        try {
+          const res = await Api_chatInfo.getCommonGroups(chatInfo._id);
+          setCommonGroups(res?.commonGroups || []);
+          console.log('API Response nhóm:', res);
+        } catch (err) {
+          console.error('Lỗi khi lấy nhóm chung:', err);
+          setCommonGroups([]);
+        }
       }
     };
 
