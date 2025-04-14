@@ -17,6 +17,7 @@ import ForgotAccountLayout from "./layouts/ForgotPasswordLayout";
 
 import { Provider } from "react-redux";
 import store from "./redux/store";
+import VerifyOTP from "./pages/VerifyOTP";
 
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/homepage" element={<HomePage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
         {forgotPasswordRoutes.map((route, index) => {
           const Page = route.component;
           const Layout = ForgotAccountLayout;

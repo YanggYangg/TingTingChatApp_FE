@@ -7,6 +7,7 @@ const axiosInstance = axios.create({
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
+        'Authorization' : `Bearer ${localStorage.getItem('token') || ''}`,
     },
     responseType: 'json',
 });
@@ -44,8 +45,17 @@ export const Api_Auth = {
     login: async (data) => {
         return ApiManager.post('api/v1/auth/sign-in', data);
     },
+    generate_token: async (data) => {
+        return ApiManager.post('api/v1/auth/generate-token', data);
+    },
+    resent_otp: async (data) => {
+        return ApiManager.post('api/v1/auth/resent-otp', data);
+    },
     signUp: async (data) => {
         return ApiManager.post('api/v1/auth/sign-up', data);
+    },
+    create_account: async (data) => {
+        return ApiManager.post('api/v1/auth/create-account', data);
     },
     logout: async (data) => {
         return ApiManager.post('api/v1/auth/sign-out', data);

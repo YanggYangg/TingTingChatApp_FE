@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const SERVICES = {
-    conversation: 'http://192.168.1.10:5001'
+    conversation: 'http://172.27.144.1:5001'
 };
 
 //Tạo một instance axios theo service
