@@ -42,8 +42,8 @@ const ChatInfo: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
-  const conversationId = "67e2d6bef1ea6ac96f10bf91";
-  const userId = "6601a1b2c3d4e5f678901238";
+  const conversationId = "67e2d6bef1ea6ac96f10bf92";
+  const userId = "6601a1b2c3d4e5f678901239";
 
   // Lấy thông tin chat khi component mount
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import Modal from 'react-native-modal';
 
@@ -10,11 +10,22 @@ interface Props {
 }
 
 const EditNameModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialName }) => {
-  const [name, setName] = useState(initialName || '');
+  const [newName, setNewName] = useState(initialName || '');
+
+  // Cập nhật newName khi initialName thay đổi
+  useEffect(() => {
+    setNewName(initialName || '');
+  }, [initialName]);
 
   const handleSave = () => {
-    onSave(name);
+    if (!newName.trim()) {
+      alert('Tên nhóm không được để trống.');
+      return;
+    }
+    onSave(newName.trim());
   };
+
+  if (!isOpen) return null;
 
   return (
     <Modal isVisible={isOpen} onBackdropPress={onClose}>
@@ -22,8 +33,8 @@ const EditNameModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialName }
         <Text style={styles.modalTitle}>Sửa tên nhóm</Text>
         <TextInput
           style={styles.input}
-          value={name}
-          onChangeText={setName}
+          value={newName}
+          onChangeText={setNewName} // Sửa onChange thành onChangeText cho React Native
           placeholder="Nhập tên nhóm mới"
         />
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
