@@ -5,7 +5,7 @@ import Modal from 'react-native-modal';
 interface Group {
   id: string;
   name: string;
-  image: string;
+  imageGroup: string;
 }
 
 interface Props {
@@ -24,7 +24,7 @@ const CommonGroupsModal: React.FC<Props> = ({ isOpen, onClose, commonGroups }) =
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View style={styles.groupItem}>
-              <Image source={{ uri: item.image }} style={styles.groupImage} />
+              <Image source={{ uri: item.imageGroup }} style={styles.groupImage} />
               <Text style={styles.groupName}>{item.name}</Text>
             </View>
           )}
