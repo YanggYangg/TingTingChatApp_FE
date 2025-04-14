@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   Platform,
+  Linking,
 } from 'react-native';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,11 +19,10 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
-import * as IntentLauncher from 'expo-intent-launcher';
 
 interface Media {
   id: string;
-  src: string;
+  linkURL: string;
   name: string;
   type: 'image' | 'video' | 'file' | 'link';
   date?: string;
@@ -49,7 +49,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const [previewFile, setPreviewFile] = useState<Media | null>(null);
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Media[]>([]);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [data, setData] = useState<{
     images: Media[];
@@ -61,6 +61,15 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     links: [],
   });
 
+  // Xóa thông báo sau 3 giây
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Tải dữ liệu từ API
   useEffect(() => {
     if (!conversationId || !isVisible) return;
 
@@ -72,7 +81,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           .filter((item: any) => item.messageType === 'image' || item.messageType === 'video')
           .map((item: any) => ({
             id: item._id,
-            src: item.linkURL,
+            linkURL: item.linkURL,
             name: item.content || 'Không có tiêu đề',
             type: item.messageType as 'image' | 'video',
             date: item.createdAt?.split('T')[0] || 'Không có ngày',
@@ -85,7 +94,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           .filter((item: any) => item.messageType === 'file')
           .map((item: any) => ({
             id: item._id,
-            src: item.linkURL,
+            linkURL: item.linkURL,
             name: item.content || 'Không có tiêu đề',
             type: 'file' as const,
             date: item.createdAt?.split('T')[0] || 'Không có ngày',
@@ -98,7 +107,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           .filter((item: any) => item.messageType === 'link')
           .map((item: any) => ({
             id: item._id,
-            src: item.linkURL,
+            linkURL: item.linkURL,
             name: item.content || 'Không có tiêu đề',
             type: 'link' as const,
             date: item.createdAt?.split('T')[0] || 'Không có ngày',
@@ -108,6 +117,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
         setData({ images, files, links });
       } catch (error) {
         console.error('Lỗi khi lấy dữ liệu:', error);
+        setNotification({ type: 'error', message: 'Không thể tải dữ liệu.' });
         Alert.alert('Lỗi', 'Không thể tải dữ liệu. Vui lòng thử lại.');
         setData({ images: [], files: [], links: [] });
       }
@@ -116,6 +126,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     fetchData();
   }, [conversationId, isVisible]);
 
+  // Xử lý xóa các mục đã chọn
   const handleDeleteSelected = async () => {
     try {
       for (const item of selectedItems) {
@@ -131,13 +142,16 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
 
       setSelectedItems([]);
       setIsSelecting(false);
+      setNotification({ type: 'success', message: `Đã xóa ${selectedItems.length} mục.` });
       Alert.alert('Thành công', `Đã xóa ${selectedItems.length} mục.`);
     } catch (error) {
       console.error('Lỗi khi xóa mục:', error);
+      setNotification({ type: 'error', message: 'Không thể xóa các mục.' });
       Alert.alert('Lỗi', 'Không thể xóa các mục. Vui lòng thử lại.');
     }
   };
 
+  // Chọn/bỏ chọn mục
   const toggleSelectItem = (item: Media) => {
     if (selectedItems.some((selected) => selected.id === item.id)) {
       setSelectedItems(selectedItems.filter((selected) => selected.id !== item.id));
@@ -146,6 +160,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     }
   };
 
+  // Lọc dữ liệu
   const filteredData = useMemo(() => {
     const items = data[activeTab] || [];
     return items.filter(
@@ -172,6 +187,93 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const handleResetDateFilter = () => {
     setStartDate(null);
     setEndDate(null);
+  };
+
+  // Tải xuống media (ảnh, video) và lưu vào thư viện
+  const downloadMedia = async (url: string, type: 'image' | 'video', name: string) => {
+    try {
+      const fileName = url.split('/').pop() || (type === 'image' ? `${name}.jpg` : `${name}.mp4`);
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const { uri } = await FileSystem.downloadAsync(url, fileUri);
+
+      const permission = await MediaLibrary.requestPermissionsAsync();
+      if (permission.granted) {
+        await MediaLibrary.createAssetAsync(uri);
+        setNotification({ type: 'success', message: `${type === 'image' ? 'Ảnh' : 'Video'} đã được lưu vào thư viện!` });
+        Alert.alert('Thành công', `${type === 'image' ? 'Ảnh' : 'Video'} đã được lưu vào thư viện!`);
+      } else {
+        setNotification({ type: 'error', message: 'Không có quyền truy cập vào thư viện.' });
+        Alert.alert('Lỗi', 'Không có quyền truy cập vào thư viện để lưu.');
+      }
+    } catch (error: any) {
+      console.error(`Tải ${type} thất bại:`, error);
+      setNotification({ type: 'error', message: `Không thể tải xuống ${type === 'image' ? 'ảnh' : 'video'}.` });
+      Alert.alert('Lỗi', `Không thể tải xuống ${type === 'image' ? 'ảnh' : 'video'}. Vui lòng thử lại.`);
+    }
+  };
+
+  // Tải xuống tệp tin và mở tệp
+  const downloadMediaFile = async (url: string, name: string) => {
+    try {
+      const fileName = url.split('/').pop() || name || 'downloaded_file';
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const { uri } = await FileSystem.downloadAsync(url, fileUri);
+
+      setNotification({ type: 'success', message: `Đã tải xuống "${fileName}".` });
+      Alert.alert('Thành công', `Đã tải xuống "${fileName}".`, [
+        { text: 'OK' },
+        { text: 'Mở tệp', onPress: () => openFile(uri, fileName) },
+      ]);
+    } catch (error: any) {
+      console.error('Lỗi khi tải file:', error);
+      setNotification({ type: 'error', message: `Không thể tải xuống "${name}".` });
+      Alert.alert('Lỗi', `Không thể tải xuống "${name}". Vui lòng thử lại.`);
+    }
+  };
+
+  const getMimeTypeFromExtension = (fileName: string): string => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'pdf':
+        return 'application/pdf';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'mp4':
+        return 'video/mp4';
+      default:
+        return 'application/octet-stream';
+    }
+  };
+
+  const openFile = async (fileUri: string, fileName: string) => {
+    try {
+      if (Platform.OS === 'android') {
+        const contentUri = await FileSystem.getContentUriAsync(fileUri);
+        const mimeType = getMimeTypeFromExtension(fileName);
+        await Linking.openURL(contentUri);
+      } else if (Platform.OS === 'ios') {
+        await Linking.openURL(fileUri);
+      }
+    } catch (error: any) {
+      console.error('Lỗi khi mở file:', error);
+      setNotification({ type: 'error', message: `Không thể mở tệp "${fileName}".` });
+      Alert.alert('Lỗi', `Không thể mở tệp "${fileName}". Hãy kiểm tra xem bạn đã cài đặt ứng dụng phù hợp để mở tệp này chưa.`);
+    }
   };
 
   const handleSwipe = (index: number) => {
@@ -272,257 +374,96 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           : date.split('-').reverse().join(' Tháng ')}
       </Text>
       <View style={activeTab === 'images' ? styles.grid : styles.list}>
-        {dateData
-          .filter((item: Media) => (item.date || 'Không xác định') === date)
-          .map((item: Media) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.itemContainer,
-                isSelecting && selectedItems.some((selected) => selected.id === item.id)
-                  ? styles.selectedItem
-                  : null,
-              ]}
-              onPress={() =>
-                isSelecting
-                  ? toggleSelectItem(item)
-                  : activeTab === 'images'
-                  ? setFullScreenMedia(item)
-                  : setPreviewFile(item)
-              }
-            >
-              {activeTab === 'images' ? (
-                <>
-                  {item.type === 'image' ? (
+        {dateData.map((item: Media) => (
+          <TouchableOpacity
+            key={item.id}
+            style={[
+              styles.itemContainer,
+              isSelecting && selectedItems.some((selected) => selected.id === item.id)
+                ? styles.selectedItem
+                : null,
+            ]}
+            onPress={() =>
+              isSelecting
+                ? toggleSelectItem(item)
+                : activeTab === 'images'
+                ? setFullScreenMedia(item)
+                : activeTab === 'files'
+                ? setPreviewFile(item)
+                : Linking.openURL(item.linkURL).catch(() =>
+                    Alert.alert('Lỗi', 'Không thể mở liên kết.')
+                  )
+            }
+          >
+            {activeTab === 'images' ? (
+              <>
+                {item.type === 'image' ? (
+                  <Image source={{ uri: item.linkURL }} style={styles.mediaItem} />
+                ) : (
+                  <View style={styles.videoThumbnailContainer}>
                     <Image
-                      source={{ uri: item.src }}
+                      source={{ uri: item.linkURL }}
                       style={styles.mediaItem}
-                      onError={(e) =>
-                        console.log('Error loading image:', e.nativeEvent.error)
-                      }
-                    />
-                  ) : (
-                    <View style={styles.videoThumbnailContainer}>
-                      <Image
-                        source={{
-                          uri: 'https://placehold.co/80x80/000000/FFFFFF/png?text=Video',
-                        }}
-                        style={styles.mediaItem}
-                        onError={(e) =>
-                          console.log(
-                            'Error loading placeholder:',
-                            e.nativeEvent.error
-                          )
-                        }
-                      />
-                      <View style={styles.playIconOverlay}>
-                        <Ionicons
-                          name="play-circle-outline"
-                          size={30}
-                          color="#fff"
-                          accessibilityLabel="Phát video"
+                      onError={() => (
+                        <Image
+                          source={{
+                            uri: 'https://placehold.co/80x80/000000/FFFFFF/png?text=Video',
+                          }}
+                          style={styles.mediaItem}
                         />
-                      </View>
+                      )}
+                    />
+                    <View style={styles.playIconOverlay}>
+                      <Ionicons
+                        name="play-circle-outline"
+                        size={30}
+                        color="#fff"
+                        accessibilityLabel="Phát video"
+                      />
                     </View>
-                  )}
-                </>
-              ) : activeTab === 'files' ? (
-                <View style={styles.fileItem}>
-                  <Text style={styles.fileName}>{item.name || 'Không có tên'}</Text>
-                  {!isSelecting && (
-                    <TouchableOpacity onPress={() => downloadMediaFile(item.src, item.name)}>
-                      <Ionicons name="download-outline" size={24} color="#666" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ) : (
-                <View style={styles.linkItem}>
-                  <View style={styles.linkContent}>
-                    <Text style={styles.linkUrl}>{item.src}</Text>
                   </View>
-                </View>
-              )}
-              {isSelecting && (
-                <View style={styles.checkbox}>
-                  <Ionicons
-                    name={
-                      selectedItems.some((selected) => selected.id === item.id)
-                        ? 'checkbox'
-                        : 'checkbox-outline'
-                    }
-                    size={24}
-                    color={
-                      selectedItems.some((selected) => selected.id === item.id)
-                        ? '#3B82F6'
-                        : '#666'
-                    }
-                  />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
+                )}
+              </>
+            ) : activeTab === 'files' ? (
+              <View style={styles.fileItem}>
+                <Text style={styles.fileName}>{item.name || 'Không có tên'}</Text>
+                {!isSelecting && (
+                  <TouchableOpacity onPress={() => downloadMediaFile(item.linkURL, item.name)}>
+                    <Ionicons name="download-outline" size={24} color="#666" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={styles.linkItem}>
+                <Text style={styles.linkUrl}>{item.linkURL}</Text>
+              </View>
+            )}
+            {isSelecting && (
+              <View style={styles.checkbox}>
+                <Ionicons
+                  name={
+                    selectedItems.some((selected) => selected.id === item.id)
+                      ? 'checkbox'
+                      : 'checkbox-outline'
+                  }
+                  size={24}
+                  color={
+                    selectedItems.some((selected) => selected.id === item.id)
+                      ? '#3B82F6'
+                      : '#666'
+                  }
+                />
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );
 
-  const handleDownload = async (file: { linkURL?: string; content?: string }) => {
-    if (!file?.linkURL) {
-      Alert.alert("Lỗi", "Không có link file để tải.");
-      return;
-    }
-
-    const fileName = file.linkURL.split('/').pop() || file.content || 'downloaded_file';
-    const fileUri = `<span class="math-inline">\{FileSystem\.documentDirectory\}/</span>{fileName}`;
-
-    try {
-      setIsDownloading(true);
-      const { uri } = await FileSystem.downloadAsync(file.linkURL, fileUri);
-      Alert.alert("Thành công", `Tệp "${fileName}" đã được tải xuống.`);
-      console.log("Tệp đã lưu tại:", uri);
-      openFile(uri, fileName);
-    } catch (downloadError: any) {
-      console.error("Lỗi khi tải file:", downloadError.message || downloadError);
-      Alert.alert("Lỗi", `Không thể tải xuống tệp "${fileName}". Vui lòng thử lại.`);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  const getMimeTypeFromExtension = (fileName: string): string | null => {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    switch (extension) {
-      case 'doc':
-        return 'application/msword';
-      case 'docx':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case 'pdf':
-        return 'application/pdf';
-      case 'ppt':
-        return 'application/vnd.ms-powerpoint';
-      case 'pptx':
-        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-      case 'xls':
-        return 'application/vnd.ms-excel';
-      case 'xlsx':
-        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'mp4':
-        return 'video/mp4';
-      default:
-        return 'application/octet-stream';
-    }
-  };
-
-  const openFile = async (fileUri: string, fileName: string) => {
-    if (Platform.OS === 'android') {
-      try {
-        const contentUri = await FileSystem.getContentUriAsync(fileUri);
-        if (contentUri) {
-          const mimeType = getMimeTypeFromExtension(fileName);
-          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-            data: contentUri,
-            flags: 1,
-            type: mimeType || 'application/octet-stream',
-          });
-        } else {
-          Alert.alert("Lỗi", "Không thể tạo Content URI cho tệp.");
-        }
-      } catch (error: any) {
-        console.error("Lỗi khi mở file trên Android:", error);
-        Alert.alert("Lỗi", `Không thể mở tệp "${fileName}". Hãy kiểm tra xem bạn đã cài đặt ứng dụng phù hợp để mở tệp này chưa.`);
-      }
-    } else if (Platform.OS === 'ios') {
-      Alert.alert(
-        "Mở tệp",
-        `Tệp "${fileName}" đã được tải xuống. Vui lòng kiểm tra ứng dụng "Tệp" của bạn để xem tệp.`,
-        [{ text: "OK" }]
-      );
-      console.log("Tệp đã lưu tại (iOS):", fileUri);
-    }
-  };
-
-  const downloadMediaFile = async (uri: string, name: string) => {
-    if (!uri) {
-      Alert.alert("Lỗi", "Không có đường dẫn để tải xuống.");
-      return;
-    }
-
-    const filenameWithExtension = uri.split('/').pop();
-    let fileExt = filenameWithExtension?.split('.').pop()?.toLowerCase();
-    const baseFilename = filenameWithExtension?.substring(0, filenameWithExtension.lastIndexOf('.'));
-    const finalFilename = name || baseFilename || 'downloaded_file';
-
-    if (!fileExt) {
-      console.warn("Could not determine file extension for:", name, uri);
-      Alert.alert("Lỗi", `Không thể xác định loại tệp cho "${finalFilename}".`);
-      setIsDownloading(false);
-      return;
-    }
-
-    const finalFilenameWithExt = `${finalFilename}.${fileExt}`;
-    let fileUri;
-    if (Platform.OS === 'ios') {
-      fileUri = `${FileSystem.documentDirectory}/${finalFilenameWithExt}`;
-    } else {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Quyền truy cập bị từ chối', 'Ứng dụng cần quyền truy cập vào thư viện để tải xuống.');
-        setIsDownloading(false);
-        return;
-      }
-      fileUri = `${FileSystem.cacheDirectory}/${finalFilenameWithExt}`;
-    }
-
-    try {
-      setIsDownloading(true);
-      const downloadResult = await FileSystem.downloadAsync(uri, fileUri);
-      setIsDownloading(false);
-
-      if (downloadResult.status !== 200) {
-        Alert.alert("Lỗi tải xuống", `Không thể tải xuống "${finalFilenameWithExt}". Lỗi HTTP: ${downloadResult.status}`);
-        return;
-      }
-
-      if (Platform.OS === 'ios') {
-        Alert.alert(
-          "Đã tải xuống",
-          `Tệp "${finalFilenameWithExt}" đã được lưu vào thư mục "Tệp" của bạn.`,
-          [{ text: "OK" }]
-        );
-        console.log("Đã lưu vào:", downloadResult.uri);
-      } else {
-        try {
-          const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
-          Alert.alert(
-            "Đã tải xuống",
-            `Đã lưu "${finalFilenameWithExt}" vào thư viện.`,
-            [{ text: "OK" }]
-          );
-          console.log("Đã lưu vào:", asset.uri);
-        } catch (assetError: any) {
-          console.error("Lỗi tạo asset:", assetError);
-          Alert.alert("Lỗi", `Không thể lưu "${finalFilenameWithExt}" vào thư viện.`);
-        }
-      }
-    } catch (error: any) {
-      console.error("Lỗi tải xuống:", error);
-      Alert.alert("Lỗi", `Không thể tải xuống "${finalFilenameWithExt}". Vui lòng thử lại.`);
-      setIsDownloading(false);
-    }
-  };
   return (
-    <Modal
-      isVisible={isVisible}
-      onBackdropPress={onClose}
-      style={styles.modal}
-      useNativeDriver
-    >
+    <Modal isVisible={isVisible} onBackdropPress={onClose} style={styles.modal} useNativeDriver>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="arrow-back" size={24} color="#3B82F6" />
@@ -532,9 +473,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
             {isSelecting ? (
               <>
                 <TouchableOpacity onPress={handleDeleteSelected}>
-                  <Text style={styles.deleteButton}>
-                    Xóa ({selectedItems.length})
-                  </Text>
+                  <Text style={styles.deleteButton}>Xóa ({selectedItems.length})</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -553,7 +492,17 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           </View>
         </View>
 
-        {/* Tabs */}
+        {notification && (
+          <Text
+            style={[
+              styles.notificationText,
+              { color: notification.type === 'success' ? 'green' : 'red' },
+            ]}
+          >
+            {notification.message}
+          </Text>
+        )}
+
         <View style={styles.tabContainer}>
           {(['images', 'files', 'links'] as const).map((tab) => (
             <TouchableOpacity
@@ -565,16 +514,13 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                 setSelectedItems([]);
               }}
             >
-              <Text
-                style={[styles.tabText, activeTab === tab && styles.activeTabText]}
-              >
+              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
                 {tab === 'images' ? 'Ảnh/Video' : tab === 'files' ? 'Files' : 'Links'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Full Screen Modal */}
         <Modal
           isVisible={!!fullScreenMedia}
           onBackdropPress={() => {
@@ -596,29 +542,24 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                   <View key={item.id} style={styles.swiperSlide}>
                     {item.type === 'image' ? (
                       <Image
-                        source={{ uri: item.src }}
+                        source={{ uri: item.linkURL }}
                         style={styles.fullScreenMedia}
                         resizeMode="contain"
-                        onError={(e) =>
-                          console.log('Error loading image:', e.nativeEvent.error)
-                        }
                       />
                     ) : (
                       <Video
-                        source={{ uri: item.src }}
+                        source={{ uri: item.linkURL }}
                         style={styles.fullScreenMedia}
                         useNativeControls
                         resizeMode="contain"
                         isLooping
-                        shouldPlay={currentIndex === data.images.findIndex(img => img.id === item.id)}
+                        shouldPlay={currentIndex === data.images.findIndex((img) => img.id === item.id)}
                         onPlaybackStatusUpdate={(status) => {
                           if (!status.isLoaded && status.error) {
                             console.log('Video Error (Fullscreen):', status.error);
                           }
                         }}
-                        onError={(error: any) =>
-                          console.log('Video Error (Fullscreen):', error)
-                        }
+                        onError={(error: any) => console.log('Video Error (Fullscreen):', error)}
                       />
                     )}
                     <Text style={styles.mediaName}>{item.name}</Text>
@@ -638,7 +579,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                 <TouchableOpacity
                   style={styles.iconButton}
                   onPress={() =>
-                    downloadMediaFile(fullScreenMedia.src, fullScreenMedia.name)
+                    downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type, fullScreenMedia.name)
                   }
                 >
                   <Ionicons name="download-outline" size={24} color="#fff" />
@@ -648,7 +589,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           )}
         </Modal>
 
-        {/* Preview File Modal */}
         <Modal
           isVisible={!!previewFile}
           onBackdropPress={() => setPreviewFile(null)}
@@ -665,24 +605,20 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
               </View>
               <View style={styles.previewContent}>
                 <Text style={styles.previewPlaceholder}>
-                  Preview not fully supported on mobile. Please download to view.
+                  Xem trước không được hỗ trợ đầy đủ trên thiết bị di động. Vui lòng tải xuống để xem.
                 </Text>
-                <Text style={styles.previewUrl}>{previewFile.src}</Text>
+                <Text style={styles.previewUrl}>{previewFile.linkURL}</Text>
               </View>
               <TouchableOpacity
                 style={styles.previewDownloadButton}
-                onPress={() => handleDownload(previewFile)}
-                disabled={isDownloading}
+                onPress={() => downloadMediaFile(previewFile.linkURL, previewFile.name)}
               >
-                <Text style={styles.downloadText}>
-                  {isDownloading ? 'Đang tải...' : 'Tải xuống'}
-                </Text>
+                <Text style={styles.downloadText}>Tải xuống</Text>
               </TouchableOpacity>
             </View>
           )}
         </Modal>
 
-        {/* Filters */}
         <View style={styles.filterContainer}>
           <View style={styles.pickerContainer}>
             <Picker
@@ -703,10 +639,8 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           </TouchableOpacity>
         </View>
 
-        {/* Date Filter Component */}
         {showDateFilter && <DateFilter />}
 
-        {/* Media List */}
         <ScrollView style={styles.scrollView}>
           {[...new Set(filteredData.map((item: Media) => item.date || 'Không xác định'))]
             .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
@@ -714,7 +648,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
               <DateSection
                 key={date}
                 date={date}
-                data={filteredData.filter(item => (item.date || 'Không xác định') === date)}
+                data={filteredData.filter((item) => (item.date || 'Không xác định') === date)}
                 allImages={data.images}
               />
             ))}
@@ -760,6 +694,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  notificationText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
   tabContainer: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -794,7 +733,7 @@ const styles = StyleSheet.create({
   },
   fullScreenMedia: {
     width: '100%',
-    height: '100%',
+    height: '90%',
   },
   topBar: {
     position: 'absolute',
@@ -854,6 +793,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     backgroundColor: '#3B82F6',
     borderRadius: 5,
+    marginBottom: 20,
   },
   downloadText: {
     color: '#fff',
@@ -969,8 +909,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   itemContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     position: 'relative',
   },
   selectedItem: {
@@ -1006,24 +944,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     padding: 8,
     borderRadius: 5,
-    flex: 1,
   },
   fileName: {
     fontSize: 14,
     color: '#3B82F6',
     fontWeight: '500',
+    flex: 1,
   },
   linkItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#f0f0f0',
     padding: 8,
     borderRadius: 5,
-    flex: 1,
-    gap: 8,
-  },
-  linkContent: {
-    flex: 1,
   },
   linkUrl: {
     fontSize: 12,
