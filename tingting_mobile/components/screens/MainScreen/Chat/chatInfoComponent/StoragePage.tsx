@@ -17,10 +17,11 @@ import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import {Api_chatInfo} from '../../../../../apis/Api_chatInfo';
+import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 interface Media {
-  id: string; // Thêm id để hỗ trợ xóa
+  id: string;
   src: string;
   name: string;
   type: 'image' | 'video' | 'file' | 'link';
@@ -49,9 +50,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Media[]>([]);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  
 
-  // State để lưu dữ liệu từ API
   const [data, setData] = useState<{
     images: Media[];
     files: Media[];
@@ -62,13 +61,11 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     links: [],
   });
 
-  // Lấy dữ liệu từ API khi component mount hoặc conversationId thay đổi
   useEffect(() => {
     if (!conversationId || !isVisible) return;
 
     const fetchData = async () => {
       try {
-        // Lấy media (ảnh và video)
         const mediaResponse = await Api_chatInfo.getChatMedia(conversationId);
         const mediaData = Array.isArray(mediaResponse) ? mediaResponse : mediaResponse?.data?.media || [];
         const images = mediaData
@@ -82,7 +79,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
             sender: item.userId || 'Không rõ người gửi',
           }));
 
-        // Lấy files
         const filesResponse = await Api_chatInfo.getChatFiles(conversationId);
         const filesData = Array.isArray(filesResponse) ? filesResponse : filesResponse?.data?.files || [];
         const files = filesData
@@ -96,7 +92,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
             sender: item.userId || 'Không rõ người gửi',
           }));
 
-        // Lấy links
         const linksResponse = await Api_chatInfo.getChatLinks(conversationId);
         const linksData = Array.isArray(linksResponse) ? linksResponse : linksResponse?.data?.links || [];
         const links = linksData
@@ -121,15 +116,12 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     fetchData();
   }, [conversationId, isVisible]);
 
-  // Hàm xử lý xóa các mục đã chọn
   const handleDeleteSelected = async () => {
     try {
-      // Gọi API để xóa từng mục
       for (const item of selectedItems) {
         await Api_chatInfo.deleteChatItem(conversationId, item.id);
       }
 
-      // Cập nhật lại dữ liệu sau khi xóa
       setData((prevData) => ({
         ...prevData,
         [activeTab]: prevData[activeTab].filter(
@@ -146,7 +138,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     }
   };
 
-  // Hàm xử lý chọn/bỏ chọn mục
   const toggleSelectItem = (item: Media) => {
     if (selectedItems.some((selected) => selected.id === item.id)) {
       setSelectedItems(selectedItems.filter((selected) => selected.id !== item.id));
@@ -181,79 +172,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const handleResetDateFilter = () => {
     setStartDate(null);
     setEndDate(null);
-  };
-
-  const downloadMediaFile = async (url: string, filename: string) => {
-    if (isDownloading) {
-      Alert.alert('Thông báo', 'Đang tải file khác, vui lòng đợi.');
-      return;
-    }
-
-    const netInfo = await NetInfo.fetch();
-    if (!netInfo.isConnected) {
-      Alert.alert('Lỗi', 'Không có kết nối mạng. Vui lòng kiểm tra lại.');
-      return;
-    }
-
-    setIsDownloading(true);
-    try {
-      const extensionMap: { [key: string]: string } = {
-        '.jpg': '.jpg',
-        '.jpeg': '.jpg',
-        '.png': '.png',
-        '.mp4': '.mp4',
-        '.mkv': '.mkv',
-        '.pptx': '.pptx',
-        '.docx': '.docx',
-      };
-
-      let extension = '.bin';
-      for (const [key, value] of Object.entries(extensionMap)) {
-        if (url.toLowerCase().includes(key)) {
-          extension = value;
-          break;
-        }
-      }
-
-      if (extension === '.bin') {
-        const nameParts = filename.split('.');
-        extension = nameParts.length > 1 ? `.${nameParts[nameParts.length - 1]}` : '.bin';
-      }
-
-      const timestamp = new Date().getTime();
-      const sanitizedFilename = filename.includes(extension)
-        ? `${filename.split(extension)[0]}_${timestamp}${extension}`
-        : `${filename}_${timestamp}${extension}`;
-      const fileUri = `${FileSystem.documentDirectory}${sanitizedFilename}`;
-
-      const downloadResumable = FileSystem.createDownloadResumable(
-        url,
-        fileUri,
-        {},
-        (downloadProgress) => {
-          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-          console.log(`Tiến trình tải: ${Math.round(progress * 100)}%`);
-        }
-      );
-
-      const { uri } = await downloadResumable.downloadAsync();
-      if (!uri) throw new Error('Tải xuống thất bại.');
-
-      const permission = await MediaLibrary.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert('Lỗi', 'Không có quyền truy cập thư viện ảnh/video.');
-        return;
-      }
-
-      const asset = await MediaLibrary.createAssetAsync(uri);
-      await MediaLibrary.createAlbumAsync('StoragePage', asset, false);
-      Alert.alert('Thành công', `Đã lưu file: ${sanitizedFilename} vào album StoragePage.`);
-    } catch (error) {
-      console.error('Lỗi tải xuống:', error);
-      Alert.alert('Lỗi', `Không thể tải file: ${error.message || 'Lỗi không xác định'}`);
-    } finally {
-      setIsDownloading(false);
-    }
   };
 
   const handleSwipe = (index: number) => {
@@ -356,9 +274,9 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
       <View style={activeTab === 'images' ? styles.grid : styles.list}>
         {dateData
           .filter((item: Media) => (item.date || 'Không xác định') === date)
-          .map((item: Media, index: number) => (
+          .map((item: Media) => (
             <TouchableOpacity
-              key={`${item.id}-${index}`}
+              key={item.id}
               style={[
                 styles.itemContainer,
                 isSelecting && selectedItems.some((selected) => selected.id === item.id)
@@ -447,6 +365,155 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     </View>
   );
 
+  const handleDownload = async (file: { linkURL?: string; content?: string }) => {
+    if (!file?.linkURL) {
+      Alert.alert("Lỗi", "Không có link file để tải.");
+      return;
+    }
+
+    const fileName = file.linkURL.split('/').pop() || file.content || 'downloaded_file';
+    const fileUri = `<span class="math-inline">\{FileSystem\.documentDirectory\}/</span>{fileName}`;
+
+    try {
+      setIsDownloading(true);
+      const { uri } = await FileSystem.downloadAsync(file.linkURL, fileUri);
+      Alert.alert("Thành công", `Tệp "${fileName}" đã được tải xuống.`);
+      console.log("Tệp đã lưu tại:", uri);
+      openFile(uri, fileName);
+    } catch (downloadError: any) {
+      console.error("Lỗi khi tải file:", downloadError.message || downloadError);
+      Alert.alert("Lỗi", `Không thể tải xuống tệp "${fileName}". Vui lòng thử lại.`);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const getMimeTypeFromExtension = (fileName: string): string | null => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'pdf':
+        return 'application/pdf';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'mp4':
+        return 'video/mp4';
+      default:
+        return 'application/octet-stream';
+    }
+  };
+
+  const openFile = async (fileUri: string, fileName: string) => {
+    if (Platform.OS === 'android') {
+      try {
+        const contentUri = await FileSystem.getContentUriAsync(fileUri);
+        if (contentUri) {
+          const mimeType = getMimeTypeFromExtension(fileName);
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: contentUri,
+            flags: 1,
+            type: mimeType || 'application/octet-stream',
+          });
+        } else {
+          Alert.alert("Lỗi", "Không thể tạo Content URI cho tệp.");
+        }
+      } catch (error: any) {
+        console.error("Lỗi khi mở file trên Android:", error);
+        Alert.alert("Lỗi", `Không thể mở tệp "${fileName}". Hãy kiểm tra xem bạn đã cài đặt ứng dụng phù hợp để mở tệp này chưa.`);
+      }
+    } else if (Platform.OS === 'ios') {
+      Alert.alert(
+        "Mở tệp",
+        `Tệp "${fileName}" đã được tải xuống. Vui lòng kiểm tra ứng dụng "Tệp" của bạn để xem tệp.`,
+        [{ text: "OK" }]
+      );
+      console.log("Tệp đã lưu tại (iOS):", fileUri);
+    }
+  };
+
+  const downloadMediaFile = async (uri: string, name: string) => {
+    if (!uri) {
+      Alert.alert("Lỗi", "Không có đường dẫn để tải xuống.");
+      return;
+    }
+
+    const filenameWithExtension = uri.split('/').pop();
+    let fileExt = filenameWithExtension?.split('.').pop()?.toLowerCase();
+    const baseFilename = filenameWithExtension?.substring(0, filenameWithExtension.lastIndexOf('.'));
+    const finalFilename = name || baseFilename || 'downloaded_file';
+
+    if (!fileExt) {
+      console.warn("Could not determine file extension for:", name, uri);
+      Alert.alert("Lỗi", `Không thể xác định loại tệp cho "${finalFilename}".`);
+      setIsDownloading(false);
+      return;
+    }
+
+    const finalFilenameWithExt = `${finalFilename}.${fileExt}`;
+    let fileUri;
+    if (Platform.OS === 'ios') {
+      fileUri = `${FileSystem.documentDirectory}/${finalFilenameWithExt}`;
+    } else {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Quyền truy cập bị từ chối', 'Ứng dụng cần quyền truy cập vào thư viện để tải xuống.');
+        setIsDownloading(false);
+        return;
+      }
+      fileUri = `${FileSystem.cacheDirectory}/${finalFilenameWithExt}`;
+    }
+
+    try {
+      setIsDownloading(true);
+      const downloadResult = await FileSystem.downloadAsync(uri, fileUri);
+      setIsDownloading(false);
+
+      if (downloadResult.status !== 200) {
+        Alert.alert("Lỗi tải xuống", `Không thể tải xuống "${finalFilenameWithExt}". Lỗi HTTP: ${downloadResult.status}`);
+        return;
+      }
+
+      if (Platform.OS === 'ios') {
+        Alert.alert(
+          "Đã tải xuống",
+          `Tệp "${finalFilenameWithExt}" đã được lưu vào thư mục "Tệp" của bạn.`,
+          [{ text: "OK" }]
+        );
+        console.log("Đã lưu vào:", downloadResult.uri);
+      } else {
+        try {
+          const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+          Alert.alert(
+            "Đã tải xuống",
+            `Đã lưu "${finalFilenameWithExt}" vào thư viện.`,
+            [{ text: "OK" }]
+          );
+          console.log("Đã lưu vào:", asset.uri);
+        } catch (assetError: any) {
+          console.error("Lỗi tạo asset:", assetError);
+          Alert.alert("Lỗi", `Không thể lưu "${finalFilenameWithExt}" vào thư viện.`);
+        }
+      }
+    } catch (error: any) {
+      console.error("Lỗi tải xuống:", error);
+      Alert.alert("Lỗi", `Không thể tải xuống "${finalFilenameWithExt}". Vui lòng thử lại.`);
+      setIsDownloading(false);
+    }
+  };
   return (
     <Modal
       isVisible={isVisible}
@@ -455,6 +522,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
       useNativeDriver
     >
       <View style={styles.container}>
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="arrow-back" size={24} color="#3B82F6" />
@@ -485,6 +553,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           </View>
         </View>
 
+        {/* Tabs */}
         <View style={styles.tabContainer}>
           {(['images', 'files', 'links'] as const).map((tab) => (
             <TouchableOpacity
@@ -505,6 +574,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           ))}
         </View>
 
+        {/* Full Screen Modal */}
         <Modal
           isVisible={!!fullScreenMedia}
           onBackdropPress={() => {
@@ -522,8 +592,8 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                 loop={false}
                 showsPagination={false}
               >
-                {data.images.map((item, index) => (
-                  <View key={`${item.id}-${index}`} style={styles.swiperSlide}>
+                {data.images.map((item) => (
+                  <View key={item.id} style={styles.swiperSlide}>
                     {item.type === 'image' ? (
                       <Image
                         source={{ uri: item.src }}
@@ -540,7 +610,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                         useNativeControls
                         resizeMode="contain"
                         isLooping
-                        shouldPlay={currentIndex === index}
+                        shouldPlay={currentIndex === data.images.findIndex(img => img.id === item.id)}
                         onPlaybackStatusUpdate={(status) => {
                           if (!status.isLoaded && status.error) {
                             console.log('Video Error (Fullscreen):', status.error);
@@ -578,6 +648,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           )}
         </Modal>
 
+        {/* Preview File Modal */}
         <Modal
           isVisible={!!previewFile}
           onBackdropPress={() => setPreviewFile(null)}
@@ -600,14 +671,18 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
               </View>
               <TouchableOpacity
                 style={styles.previewDownloadButton}
-                onPress={() => downloadMediaFile(previewFile.src, previewFile.name)}
+                onPress={() => handleDownload(previewFile)}
+                disabled={isDownloading}
               >
-                <Text style={styles.downloadText}>Tải xuống</Text>
+                <Text style={styles.downloadText}>
+                  {isDownloading ? 'Đang tải...' : 'Tải xuống'}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
         </Modal>
 
+        {/* Filters */}
         <View style={styles.filterContainer}>
           <View style={styles.pickerContainer}>
             <Picker
@@ -628,8 +703,10 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           </TouchableOpacity>
         </View>
 
+        {/* Date Filter Component */}
         {showDateFilter && <DateFilter />}
 
+        {/* Media List */}
         <ScrollView style={styles.scrollView}>
           {[...new Set(filteredData.map((item: Media) => item.date || 'Không xác định'))]
             .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
@@ -637,7 +714,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
               <DateSection
                 key={date}
                 date={date}
-                data={filteredData}
+                data={filteredData.filter(item => (item.date || 'Không xác định') === date)}
                 allImages={data.images}
               />
             ))}
