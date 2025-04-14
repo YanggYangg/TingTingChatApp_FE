@@ -17,7 +17,7 @@ const FooterTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
 
         const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
           ChatScreen: 'chatbubble-outline',
-          ContactScreen: 'people-outline',
+          ContactsScreen: 'people-outline',
           DiaryScreen: 'time-outline',
           ProfileScreen: 'person-outline',
         };

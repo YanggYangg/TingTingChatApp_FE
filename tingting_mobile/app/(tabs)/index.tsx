@@ -1,40 +1,62 @@
-import { View, Text, Image, StyleSheet, Platform } from "react-native";
-import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-// Auth Screens
-import Login from "../../components/screens/AuthScreen/Login";
-import Register from "../../components/screens/AuthScreen/Register";
-import Welcome from "../../components/screens/AuthScreen/Welcome";
-import ForgotPassword from "../../components/screens/AuthScreen/ForgotPassword";
-import ResetPassword from "@/components/screens/AuthScreen/ResetPassword";
-import EnterCodeForForgotPassword from "@/components/screens/AuthScreen/EnterCodeforForgotPassword";
-import Chat from "../../components/screens/MainScreen/ChatScreen";
+import { createNativeStackNavigator } from "@react-navigation/native-stack"
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 // Main Screens
-import ChatScreen from "../../components/screens/MainScreen/ChatScreen";
-import ContactScreen from "../../components/screens/MainScreen/ContactScreen";
-import DiaryScreen from "@/components/screens/MainScreen/DiaryScreen";
-import ProfileScreen from "@/components/screens/MainScreen/ProfileScreen";
-import FooterTabBar from "@/components/navigate/FooterTabBar";
-import MainLayout from "@/components/screens/MainScreen/MainLayout";
-import MessageScreen from "@/components/screens/MainScreen/Chat/MessageScreen";
-import ChatScreenCloud from "@/components/screens/MainScreen/Cloud/ChatScreenCloud";
+import ChatScreen from "../../components/screens/MainScreen/ChatScreen"
+import DiaryScreen from "@/components/screens/MainScreen/DiaryScreen"
+import ProfileScreen from "@/components/screens/MainScreen/ProfileScreen"
+import FooterTabBar from "@/components/navigate/FooterTabBar"
+import MainLayout from "@/components/screens/MainScreen/MainLayout"
+import MessageScreen from "@/components/screens/MainScreen/Chat/MessageScreen"
+import ChatScreenCloud from "@/components/screens/MainScreen/Cloud/ChatScreenCloud"
+import FriendsScreen from "@/components/screens/MainScreen/Contact/FriendsScreen"
+import RecentlyAccessedScreen from "@/components/screens/MainScreen/Contact/RecentlyAccessedScreen"
+import FriendRequestsScreen from "@/components/screens/MainScreen/Contact/FriendRequestsScreen"
+import SentRequestsScreen from "@/components/screens/MainScreen/Contact/SentRequestsScreen"
+import GroupsScreen from "@/components/screens/MainScreen/Contact/GroupsScreen"
+import OAScreen from "@/components/screens/MainScreen/Contact/OAScreen"
 
 type RootStackParamList = {
-  Main: undefined;
-  MessageScreen: { userId?: string; username?: string };
-  ChatScreenCloud: undefined;
-};
+  Main: undefined
+  MessageScreen: { userId?: string; username?: string }
+  ChatScreenCloud: undefined
+  RecentlyAccessed: undefined
+  FriendRequests: undefined
+  SentRequests: undefined
+  GroupsTab: undefined
+  OATab: undefined
+}
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>()
+const Tab = createBottomTabNavigator()
+const ContactStack = createNativeStackNavigator()
+
+// Stack Navigator cho phần Contact/Friends
+function ContactStackNavigator() {
+  return (
+    <ContactStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: "none", // Disable animations
+      }}
+    >
+      <ContactStack.Screen name="FriendsMain" component={FriendsScreen} />
+      <ContactStack.Screen name="RecentlyAccessed" component={RecentlyAccessedScreen} />
+      <ContactStack.Screen name="FriendRequests" component={FriendRequestsScreen} />
+      <ContactStack.Screen name="SentRequests" component={SentRequestsScreen} />
+      <ContactStack.Screen name="GroupsTab" component={GroupsScreen} />
+      <ContactStack.Screen name="OATab" component={OAScreen} />
+    </ContactStack.Navigator>
+  )
+}
 
 function MainTabNavigator() {
   return (
     <Tab.Navigator
       tabBar={(props) => <FooterTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,
+        // Tab navigator uses transitionSpec or animation for custom transitions, but default is fine for none
+      }}
     >
       <Tab.Screen name="ChatScreen" options={{ tabBarLabel: "Tin nhắn" }}>
         {(props) => (
@@ -43,10 +65,10 @@ function MainTabNavigator() {
           </MainLayout>
         )}
       </Tab.Screen>
-      <Tab.Screen name="ContactScreen" options={{ tabBarLabel: "Danh bạ" }}>
+      <Tab.Screen name="ContactTab" options={{ tabBarLabel: "Danh bạ" }}>
         {() => (
           <MainLayout>
-            <ContactScreen />
+            <ContactStackNavigator />
           </MainLayout>
         )}
       </Tab.Screen>
@@ -65,73 +87,21 @@ function MainTabNavigator() {
         )}
       </Tab.Screen>
     </Tab.Navigator>
-  );
+  )
 }
 
 export default function App() {
   return (
-    // <Stack.Navigator initialRouteName="Welcome">
-    //   <Stack.Screen
-    //     name="Welcome"
-    //     component={Welcome}
-    //     options={{ headerShown: false }}
-    //   />
-    //   <Stack.Screen
-    //     name="Login"
-    //     component={Login}
-    //     options={{ headerShown: false }}
-    //   />
-    //   <Stack.Screen
-    //     name="ForgotPassword"
-    //     component={ForgotPassword}
-    //     options={{ headerShown: false }}
-    //   />
-    //   <Stack.Screen
-    //     name="ResetPassword"
-    //     component={ResetPassword}
-    //     options={{ headerShown: false }}
-    //   />
-    //   <Stack.Screen
-    //     name="EnterCodeForForgotPassword"
-    //     component={EnterCodeForForgotPassword}
-    //     options={{ headerShown: false }}
-    //   />
-    //   <Stack.Screen
-    //     name="Register"
-    //     component={Register}
-    //     options={{ headerShown: false }}
-    //   />
-    //   {/* <Stack.Screen
-    //     name="ChatScreen"
-    //     component={ChatScreen}
-    //     options={{ headerShown: false }}
-    //   /> */}
-    //   {/* Khi login thành công thì chuyển vào đây */}
-    //   <Stack.Screen
-    //     name="Main"
-    //     component={MainTabNavigator}
-    //     options={{ headerShown: false }}
-    //   />
-      
-    // </Stack.Navigator>
-    <Stack.Navigator initialRouteName="Main">
-      <Stack.Screen
-        name="Main"
-        component={MainTabNavigator}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="MessageScreen"
-        component={MessageScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="ChatScreenCloud"
-        component={ChatScreenCloud}
-        options={{ headerShown: false }}
-      />
-    
+    <Stack.Navigator
+      initialRouteName="Main"
+      screenOptions={{
+        headerShown: false,
+        animation: "none", // Disable animations
+      }}
+    >
+      <Stack.Screen name="Main" component={MainTabNavigator} options={{ headerShown: false }} />
+      <Stack.Screen name="MessageScreen" component={MessageScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ChatScreenCloud" component={ChatScreenCloud} options={{ headerShown: false }} />
     </Stack.Navigator>
-
-  );
+  )
 }
