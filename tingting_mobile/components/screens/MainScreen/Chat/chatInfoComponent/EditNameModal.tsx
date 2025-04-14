@@ -19,12 +19,12 @@ const EditNameModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialName }
   return (
     <Modal isVisible={isOpen} onBackdropPress={onClose}>
       <View style={styles.modalContainer}>
-        <Text style={styles.modalTitle}>Sửa tên nhóm</Text>
+        <Text style={styles.modalTitle}>Sửa tên</Text>
         <TextInput
           style={styles.input}
           value={name}
           onChangeText={setName}
-          placeholder="Nhập tên nhóm mới"
+          placeholder="Nhập tên mới"
         />
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.saveButtonText}>Lưu</Text>

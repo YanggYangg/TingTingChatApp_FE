@@ -3,7 +3,7 @@ import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
-  icon: 'mute' | 'unmute' | 'pin' | 'unpin' | 'add' | 'settings';
+  icon: 'mute' | 'unmute' | 'pin' | 'unpin' | 'add' | 'settings' | 'search' | 'help';
   text: string;
   onClick: () => void;
   isActive?: boolean; // New prop to determine if the background should be blue
@@ -16,6 +16,7 @@ const IoniconsMap: { [key: string]: JSX.Element } = {
   unpin: <Ionicons name="pin-outline" size={20} color="#000" />,
   add: <Ionicons name="person-add" size={20} color="#000" />,
   settings: <Ionicons name="settings" size={20} color="#000" />,
+  search: <Ionicons name="search" size={20} color="#000" />,
 };
 
 const GroupActionButton: React.FC<Props> = ({ icon, text, onClick, isActive = false }) => {
@@ -51,6 +52,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
     textAlign: 'center',
+    width: 60,
   },
 });
 

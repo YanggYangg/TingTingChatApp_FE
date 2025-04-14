@@ -31,13 +31,27 @@ const messagesData = [
 ];
 
 const MessageScreen = ({ route, navigation }: any) => {
-  const { username } = route.params;
+  const { username, conversationId } = route.params; // Nhận conversationId nếu cần
 
   const [messages, setMessages] = useState<Message[]>(messagesData);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [inputText, setInputText] = useState("");
   const [showOptions, setShowOptions] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [searchResults, setSearchResults] = useState<Message[]>([]);
+
+  useEffect(() => {
+    if (isSearching && searchText) {
+      const results = messages.filter((msg) =>
+        msg.text.toLowerCase().includes(searchText.toLowerCase())
+      );
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  }, [isSearching, searchText, messages]);
 
   const handleSend = () => {
     if (inputText.trim() === "") return;
@@ -79,6 +93,13 @@ const MessageScreen = ({ route, navigation }: any) => {
     </TouchableOpacity>
   );
 
+  const renderSearchResultItem = ({ item }: any) => (
+    <View style={styles.searchResultItem}>
+      <Text>{item.text}</Text>
+      <Text style={styles.searchResultSender}>- {item.sender}</Text>
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -91,9 +112,31 @@ const MessageScreen = ({ route, navigation }: any) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back-outline" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerText}>{username}</Text>
+          {!isSearching && <Text style={styles.headerText}>{username}</Text>}
+          {isSearching && (
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Tìm kiếm tin nhắn..."
+              value={searchText}
+              onChangeText={setSearchText}
+              autoFocus
+            />
+          )}
         </View>
         <View style={styles.rightContainer}>
+          {!isSearching && (
+            <TouchableOpacity onPress={() => setIsSearching(true)}>
+              <Ionicons name="search-outline" size={28} color="#fff" />
+            </TouchableOpacity>
+          )}
+          {isSearching && (
+            <TouchableOpacity onPress={() => {
+              setIsSearching(false);
+              setSearchText("");
+            }}>
+              <Ionicons name="close-outline" size={28} color="#fff" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => console.log("Call")}
             style={{ marginLeft: 15 }}
@@ -115,14 +158,23 @@ const MessageScreen = ({ route, navigation }: any) => {
         </View>
       </View>
 
-      {/* Body*/}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.chatBody}
-      />
+      {/* Body */}
+      {isSearching && searchText ? (
+        <FlatList
+          data={searchResults}
+          keyExtractor={(item) => item.id}
+          renderItem={renderSearchResultItem}
+          contentContainerStyle={styles.chatBody}
+        />
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.chatBody}
+        />
+      )}
 
       {/* Footer */}
       <View style={styles.footer}>
@@ -204,6 +256,7 @@ const styles = StyleSheet.create({
   leftContainer: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1, // Để chứa vừa text và input
   },
   rightContainer: {
     flexDirection: "row",
@@ -278,6 +331,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#007AFF",
     textAlign: "center",
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === "ios" ? 8 : 4,
+    marginLeft: 12,
+    fontSize: 16,
+  },
+  searchResultItem: {
+    padding: 10,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    marginVertical: 4,
+  },
+  searchResultSender: {
+    fontSize: 12,
+    color: "gray",
+    marginTop: 2,
   },
 });
 

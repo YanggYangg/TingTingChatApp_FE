@@ -12,6 +12,7 @@ import AddMemberModal from './chatInfoComponent/AddMemberModal';
 import EditNameModal from './chatInfoComponent/EditNameModal';
 import GroupActionButton from './chatInfoComponent/GroupActionButton';
 import { Api_chatInfo } from '../../../../apis/Api_chatInfo';
+import { useNavigation } from '@react-navigation/native'; // Import useNavigation
 
 interface Participant {
   userId: string;
@@ -44,6 +45,8 @@ const ChatInfo: React.FC = () => {
 
   const conversationId = "67e2d6bef1ea6ac96f10bf92";
   const userId = "6601a1b2c3d4e5f678901239";
+
+  const navigation = useNavigation(); // Initialize navigation object
 
   // Lấy thông tin chat khi component mount
   useEffect(() => {
@@ -167,6 +170,11 @@ const ChatInfo: React.FC = () => {
     }
   };
 
+  // Hàm xử lý khi nhấn tìm tin nhắn
+  const handleSearchMessage = () => {
+    navigation.navigate('MessageScreen', { conversationId });
+  };
+
   // Hiển thị khi đang tải
   if (loading) {
     return (
@@ -181,7 +189,7 @@ const ChatInfo: React.FC = () => {
     return (
       <View style={styles.centered}>
         <Text style={styles.textRed}>{error || 'Không thể tải thông tin chat.'}</Text>
-        <TouchableOpacity onPress={() => useEffect(() => {}, [])}>
+        <TouchableOpacity onPress={() => useEffect(() => { }, [])}>
           <Text style={styles.retryText}>Thử lại</Text>
         </TouchableOpacity>
       </View>
@@ -214,6 +222,12 @@ const ChatInfo: React.FC = () => {
         </View>
 
         <View style={styles.actionButtons}>
+          <GroupActionButton
+            icon="search"
+            text="Tìm tin nhắn"
+            onClick={handleSearchMessage}
+            isActive={false}
+          />
           <GroupActionButton
             icon={isMuted ? 'mute' : 'unmute'}
             text={isMuted ? 'Bật thông báo' : 'Tắt thông báo'}
@@ -319,9 +333,9 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 15,
-    marginVertical: 15,
+    justifyContent: 'space-between',
+    marginVertical: 10,
+    paddingHorizontal: 10,
   },
   linkContainer: {
     flexDirection: 'row',
