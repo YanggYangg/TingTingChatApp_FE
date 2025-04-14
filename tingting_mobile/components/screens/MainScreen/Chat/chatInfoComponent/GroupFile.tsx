@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Linking, Alert, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import StoragePage from './StoragePage';
-import {Api_chatInfo} from '../../../../../apis/Api_chatInfo';
+import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
+import * as FileSystem from 'expo-file-system';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 interface File {
   linkURL: string;
@@ -17,7 +19,6 @@ interface Props {
 const GroupFile: React.FC<Props> = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
-  const [previewFile, setPreviewFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -34,7 +35,6 @@ const GroupFile: React.FC<Props> = ({ conversationId }) => {
           const sortedFiles = fileData.sort((a, b) => {
             return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || 0;
           });
-
           setFiles(sortedFiles.slice(0, 3));
         } else {
           setFiles([]);
@@ -50,15 +50,82 @@ const GroupFile: React.FC<Props> = ({ conversationId }) => {
     fetchFiles();
   }, [conversationId]);
 
-  const handleDownload = (file: File) => {
+  const handleDownload = async (file: File) => {
     if (!file?.linkURL) {
       Alert.alert("Lỗi", "Không có link file để tải.");
       return;
     }
 
-    Linking.openURL(file.linkURL).catch((err) =>
-      Alert.alert("Lỗi", "Không thể tải file: " + err.message)
-    );
+    const fileName = file.linkURL.split('/').pop() || file.content || 'downloaded_file';
+    const fileUri = `${FileSystem.documentDirectory}/${fileName}`;
+
+    try {
+      const { uri } = await FileSystem.downloadAsync(file.linkURL, fileUri);
+      Alert.alert("Thành công", `Tệp "${fileName}" đã được tải xuống.`);
+      console.log("Tệp đã lưu tại:", uri);
+      openFile(uri, fileName);
+    } catch (downloadError: any) {
+      console.error("Lỗi khi tải file:", downloadError.message || downloadError);
+      Alert.alert("Lỗi", `Không thể tải xuống tệp "${fileName}". Vui lòng thử lại.`);
+    }
+  };
+
+  const getMimeTypeFromExtension = (fileName: string): string | null => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'pdf':
+        return 'application/pdf';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'mp4':
+        return 'video/mp4';
+      // Thêm các loại MIME khác nếu cần
+      default:
+        return 'application/octet-stream'; // Fallback
+    }
+  };
+
+  const openFile = async (fileUri: string, fileName: string) => {
+    if (Platform.OS === 'android') {
+      try {
+        const contentUri = await FileSystem.getContentUriAsync(fileUri);
+        if (contentUri) {
+          const mimeType = getMimeTypeFromExtension(fileName);
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: contentUri,
+            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+            type: mimeType || 'application/octet-stream',
+          });
+        } else {
+          Alert.alert("Lỗi", "Không thể tạo Content URI cho tệp.");
+        }
+      } catch (error: any) {
+        console.error("Lỗi khi mở file trên Android:", error);
+        Alert.alert("Lỗi", `Không thể mở tệp "${fileName}". Hãy kiểm tra xem bạn đã cài đặt ứng dụng phù hợp để mở tệp này chưa.`);
+      }
+    } else if (Platform.OS === 'ios') {
+      Alert.alert(
+        "Mở tệp",
+        `Tệp "${fileName}" đã được tải xuống. Vui lòng kiểm tra ứng dụng "Tệp" của bạn để xem tệp.`,
+        [{ text: "OK" }]
+      );
+      console.log("Tệp đã lưu tại (iOS):", fileUri);
+    }
   };
 
   return (
@@ -68,18 +135,13 @@ const GroupFile: React.FC<Props> = ({ conversationId }) => {
         {files.length > 0 ? (
           files.map((file, index) => (
             <View key={index} style={styles.fileItem}>
-              <TouchableOpacity
-                onPress={() => Linking.openURL(file.linkURL)}
-                style={styles.fileLink}
-              >
+              <View style={styles.fileInfo}>
+                <Ionicons name="document-outline" size={20} color="#666" style={{ marginRight: 8 }} />
                 <Text style={styles.fileName}>{file.content || "Không có tên"}</Text>
-              </TouchableOpacity>
+              </View>
               <View style={styles.actions}>
-                <TouchableOpacity onPress={() => setPreviewFile(file)}>
-                  <Ionicons name="folder-open" size={18} color="#666" />
-                </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDownload(file)}>
-                  <Ionicons name="download" size={18} color="#666" style={styles.Ionicons} />
+                  <Ionicons name="download-outline" size={24} color="#1e90ff" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -100,26 +162,6 @@ const GroupFile: React.FC<Props> = ({ conversationId }) => {
           onClose={() => setIsOpen(false)}
         />
       )}
-
-      {previewFile && (
-        <View style={styles.previewModal}>
-          <View style={styles.previewContainer}>
-            <Text style={styles.previewTitle}>{previewFile.content || "Xem nội dung"}</Text>
-            <Text style={styles.previewText}>Mở file: {previewFile.linkURL}</Text>
-            <View style={styles.previewActions}>
-              <TouchableOpacity
-                style={styles.previewButton}
-                onPress={() => handleDownload(previewFile)}
-              >
-                <Text style={styles.previewButtonText}>Tải xuống</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setPreviewFile(null)}>
-                <Text style={styles.closeButton}>✖</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   );
 };
@@ -134,88 +176,41 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   fileList: {
-    gap: 5,
+    gap: 8,
   },
   fileItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderRadius: 5,
   },
-  fileLink: {
-    flex: 1,
+  fileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
   },
   fileName: {
     fontSize: 14,
-    color: '#1e90ff',
-    fontWeight: '600',
+    color: '#333',
+    flexShrink: 1,
   },
   actions: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  Ionicons: {
-    marginLeft: 10,
+    gap: 15,
   },
   viewAllButton: {
     backgroundColor: '#e0e0e0',
     paddingVertical: 10,
     borderRadius: 5,
     alignItems: 'center',
-    marginTop: 5,
+    marginTop: 10,
   },
   viewAllText: {
     fontSize: 14,
     color: '#333',
-  },
-  previewModal: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 50,
-  },
-  previewContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    width: '90%',
-    height: '50%',
-  },
-  previewTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  previewText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 15,
-  },
-  previewActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 15,
-  },
-  previewButton: {
-    backgroundColor: '#1e90ff',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-  },
-  previewButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  closeButton: {
-    fontSize: 18,
-    color: '#666',
   },
   placeholder: {
     fontSize: 14,
