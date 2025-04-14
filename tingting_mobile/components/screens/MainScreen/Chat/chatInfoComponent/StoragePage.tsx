@@ -31,11 +31,12 @@ interface Media {
 
 interface Props {
   conversationId: string;
+  userId: string;
   isVisible: boolean;
   onClose: () => void;
 }
 
-const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) => {
+const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClose }) => {
   const [activeTab, setActiveTab] = useState<'images' | 'files' | 'links'>('images');
   const [filterSender, setFilterSender] = useState<string>('Tất cả');
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -139,7 +140,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const handleDeleteSelected = async () => {
     try {
       for (const item of selectedItems) {
-        await Api_chatInfo.deleteChatItem(conversationId, item.id);
+        await Api_chatInfo.deleteMessages(userId, item.id);
       }
 
       setData((prevData) => ({
