@@ -48,6 +48,8 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const [previewFile, setPreviewFile] = useState<Media | null>(null);
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Media[]>([]);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  
 
   // State để lưu dữ liệu từ API
   const [data, setData] = useState<{
@@ -182,6 +184,18 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   };
 
   const downloadMediaFile = async (url: string, filename: string) => {
+    if (isDownloading) {
+      Alert.alert('Thông báo', 'Đang tải file khác, vui lòng đợi.');
+      return;
+    }
+
+    const netInfo = await NetInfo.fetch();
+    if (!netInfo.isConnected) {
+      Alert.alert('Lỗi', 'Không có kết nối mạng. Vui lòng kiểm tra lại.');
+      return;
+    }
+
+    setIsDownloading(true);
     try {
       const extensionMap: { [key: string]: string } = {
         '.jpg': '.jpg',
@@ -195,7 +209,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
 
       let extension = '.bin';
       for (const [key, value] of Object.entries(extensionMap)) {
-        if (url.includes(key)) {
+        if (url.toLowerCase().includes(key)) {
           extension = value;
           break;
         }
@@ -206,10 +220,24 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
         extension = nameParts.length > 1 ? `.${nameParts[nameParts.length - 1]}` : '.bin';
       }
 
-      const sanitizedFilename = filename.includes(extension) ? filename : `${filename}${extension}`;
+      const timestamp = new Date().getTime();
+      const sanitizedFilename = filename.includes(extension)
+        ? `${filename.split(extension)[0]}_${timestamp}${extension}`
+        : `${filename}_${timestamp}${extension}`;
       const fileUri = `${FileSystem.documentDirectory}${sanitizedFilename}`;
 
-      const { uri } = await FileSystem.downloadAsync(url, fileUri);
+      const downloadResumable = FileSystem.createDownloadResumable(
+        url,
+        fileUri,
+        {},
+        (downloadProgress) => {
+          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+          console.log(`Tiến trình tải: ${Math.round(progress * 100)}%`);
+        }
+      );
+
+      const { uri } = await downloadResumable.downloadAsync();
+      if (!uri) throw new Error('Tải xuống thất bại.');
 
       const permission = await MediaLibrary.requestPermissionsAsync();
       if (permission.status !== 'granted') {
@@ -219,10 +247,12 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
 
       const asset = await MediaLibrary.createAssetAsync(uri);
       await MediaLibrary.createAlbumAsync('StoragePage', asset, false);
-      Alert.alert('Thành công', `Đã tải xuống và lưu: ${sanitizedFilename}`);
+      Alert.alert('Thành công', `Đã lưu file: ${sanitizedFilename} vào album StoragePage.`);
     } catch (error) {
       console.error('Lỗi tải xuống:', error);
-      Alert.alert('Lỗi', `Không thể tải xuống file: ${error.message}`);
+      Alert.alert('Lỗi', `Không thể tải file: ${error.message || 'Lỗi không xác định'}`);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
