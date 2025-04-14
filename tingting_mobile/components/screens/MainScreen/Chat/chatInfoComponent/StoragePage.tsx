@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -46,10 +46,11 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const [showEndDatePicker, setShowEndDatePicker] = useState<boolean>(false);
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [previewFile, setPreviewFile] = useState<Media | null>(null);
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Media[]>([]);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const gridVideoRefs = useRef<Record<string, Video>>({});
+  const fullScreenVideoRef = useRef<Video>(null);
 
   const [data, setData] = useState<{
     images: Media[];
@@ -60,14 +61,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     files: [],
     links: [],
   });
-
-  // Xóa thông báo sau 3 giây
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => setNotification(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
 
   // Tải dữ liệu từ API
   useEffect(() => {
@@ -117,7 +110,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
         setData({ images, files, links });
       } catch (error) {
         console.error('Lỗi khi lấy dữ liệu:', error);
-        setNotification({ type: 'error', message: 'Không thể tải dữ liệu.' });
         Alert.alert('Lỗi', 'Không thể tải dữ liệu. Vui lòng thử lại.');
         setData({ images: [], files: [], links: [] });
       }
@@ -125,6 +117,23 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
 
     fetchData();
   }, [conversationId, isVisible]);
+
+  // Quản lý trạng thái video
+  useEffect(() => {
+    if (fullScreenMedia) {
+      // Dừng tất cả video trong grid khi mở fullscreen
+      Object.values(gridVideoRefs.current).forEach((ref) => {
+        ref?.pauseAsync().catch(() => {});
+      });
+    } else {
+      // Dừng video fullscreen khi đóng modal
+      fullScreenVideoRef.current?.pauseAsync().catch(() => {});
+      // Đảm bảo video trong grid không phát
+      Object.values(gridVideoRefs.current).forEach((ref) => {
+        ref?.pauseAsync().catch(() => {});
+      });
+    }
+  }, [fullScreenMedia]);
 
   // Xử lý xóa các mục đã chọn
   const handleDeleteSelected = async () => {
@@ -142,11 +151,9 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
 
       setSelectedItems([]);
       setIsSelecting(false);
-      setNotification({ type: 'success', message: `Đã xóa ${selectedItems.length} mục.` });
       Alert.alert('Thành công', `Đã xóa ${selectedItems.length} mục.`);
     } catch (error) {
       console.error('Lỗi khi xóa mục:', error);
-      setNotification({ type: 'error', message: 'Không thể xóa các mục.' });
       Alert.alert('Lỗi', 'Không thể xóa các mục. Vui lòng thử lại.');
     }
   };
@@ -170,6 +177,11 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
         (!endDate || (item.date && new Date(item.date) <= endDate))
     );
   }, [data, activeTab, filterSender, startDate, endDate]);
+
+  // Lấy danh sách media đã lọc cho tab "images" để sử dụng trong modal
+  const filteredImages = useMemo(() => {
+    return filteredData.filter((item: Media) => item.type === 'image' || item.type === 'video');
+  }, [filteredData]);
 
   const getUniqueSenders = (items: Media[]): string[] => {
     const senders = items.map((item) => item.sender || 'Không xác định');
@@ -199,15 +211,12 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
       const permission = await MediaLibrary.requestPermissionsAsync();
       if (permission.granted) {
         await MediaLibrary.createAssetAsync(uri);
-        setNotification({ type: 'success', message: `${type === 'image' ? 'Ảnh' : 'Video'} đã được lưu vào thư viện!` });
         Alert.alert('Thành công', `${type === 'image' ? 'Ảnh' : 'Video'} đã được lưu vào thư viện!`);
       } else {
-        setNotification({ type: 'error', message: 'Không có quyền truy cập vào thư viện.' });
         Alert.alert('Lỗi', 'Không có quyền truy cập vào thư viện để lưu.');
       }
     } catch (error: any) {
       console.error(`Tải ${type} thất bại:`, error);
-      setNotification({ type: 'error', message: `Không thể tải xuống ${type === 'image' ? 'ảnh' : 'video'}.` });
       Alert.alert('Lỗi', `Không thể tải xuống ${type === 'image' ? 'ảnh' : 'video'}. Vui lòng thử lại.`);
     }
   };
@@ -219,14 +228,12 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
       const fileUri = `${FileSystem.documentDirectory}${fileName}`;
       const { uri } = await FileSystem.downloadAsync(url, fileUri);
 
-      setNotification({ type: 'success', message: `Đã tải xuống "${fileName}".` });
       Alert.alert('Thành công', `Đã tải xuống "${fileName}".`, [
         { text: 'OK' },
         { text: 'Mở tệp', onPress: () => openFile(uri, fileName) },
       ]);
     } catch (error: any) {
       console.error('Lỗi khi tải file:', error);
-      setNotification({ type: 'error', message: `Không thể tải xuống "${name}".` });
       Alert.alert('Lỗi', `Không thể tải xuống "${name}". Vui lòng thử lại.`);
     }
   };
@@ -264,21 +271,30 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
     try {
       if (Platform.OS === 'android') {
         const contentUri = await FileSystem.getContentUriAsync(fileUri);
-        const mimeType = getMimeTypeFromExtension(fileName);
         await Linking.openURL(contentUri);
       } else if (Platform.OS === 'ios') {
         await Linking.openURL(fileUri);
       }
     } catch (error: any) {
       console.error('Lỗi khi mở file:', error);
-      setNotification({ type: 'error', message: `Không thể mở tệp "${fileName}".` });
       Alert.alert('Lỗi', `Không thể mở tệp "${fileName}". Hãy kiểm tra xem bạn đã cài đặt ứng dụng phù hợp để mở tệp này chưa.`);
     }
   };
 
   const handleSwipe = (index: number) => {
     setCurrentIndex(index);
-    setFullScreenMedia(data.images[index]);
+    setFullScreenMedia(filteredImages[index]);
+    setVideoError(null);
+    // Dừng video hiện tại trước khi chuyển slide
+    fullScreenVideoRef.current?.pauseAsync().catch(() => {});
+  };
+
+  const openFullScreenMedia = (item: Media) => {
+    const index = filteredImages.findIndex((media) => media.id === item.id);
+    if (index !== -1) {
+      setCurrentIndex(index);
+      setFullScreenMedia(item);
+    }
   };
 
   const DateFilter = () => (
@@ -360,11 +376,9 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
   const DateSection = ({
     date,
     data: dateData,
-    allImages,
   }: {
     date: string;
     data: Media[];
-    allImages: Media[];
   }) => (
     <View style={styles.dateSection}>
       <Text style={styles.dateSectionTitle}>
@@ -387,9 +401,9 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
               isSelecting
                 ? toggleSelectItem(item)
                 : activeTab === 'images'
-                ? setFullScreenMedia(item)
+                ? openFullScreenMedia(item)
                 : activeTab === 'files'
-                ? setPreviewFile(item)
+                ? downloadMediaFile(item.linkURL, item.name)
                 : Linking.openURL(item.linkURL).catch(() =>
                     Alert.alert('Lỗi', 'Không thể mở liên kết.')
                   )
@@ -401,17 +415,16 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                   <Image source={{ uri: item.linkURL }} style={styles.mediaItem} />
                 ) : (
                   <View style={styles.videoThumbnailContainer}>
-                    <Image
+                    <Video
+                      ref={(ref) => (gridVideoRefs.current[item.id] = ref)}
                       source={{ uri: item.linkURL }}
                       style={styles.mediaItem}
-                      onError={() => (
-                        <Image
-                          source={{
-                            uri: 'https://placehold.co/80x80/000000/FFFFFF/png?text=Video',
-                          }}
-                          style={styles.mediaItem}
-                        />
-                      )}
+                      useNativeControls={false}
+                      isMuted={true}
+                      resizeMode="cover"
+                      isLooping
+                      shouldPlay={false} // Không phát video trong grid
+                      onError={(error) => console.error('Lỗi tải video nhỏ:', error)}
                     />
                     <View style={styles.playIconOverlay}>
                       <Ionicons
@@ -492,17 +505,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           </View>
         </View>
 
-        {notification && (
-          <Text
-            style={[
-              styles.notificationText,
-              { color: notification.type === 'success' ? 'green' : 'red' },
-            ]}
-          >
-            {notification.message}
-          </Text>
-        )}
-
         <View style={styles.tabContainer}>
           {(['images', 'files', 'links'] as const).map((tab) => (
             <TouchableOpacity
@@ -525,7 +527,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           isVisible={!!fullScreenMedia}
           onBackdropPress={() => {
             setFullScreenMedia(null);
-            setCurrentIndex(0);
+            setVideoError(null);
           }}
           style={styles.modal}
           useNativeDriver
@@ -533,12 +535,13 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
           {fullScreenMedia && (
             <View style={styles.fullScreenContainer}>
               <Swiper
+                key={currentIndex}
                 index={currentIndex}
                 onIndexChanged={handleSwipe}
                 loop={false}
                 showsPagination={false}
               >
-                {data.images.map((item) => (
+                {filteredImages.map((item) => (
                   <View key={item.id} style={styles.swiperSlide}>
                     {item.type === 'image' ? (
                       <Image
@@ -547,20 +550,35 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                         resizeMode="contain"
                       />
                     ) : (
-                      <Video
-                        source={{ uri: item.linkURL }}
-                        style={styles.fullScreenMedia}
-                        useNativeControls
-                        resizeMode="contain"
-                        isLooping
-                        shouldPlay={currentIndex === data.images.findIndex((img) => img.id === item.id)}
-                        onPlaybackStatusUpdate={(status) => {
-                          if (!status.isLoaded && status.error) {
-                            console.log('Video Error (Fullscreen):', status.error);
-                          }
-                        }}
-                        onError={(error: any) => console.log('Video Error (Fullscreen):', error)}
-                      />
+                      <>
+                        {videoError ? (
+                          <View style={styles.videoErrorContainer}>
+                            <Text style={styles.videoErrorText}>
+                              Không thể tải video: {videoError}
+                            </Text>
+                          </View>
+                        ) : (
+                          <Video
+                            ref={fullScreenVideoRef}
+                            source={{ uri: item.linkURL }}
+                            style={styles.fullScreenVideo}
+                            useNativeControls={false}
+                            resizeMode="contain"
+                            isLooping
+                            shouldPlay={currentIndex === filteredImages.findIndex((img) => img.id === item.id)}
+                            onPlaybackStatusUpdate={(status) => {
+                              if (!status.isLoaded && status.error) {
+                                setVideoError('Lỗi tải video.');
+                                console.log('Video Error (Fullscreen):', item.linkURL, status.error);
+                              }
+                            }}
+                            onError={(error: any) => {
+                              setVideoError('Không thể phát video.');
+                              console.log('Video Error (Fullscreen):', item.linkURL, error);
+                            }}
+                          />
+                        )}
+                      </>
                     )}
                     <Text style={styles.mediaName}>{item.name}</Text>
                   </View>
@@ -571,7 +589,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                   style={styles.iconButton}
                   onPress={() => {
                     setFullScreenMedia(null);
-                    setCurrentIndex(0);
+                    setVideoError(null);
                   }}
                 >
                   <Ionicons name="close" size={24} color="#fff" />
@@ -585,36 +603,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                   <Ionicons name="download-outline" size={24} color="#fff" />
                 </TouchableOpacity>
               </View>
-            </View>
-          )}
-        </Modal>
-
-        <Modal
-          isVisible={!!previewFile}
-          onBackdropPress={() => setPreviewFile(null)}
-          style={styles.modal}
-          useNativeDriver
-        >
-          {previewFile && (
-            <View style={styles.previewContainer}>
-              <View style={styles.previewHeader}>
-                <Text style={styles.previewTitle}>Xem nội dung</Text>
-                <TouchableOpacity onPress={() => setPreviewFile(null)}>
-                  <Ionicons name="close-outline" size={24} color="#666" />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.previewContent}>
-                <Text style={styles.previewPlaceholder}>
-                  Xem trước không được hỗ trợ đầy đủ trên thiết bị di động. Vui lòng tải xuống để xem.
-                </Text>
-                <Text style={styles.previewUrl}>{previewFile.linkURL}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.previewDownloadButton}
-                onPress={() => downloadMediaFile(previewFile.linkURL, previewFile.name)}
-              >
-                <Text style={styles.downloadText}>Tải xuống</Text>
-              </TouchableOpacity>
             </View>
           )}
         </Modal>
@@ -649,7 +637,6 @@ const StoragePage: React.FC<Props> = ({ conversationId, isVisible, onClose }) =>
                 key={date}
                 date={date}
                 data={filteredData.filter((item) => (item.date || 'Không xác định') === date)}
-                allImages={data.images}
               />
             ))}
         </ScrollView>
@@ -694,11 +681,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  notificationText: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
   tabContainer: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -725,6 +707,8 @@ const styles = StyleSheet.create({
   fullScreenContainer: {
     flex: 1,
     backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   swiperSlide: {
     flex: 1,
@@ -734,6 +718,21 @@ const styles = StyleSheet.create({
   fullScreenMedia: {
     width: '100%',
     height: '90%',
+  },
+  fullScreenVideo: {
+    width: '100%',
+    height: '90%',
+    maxHeight: '100%',
+  },
+  videoErrorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoErrorText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
   },
   topBar: {
     position: 'absolute',
@@ -746,7 +745,7 @@ const styles = StyleSheet.create({
     zIndex: 60,
   },
   iconButton: {
-    backgroundColor: '#4B5563',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 20,
     padding: 8,
   },
@@ -755,50 +754,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
     textAlign: 'center',
-  },
-  previewContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-  },
-  previewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  previewTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  previewContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  previewPlaceholder: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  previewUrl: {
-    fontSize: 14,
-    color: '#3B82F6',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  previewDownloadButton: {
-    alignSelf: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: '#3B82F6',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 5,
     borderRadius: 5,
-    marginBottom: 20,
-  },
-  downloadText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
   },
   filterContainer: {
     flexDirection: 'row',

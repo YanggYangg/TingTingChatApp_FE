@@ -6,7 +6,7 @@ import {Api_chatInfo} from '../../../../../apis/Api_chatInfo';
 
 interface Link {
   title: string;
-  url: string;
+  linkURL: string;
   date: string;
   sender: string;
 }
@@ -32,7 +32,7 @@ const GroupLinks: React.FC<Props> = ({ conversationId }) => {
             .filter((item) => item?.messageType === "link")
             .map((item) => ({
               title: item?.content || "Không có tiêu đề",
-              url: item?.linkURL || "#",
+              linkURL: item?.linkURL || "#",
               date: item?.createdAt?.split("T")[0] || "Không có ngày",
               sender: item?.userId || "Không rõ người gửi",
             }));
@@ -62,13 +62,13 @@ const GroupLinks: React.FC<Props> = ({ conversationId }) => {
     fetchLinks();
   }, [conversationId]);
 
-  const handleOpenLink = (url: string) => {
-    if (!url || url === "#") {
+  const handleOpenLink = (linkURL: string) => {
+    if (!linkURL || linkURL === "#") {
       Alert.alert("Lỗi", "Link không hợp lệ.");
       return;
     }
 
-    Linking.openURL(url).catch((err) =>
+    Linking.openURL(linkURL).catch((err) =>
       Alert.alert("Lỗi", "Không thể mở link: " + err.message)
     );
   };
@@ -82,8 +82,8 @@ const GroupLinks: React.FC<Props> = ({ conversationId }) => {
             <View key={index} style={styles.linkItem}>
               <View>
                 <Text style={styles.linkTitle}>{link.title}</Text>
-                <TouchableOpacity onPress={() => handleOpenLink(link.url)}>
-                  <Text style={styles.linkUrl}>{link.url}</Text>
+                <TouchableOpacity onPress={() => handleOpenLink(link.linkURL)}>
+                  <Text style={styles.linkUrl}>{link.linkURL}</Text>
                 </TouchableOpacity>
               </View>
               <Ionicons name="link" size={20} color="#666" />

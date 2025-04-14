@@ -10,7 +10,7 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 
 interface Media {
-  src: string;
+  linkURL: string;
   name: string;
   type: string;
 }
@@ -45,7 +45,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
 
         if (Array.isArray(mediaData)) {
           const filteredMedia = mediaData.map((item) => ({
-            src: item?.linkURL || '#',
+            linkURL: item?.linkURL || '#',
             name: item?.content || 'Không có tên',
             type: item?.messageType || 'image',
           }));
@@ -100,7 +100,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
 
   useEffect(() => {
     if (fullScreenMedia) {
-      const index = media.findIndex((item) => item.src === fullScreenMedia.src);
+      const index = media.findIndex((item) => item.linkURL === fullScreenMedia.linkURL);
       if (index !== -1) {
         setCurrentIndex(index);
         setIsPlaying(false); // Reset trạng thái phát khi chuyển slide
@@ -160,7 +160,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
               <TouchableOpacity key={index} onPress={() => setFullScreenMedia(item)}>
                 {item.type === 'image' ? (
                   <Image
-                    source={{ uri: item.src }}
+                    source={{ uri: item.linkURL }}
                     style={styles.mediaItem}
                     onError={(error) => console.error('Lỗi tải ảnh nhỏ:', error)}
                   />
@@ -168,7 +168,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
                   <View style={styles.videoContainer}>
                     <Video
                       ref={(ref) => (gridVideoRefs.current[index] = ref)}
-                      source={{ uri: item.src }}
+                      source={{ uri: item.linkURL }}
                       style={styles.mediaItem}
                       useNativeControls={false}
                       isMuted={true}
@@ -224,7 +224,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.downloadButton}
-              onPress={() => downloadMedia(fullScreenMedia.src, fullScreenMedia.type)}
+              onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type)}
             >
               <Ionicons name="download-outline" size={24} color="#fff" />
             </TouchableOpacity>
@@ -247,7 +247,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
                   )}
                   {item.type === 'image' ? (
                     <Image
-                      source={{ uri: item.src }}
+                      source={{ uri: item.linkURL }}
                       style={styles.fullScreenMedia}
                       resizeMode="contain"
                       onLoadStart={handleMediaLoadStart}
@@ -258,7 +258,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
                     <View style={styles.fullScreenVideoContainer}>
                       <Video
                         ref={index === currentIndex ? videoRef : undefined}
-                        source={{ uri: item.src }}
+                        source={{ uri: item.linkURL }}
                         style={styles.fullScreenVideo}
                         useNativeControls={false} // Tự quản lý controls
                         resizeMode="contain"
