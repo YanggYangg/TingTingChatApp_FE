@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, Alert } from 'react-native';
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from '@expo/vector-icons';
+import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 
 interface Participant {
   userId: string;
@@ -26,75 +27,128 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
   const [pin, setPin] = useState('');
   const [showPinInput, setShowPinInput] = useState(false);
   const [isGroup, setIsGroup] = useState(false);
-  const mockChatInfo = {
-    _id: "67e2d6bef1ea6ac96f10bf91",
-    isGroup: true,
-    participants: [
-      {
-        userId: "6601a1b2c3d4e5f678901238",
-        name: "Nguyễn Văn A",
-        avatar: "https://example.com/avatar1.jpg",
-        isHidden: false,
-      },
-      {
-        userId: "6601a1b2c3d4e5f678901239",
-        name: "Trần Thị B",
-        avatar: "https://example.com/avatar2.jpg",
-        isHidden: true,
-      },
-    ],
-  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Lấy thông tin cuộc trò chuyện để xác định trạng thái isGroup và isHidden
   useEffect(() => {
-    const fetchChatInfo = () => {
-      const response = mockChatInfo;
-      setIsGroup(response.isGroup);
-      const participant = response.participants.find((p) => p.userId === userId);
-      setIsHidden(participant ? participant.isHidden : false);
+    const fetchChatInfo = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await Api_chatInfo.getChatInfo(conversationId);
+
+        // Kiểm tra dữ liệu trả về từ API
+        if (!response || !response._id) {
+          throw new Error('Dữ liệu trả về không hợp lệ.');
+        }
+
+        setIsGroup(response.isGroup);
+        const participant = response.participants.find((p: Participant) => p.userId === userId);
+        setIsHidden(participant ? participant.isHidden : false);
+      } catch (error) {
+        console.error('Lỗi khi lấy thông tin cuộc trò chuyện:', error);
+        setError('Không thể tải thông tin bảo mật. Vui lòng thử lại.');
+        Alert.alert('Lỗi', 'Không thể tải thông tin bảo mật. Vui lòng thử lại.');
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchChatInfo();
+
+    if (conversationId && userId) {
+      fetchChatInfo();
+    }
   }, [conversationId, userId]);
 
+  // Xử lý bật/tắt ẩn trò chuyện
   const handleToggle = async (checked: boolean) => {
     if (checked && !isHidden) {
-      setShowPinInput(true);
+      setShowPinInput(true); // Hiển thị form PIN khi ẩn lần đầu
     } else {
-      await handleHideChat(checked, null);
+      await handleHideChat(checked, null); // Hiện lại không cần PIN
     }
   };
 
+  // Gọi API để ẩn/hiện trò chuyện
   const handleHideChat = async (hide: boolean, pin: string | null) => {
-    setIsHidden(hide);
-    setShowPinInput(false);
-    setPin('');
-    Alert.alert("Thông báo", hide ? "Đã ẩn trò chuyện!" : "Đã hiện trò chuyện!");
-  };
-
-  const handleSubmitPin = () => {
-    if (pin.length === 4) {
-      handleHideChat(true, pin);
-    } else {
-      Alert.alert("Lỗi", "Mã PIN phải có 4 chữ số!");
+    console.log('Ân/hiện trò chuyện:với userId:', userId, 'và pin:', pin);
+    try {
+      await Api_chatInfo.hideChat(conversationId, { userId, isHidden: hide, pin });
+      setIsHidden(hide);
+      setShowPinInput(false);
+      setPin('');
+      Alert.alert('Thành công', hide ? 'Đã ẩn trò chuyện!' : 'Đã hiện trò chuyện!');
+    } catch (error) {
+      console.error('Lỗi khi ẩn/hiện trò chuyện:', error);
+      Alert.alert('Lỗi', 'Không thể ẩn/hiện trò chuyện. Vui lòng thử lại.');
     }
   };
 
-  const handleDeleteHistory = async () => {
-    Alert.alert("Thông báo", "Đã ẩn lịch sử trò chuyện khỏi tài khoản của bạn!");
+  // Xử lý nhập mã PIN và xác nhận
+  const handleSubmitPin = () => {
+    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+      Alert.alert('Lỗi', 'Mã PIN phải có đúng 4 chữ số!');
+      return;
+    }
+    handleHideChat(true, pin);
   };
 
+  // Xóa lịch sử trò chuyện
+  const handleDeleteHistory = async () => {
+    try {
+      await Api_chatInfo.deleteHistory(conversationId, { userId });
+      Alert.alert('Thành công', 'Đã xóa lịch sử trò chuyện!');
+    } catch (error) {
+      console.error('Lỗi khi xóa lịch sử trò chuyện:', error);
+      Alert.alert('Lỗi', 'Không thể xóa lịch sử trò chuyện. Vui lòng thử lại.');
+    }
+  };
+
+  // Rời nhóm
   const handleLeaveGroup = async () => {
     if (!isGroup) return;
 
     if (!userId) {
-      Alert.alert("Lỗi", "userId không tồn tại!");
+      console.error('userId không tồn tại!');
+      Alert.alert('Lỗi', 'Không xác định được người dùng.');
       return;
     }
 
-    setChatInfo((prevChatInfo) => ({
-      ...prevChatInfo!,
-      participants: prevChatInfo?.participants?.filter((p) => p.userId !== userId) || [],
-    }));
-    Alert.alert("Thông báo", "Bạn đã rời khỏi nhóm!");
+    try {
+      await Api_chatInfo.removeParticipant(conversationId, { userId });
+      setChatInfo((prevChatInfo) => ({
+        ...prevChatInfo,
+        participants: prevChatInfo?.participants?.filter((p) => p.userId !== userId) || [],
+      }));
+      Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
+    } catch (error) {
+      console.error('Lỗi khi rời nhóm:', error);
+      Alert.alert('Lỗi', 'Không thể rời nhóm. Vui lòng thử lại.');
+    }
   };
+
+  // Hiển thị khi đang tải
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Thiết lập bảo mật</Text>
+        <Text style={styles.loadingText}>Đang tải...</Text>
+      </View>
+    );
+  }
+
+  // Hiển thị khi có lỗi
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Thiết lập bảo mật</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={() => useEffect(() => {}, [])}>
+          <Text style={styles.retryText}>Thử lại</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -121,6 +175,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
             secureTextEntry
             placeholder="****"
             textAlign="center"
+            keyboardType="numeric"
           />
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmitPin}>
             <Text style={styles.submitButtonText}>Xác nhận</Text>
@@ -129,8 +184,8 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       )}
 
       <TouchableOpacity style={styles.actionButton} onPress={handleDeleteHistory}>
-      <Ionicons name="trash" size={16} color="#ff0000" style={styles.actionIcon} />
-      <Text style={styles.actionText}>Xóa lịch sử trò chuyện</Text>
+        <Ionicons name="trash" size={16} color="#ff0000" style={styles.actionIcon} />
+        <Text style={styles.actionText}>Xóa lịch sử trò chuyện</Text>
       </TouchableOpacity>
 
       {isGroup && (
@@ -202,8 +257,23 @@ const styles = StyleSheet.create({
   },
   actionIcon: {
     marginRight: 8,
-  }
-  
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#ff0000',
+    textAlign: 'center',
+  },
+  retryText: {
+    fontSize: 14,
+    color: '#1e90ff',
+    textAlign: 'center',
+    marginTop: 10,
+  },
 });
 
 export default SecuritySettings;
