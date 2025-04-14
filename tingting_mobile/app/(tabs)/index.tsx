@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 // Main Screens
 import ChatScreen from "../../components/screens/MainScreen/ChatScreen"
 import DiaryScreen from "@/components/screens/MainScreen/DiaryScreen"
-import ProfileScreen from "@/components/screens/MainScreen/ProfileScreen"
+import ProfileScreen from "@/components/screens/MainScreen/Profile/ProfileScreen"
 import FooterTabBar from "@/components/navigate/FooterTabBar"
 import MainLayout from "@/components/screens/MainScreen/MainLayout"
 import MessageScreen from "@/components/screens/MainScreen/Chat/MessageScreen"
@@ -14,6 +14,9 @@ import FriendRequestsScreen from "@/components/screens/MainScreen/Contact/Friend
 import SentRequestsScreen from "@/components/screens/MainScreen/Contact/SentRequestsScreen"
 import GroupsScreen from "@/components/screens/MainScreen/Contact/GroupsScreen"
 import OAScreen from "@/components/screens/MainScreen/Contact/OAScreen"
+import PersonalInfoScreen from "@/components/screens/MainScreen/Profile/PersonalInfoScreen"
+import EditPersonalInfoScreen from "@/components/screens/MainScreen/Profile/EditPersonalInfoScreen"
+
 
 type RootStackParamList = {
   Main: undefined
@@ -29,6 +32,7 @@ type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>()
 const Tab = createBottomTabNavigator()
 const ContactStack = createNativeStackNavigator()
+const ProfileStack = createNativeStackNavigator()
 
 // Stack Navigator cho phần Contact/Friends
 function ContactStackNavigator() {
@@ -46,6 +50,23 @@ function ContactStackNavigator() {
       <ContactStack.Screen name="GroupsTab" component={GroupsScreen} />
       <ContactStack.Screen name="OATab" component={OAScreen} />
     </ContactStack.Navigator>
+  )
+}
+
+// Stack Navigator cho phần Profile/Friends
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: "none", // Disable animations
+      }}
+    >
+      <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} />
+      <ProfileStack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
+      <ProfileStack.Screen name="EditPersonalInfo" component={EditPersonalInfoScreen} />
+      
+    </ProfileStack.Navigator>
   )
 }
 
@@ -79,11 +100,11 @@ function MainTabNavigator() {
           </MainLayout>
         )}
       </Tab.Screen>
-      <Tab.Screen name="ProfileScreen" options={{ tabBarLabel: "Cá nhân" }}>
+      <Tab.Screen name="ProfileTab" options={{ tabBarLabel: "Cá nhân" }}>
         {() => (
-          <MainLayout>
-            <ProfileScreen />
-          </MainLayout>
+          
+          <ProfileStackNavigator />
+          
         )}
       </Tab.Screen>
     </Tab.Navigator>
