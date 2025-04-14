@@ -11,7 +11,7 @@ import MuteNotificationModal from './chatInfoComponent/MuteNotificationModal';
 import AddMemberModal from './chatInfoComponent/AddMemberModal';
 import EditNameModal from './chatInfoComponent/EditNameModal';
 import GroupActionButton from './chatInfoComponent/GroupActionButton';
-import { Api_chatInfo } from '../../../../apis/Api_chatInfo';
+import {Api_chatInfo} from '../../../../apis/Api_chatInfo';
 
 interface Participant {
   userId: string;
@@ -22,7 +22,6 @@ interface Participant {
 }
 
 interface ChatInfoData {
-  _id: string;
   isGroup: boolean;
   name: string;
   imageGroup: string;
@@ -39,29 +38,19 @@ const ChatInfo: React.FC = () => {
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
   const conversationId = "67e2d6bef1ea6ac96f10bf91";
   const userId = "6601a1b2c3d4e5f678901238";
 
-  // Lấy thông tin chat khi component mount
   useEffect(() => {
     const fetchChatInfo = async () => {
       try {
         setLoading(true);
-        setError(null);
         const response = await Api_chatInfo.getChatInfo(conversationId);
         console.log("Thông tin chat nhận được từ API:", response);
-
-        // Kiểm tra dữ liệu trả về từ API
-        if (!response || !response._id) {
-          throw new Error('Dữ liệu trả về không hợp lệ.');
-        }
-
         setChatInfo(response);
 
-        // Kiểm tra trạng thái mute của người dùng hiện tại
         const participant = response.participants.find((p: Participant) => p.userId === userId);
         if (participant) {
           setIsMuted(!!participant.mute);
@@ -73,7 +62,6 @@ const ChatInfo: React.FC = () => {
         }
       } catch (error) {
         console.error("Lỗi khi lấy thông tin chat:", error);
-        setError('Không thể tải thông tin chat.');
         Alert.alert('Lỗi', 'Không thể tải thông tin chat. Vui lòng thử lại.');
       } finally {
         setLoading(false);
@@ -85,89 +73,50 @@ const ChatInfo: React.FC = () => {
     }
   }, [conversationId, userId]);
 
-  // Callback khi thêm thành viên thành công
-  const handleMemberAdded = async () => {
-    try {
-      const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId);
-      setChatInfo(updatedChatInfo);
-    } catch (error) {
-      console.error("Lỗi khi cập nhật chatInfo sau khi thêm thành viên:", error);
-      Alert.alert('Lỗi', 'Không thể cập nhật danh sách thành viên. Vui lòng thử lại.');
-    }
+  const handleMemberAdded = () => {
+    Alert.alert("Thông báo", "Thêm thành viên thành công!");
   };
 
-  // Xử lý bật/tắt thông báo
-  const handleMuteNotification = async () => {
+  const handleMuteNotification = () => {
     if (isMuted) {
-      try {
-        await Api_chatInfo.updateNotification(conversationId, { userId, mute: null });
-        setIsMuted(false);
-        Alert.alert('Thông báo', 'Đã bật thông báo!');
-      } catch (error) {
-        console.error("Lỗi khi bật thông báo:", error);
-        Alert.alert('Lỗi', 'Không thể bật thông báo. Vui lòng thử lại.');
-      }
+      setIsMuted(false);
+      Alert.alert("Thông báo", "Đã bật thông báo!");
     } else {
       setIsMuteModalOpen(true);
     }
   };
 
-  // Callback khi tắt thông báo thành công
   const handleMuteSuccess = (muted: boolean) => {
     setIsMuted(muted);
-    Alert.alert('Thông báo', muted ? 'Đã tắt thông báo!' : 'Đã bật thông báo!');
   };
 
-  // Xử lý ghim/bỏ ghim cuộc trò chuyện
-  const handlePinChat = async () => {
+  const handlePinChat = () => {
     if (!chatInfo) return;
 
-    try {
-      const newIsPinned = !chatInfo.isPinned;
-      await Api_chatInfo.pinChat(conversationId, { isPinned: newIsPinned, userId });
-      setChatInfo({ ...chatInfo, isPinned: newIsPinned });
-      Alert.alert('Thông báo', newIsPinned ? 'Đã ghim cuộc trò chuyện!' : 'Đã bỏ ghim cuộc trò chuyện!');
-    } catch (error) {
-      console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
-      Alert.alert('Lỗi', 'Không thể ghim/bỏ ghim cuộc trò chuyện. Vui lòng thử lại.');
-    }
+    const newIsPinned = !chatInfo.isPinned;
+    setChatInfo({ ...chatInfo, isPinned: newIsPinned });
+    Alert.alert("Thông báo", newIsPinned ? "Đã ghim cuộc trò chuyện!" : "Đã bỏ ghim cuộc trò chuyện!");
   };
 
-  // Sao chép link nhóm
   const copyToClipboard = () => {
-    if (chatInfo?.linkGroup) {
-      navigator.clipboard.writeText(chatInfo.linkGroup);
-      Alert.alert('Thông báo', 'Đã sao chép link nhóm!');
-    } else {
-      Alert.alert('Lỗi', 'Không có link nhóm để sao chép.');
-    }
+    Alert.alert("Thông báo", "Đã sao chép link nhóm!");
   };
 
-  // Mở modal thêm thành viên
   const handleAddMember = () => {
     setIsAddModalOpen(true);
   };
 
-  // Xử lý chỉnh sửa tên nhóm
   const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
   const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);
 
-  const handleSaveChatName = async (newName: string) => {
+  const handleSaveChatName = (newName: string) => {
     if (!chatInfo || !newName.trim()) return;
 
-    try {
-      await Api_chatInfo.updateChatName(conversationId, newName.trim());
-      setChatInfo({ ...chatInfo, name: newName.trim() });
-      Alert.alert('Thông báo', 'Cập nhật tên thành công!');
-    } catch (error) {
-      console.error('Lỗi khi cập nhật tên:', error);
-      Alert.alert('Lỗi', 'Cập nhật tên thất bại!');
-    } finally {
-      handleCloseEditNameModal();
-    }
+    setChatInfo({ ...chatInfo, name: newName.trim() });
+    Alert.alert("Thông báo", "Cập nhật tên thành công!");
+    handleCloseEditNameModal();
   };
 
-  // Hiển thị khi đang tải
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -176,14 +125,10 @@ const ChatInfo: React.FC = () => {
     );
   }
 
-  // Hiển thị khi có lỗi
-  if (error || !chatInfo) {
+  if (!chatInfo) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.textRed}>{error || 'Không thể tải thông tin chat.'}</Text>
-        <TouchableOpacity onPress={() => useEffect(() => {}, [])}>
-          <Text style={styles.retryText}>Thử lại</Text>
-        </TouchableOpacity>
+        <Text style={styles.textRed}>Không thể tải thông tin chat.</Text>
       </View>
     );
   }
@@ -191,8 +136,11 @@ const ChatInfo: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        {/* <TouchableOpacity style={styles.iconHeader} onPress={() => navigation.goBack()}>
+          <Icon name="arrow-left" size={16} color="#000" />
+        </TouchableOpacity> */}
         <Text style={styles.headerTitle}>
-          {chatInfo.isGroup ? 'Thông tin nhóm' : 'Thông tin hội thoại'}
+          {chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại"}
         </Text>
       </View>
 
@@ -200,13 +148,14 @@ const ChatInfo: React.FC = () => {
         <View style={styles.groupInfo}>
           <Image
             source={{
-              uri: chatInfo.imageGroup?.trim() || 'https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg',
+              uri: chatInfo?.imageGroup?.trim()
+                ? chatInfo.imageGroup
+                : "https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg",
             }}
             style={styles.groupImage}
-            onError={() => console.log('Lỗi tải ảnh nhóm')}
           />
           <View style={styles.groupNameContainer}>
-            <Text style={styles.groupName}>{chatInfo.name || 'Không có tên'}</Text>
+            <Text style={styles.groupName}>{chatInfo?.name || "Không có tên"}</Text>
             <TouchableOpacity onPress={handleOpenEditNameModal}>
               <Icon name="edit" size={16} color="#666" style={styles.editIcon} />
             </TouchableOpacity>
@@ -216,27 +165,27 @@ const ChatInfo: React.FC = () => {
         <View style={styles.actionButtons}>
           <GroupActionButton
             icon={isMuted ? 'mute' : 'unmute'}
-            text={isMuted ? 'Bật thông báo' : 'Tắt thông báo'}
+            text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
             onClick={handleMuteNotification}
-            isActive={isMuted}
+            isActive={isMuted} // Blue when muted
           />
           <GroupActionButton
-            icon={chatInfo.isPinned ? 'pin' : 'unpin'}
-            text={chatInfo.isPinned ? 'Bỏ ghim trò chuyện' : 'Ghim cuộc trò chuyện'}
+            icon={chatInfo?.isPinned ? 'pin' : 'unpin'}
+            text={chatInfo?.isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
             onClick={handlePinChat}
-            isActive={chatInfo.isPinned}
+            isActive={chatInfo?.isPinned} // Blue when unpinned
           />
           <GroupActionButton
             icon="add"
-            text={chatInfo.isGroup ? 'Thêm thành viên' : 'Tạo nhóm trò chuyện'}
+            text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
             onClick={handleAddMember}
-            isActive={false}
+            isActive={false} // No blue background for this button
           />
         </View>
 
         <GroupMemberList chatInfo={chatInfo} conversationId={conversationId} />
 
-        {chatInfo.linkGroup && (
+        {chatInfo?.linkGroup && (
           <View style={styles.linkContainer}>
             <Text style={styles.linkTitle}>Link tham gia nhóm</Text>
             <Text style={styles.linkText}>{chatInfo.linkGroup}</Text>
@@ -273,7 +222,7 @@ const ChatInfo: React.FC = () => {
         isOpen={isEditNameModalOpen}
         onClose={handleCloseEditNameModal}
         onSave={handleSaveChatName}
-        initialName={chatInfo.name}
+        initialName={chatInfo?.name}
       />
     </View>
   );
@@ -288,6 +237,14 @@ const styles = StyleSheet.create({
   header: {
     paddingVertical: 10,
     alignItems: 'center',
+  },
+  iconHeader: {
+    position: 'absolute',
+    left: 10,
+    top: 10,
+    zIndex: 1,
+    padding: 10,
+    marginRight: 10,
   },
   headerTitle: {
     fontSize: 20,
@@ -351,11 +308,6 @@ const styles = StyleSheet.create({
   },
   textRed: {
     color: '#ff0000',
-  },
-  retryText: {
-    color: '#1e90ff',
-    marginTop: 10,
-    fontSize: 16,
   },
 });
 

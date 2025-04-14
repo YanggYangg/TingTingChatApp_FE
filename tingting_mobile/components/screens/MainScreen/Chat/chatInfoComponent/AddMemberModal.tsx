@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet } from 'react-native';
-import Modal from 'react-native-modal';
-import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  StyleSheet,
+} from "react-native";
+import Modal from "react-native-modal";
 
 interface Member {
   id: string;
@@ -14,8 +21,29 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   conversationId: string;
-  onMemberAdded: () => void; // Sửa để không truyền member trực tiếp mà gọi callback
+  onMemberAdded: (member: Member) => void;
 }
+
+const MOCK_MEMBERS: Member[] = [
+  {
+    id: "1",
+    firstName: "Hưng",
+    lastName: "Nguyễn",
+    avatar: "https://randomuser.me/api/portraits/men/1.jpg",
+  },
+  {
+    id: "2",
+    firstName: "Linh",
+    lastName: "Trần",
+    avatar: "https://randomuser.me/api/portraits/women/2.jpg",
+  },
+  {
+    id: "3",
+    firstName: "Minh",
+    lastName: "Phạm",
+    avatar: "https://randomuser.me/api/portraits/men/3.jpg",
+  },
+];
 
 const AddMemberModal: React.FC<Props> = ({
   isOpen,
@@ -23,46 +51,32 @@ const AddMemberModal: React.FC<Props> = ({
   conversationId,
   onMemberAdded,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [availableMembers, setAvailableMembers] = useState<Member[]>([]);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState("");
+  const [error, setError] = useState("");
 
-  // Lấy danh sách thành viên khả dụng
   useEffect(() => {
-    const fetchAvailableMembers = async () => {
-      if (!conversationId || !isOpen) return;
-
-      try {
-        setError('');
-        const response = await Api_chatInfo.getAvailableMembers(conversationId);
-        const members = Array.isArray(response) ? response : response?.data?.members || [];
-        setAvailableMembers(members);
-      } catch (error) {
-        console.error('Lỗi khi lấy thành viên khả dụng:', error);
-        setError('Không thể tải danh sách thành viên.');
-      }
-    };
-
-    fetchAvailableMembers();
-  }, [isOpen, conversationId]);
+    if (isOpen) {
+      // Khi mở modal thì set lại danh sách member
+      setAvailableMembers(MOCK_MEMBERS);
+      setSearchTerm("");
+      setSuccessMessage("");
+      setError("");
+    }
+  }, [isOpen]);
 
   const filteredMembers = availableMembers.filter((member) => {
     const fullName = `${member.lastName} ${member.firstName}`.toLowerCase();
     return fullName.includes(searchTerm.toLowerCase());
   });
 
-  const handleAdd = async (member: Member) => {
-    try {
-      // Giả định API để thêm thành viên
-      await Api_chatInfo.addParticipant(conversationId, { memberId: member.id });
-      setAvailableMembers((prev) => prev.filter((m) => m.id !== member.id));
-      setSuccessMessage('Thêm thành viên thành công!');
-      onMemberAdded(); // Gọi callback để cập nhật danh sách thành viên
-    } catch (error) {
-      console.error('Lỗi khi thêm thành viên:', error);
-      setError('Không thể thêm thành viên. Vui lòng thử lại.');
-    }
+  const handleAdd = (member: Member) => {
+    setAvailableMembers((prev) =>
+      prev.filter((m) => m.id !== member.id)
+    );
+    setSuccessMessage("Thêm thành viên thành công!");
+    onMemberAdded(member);
   };
 
   return (
@@ -111,29 +125,29 @@ const AddMemberModal: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 20,
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
     marginBottom: 10,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
   },
   memberItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderColor: '#eee',
+    borderColor: "#eee",
   },
   avatar: {
     width: 36,
@@ -146,36 +160,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   addButton: {
-    backgroundColor: '#1e90ff',
+    backgroundColor: "#1e90ff",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 5,
   },
   addButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 12,
   },
   cancelButton: {
     marginTop: 15,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelText: {
-    color: '#ff0000',
+    color: "#ff0000",
     fontSize: 16,
   },
   success: {
-    color: 'green',
-    textAlign: 'center',
+    color: "green",
+    textAlign: "center",
     marginBottom: 10,
   },
   error: {
-    color: 'red',
-    textAlign: 'center',
+    color: "red",
+    textAlign: "center",
     marginBottom: 10,
   },
   noResult: {
-    textAlign: 'center',
-    color: '#999',
+    textAlign: "center",
+    color: "#999",
     marginVertical: 20,
   },
 });

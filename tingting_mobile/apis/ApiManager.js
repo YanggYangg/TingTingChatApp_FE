@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://172.16.1.98:5000";
+const BASE_URL = "http://localhost:5000";
 
 const axiosInstance = axios.create({
     baseURL: BASE_URL,
@@ -9,7 +9,7 @@ const axiosInstance = axios.create({
         "Content-Type": "application/json",
     },
     responseType: "json",
-}); 
+});
 
 const handleApiError = (error) => {
     if (error.response) {
