@@ -9,6 +9,7 @@ import {
   ScrollView,
   Platform,
   Linking,
+  TextInput,
 } from 'react-native';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,6 +53,8 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
   const [videoError, setVideoError] = useState<string | null>(null);
   const gridVideoRefs = useRef<Record<string, Video>>({});
   const fullScreenVideoRef = useRef<Video>(null);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchText, setSearchText] = useState<string>('');
 
   const [data, setData] = useState<{
     images: Media[];
@@ -124,14 +127,14 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
     if (fullScreenMedia) {
       // Dừng tất cả video trong grid khi mở fullscreen
       Object.values(gridVideoRefs.current).forEach((ref) => {
-        ref?.pauseAsync().catch(() => {});
+        ref?.pauseAsync().catch(() => { });
       });
     } else {
       // Dừng video fullscreen khi đóng modal
-      fullScreenVideoRef.current?.pauseAsync().catch(() => {});
+      fullScreenVideoRef.current?.pauseAsync().catch(() => { });
       // Đảm bảo video trong grid không phát
       Object.values(gridVideoRefs.current).forEach((ref) => {
-        ref?.pauseAsync().catch(() => {});
+        ref?.pauseAsync().catch(() => { });
       });
     }
   }, [fullScreenMedia]);
@@ -175,9 +178,12 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
       (item: Media) =>
         (filterSender === 'Tất cả' || item.sender === filterSender) &&
         (!startDate || (item.date && new Date(item.date) >= startDate)) &&
-        (!endDate || (item.date && new Date(item.date) <= endDate))
+        (!endDate || (item.date && new Date(item.date) <= endDate)) &&
+        (!isSearching ||
+          item.name?.toLowerCase().includes(searchText.toLowerCase()) ||
+          item.linkURL?.toLowerCase().includes(searchText.toLowerCase()))
     );
-  }, [data, activeTab, filterSender, startDate, endDate]);
+  }, [data, activeTab, filterSender, startDate, endDate, isSearching, searchText]);
 
   // Lấy danh sách media đã lọc cho tab "images" để sử dụng trong modal
   const filteredImages = useMemo(() => {
@@ -206,7 +212,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
   const downloadMedia = async (url: string, type: 'image' | 'video', name: string) => {
     try {
       const fileName = url.split('/').pop() || (type === 'image' ? `${name}.jpg` : `${name}.mp4`);
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const fileUri = `<span class="math-inline">\{FileSystem\.documentDirectory\}</span>{fileName}`;
       const { uri } = await FileSystem.downloadAsync(url, fileUri);
 
       const permission = await MediaLibrary.requestPermissionsAsync();
@@ -226,7 +232,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
   const downloadMediaFile = async (url: string, name: string) => {
     try {
       const fileName = url.split('/').pop() || name || 'downloaded_file';
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const fileUri = `<span class="math-inline">\{FileSystem\.documentDirectory\}</span>{fileName}`;
       const { uri } = await FileSystem.downloadAsync(url, fileUri);
 
       Alert.alert('Thành công', `Đã tải xuống "${fileName}".`, [
@@ -287,7 +293,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
     setFullScreenMedia(filteredImages[index]);
     setVideoError(null);
     // Dừng video hiện tại trước khi chuyển slide
-    fullScreenVideoRef.current?.pauseAsync().catch(() => {});
+    fullScreenVideoRef.current?.pauseAsync().catch(() => { });
   };
 
   const openFullScreenMedia = (item: Media) => {
@@ -402,12 +408,11 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
               isSelecting
                 ? toggleSelectItem(item)
                 : activeTab === 'images'
-                ? openFullScreenMedia(item)
-                : activeTab === 'files'
-                ? downloadMediaFile(item.linkURL, item.name)
-                : Linking.openURL(item.linkURL).catch(() =>
-                    Alert.alert('Lỗi', 'Không thể mở liên kết.')
-                  )
+                  ? openFullScreenMedia(item)
+                  : activeTab === 'files'
+                    ? downloadMediaFile(item.linkURL, item.name)
+                    : Linking.openURL(item.linkURL).catch(() => Alert.alert('Lỗi', 'Không thể mở liên kết.')
+                    )
             }
           >
             {activeTab === 'images' ? (
@@ -483,28 +488,48 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
             <Ionicons name="arrow-back" size={24} color="#3B82F6" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Kho lưu trữ</Text>
-          <View style={styles.selectionContainer}>
-            {isSelecting ? (
-              <>
-                <TouchableOpacity onPress={handleDeleteSelected}>
-                  <Text style={styles.deleteButton}>Xóa ({selectedItems.length})</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => setIsSearching(!isSearching)}>
+              <Ionicons name="search" size={24} color="#3B82F6" />
+            </TouchableOpacity>
+            <View style={styles.selectionContainer}>
+              {isSelecting ? (
+                <>
+                  <TouchableOpacity onPress={handleDeleteSelected}>
+                    <Text style={styles.deleteButton}>Xóa ({selectedItems.length})</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setIsSelecting(false);
+                      setSelectedItems([]);
+                    }}
+                  >
+                    <Text style={styles.cancelButton}>Hủy</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity onPress={() => setIsSelecting(true)}>
+                  <Text style={styles.selectButton}>Chọn</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    setIsSelecting(false);
-                    setSelectedItems([]);
-                  }}
-                >
-                  <Text style={styles.cancelButton}>Hủy</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity onPress={() => setIsSelecting(true)}>
-                <Text style={styles.selectButton}>Chọn</Text>
-              </TouchableOpacity>
-            )}
+              )}
+            </View>
           </View>
         </View>
+
+        {isSearching && (
+          <View style={styles.searchBar}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={`Tìm kiếm trong ${activeTab === 'images' ? 'ảnh/video' : activeTab === 'files' ? 'files' : 'links'
+                }`}
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+            <TouchableOpacity onPress={() => setIsSearching(false)}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.tabContainer}>
           {(['images', 'files', 'links'] as const).map((tab) => (
@@ -515,6 +540,8 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
                 setActiveTab(tab);
                 setIsSelecting(false);
                 setSelectedItems([]);
+                setIsSearching(false);
+                setSearchText('');
               }}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
@@ -579,9 +606,9 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
                             }}
                           />
                         )}
+                        <Text style={styles.mediaName}>{item.name}</Text>
                       </>
                     )}
-                    <Text style={styles.mediaName}>{item.name}</Text>
                   </View>
                 ))}
               </Swiper>
@@ -918,6 +945,21 @@ const styles = StyleSheet.create({
   linkUrl: {
     fontSize: 12,
     color: '#3B82F6',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    paddingHorizontal: 10,
   },
 });
 
