@@ -28,6 +28,7 @@ interface Media {
   type: 'image' | 'video' | 'file' | 'link';
   date?: string;
   sender?: string;
+  userId: String;
 }
 
 interface Props {
@@ -35,9 +36,10 @@ interface Props {
   userId: string;
   isVisible: boolean;
   onClose: () => void;
+  onDataUpdated?: () => void; // Callback để thông báo cập nhật dữ liệu
 }
 
-const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClose }) => {
+const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClose, onDataUpdated }) => {
   const [activeTab, setActiveTab] = useState<'images' | 'files' | 'links'>('images');
   const [filterSender, setFilterSender] = useState<string>('Tất cả');
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -66,59 +68,59 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
     links: [],
   });
 
-  // Tải dữ liệu từ API
+  // Hàm tải dữ liệu từ API
+  const fetchData = async () => {
+    try {
+      const mediaResponse = await Api_chatInfo.getChatMedia(conversationId);
+      const mediaData = Array.isArray(mediaResponse) ? mediaResponse : mediaResponse?.data?.media || [];
+      const images = mediaData
+        .filter((item: any) => item.messageType === 'image' || item.messageType === 'video')
+        .map((item: any) => ({
+          id: item._id,
+          linkURL: item.linkURL,
+          name: item.content || 'Không có tiêu đề',
+          type: item.messageType as 'image' | 'video',
+          date: item.createdAt?.split('T')[0] || 'Không có ngày',
+          sender: item.userId || 'Không rõ người gửi',
+        }));
+
+      const filesResponse = await Api_chatInfo.getChatFiles(conversationId);
+      const filesData = Array.isArray(filesResponse) ? filesResponse : filesResponse?.data?.files || [];
+      const files = filesData
+        .filter((item: any) => item.messageType === 'file')
+        .map((item: any) => ({
+          id: item._id,
+          linkURL: item.linkURL,
+          name: item.content || 'Không có tiêu đề',
+          type: 'file' as const,
+          date: item.createdAt?.split('T')[0] || 'Không có ngày',
+          sender: item.userId || 'Không rõ người gửi',
+        }));
+
+      const linksResponse = await Api_chatInfo.getChatLinks(conversationId);
+      const linksData = Array.isArray(linksResponse) ? linksResponse : linksResponse?.data?.links || [];
+      const links = linksData
+        .filter((item: any) => item.messageType === 'link')
+        .map((item: any) => ({
+          id: item._id,
+          linkURL: item.linkURL,
+          name: item.content || 'Không có tiêu đề',
+          type: 'link' as const,
+          date: item.createdAt?.split('T')[0] || 'Không có ngày',
+          sender: item.userId || 'Không rõ người gửi',
+        }));
+
+      setData({ images, files, links });
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu:', error);
+      Alert.alert('Lỗi', 'Không thể tải dữ liệu. Vui lòng thử lại.');
+      setData({ images: [], files: [], links: [] });
+    }
+  };
+
+  // Tải dữ liệu khi mở StoragePage
   useEffect(() => {
     if (!conversationId || !isVisible) return;
-
-    const fetchData = async () => {
-      try {
-        const mediaResponse = await Api_chatInfo.getChatMedia(conversationId);
-        const mediaData = Array.isArray(mediaResponse) ? mediaResponse : mediaResponse?.data?.media || [];
-        const images = mediaData
-          .filter((item: any) => item.messageType === 'image' || item.messageType === 'video')
-          .map((item: any) => ({
-            id: item._id,
-            linkURL: item.linkURL,
-            name: item.content || 'Không có tiêu đề',
-            type: item.messageType as 'image' | 'video',
-            date: item.createdAt?.split('T')[0] || 'Không có ngày',
-            sender: item.userId || 'Không rõ người gửi',
-          }));
-
-        const filesResponse = await Api_chatInfo.getChatFiles(conversationId);
-        const filesData = Array.isArray(filesResponse) ? filesResponse : filesResponse?.data?.files || [];
-        const files = filesData
-          .filter((item: any) => item.messageType === 'file')
-          .map((item: any) => ({
-            id: item._id,
-            linkURL: item.linkURL,
-            name: item.content || 'Không có tiêu đề',
-            type: 'file' as const,
-            date: item.createdAt?.split('T')[0] || 'Không có ngày',
-            sender: item.userId || 'Không rõ người gửi',
-          }));
-
-        const linksResponse = await Api_chatInfo.getChatLinks(conversationId);
-        const linksData = Array.isArray(linksResponse) ? linksResponse : linksResponse?.data?.links || [];
-        const links = linksData
-          .filter((item: any) => item.messageType === 'link')
-          .map((item: any) => ({
-            id: item._id,
-            linkURL: item.linkURL,
-            name: item.content || 'Không có tiêu đề',
-            type: 'link' as const,
-            date: item.createdAt?.split('T')[0] || 'Không có ngày',
-            sender: item.userId || 'Không rõ người gửi',
-          }));
-
-        setData({ images, files, links });
-      } catch (error) {
-        console.error('Lỗi khi lấy dữ liệu:', error);
-        Alert.alert('Lỗi', 'Không thể tải dữ liệu. Vui lòng thử lại.');
-        setData({ images: [], files: [], links: [] });
-      }
-    };
-
     fetchData();
   }, [conversationId, isVisible]);
 
@@ -127,14 +129,14 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
     if (fullScreenMedia) {
       // Dừng tất cả video trong grid khi mở fullscreen
       Object.values(gridVideoRefs.current).forEach((ref) => {
-        ref?.pauseAsync().catch(() => { });
+        ref?.pauseAsync().catch(() => {});
       });
     } else {
       // Dừng video fullscreen khi đóng modal
-      fullScreenVideoRef.current?.pauseAsync().catch(() => { });
+      fullScreenVideoRef.current?.pauseAsync().catch(() => {});
       // Đảm bảo video trong grid không phát
       Object.values(gridVideoRefs.current).forEach((ref) => {
-        ref?.pauseAsync().catch(() => { });
+        ref?.pauseAsync().catch(() => {});
       });
     }
   }, [fullScreenMedia]);
@@ -142,26 +144,36 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
   // Xử lý xóa các mục đã chọn
   const handleDeleteSelected = async () => {
     try {
-      for (const item of selectedItems) {
-        await Api_chatInfo.deleteMessages(userId, item.id);
+      const messageIds = selectedItems.map(item => item.id);
+      const response = await Api_chatInfo.deleteMessage({ messageIds });
+  
+      // Nếu Api_chatInfo.deleteMessage trả về JSON trực tiếp
+      if (response?.message) { // Kiểm tra xem response có thuộc tính message không
+        console.log('[DELETE] Phản hồi API (thành công):', response);
+  
+        // Cập nhật trạng thái và hiển thị thông báo thành công
+        const updatedData = { ...data };
+        ['images', 'files', 'links'].forEach(tab => {
+          updatedData[tab] = updatedData[tab].filter(item => !selectedItems.some(selected => selected.id === item.id));
+        });
+        setData(updatedData);
+        setSelectedItems([]);
+        setIsSelecting(false);
+        Alert.alert('Thành công', response.message || `Đã xóa ${selectedItems.length} mục.`);
+  
+        if (onDataUpdated) {
+          onDataUpdated();
+        }
+      } else {
+        console.error('[DELETE] Phản hồi API không mong đợi:', response);
+        Alert.alert('Lỗi', 'Có lỗi xảy ra khi xóa. Phản hồi không hợp lệ.');
       }
-
-      setData((prevData) => ({
-        ...prevData,
-        [activeTab]: prevData[activeTab].filter(
-          (dataItem) => !selectedItems.some((selected) => selected.id === dataItem.id)
-        ),
-      }));
-
-      setSelectedItems([]);
-      setIsSelecting(false);
-      Alert.alert('Thành công', `Đã xóa ${selectedItems.length} mục.`);
+  
     } catch (error) {
       console.error('Lỗi khi xóa mục:', error);
       Alert.alert('Lỗi', 'Không thể xóa các mục. Vui lòng thử lại.');
     }
   };
-
   // Chọn/bỏ chọn mục
   const toggleSelectItem = (item: Media) => {
     if (selectedItems.some((selected) => selected.id === item.id)) {
@@ -174,7 +186,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
   // Lọc dữ liệu
   const filteredData = useMemo(() => {
     const items = data[activeTab] || [];
-    return items.filter(
+    const filtered = items.filter(
       (item: Media) =>
         (filterSender === 'Tất cả' || item.sender === filterSender) &&
         (!startDate || (item.date && new Date(item.date) >= startDate)) &&
@@ -183,11 +195,28 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
           item.name?.toLowerCase().includes(searchText.toLowerCase()) ||
           item.linkURL?.toLowerCase().includes(searchText.toLowerCase()))
     );
+    console.log(`filteredData trong tab ${activeTab}:`, filtered);
+    return filtered;
   }, [data, activeTab, filterSender, startDate, endDate, isSearching, searchText]);
 
   // Lấy danh sách media đã lọc cho tab "images" để sử dụng trong modal
   const filteredImages = useMemo(() => {
     return filteredData.filter((item: Media) => item.type === 'image' || item.type === 'video');
+  }, [filteredData]);
+
+  // Nhóm dữ liệu theo ngày để render
+  const groupedData = useMemo(() => {
+    const groups: { [key: string]: Media[] } = {};
+    filteredData.forEach((item) => {
+      const dateKey = item.date || 'Không xác định';
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(item);
+    });
+    return Object.keys(groups)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+      .map((date) => ({ date, data: groups[date] }));
   }, [filteredData]);
 
   const getUniqueSenders = (items: Media[]): string[] => {
@@ -212,7 +241,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
   const downloadMedia = async (url: string, type: 'image' | 'video', name: string) => {
     try {
       const fileName = url.split('/').pop() || (type === 'image' ? `${name}.jpg` : `${name}.mp4`);
-      const fileUri = `<span class="math-inline">\{FileSystem\.documentDirectory\}</span>{fileName}`;
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
       const { uri } = await FileSystem.downloadAsync(url, fileUri);
 
       const permission = await MediaLibrary.requestPermissionsAsync();
@@ -232,7 +261,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
   const downloadMediaFile = async (url: string, name: string) => {
     try {
       const fileName = url.split('/').pop() || name || 'downloaded_file';
-      const fileUri = `<span class="math-inline">\{FileSystem\.documentDirectory\}</span>{fileName}`;
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
       const { uri } = await FileSystem.downloadAsync(url, fileUri);
 
       Alert.alert('Thành công', `Đã tải xuống "${fileName}".`, [
@@ -293,7 +322,7 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
     setFullScreenMedia(filteredImages[index]);
     setVideoError(null);
     // Dừng video hiện tại trước khi chuyển slide
-    fullScreenVideoRef.current?.pauseAsync().catch(() => { });
+    fullScreenVideoRef.current?.pauseAsync().catch(() => {});
   };
 
   const openFullScreenMedia = (item: Media) => {
@@ -408,11 +437,10 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
               isSelecting
                 ? toggleSelectItem(item)
                 : activeTab === 'images'
-                  ? openFullScreenMedia(item)
-                  : activeTab === 'files'
-                    ? downloadMediaFile(item.linkURL, item.name)
-                    : Linking.openURL(item.linkURL).catch(() => Alert.alert('Lỗi', 'Không thể mở liên kết.')
-                    )
+                ? openFullScreenMedia(item)
+                : activeTab === 'files'
+                ? downloadMediaFile(item.linkURL, item.name)
+                : Linking.openURL(item.linkURL).catch(() => Alert.alert('Lỗi', 'Không thể mở liên kết.'))
             }
           >
             {activeTab === 'images' ? (
@@ -520,8 +548,9 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
           <View style={styles.searchBar}>
             <TextInput
               style={styles.searchInput}
-              placeholder={`Tìm kiếm trong ${activeTab === 'images' ? 'ảnh/video' : activeTab === 'files' ? 'files' : 'links'
-                }`}
+              placeholder={`Tìm kiếm trong ${
+                activeTab === 'images' ? 'ảnh/video' : activeTab === 'files' ? 'files' : 'links'
+              }`}
               value={searchText}
               onChangeText={setSearchText}
             />
@@ -658,15 +687,9 @@ const StoragePage: React.FC<Props> = ({ conversationId, userId, isVisible, onClo
         {showDateFilter && <DateFilter />}
 
         <ScrollView style={styles.scrollView}>
-          {[...new Set(filteredData.map((item: Media) => item.date || 'Không xác định'))]
-            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-            .map((date: string) => (
-              <DateSection
-                key={date}
-                date={date}
-                data={filteredData.filter((item) => (item.date || 'Không xác định') === date)}
-              />
-            ))}
+          {groupedData.map(({ date, data }) => (
+            <DateSection key={date} date={date} data={data} />
+          ))}
         </ScrollView>
       </View>
     </Modal>

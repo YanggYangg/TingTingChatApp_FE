@@ -4,9 +4,11 @@ import PropTypes from "prop-types"; // Để định nghĩa kiểu dữ liệu c
 import styles from "./Modal.module.scss";
 import { AiOutlineCheckCircle } from "react-icons/ai"; // Icon tích xanh
 import { ImCancelCircle } from "react-icons/im";
+import { useEffect } from "react";
 
 const cx = classNames.bind(styles);
 function Modal({
+  isNotification = false,
   valid,
   title,
   message,
@@ -18,10 +20,58 @@ function Modal({
   contentCancel,
   width,
   height,
+  onClose,
 }) {
+  useEffect(() => {
+    if(valid){
+      const timer = setTimeout(() => {
+        onClose();
+        onConfirm();  
+      }, 1000);
+      
+    }
+    const timer = setTimeout(() => {
+      onClose();
+     
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
   return (
-    <div className={styles.overlay}>
-      <div
+    <div>
+      {isNotification && (
+        <div
+          className={cx(
+            " w-1/4 h-1/8 bg-white rounded-lg shadow-lg fixed top-2 right-2"
+          )}
+        >
+          <div className={cx("flex h-full justify-start items-center m-auto")}>
+            {valid ? (
+              <div  className={cx("w-1/7 text-4xl p-3 mr-3 text-green-500")}>
+                <AiOutlineCheckCircle />
+              </div>
+            ) : (
+              <div className={cx("w-1/7 text-4xl p-3 mr-3 text-red-500")}>
+                <ImCancelCircle />
+              </div>
+            )}
+            <div className={cx("w-5/7 h-full p-1")}>
+              <div className={cx("p-1 font-bold h-3/7")}>
+                {title}
+              </div>
+              <div className={cx("p-1 h-4/7")}>{message}</div>
+            </div>
+            <div
+              className={cx("flex justify-center items-center w-1/7 font-bold")}
+              onClick={onClose}
+            >
+              <button>x</button>
+            </div>
+          </div>
+        </div>
+      )}
+      { !isNotification && (
+        <div
         className={styles.modal}
         style={{ width: width || "350px", height: height || "250px" }}
       >
@@ -64,6 +114,8 @@ function Modal({
           </button>
         </div>
       </div>
+      )}
+      
     </div>
   );
 }

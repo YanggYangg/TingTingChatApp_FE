@@ -14,39 +14,40 @@ interface File {
 
 interface Props {
   conversationId: string;
+  userId: string;
 }
 
-const GroupFile: React.FC<Props> = ({ conversationId }) => {
+const GroupFile: React.FC<Props> = ({ conversationId, userId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
 
+  const fetchFiles = async () => {
+    try {
+      console.log("Gửi request đến API...");
+      const response = await Api_chatInfo.getChatFiles(conversationId);
+      console.log("Dữ liệu API trả về:", response);
+  
+      const fileData = Array.isArray(response) ? response : response?.data;
+  
+      if (Array.isArray(fileData)) {
+        const sortedFiles = fileData.sort((a, b) => {
+          return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || 0;
+        });
+        setFiles(sortedFiles.slice(0, 3));
+      } else {
+        setFiles([]);
+        console.warn("API không trả về mảng hợp lệ");
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách file:", error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách file. Vui lòng thử lại.');
+      setFiles([]);
+    }
+  };
+  
   useEffect(() => {
     if (!conversationId) return;
-
-    const fetchFiles = async () => {
-      try {
-        console.log("Gửi request đến API...");
-        const response = await Api_chatInfo.getChatFiles(conversationId);
-        console.log("Dữ liệu API trả về:", response);
-
-        const fileData = Array.isArray(response) ? response : response?.data;
-
-        if (Array.isArray(fileData)) {
-          const sortedFiles = fileData.sort((a, b) => {
-            return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || 0;
-          });
-          setFiles(sortedFiles.slice(0, 3));
-        } else {
-          setFiles([]);
-          console.warn("API không trả về mảng hợp lệ");
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách file:", error);
-        Alert.alert('Lỗi', 'Không thể tải danh sách file. Vui lòng thử lại.');
-        setFiles([]);
-      }
-    };
-
+    console.log("GRF userId", userId);
     fetchFiles();
   }, [conversationId]);
 
@@ -160,6 +161,8 @@ const GroupFile: React.FC<Props> = ({ conversationId }) => {
           files={files}
           isVisible={isOpen}
           onClose={() => setIsOpen(false)}
+          userId={userId}
+          onDataUpdated={fetchFiles} 
         />
       )}
     </View>

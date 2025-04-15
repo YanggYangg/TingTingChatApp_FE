@@ -2,63 +2,63 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Linking, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import StoragePage from './StoragePage';
-import {Api_chatInfo} from '../../../../../apis/Api_chatInfo';
+import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 
 interface Link {
   title: string;
   linkURL: string;
   date: string;
   sender: string;
+  userId: String
 }
 
 interface Props {
   conversationId: string;
+  userId: string;
 }
 
-const GroupLinks: React.FC<Props> = ({ conversationId }) => {
+const GroupLinks: React.FC<Props> = ({ conversationId, userId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [links, setLinks] = useState<Link[]>([]);
 
+  const fetchLinks = async () => {
+    try {
+      const response = await Api_chatInfo.getChatLinks(conversationId);
+      const linkData = Array.isArray(response) ? response : response?.data;
+  
+      if (Array.isArray(linkData)) {
+        const filteredLinks = linkData
+          .filter((item) => item?.messageType === "link")
+          .map((item) => ({
+            title: item?.content || "Không có tiêu đề",
+            linkURL: item?.linkURL || "#",
+            date: item?.createdAt?.split("T")[0] || "Không có ngày",
+            sender: item?.userId || "Không rõ người gửi",
+          }));
+  
+        const sortedLinks = filteredLinks.sort((a, b) => {
+          if (a.date && b.date) {
+            return new Date(b.date).getTime() - new Date(a.date).getTime();
+          } else {
+            return 0;
+          }
+        });
+  
+        setLinks(sortedLinks.slice(0, 3));
+      } else {
+        setLinks([]);
+        console.error("Dữ liệu không hợp lệ:", response);
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách link:", error);
+      Alert.alert('Lỗi', 'Không thể tải danh sách link. Vui lòng thử lại.');
+      setLinks([]);
+    }
+  };
+  
   useEffect(() => {
     if (!conversationId) return;
-
-    const fetchLinks = async () => {
-      try {
-        const response = await Api_chatInfo.getChatLinks(conversationId);
-        const linkData = Array.isArray(response) ? response : response?.data;
-
-        if (Array.isArray(linkData)) {
-          const filteredLinks = linkData
-            .filter((item) => item?.messageType === "link")
-            .map((item) => ({
-              title: item?.content || "Không có tiêu đề",
-              linkURL: item?.linkURL || "#",
-              date: item?.createdAt?.split("T")[0] || "Không có ngày",
-              sender: item?.userId || "Không rõ người gửi",
-            }));
-
-          // Sắp xếp link theo thời gian
-          const sortedLinks = filteredLinks.sort((a, b) => {
-            if (a.date && b.date) {
-              return new Date(b.date).getTime() - new Date(a.date).getTime();
-            } else {
-              return 0;
-            }
-          });
-
-          // Lấy 3 link đầu tiên
-          setLinks(sortedLinks.slice(0, 3));
-        } else {
-          setLinks([]);
-          console.error("Dữ liệu không hợp lệ:", response);
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách link:", error);
-        Alert.alert('Lỗi', 'Không thể tải danh sách link. Vui lòng thử lại.');
-        setLinks([]);
-      }
-    };
-
+    console.log("GRL userId", userId);
     fetchLinks();
   }, [conversationId]);
 
@@ -104,6 +104,8 @@ const GroupLinks: React.FC<Props> = ({ conversationId }) => {
           links={links}
           isVisible={isOpen}
           onClose={() => setIsOpen(false)}
+          userId={userId}
+          onDataUpdated={fetchLinks} // Thêm callback để cập nhật danh sách links
         />
       )}
     </View>

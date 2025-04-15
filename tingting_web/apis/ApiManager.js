@@ -1,51 +1,57 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000";
-
-const axiosInstance = axios.create({
-    baseURL: BASE_URL,
-    // withCredentials: true,
-    headers: {
-        "Content-Type": "application/json",
-    },
-    responseType: "json",
-});
-
-const handleApiError = (error) => {
-    if (error.response) {
-        // Lỗi từ phản hồi của server
-        const { status, data } = error.response;
-        console.error(`Lỗi API (mã trạng thái ${status}):`, data);
-
-        // Xử lý các mã trạng thái cụ thể
-        switch (status) {
-            case 400:
-                return { error: "Yêu cầu không hợp lệ.", details: data };
-            case 401:
-                return { error: "Không được ủy quyền.", details: data };
-            case 404:
-                return { error: "Không tìm thấy tài nguyên.", details: data };
-            case 500:
-                return { error: "Lỗi server nội bộ.", details: data };
-            default:
-                return { error: "Lỗi không xác định.", details: data };
-        }
-    } else if (error.request) {
-        // Lỗi mạng (không nhận được phản hồi)
-        console.error("Lỗi mạng:", error.request);
-        return { error: "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng." };
-    } else {
-        // Lỗi khác
-        console.error("Lỗi khác:", error.message);
-        return { error: "Lỗi không xác định.", details: error.message };
-    }
+//Auth: 3000
+//User: 3001
+//Chat: 5000
+const SERVICES = {
+    authService: 'http://localhost:3000',
+    userService: 'http://localhost:3001',
+    chatService: 'http://localhost:5000',
 };
 
-const request = async (method, url, data = null, params = null) => {
+//Tạo một instance axios theo service
+const createAxiosInstance = (service) => {
+    if(!SERVICES[service]) {
+        throw new Error(`Service ${service} not found`);
+    }
+
+    return axios.create({
+        baseURL: SERVICES[service],
+        withCredentials: true,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        responseType: 'json',
+    });
+    // Gắn token mỗi lần request
+    instance.interceptors.request.use((config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        return config;
+    });
+
+    return instance;
+};
+
+//Hàm gọi API chung 
+const request = async (service, method, url, data = null, params = null) => {
     try {
-        console.log(`[${method.toUpperCase()}] Gửi request tới: ${BASE_URL}${url}`);
-        const response = await axiosInstance({ method, url, data, params });
-        console.log(`[${method.toUpperCase()}] Phản hồi API:`, response.data);
+        const axiosInstance = createAxiosInstance(service);
+
+        console.log(`${method.toUpperCase()} request -> ${SERVICES[service]}${url}`);
+        if (data) console.log('Data:', data);
+        if (params) console.log('Params:', params);
+
+        const response = await axiosInstance({
+            method,
+            url,
+            data,
+            params,
+        });
+
+        console.log('Response:', response.data);
         return response.data;
     } catch (error) {
         const errorData = handleApiError(error);

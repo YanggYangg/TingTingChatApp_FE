@@ -13,13 +13,15 @@ interface Media {
   linkURL: string;
   name: string;
   type: string;
+  userId: String
 }
 
 interface Props {
   conversationId: string;
+  userId: string;
 }
 
-const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
+const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [media, setMedia] = useState<Media[]>([]);
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
@@ -31,41 +33,40 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
   const [mediaLoadError, setMediaLoadError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const fetchMedia = async () => {
+    setLoading(true);
+    try {
+      console.log('Đang lấy dữ liệu từ API...');
+      const response = await Api_chatInfo.getChatMedia(conversationId);
+      console.log('Dữ liệu API nhận được:', response);
+  
+      const mediaData = Array.isArray(response?.data) ? response.data : response;
+  
+      if (Array.isArray(mediaData)) {
+        const filteredMedia = mediaData.map((item) => ({
+          linkURL: item?.linkURL || '#',
+          name: item?.content || 'Không có tên',
+          type: item?.messageType || 'image',
+        }));
+        setMedia(filteredMedia);
+      } else {
+        console.warn('API không trả về dữ liệu hợp lệ.');
+        setMedia([]);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu media:', error);
+      Alert.alert('Lỗi', 'Không thể tải dữ liệu media. Vui lòng thử lại.');
+      setMedia([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   useEffect(() => {
     if (!conversationId) return;
-
-    const fetchMedia = async () => {
-      setLoading(true);
-      try {
-        console.log('Đang lấy dữ liệu từ API...');
-        const response = await Api_chatInfo.getChatMedia(conversationId);
-        console.log('Dữ liệu API nhận được:', response);
-
-        const mediaData = Array.isArray(response?.data) ? response.data : response;
-
-        if (Array.isArray(mediaData)) {
-          const filteredMedia = mediaData.map((item) => ({
-            linkURL: item?.linkURL || '#',
-            name: item?.content || 'Không có tên',
-            type: item?.messageType || 'image',
-          }));
-          setMedia(filteredMedia);
-        } else {
-          console.warn('API không trả về dữ liệu hợp lệ.');
-          setMedia([]);
-        }
-      } catch (error) {
-        console.error('Lỗi khi lấy dữ liệu media:', error);
-        Alert.alert('Lỗi', 'Không thể tải dữ liệu media. Vui lòng thử lại.');
-        setMedia([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    console.log("GRM userId", userId);
     fetchMedia();
   }, [conversationId]);
-
   const downloadMedia = async (url: string, type: string) => {
     try {
       const fileName = url.split('/').pop() || (type === 'image' ? 'downloaded_image.jpg' : 'downloaded_video.mp4');
@@ -109,7 +110,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
       setIsPlaying(false); // Dừng phát khi đóng modal
       // Dừng tất cả video trong grid khi đóng modal
       Object.values(gridVideoRefs.current).forEach((ref) => {
-        ref?.pauseAsync().catch(() => {});
+        ref?.pauseAsync().catch(() => { });
       });
     }
   }, [fullScreenMedia, media]);
@@ -184,11 +185,11 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
             ))}
           </View>
 
-          {media.length > 8 && (
-            <TouchableOpacity style={styles.viewAllButton} onPress={() => setIsOpen(true)}>
-              <Text style={styles.viewAllText}>Xem tất cả ({media.length})</Text>
-            </TouchableOpacity>
-          )}
+
+          <TouchableOpacity style={styles.viewAllButton} onPress={() => setIsOpen(true)}>
+            <Text style={styles.viewAllText}>Xem tất cả ({media.length})</Text>
+          </TouchableOpacity>
+
         </>
       )}
 
@@ -198,6 +199,8 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId }) => {
           files={media}
           isVisible={isOpen}
           onClose={() => setIsOpen(false)}
+          userId={userId}
+          onDataUpdated={fetchMedia} // Callback để cập nhật danh sách media
         />
       )}
 

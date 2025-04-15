@@ -121,40 +121,7 @@ function ChatPage() {
         },
       ],
     },
-    {
-      id: 2,
-      name: "Khánh",
-      avatar: "https://picsum.photos/200",
-      type: "personal",
-      messages: [
-        {
-          type: "chat",
-          sender: "Trần Thị B",
-          text: "Hôm nay bạn rảnh không?",
-          time: "11:45 AM",
-        },
-        {
-          type: "call",
-          sender: "Bạn",
-          callDuration: "5 phút",
-          missed: true,
-          time: "11:50 AM",
-        },
-        {
-          type: "image",
-          sender: "Trần Thị B",
-          imageUrl: "https://picsum.photos/200",
-          time: "11:55 AM",
-        },
-        {
-          type: "file",
-          sender: "Bạn",
-          fileName: "notes.txt",
-          fileUrl: "https://example.com/notes.txt",
-          time: "12:00 PM",
-        },
-      ],
-    },
+   
   ];
 
   const dispatch = useDispatch();

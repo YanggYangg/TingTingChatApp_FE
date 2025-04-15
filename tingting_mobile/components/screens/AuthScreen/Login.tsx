@@ -9,8 +9,8 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [phone, setphone] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = async () => {
-    if (!phone || !password) {
+  const handleLogin = () => {
+    
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
       return;
     }
@@ -37,7 +37,7 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
         // TODO: Lưu token vào AsyncStorage hoặc Redux nếu cần
 
         // Chuyển sang màn hình chính (hoặc màn nào bạn muốn)
-        navigation.replace("Main");
+        navigation.navigate("Chat");
       } else {
         Alert.alert("Lỗi", response.message || "Đăng nhập thất bại");
       }

@@ -32,9 +32,17 @@ interface ChatInfoData {
   participants: Participant[];
 }
 
+interface ChatInfoProps {
+  userId?: string; // Optional để có thể gán giá trị mặc định
+  conversationId?: string; // Optional để có thể gán giá trị mặc định
+}
+
 const Icon = FontAwesome;
 
-const ChatInfo: React.FC = () => {
+const ChatInfo: React.FC<ChatInfoProps> = ({
+  userId = "6601a1b2c3d4e5f678901239", // Giá trị mặc định
+  conversationId = "67e2d6bef1ea6ac96f10bf92", // Giá trị mặc định
+}) => {
   const [chatInfo, setChatInfo] = useState<ChatInfoData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
@@ -43,8 +51,8 @@ const ChatInfo: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
-  const conversationId = "67e2d6bef1ea6ac96f10bf92";
-  const userId = "6601a1b2c3d4e5f678901239";
+  // const conversationId = "67e2d6bef1ea6ac96f10bf92";
+  // const userId = "6601a1b2c3d4e5f678901239";
 
   const navigation = useNavigation(); // Initialize navigation object
 
@@ -260,9 +268,9 @@ const ChatInfo: React.FC = () => {
           </View>
         )}
 
-        <GroupMediaGallery conversationId={conversationId} />
-        <GroupFile conversationId={conversationId} />
-        <GroupLinks conversationId={conversationId} />
+        <GroupMediaGallery conversationId={conversationId}  userId = {userId}/>
+        <GroupFile conversationId={conversationId} userId = {userId} />
+        <GroupLinks conversationId={conversationId} userId = {userId} />
         <SecuritySettings
           conversationId={conversationId}
           userId={userId}

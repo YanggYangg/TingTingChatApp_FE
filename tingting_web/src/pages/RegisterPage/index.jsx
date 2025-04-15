@@ -5,28 +5,27 @@ import { Link } from "react-router-dom"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 
-import config from "../../config"
-import styles from "./RegisterPage.module.scss"
-import Modal from "../../components/Modal/Modal"
-import { Api_Auth } from "../../../apis/api_auth"
-const cx = classNames.bind(styles)
+import config from "../../config";
+import styles from "./RegisterPage.module.scss";
+import Modal from "../../components/Notification/Modal";
+import { Api_Auth } from "../../../apis/api_auth";
+const cx = classNames.bind(styles);
 
 function RegisterPage() {
-  const navigator = useNavigate()
-  const [firstname, setFirstName] = useState("")
-  const [surname, setSurName] = useState("")
-  const [day, setDay] = useState("1")
-  const [month, setMonth] = useState("1")
-  const [year, setYear] = useState(new Date().getFullYear().toString())
-  const [gender, setGender] = useState("Male")
-  const [email, setEmail] = useState("")
-  const [phone, setPhone] = useState("")
-  const [password, setPassword] = useState("")
-  const [passwordConfirm, setPasswordConfirm] = useState("")
-
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [isError, setIsError] = useState(false)
-  const [messageError, setMessageError] = useState("")
+  const navigator = useNavigate();
+  const [firstname, setFirstName] = useState("");
+  const [surname, setSurName] = useState("");
+  const [day, setDay] = useState("1");
+  const [month, setMonth] = useState("1");
+  const [year, setYear] = useState("2025");
+  const [gender, setGender] = useState("Male");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [messageError, setMessageError] = useState("");
 
   const months = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
   const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
@@ -50,14 +49,25 @@ function RegisterPage() {
         email,
         phone,
         password,
-      }
-      const response = await Api_Auth.signUp(data)
-      console.log(response.data.user._id)
-
-      setIsSuccess(true)
+      };
+      const response = await Api_Auth.signUp(data);
+      setIsSuccess(true);
+      
+      navigator(config.routes.verifyOTP, {
+        state: {
+          phone, ...data
+        },
+      });
     } catch (err) {
-      setMessageError(err.response?.data?.message || "Registration failed")
-      setIsError(true)
+      console.log(err.response.data.message);
+
+      setIsError(true);
+      if (err.code === "ERR_NETWORK") {
+        setMessageError("Không thể kết nối đến máy chủ!");
+      } else {
+        setMessageError(err.response.data.message);
+      }
+      
     }
   }
 
@@ -289,31 +299,28 @@ function RegisterPage() {
           </div>
         </div>
       </div>
-
-      {isSuccess && (
-        <Modal
-          valid={true}
-          title="Registration Successful!"
-          message="You may now login with your account"
-          isConfirm={true}
-          onConfirm={handleLoginRedirect}
-          contentConfirm={"OK"}
-        />
-      )}
-
-      {isError && (
-        <Modal
-          valid={false}
-          title="Registration Failed!"
-          message={messageError}
-          isConfirm={true}
-          isCancel={true}
-          onConfirm={handleTryAgain}
-          onCancel={handleLoginRedirect}
-          contentConfirm={"Try again"}
-          contentCancel="Login page"
-        />
-      )}
+       {
+                      isError && (
+                          <Modal
+                              isNotification={true}
+                              valid={false}
+                              title="Register Failed!"
+                              message={messageError}
+                              onClose= {handleTryAgain}
+                          />
+                      )
+                  }
+                   {
+                      isSuccess && (
+                          <Modal
+                              isNotification={true}
+                              valid={true}
+                              title="Register successful!"
+                              message={messageError}
+                              onClose= {handleTryAgain}
+                          />
+                      )
+                  }
     </div>
   )
 }

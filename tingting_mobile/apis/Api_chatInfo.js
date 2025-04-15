@@ -37,5 +37,6 @@
         // Danh sách nhóm chung
         getCommonGroups: (conversationId) => ApiManager.get(`/conversations/${conversationId}/common`),
         
-        
+        // Xóa tin nhắn
+        deleteMessage: (messageIds) => ApiManager.delete(`/messages/delete`, messageIds), // Gửi messageIds trực tiếp
     };
