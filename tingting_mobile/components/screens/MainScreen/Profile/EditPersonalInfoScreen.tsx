@@ -14,17 +14,41 @@ import {
   Platform,
 } from "react-native"
 import { Feather } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native"
 import * as ImagePicker from "expo-image-picker"
 import DateTimePicker from "@react-native-community/datetimepicker"
 
+type RootStackParamList = {
+  EditPersonalInfo: {
+    formData: {
+      firstname: string;
+      surname: string;
+      day: string;
+      month: string;
+      year: string;
+      gender: string;
+      phone: string;
+      avatar: string | null;
+      coverPhoto: string | null;
+    };
+  };
+};
+
+type EditPersonalInfoRouteProp = RouteProp<RootStackParamList, "EditPersonalInfo">;
+
+"https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg"
+
 export default function EditPersonalInfoScreen() {
   const navigation = useNavigation()
+  const route = useRoute<EditPersonalInfoRouteProp>();
+  const { formData } = route.params;
 
-  const [name, setName] = useState("Em Gái Xinh Đẹp")
-  const [birthdate, setBirthdate] = useState(new Date(2002, 11, 5)) // Default date: December 5, 2002
+  const [name, setName] = useState(`${formData.firstname} ${formData.surname}`);
+  const [birthdate, setBirthdate] = useState(
+    new Date(Number(formData.year), Number(formData.month) - 1, Number(formData.day))
+  );
   const [showDatePicker, setShowDatePicker] = useState(false)
-  const [gender, setGender] = useState("Nữ") // 'Nam' or 'Nữ'
+  const [gender, setGender] = useState(formData.gender === "male" ? "Nam" : "Nữ");
   const [profileImage, setProfileImage] = useState(
     "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg"
   )
@@ -53,6 +77,8 @@ export default function EditPersonalInfoScreen() {
       Alert.alert("Error", "There was an error selecting the image.")
     }
   }
+
+  
 
   const handleDateChange = (event, selectedDate) => {
     if (selectedDate) {

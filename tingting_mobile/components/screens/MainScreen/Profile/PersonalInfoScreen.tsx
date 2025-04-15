@@ -1,9 +1,34 @@
 import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from "react-native"
 import { Feather } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native"
+
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+
+type RootStackParamList = {
+  Main: undefined;
+  MessageScreen: { userId?: string; username?: string };
+  Login: undefined;
+  PersonalInfo: {
+    formData: {
+      firstname: string;
+      surname: string;
+      day: string;
+      month: string;
+      year: string;
+      gender: string;
+      phone: string;
+      avatar: string | null;
+      coverPhoto: string | null;
+    };
+  };
+};
+
+type PersonalInfoRouteProp = RouteProp<RootStackParamList, "PersonalInfo">;
 
 export default function PersonalInfoScreen() {
-  const navigation = useNavigation()
+  const route = useRoute<PersonalInfoRouteProp>();
+  const { formData } = route.params;
+  const navigation = useNavigation<NativeStackScreenProps<RootStackParamList, "PersonalInfo">["navigation"]>();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -22,11 +47,11 @@ export default function PersonalInfoScreen() {
         <View style={styles.profileSection}>
           <Image
             source={{
-              uri: "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg",
+              uri: formData.avatar || "https://example.com/default-avatar.png",
             }}
             style={styles.profilePicture}
           />
-          <Text style={styles.profileName}>Em Gái Xinh Đẹp</Text>
+          <Text style={styles.profileName}> {formData.firstname} {formData.surname}</Text>
         </View>
 
         {/* Personal Info */}
@@ -34,27 +59,27 @@ export default function PersonalInfoScreen() {
           {/* Gender */}
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Giới tính</Text>
-            <Text style={styles.infoValue}>Nữ</Text>
+            <Text style={styles.infoValue}> {formData.gender == "female" ? "Nữ" : "Nam"}</Text>
           </View>
 
           {/* Birthday */}
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Ngày sinh</Text>
-            <Text style={styles.infoValue}>05/12/2002</Text>
+            <Text style={styles.infoValue}> {formData.day}/{formData.month}/{formData.year}</Text>
           </View>
 
           {/* Phone */}
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Điện thoại</Text>
             <View>
-              <Text style={styles.infoValue}>+84 12345678</Text>
+              <Text style={styles.infoValue}> {formData.phone}</Text>
               <Text style={styles.infoNote}>Số điện thoại chỉ hiển thị với người có lưu số bạn trong danh bạ máy</Text>
             </View>
           </View>
         </View>
 
         {/* Edit Button */}
-        <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate("EditPersonalInfo")}>
+        <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate("EditPersonalInfo", {formData})}>
           <Feather name="edit-2" size={18} color="#333" />
           <Text style={styles.editButtonText}>Chỉnh sửa</Text>
         </TouchableOpacity>

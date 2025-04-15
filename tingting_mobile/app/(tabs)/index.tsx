@@ -52,6 +52,33 @@ type RootStackParamList = {
   ForgotPassword: undefined
   ResetPassword: { phoneNumber: string }
   VerificationCodeRegister: { phoneNumber: string }
+  ProfileScreen: undefined
+  PersonalInfo: {
+    formData: {
+      firstname: string;
+      surname: string;
+      day: string;
+      month: string;
+      year: string;
+      gender: string;
+      phone: string;
+      avatar: string | null;
+      coverPhoto: string | null;
+    };
+  };
+  EditPersonalInfo: {
+    formData: {
+      firstname: string;
+      surname: string;
+      day: string;
+      month: string;
+      year: string;
+      gender: string;
+      phone: string;
+      avatar: string | null;
+      coverPhoto: string | null;
+    };
+  };
   
 }
 

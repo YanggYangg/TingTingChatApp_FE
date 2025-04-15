@@ -1,4 +1,5 @@
 import axios from 'axios';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const BASE_URL = 'http://192.168.1.28:3002';
 
@@ -7,6 +8,7 @@ const axiosInstance = axios.create({
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
+        
         
     },
     responseType: 'json',
@@ -68,7 +70,11 @@ export const Api_Auth = {
     },
     updateNewPassword: async (data) => {
         return ApiManager.post('api/v1/auth/update-password', data);
-    }
+    },
+    // Validation token
+    validateToken: async (data) => {
+        return ApiManager.post('api/v1/auth/validate-token', data);
+    },
 
 
 };

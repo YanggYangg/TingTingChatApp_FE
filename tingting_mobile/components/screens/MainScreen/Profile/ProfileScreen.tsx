@@ -1,9 +1,67 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from "react-native"
+import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, Alert } from "react-native"
 import { Feather, Ionicons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react"
+import {Api_Profile} from "@/apis/api_profile"
 
 export default function ProfileScreen() {
   const navigation = useNavigation()
+
+  // Get the user ID from the async-storage
+  const [formData, setFormData] = useState({
+    firstname: "",
+    surname: "",
+    day: "1",
+    month: "1",
+    year: "2025",
+    gender: "female",
+    phone: "",
+    avatar: null,
+    coverPhoto: null,
+  });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const userId = await AsyncStorage.getItem("userId");
+        console.log("User ID:", userId); // Log the userId to check if it's being retrieved correctly
+        // Alert.alert("User ID:", userId); // Log the userId to check if it's being retrieved correctly
+        if (!userId) return;
+
+
+
+        const response = await Api_Profile.getProfile(userId);
+        const user = response.data.user;
+
+        const date = new Date(user.dateOfBirth);
+        const day = String(date.getDate());
+        const month = String(date.getMonth() + 1);
+        const year = String(date.getFullYear());
+
+        setFormData({
+          firstname: user.firstname || "",
+          surname: user.surname || "",
+          phone: user.phone || "",
+          gender: user.gender || "female",
+          avatar:
+            user.avatar ||
+            "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
+          coverPhoto:
+            user.coverPhoto ||
+            "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
+          day,
+          month,
+          year,
+        });
+      } catch (error) {
+        console.error("Lỗi khi lấy thông tin hồ sơ:", error);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+  
 
   return (
     <SafeAreaView style={styles.container}>
@@ -17,7 +75,7 @@ export default function ProfileScreen() {
           {/* Background Image */}
           <Image
             source={{
-              uri: "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
+              uri: formData.coverPhoto || "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
             }}
             style={styles.backgroundImage}
           />
@@ -26,17 +84,17 @@ export default function ProfileScreen() {
           <View style={styles.profilePictureContainer}>
             <Image
               source={{
-                uri: "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg",
+                uri: formData.avatar || "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
               }}
               style={styles.profilePicture}
             />
           </View>
 
           {/* Name */}
-          <Text style={styles.profileName}>Em Gái Xinh Đẹp</Text>
+          <Text style={styles.profileName}>{formData.firstname} {formData.surname}</Text>
 
           {/* Update Profile Button */}
-          <TouchableOpacity style={styles.updateProfileButton} onPress={() => navigation.navigate("PersonalInfo")}>
+          <TouchableOpacity style={styles.updateProfileButton} onPress={() => navigation.navigate("PersonalInfo", { formData })}>
             <Feather name="edit-2" size={16} color="#2196F3" />
             <Text style={styles.updateProfileText}>Cập nhật</Text>
           </TouchableOpacity>

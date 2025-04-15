@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Api_Auth } from "../../../apis/api_auth"; // Đường dẫn đến Api_Auth của bạn
 
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type RootStackParamList = {
   Main: undefined;
@@ -37,8 +38,12 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
       return;
     }
 
+    
+
     try {
+      
       const response = await Api_Auth.login({ phone, password });
+      
 
       if (response.success === true) {
         // const { token, user } = response.data;
