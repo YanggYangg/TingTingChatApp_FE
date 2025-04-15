@@ -21,7 +21,7 @@ const ChatInfo = () => {
     const [isMuted, setIsMuted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
-    const [conversations, setConversations] = useState([]);
+     const [conversations, setConversations] = useState([]);
 
     const conversationId = "67fe043089c79b5ff609cb95";
     const userId = "67fe031e421896d7bc8c2e10";
