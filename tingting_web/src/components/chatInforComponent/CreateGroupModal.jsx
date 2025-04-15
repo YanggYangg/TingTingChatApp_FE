@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { AiOutlineCamera, AiOutlineSearch, AiOutlineClose } from 'react-icons/ai';
-import { Api_FriendRequest } from '../../../apis/api_friendRequest'; // Đảm bảo đường dẫn đúng với cấu trúc thư mục của bạn
+import { Api_FriendRequest } from '../../../apis/api_friendRequest';
+import { Api_chatInfo } from '../../../apis/Api_chatInfo';
 
-const CreateGroupModal = ({ isOpen, onClose, userId }) => {
+const CreateGroupModal = ({ isOpen, onClose, onGroupCreated, userId }) => {
     const [groupName, setGroupName] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedContacts, setSelectedContacts] = useState([]);
     const [contacts, setContacts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [createLoading, setCreateLoading] = useState(false); // Trạng thái loading khi tạo nhóm
 
     // Hàm lấy danh sách bạn bè từ API
     const getFriendsList = async (userId) => {
-        return Api_FriendRequest.getFriendsList(userId);
+        return Api_FriendRequest.getFriendsList(userId)
     };
 
     // Gọi API khi modal mở
@@ -25,11 +27,10 @@ const CreateGroupModal = ({ isOpen, onClose, userId }) => {
             try {
                 const response = await getFriendsList(userId);
                 const friendsList = response.data || [];
-                // Đảm bảo dữ liệu phù hợp với định dạng cần thiết
                 const formattedContacts = friendsList.map(friend => ({
                     id: friend._id,
                     name: friend.name,
-                    avatar: friend.avatar || 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User', // Ảnh mặc định nếu không có avatar
+                    avatar: friend.avatar || 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User',
                 }));
                 setContacts(formattedContacts);
             } catch (err) {
@@ -59,6 +60,59 @@ const CreateGroupModal = ({ isOpen, onClose, userId }) => {
 
     const handleRemoveSelectedContact = (contactToRemove) => {
         setSelectedContacts(selectedContacts.filter(contact => contact.id !== contactToRemove.id));
+    };
+
+    // Hàm gọi API tạo cuộc trò chuyện nhóm
+    const handleCreateGroup = async () => {
+        if (!groupName.trim() || selectedContacts.length === 0) {
+            setError('Vui lòng nhập tên nhóm và chọn ít nhất một thành viên.');
+            return;
+        }
+
+        setCreateLoading(true);
+        setError(null);
+        try {
+            // Tạo danh sách participants, người tạo có role admin
+            const participants = [
+                {
+                    userId: userId,
+                    role: 'admin',
+                },
+                ...selectedContacts.map(contact => ({
+                    userId: contact.id,
+                    role: 'member',
+                })),
+            ];
+
+            const groupData = {
+                name: groupName.trim(),
+                participants: participants,
+                isGroup: true,
+                imageGroup: 'https://via.placeholder.com/150/007bff/FFFFFF?Text=Group',
+                mute: "null",
+                isHidden: false,
+                isPinned: false,
+                pin: "null",
+            };
+
+
+            const response = await Api_chatInfo.createConversation(groupData);
+            console.log('API Response: tạo', response); // Thêm dòng này
+            if (response && response.success) {
+                alert('Tạo nhóm thành công!');
+                setGroupName('');
+                setSelectedContacts([]);
+                onGroupCreated && onGroupCreated(response.data);
+                onClose();
+            } else {
+                throw new Error(response?.message || 'Không thể tạo nhóm.');
+            }
+        } catch (err) {
+            console.error('Lỗi khi tạo nhóm:', err);
+            setError(err.message || 'Không thể tạo nhóm. Vui lòng thử lại.');
+        } finally {
+            setCreateLoading(false);
+        }
     };
 
     if (!isOpen) {
@@ -114,7 +168,7 @@ const CreateGroupModal = ({ isOpen, onClose, userId }) => {
                             {!loading && filteredContacts.map(contact => (
                                 <div key={contact.id} className="flex items-center py-2">
                                     <input
-                                        type="checkbox" // Thay radio bằng checkbox để chọn nhiều người
+                                        type="checkbox"
                                         className="form-checkbox h-4 w-4 text-blue-500 focus:ring-blue-500 mr-2"
                                         checked={selectedContacts.some(c => c.id === contact.id)}
                                         onChange={() => handleContactSelect(contact)}
@@ -157,10 +211,14 @@ const CreateGroupModal = ({ isOpen, onClose, userId }) => {
                         Hủy
                     </button>
                     <button
-                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none ml-2"
-                        disabled={selectedContacts.length === 0 || !groupName.trim()} // Vô hiệu hóa nếu chưa chọn thành viên hoặc chưa có tên nhóm
+                        onClick={handleCreateGroup}
+                        className={`px-4 py-2 rounded-md focus:outline-none ml-2 ${createLoading || selectedContacts.length === 0 || !groupName.trim()
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-blue-500 hover:bg-blue-600 text-white'
+                            }`}
+                        disabled={createLoading || selectedContacts.length === 0 || !groupName.trim()}
                     >
-                        Tạo nhóm
+                        {createLoading ? 'Đang tạo...' : 'Tạo nhóm'}
                     </button>
                 </div>
             </div>

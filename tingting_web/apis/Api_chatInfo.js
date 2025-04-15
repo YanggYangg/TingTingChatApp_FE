@@ -33,5 +33,8 @@ export const Api_chatInfo = {
     // Danh sách nhóm chung (chatService)
     getCommonGroups: (conversationId) => ApiManager.get('chatService', `/conversations/${conversationId}/common`),
 
+    // Tạo nhóm (chatService)
+    createConversation: (groupData) => ApiManager.post('chatService', `/conversations/createConversation2`, groupData),
+
    
 };
