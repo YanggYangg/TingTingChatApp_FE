@@ -3,7 +3,7 @@ import { ApiManager } from './ApiManager';
 
 export const Api_Profile = {
     getProfiles: async () => {
-        return ApiManager.get('userService', 'api/v1/profile/');  // Địa chỉ endpoint lấy tất cả người dùng
+        return ApiManager.get('userService', 'api/v1/profile/');  
     },
     getProfile: async (id) => {
         return ApiManager.get('userService',`api/v1/profile/${id}`);
