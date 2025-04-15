@@ -20,6 +20,7 @@ function ChatPage() {
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
 
+  const conversationId = selectedMessageId;
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -66,15 +67,15 @@ function ChatPage() {
 
   const selectedChat = selectedMessage
     ? {
-        id: selectedMessageId,
-        name:
-          selectedMessage.participants?.find((p) => p.userId !== currentUserId)
-            ?.userId === currentUserId
-            ? "Bạn"
-            : "Unknown",
-        avatar: "https://picsum.photos/200",
-        type: selectedMessage.type || "personal",
-      }
+      id: selectedMessageId,
+      name:
+        selectedMessage.participants?.find((p) => p.userId !== currentUserId)
+          ?.userId === currentUserId
+          ? "Bạn"
+          : "Unknown",
+      avatar: "https://picsum.photos/200",
+      type: selectedMessage.type || "personal",
+    }
     : null;
 
   const formatTime = (createdAt) => {
@@ -120,9 +121,8 @@ function ChatPage() {
       {selectedChat ? (
         <div className={`flex w-full transition-all duration-300`}>
           <div
-            className={`flex-1 transition-all duration-300 ${
-              isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
-            }`}
+            className={`flex-1 transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
+              }`}
           >
             <ChatHeader
               type={selectedChat.type}
@@ -144,10 +144,10 @@ function ChatPage() {
                         msg.userId === currentUserId
                           ? "Bạn"
                           : selectedMessage.participants?.find(
-                              (p) => p.userId === msg.userId
-                            )
-                          ? ""
-                          : "Unknown",
+                            (p) => p.userId === msg.userId
+                          )
+                            ? ""
+                            : "Unknown",
                       time: formatTime(msg.createdAt),
                       messageType: msg.messageType || "text",
                       content: msg.content || "",
@@ -172,7 +172,10 @@ function ChatPage() {
 
           {isChatInfoVisible && (
             <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
-              <ChatInfo />
+              <ChatInfo
+                userId={currentUserId}
+                conversationId={conversationId}
+              />
             </div>
           )}
         </div>

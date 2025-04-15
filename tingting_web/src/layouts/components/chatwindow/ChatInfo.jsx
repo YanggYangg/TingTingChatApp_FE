@@ -13,7 +13,7 @@ import AddMemberModal from "../../../components/chatInforComponent/AddMemberModa
 import EditNameModal from "../../../components/chatInforComponent/EditNameModal";
 import CreateGroupModal from "../../../components/chatInforComponent/CreateGroupModal";
 
-const ChatInfo = () => {
+const ChatInfo = ({ userId, conversationId }) => {
     const [chatInfo, setChatInfo] = useState(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
@@ -23,8 +23,10 @@ const ChatInfo = () => {
     const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
      const [conversations, setConversations] = useState([]);
 
-    const conversationId = "67fe043089c79b5ff609cb95";
-    const userId = "67fe031e421896d7bc8c2e10";
+    // const conversationId = "67fe043089c79b5ff609cb95";
+    // const userId = "67fe031e421896d7bc8c2e10";
+    console.log("userId được truyền vào ChatInfo:", userId);
+    console.log("conversationId được truyền vào ChatInfo:", conversationId);
     const a = Api_chatInfo.getChatInfo(conversationId);
     console.log("ứng dụng đang chạy", a);
 
