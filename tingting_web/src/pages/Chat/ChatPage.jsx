@@ -16,17 +16,14 @@ function ChatPage() {
   const currentUserId = socket?.io?.opts?.query?.userId;
   const messagesEndRef = useRef(null);
 
-  // Redux hooks
   const dispatch = useDispatch();
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
 
-  // Scroll to new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Handle socket events
   useEffect(() => {
     if (socket && selectedMessageId) {
       socket.emit("joinConversation", { conversationId: selectedMessageId });
@@ -67,7 +64,6 @@ function ChatPage() {
     }
   }, [socket, selectedMessageId]);
 
-  // Chat info
   const selectedChat = selectedMessage
     ? {
         id: selectedMessageId,
@@ -81,7 +77,6 @@ function ChatPage() {
       }
     : null;
 
-  // Format time
   const formatTime = (createdAt) => {
     return new Date(createdAt).toLocaleTimeString([], {
       hour: "2-digit",
@@ -89,7 +84,6 @@ function ChatPage() {
     });
   };
 
-  // Send message
   const sendMessage = (message) => {
     if (socket && selectedMessageId) {
       const payload = {
@@ -110,82 +104,92 @@ function ChatPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="min-h-screen bg-gray-100 flex">
-        {selectedChat ? (
-          <div className={`flex w-full transition-all duration-300`}>
-            <div
-              className={`flex-1 transition-all duration-300 ${
-                isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
-              }`}
-            >
-              <ChatHeader
-                type={selectedChat.type}
-                name={selectedChat.name}
-                lastActive={6}
-                avatar={selectedChat.avatar}
-                isChatInfoVisible={isChatInfoVisible}
-                setIsChatInfoVisible={setIsChatInfoVisible}
-              />
-              <div className="p-4 w-full h-[calc(100vh-200px)] overflow-y-auto">
-                {messages
-                  .filter((msg) => msg.conversationId === selectedMessageId)
-                  .map((msg) => (
-                    <MessageItem
-                      key={msg._id}
-                      msg={{
-                        ...msg,
-                        sender:
-                          msg.userId === currentUserId
-                            ? "Bạn"
-                            : selectedMessage.participants?.find(
-                                (p) => p.userId === msg.userId
-                              )
-                            ? ""
-                            : "Unknown",
-                        time: formatTime(msg.createdAt),
-                        messageType: msg.messageType || "text",
-                        content: msg.content || "",
-                        linkURL: msg.linkURL || "",
-                        userId: msg.userId,
-                      }}
-                      currentUserId={currentUserId}
-                    />
-                  ))}
-                <div ref={messagesEndRef} />
-              </div>
-              <ChatFooter
-                className="fixed bottom-0 left-0 w-full bg-white shadow-md"
-                sendMessage={sendMessage}
-                replyingTo={replyingTo}
-                setReplyingTo={setReplyingTo}
-              />
-            </div>
+  const handleReply = (msg) => setReplyingTo(msg);
+  const handleForward = (msg) => console.log("Forward", msg);
+  const handleRevoke = (msg) => {
+    if (socket) {
+      socket.emit("revokeMessage", {
+        messageId: msg._id,
+        conversationId: selectedMessageId,
+      });
+    }
+  };
 
-            {isChatInfoVisible && (
-              <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
-                <ChatInfo />
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center bg-white">
-            <h1 className="text-2xl font-bold justify-center">
-              Chào mừng đến với TingTing PC!
-            </h1>
-            <p className="text-gray-500">
-              Khám phá các tiện ích hỗ trợ làm việc và trò chuyện cùng người
-              thân, bạn bè.
-            </p>
-            <img
-              src={TingTingImage}
-              alt="Welcome"
-              className="mt-4 w-64 h-auto rounded-lg"
+  return (
+    <div className="min-h-screen bg-gray-100 flex">
+      {selectedChat ? (
+        <div className={`flex w-full transition-all duration-300`}>
+          <div
+            className={`flex-1 transition-all duration-300 ${
+              isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
+            }`}
+          >
+            <ChatHeader
+              type={selectedChat.type}
+              name={selectedChat.name}
+              lastActive={6}
+              avatar={selectedChat.avatar}
+              isChatInfoVisible={isChatInfoVisible}
+              setIsChatInfoVisible={setIsChatInfoVisible}
+            />
+            <div className="p-4 w-full h-[calc(100vh-200px)] overflow-y-auto">
+              {messages
+                .filter((msg) => msg.conversationId === selectedMessageId)
+                .map((msg) => (
+                  <MessageItem
+                    key={msg._id}
+                    msg={{
+                      ...msg,
+                      sender:
+                        msg.userId === currentUserId
+                          ? "Bạn"
+                          : selectedMessage.participants?.find(
+                              (p) => p.userId === msg.userId
+                            )
+                          ? ""
+                          : "Unknown",
+                      time: formatTime(msg.createdAt),
+                      messageType: msg.messageType || "text",
+                      content: msg.content || "",
+                      linkURL: msg.linkURL || "",
+                      userId: msg.userId,
+                    }}
+                    currentUserId={currentUserId}
+                    onReply={handleReply}
+                    onForward={handleForward}
+                    onRevoke={handleRevoke}
+                  />
+                ))}
+              <div ref={messagesEndRef} />
+            </div>
+            <ChatFooter
+              className="fixed bottom-0 left-0 w-full bg-white shadow-md"
+              sendMessage={sendMessage}
+              replyingTo={replyingTo}
+              setReplyingTo={setReplyingTo}
             />
           </div>
-        )}
-      </div>
+
+          {isChatInfoVisible && (
+            <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
+              <ChatInfo />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center bg-white">
+          <h1 className="text-2xl font-bold">Chào mừng đến với TingTing PC!</h1>
+          <p className="text-gray-500 text-center mt-2 px-4">
+            Khám phá các tiện ích hỗ trợ làm việc và trò chuyện cùng người thân,
+            bạn bè.
+          </p>
+          <img
+            src={TingTingImage}
+            alt="Welcome"
+            className="mt-4 w-64 h-auto rounded-lg"
+          />
+        </div>
+      )}
     </div>
   );
 }

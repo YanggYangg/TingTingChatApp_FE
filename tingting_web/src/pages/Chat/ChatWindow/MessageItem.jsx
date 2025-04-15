@@ -1,72 +1,69 @@
-import React from "react";
+import {
+  IoReturnDownBack,
+  IoArrowRedoOutline,
+  IoTrashOutline,
+} from "react-icons/io5";
 
-const MessageItem = ({ msg, currentUserId }) => {
-  const isCurrentUser = msg.userId === currentUserId; // Sử dụng currentUserId thực tế
-
-  const renderMessageContent = () => {
-    switch (msg.messageType) {
-      case "text":
-        return <p>{msg.content || "[Tin nhắn trống]"}</p>;
-      case "image":
-        return msg.linkURL ? (
-          <img
-            src={msg.linkURL}
-            alt="Sent image"
-            className="w-40 h-auto rounded-lg"
-          />
-        ) : (
-          <p className="text-gray-500">[Hình ảnh không khả dụng]</p>
-        );
-      case "file":
-        return msg.linkURL ? (
-          <a
-            href={msg.linkURL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 underline flex items-center"
-          >
-            📎 {msg.content || "Tệp không tên"}
-          </a>
-        ) : (
-          <p className="text-gray-500">[Tệp không khả dụng]</p>
-        );
-      case "video":
-        return msg.linkURL ? (
-          <video
-            src={msg.linkURL}
-            controls
-            className="w-40 h-auto rounded-lg"
-          />
-        ) : (
-          <p className="text-gray-500">[Video không khả dụng]</p>
-        );
-      case "call":
-        return (
-          <p className="text-red-500">
-            {msg.content?.includes("missed")
-              ? "Cuộc gọi nhỡ"
-              : `📞 Cuộc gọi ${msg.content || "không rõ thời lượng"}`}
-          </p>
-        );
-      default:
-        return <p className="text-gray-500">[Loại tin nhắn không hỗ trợ]</p>;
-    }
-  };
+const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
+  const isCurrentUser = msg.userId === currentUserId;
 
   return (
     <div
-      className={`flex ${isCurrentUser ? "justify-end" : "justify-start"} mb-4`}
+      className={`flex ${
+        isCurrentUser ? "justify-end" : "justify-start"
+      } mb-4 relative`}
     >
       <div
-        className={`p-3 rounded-lg w-fit max-w-xs ${
+        className={`p-3 rounded-lg w-fit max-w-xs relative group ${
           isCurrentUser ? "bg-blue-200 text-black" : "bg-gray-200 text-black"
         }`}
       >
         {!isCurrentUser && (
           <p className="text-xs font-semibold text-gray-700">{msg.sender}</p>
         )}
-        {renderMessageContent()}
+
+        {/* Nội dung tin nhắn */}
+        {msg.messageType === "text" && <p>{msg.content}</p>}
+        {msg.messageType === "image" && (
+          <img
+            src={msg.linkURL}
+            className="w-40 h-auto rounded-lg"
+            alt="Ảnh"
+          />
+        )}
+
         <p className="text-xs text-gray-500 text-right mt-1">{msg.time}</p>
+
+        {/* Action buttons hiển thị khi hover vào group */}
+        <div
+          className={`absolute top-[-36px] ${
+            isCurrentUser ? "right-0" : "left-0"
+          } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
+        >
+          <button
+            onClick={() => onReply(msg)}
+            title="Trả lời"
+            className="p-1 rounded-full bg-white/80 hover:bg-blue-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-blue-600"
+          >
+            <IoReturnDownBack size={18} />
+          </button>
+          <button
+            onClick={() => onForward(msg)}
+            title="Chuyển tiếp"
+            className="p-1 rounded-full bg-white/80 hover:bg-green-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-green-600"
+          >
+            <IoArrowRedoOutline size={18} />
+          </button>
+          {isCurrentUser && (
+            <button
+              onClick={() => onRevoke(msg)}
+              title="Thu hồi"
+              className="p-1 rounded-full bg-white/80 hover:bg-red-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-red-500"
+            >
+              <IoTrashOutline size={18} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

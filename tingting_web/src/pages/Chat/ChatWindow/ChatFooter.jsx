@@ -38,6 +38,7 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
 
   const uploadToS3 = async (file) => {
     // Replace with real upload
+    //file dạng from 
     return "https://picsum.photos/200/300";
   };
 

@@ -26,8 +26,10 @@ import store from "./redux/store";
 import { SocketProvider } from "./contexts/SocketContext";
 
 function App() {
-  const userId = "6601a1b2c3d4e5f678901234";
-  console.log("Using userId:", userId);
+  // const userId = "6601a1b2c3d4e5f678901234";
+  // console.log("Using userId:", userId);
+  const userId = localStorage.getItem("userId");
+  console.log("Using userIdddddđ:", userId);
   return (
     <Provider store={store}>
       <SocketProvider userId={userId}>
