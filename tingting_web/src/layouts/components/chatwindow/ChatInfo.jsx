@@ -223,6 +223,7 @@ const ChatInfo = () => {
             <CreateGroupModal
                 isOpen={isCreateGroupModalOpen}
                 onClose={handleCloseCreateGroupModal}
+                userId={userId}
             />
         </div>
     );
