@@ -64,6 +64,6 @@ export const ApiManager = {
     get: async (service, url, { params } = {}) => request(service, 'get', url, null, params),
     post: async (service, url, data) => request(service, 'post', url, data),
     put: async (service, url, data) => request(service, 'put', url, data),
-    delete: async (service, url) => request(service, 'delete', url),
+    delete: async (service, url, data) => request(service, 'delete', url, data),
 };
 

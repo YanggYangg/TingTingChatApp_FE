@@ -28,7 +28,7 @@ export const Api_chatInfo = {
     hideChat: (conversationId, hideData) => ApiManager.put('chatService', `/conversations/${conversationId}/hide`, hideData),
 
     // Xóa lịch sử cuộc trò chuyện (chỉ mình tôi) (chatService)
-    deleteHistory: (conversationId, participantData) => ApiManager.delete('chatService', `/conversations/${conversationId}`, participantData ),
+    deleteHistory: (conversationId, participantData) => ApiManager.delete('chatService', `/conversations/${conversationId}`, participantData),
 
     // Danh sách nhóm chung (chatService)
     getCommonGroups: (conversationId) => ApiManager.get('chatService', `/conversations/${conversationId}/common`),
@@ -36,5 +36,7 @@ export const Api_chatInfo = {
     // Tạo nhóm (chatService)
     createConversation: (groupData) => ApiManager.post('chatService', `/conversations/createConversation2`, groupData),
 
-   
+    // Xóa tin nhắn
+    deleteMessage: (messageIds) => ApiManager.delete('chatService', `/messages/delete`, messageIds), // Gửi messageIds trực tiếp
+    
 };

@@ -7,6 +7,7 @@ import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
 import TingTingImage from "../../assets/TingTing_Chat.png";
 import { useSocket } from "../../contexts/SocketContext";
+import {Api_chatInfo} from "../../../apis/Api_chatInfo";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -107,15 +108,45 @@ function ChatPage() {
 
   const handleReply = (msg) => setReplyingTo(msg);
   const handleForward = (msg) => console.log("Forward", msg);
-  const handleRevoke = (msg) => {
-    if (socket) {
-      socket.emit("revokeMessage", {
-        messageId: msg._id,
-        conversationId: selectedMessageId,
-      });
+  // const handleRevoke = (msg) => {
+  //   if (socket) {
+  //     socket.emit("revokeMessage", {
+  //       messageId: msg._id,
+  //       conversationId: selectedMessageId,
+  //     });
+  //   }
+  // };
+
+  const handleRevoke = async (messageId) => {
+    try {
+      const response = await Api_chatInfo.deleteMessage({ messageIds: [messageId] });
+      console.log('[DELETE] Phản hồi API (thu hồi):', response);
+  
+      if (response?.message) {
+        setMessages(prevMessages => prevMessages.filter(msg => msg._id !== messageId));
+        if (typeof alert !== 'undefined') {
+          alert('Thành công', response.message || 'Đã thu hồi tin nhắn.');
+        } else {
+          console.log('Thành công:', response.message || 'Đã thu hồi tin nhắn.');
+        }
+      } else {
+        console.error('[DELETE] Phản hồi API không mong đợi:', response);
+        if (typeof alert !== 'undefined') {
+          alert('Lỗi', 'Có lỗi xảy ra khi thu hồi tin nhắn. Phản hồi không hợp lệ.');
+        } else {
+          console.error('Lỗi:', 'Có lỗi xảy ra khi thu hồi tin nhắn. Phản hồi không hợp lệ.');
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi thu hồi tin nhắn:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể thu hồi tin nhắn. Vui lòng thử lại.';
+      if (typeof alert !== 'undefined') {
+        alert('Lỗi', errorMessage);
+      } else {
+        console.error('Lỗi:', errorMessage);
+      }
     }
   };
-
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {selectedChat ? (
@@ -140,6 +171,7 @@ function ChatPage() {
                     key={msg._id}
                     msg={{
                       ...msg,
+                      id: msg._id,
                       sender:
                         msg.userId === currentUserId
                           ? "Bạn"

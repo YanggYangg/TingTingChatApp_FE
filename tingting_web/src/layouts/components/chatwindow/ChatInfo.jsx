@@ -21,7 +21,7 @@ const ChatInfo = ({ userId, conversationId }) => {
     const [isMuted, setIsMuted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
-     const [conversations, setConversations] = useState([]);
+    const [conversations, setConversations] = useState([]);
 
     // const conversationId = "67fe043089c79b5ff609cb95";
     // const userId = "67fe031e421896d7bc8c2e10";
@@ -164,7 +164,13 @@ const ChatInfo = ({ userId, conversationId }) => {
                         className="w-20 h-20 rounded-full mx-auto"
                     />
                     <div className="flex items-center justify-center mt-2">
-                        <h2 className="text-lg font-semibold">{chatInfo?.name || 'Không có tên'}</h2>
+                        <h2 className="text-lg font-semibold">
+                            {chatInfo?.name || (
+                                !chatInfo?.isGroup && chatInfo?.participants
+                                    ? chatInfo.participants.find(p => p.userId !== userId)?.user?.name || 'Không có tên'
+                                    : 'Không có tên'
+                            )}
+                        </h2>
                         <button
                             onClick={handleOpenEditNameModal}
                             className="text-gray-500 hover:text-blue-500 ml-2"

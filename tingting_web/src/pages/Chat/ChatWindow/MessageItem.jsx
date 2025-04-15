@@ -6,17 +6,22 @@ import {
 
 const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
   const isCurrentUser = msg.userId === currentUserId;
-
+  const handleRevokeClick = () => {
+    if (onRevoke && msg && msg.id) {
+      console.log("Revoking message with ID: nầy", msg.id); // Log để kiểm tra
+      onRevoke(msg.id); // Truyền ID tin nhắn
+    } else {
+      console.error("Cannot revoke message: missing onRevoke or msg.id");
+    }
+  };
   return (
     <div
-      className={`flex ${
-        isCurrentUser ? "justify-end" : "justify-start"
-      } mb-4 relative`}
+      className={`flex ${isCurrentUser ? "justify-end" : "justify-start"
+        } mb-4 relative`}
     >
       <div
-        className={`p-3 rounded-lg w-fit max-w-xs relative group ${
-          isCurrentUser ? "bg-blue-200 text-black" : "bg-gray-200 text-black"
-        }`}
+        className={`p-3 rounded-lg w-fit max-w-xs relative group ${isCurrentUser ? "bg-blue-200 text-black" : "bg-gray-200 text-black"
+          }`}
       >
         {!isCurrentUser && (
           <p className="text-xs font-semibold text-gray-700">{msg.sender}</p>
@@ -36,9 +41,8 @@ const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
 
         {/* Action buttons hiển thị khi hover vào group */}
         <div
-          className={`absolute top-[-36px] ${
-            isCurrentUser ? "right-0" : "left-0"
-          } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
+          className={`absolute top-[-36px] ${isCurrentUser ? "right-0" : "left-0"
+            } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
         >
           <button
             onClick={() => onReply(msg)}
@@ -56,7 +60,7 @@ const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
           </button>
           {isCurrentUser && (
             <button
-              onClick={() => onRevoke(msg)}
+              onClick={handleRevokeClick}
               title="Thu hồi"
               className="p-1 rounded-full bg-white/80 hover:bg-red-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-red-500"
             >
