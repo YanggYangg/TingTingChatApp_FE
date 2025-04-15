@@ -1,10 +1,19 @@
-import React,  { useState, useEffect } from "react";
-import classNames from "classnames";
+import React, { useState, useEffect } from "react";
+import classNames from "classnames/bind";
 import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 import { useDispatch } from "react-redux";
 import { setSelectedMessage } from "../../../redux/slices/chatSlice";
+import { useSocket } from "../../../contexts/SocketContext";
+import {
+  loadAndListenConversations,
+  onConversationUpdate,
+  offConversationUpdate,
+  joinConversation,
+  leaveConversation,
+} from "../../../services/sockets/events/conversation";
+import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 
 import SibarContact from "../contact-form/SideBarContact/SideBarContact";
 import GroupList from "../contact-form/GroupList";
@@ -15,150 +24,51 @@ import ContactsPage from "../../../pages/Chat/ContactsPage";
 
 // import { Api_Conversation } from "../../../../apis/Api_Conversation";
 
-
 const cx = classNames.bind(styles);
 
 function ChatList({ activeTab }) {
   console.log("Current activeTab:", activeTab);
-  const [messages, setMessages] = useState([]);  // State để lưu dữ liệu từ API
+  const [messages, setMessages] = useState([]);
   const [selectedTab, setSelectedTab] = useState("priority");
-
-  // Hàm xử lý khi click vào tin nhắn
+  const socket = useSocket();
   const dispatch = useDispatch();
+
+  // Get currentUserId from socket
+  const currentUserId = socket?.io?.opts?.query?.userId;
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
-    dispatch(setSelectedMessage(message.id));
-  };
+    joinConversation(socket, message.id);
+    console.log("mess", message);
 
+    dispatch(setSelectedMessage(message));
+  };
   const handleTabClick = (tab) => {
     setSelectedTab(tab);
-  }
+  };
 
-  // useEffect(() => {
-  //   const fetchConversations = async () => {
-  //     try {
-  //       const data = await Api_Conversation.getAllConversations();
-  //       setMessages(data); // Cập nhật danh sách tin nhắn
-  //     } catch (error) {
-  //       console.error("Lỗi khi lấy danh sách cuộc trò chuyện:", error);
-  //     }
-  //   }
-  //   fetchConversations();
-  // }, []);
+  // Load and listen for conversations
+  useEffect(() => {
+    if (!socket || !currentUserId) return;
 
-  // Dữ liệu mẫu
-  const sampleMessages = [
-    {
-      id: 1,
-      name: "Hờ Mờ Hờ Và Những Ngư...",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      lastMessage: "Giải tán hết đi mấy con quỉ cái này",
-      isCall: false,
-      time: "38 phút",
-      members: 99,
-    },
-    {
-      id: 2,
-      name: "Khánh",
-      avatar: "https://picsum.photos/200",
-      type: "personal",
-      isCall: true,
-      missed: false,
-      time: "1 giờ",
-    },
-    {
-      id: 3,
-      name: "Dũng",
-      avatar: "https://picsum.photos/200",
-      type: "personal",
-      lastMessage: "Hello bạn!",
-      isCall: false,
-      time: "2 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-  ];
+    const handleConversations = (conversations) => {
+      console.log("Received conversations:", conversations);
+
+      // Transform conversations using utility function
+      const transformedMessages = transformConversationsToMessages(
+        conversations,
+        currentUserId
+      );
+      console.log("Transformed messages 555:", transformedMessages);
+      setMessages(transformedMessages);
+    };
+
+    // Use the combined function
+    const cleanup = loadAndListenConversations(socket, handleConversations);
+
+    // Cleanup
+    return cleanup;
+  }, [socket, currentUserId]);
 
   const renderComponent = () => {
     switch (activeComponent) {
@@ -209,8 +119,7 @@ function ChatList({ activeTab }) {
       <div className="flex-grow  text-gray-700">
         {activeTab === "/chat" && (
           <MessageList
-            //messages={messages}
-            messages={sampleMessages}
+            messages={messages}
             onMessageClick={handleMessageClick}
           />
         )}
