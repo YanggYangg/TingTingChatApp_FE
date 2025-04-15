@@ -21,6 +21,7 @@
     "@tippyjs/react": "^4.2.6",
     "axios": "^1.8.4",
     "classnames": "^2.5.1",
+    "dotenv": "^16.5.0",
     "emoji-picker-react": "^4.12.2",
     "lucide-react": "^0.479.0",
     "prop-types": "^15.8.1",
