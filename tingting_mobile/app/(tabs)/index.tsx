@@ -17,6 +17,14 @@ import OAScreen from "@/components/screens/MainScreen/Contact/OAScreen"
 import PersonalInfoScreen from "@/components/screens/MainScreen/Profile/PersonalInfoScreen"
 import EditPersonalInfoScreen from "@/components/screens/MainScreen/Profile/EditPersonalInfoScreen"
 
+import Welcome from "@/components/screens/AuthScreen/Welcome"
+import Login from "@/components/screens/AuthScreen/Login"
+import Register from "@/components/screens/AuthScreen/Register"
+import VerificationCode from "@/components/screens/AuthScreen/VerificationCode"
+import ForgotPassword from "@/components/screens/AuthScreen/ForgotPassword"
+import ResetPassword from "@/components/screens/AuthScreen/ResetPassword"
+import VerificationCodeRegister from "@/components/screens/AuthScreen/VerificationCodeRegister"
+
 
 type RootStackParamList = {
   Main: undefined
@@ -27,6 +35,24 @@ type RootStackParamList = {
   SentRequests: undefined
   GroupsTab: undefined
   OATab: undefined
+  Welcome: undefined
+  Login: undefined
+  Register: undefined
+  VerificationCode: {
+    phoneNumber: string;
+    firstname?: string;
+    surname?: string;
+    day?: string;
+    month?: string;
+    year?: string;
+    gender?: string;
+    email?: string;
+    password?: string;
+  };
+  ForgotPassword: undefined
+  ResetPassword: { phoneNumber: string }
+  VerificationCodeRegister: { phoneNumber: string }
+  
 }
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
@@ -114,15 +140,26 @@ function MainTabNavigator() {
 export default function App() {
   return (
     <Stack.Navigator
-      initialRouteName="Main"
+      initialRouteName="Welcome"
       screenOptions={{
         headerShown: false,
         animation: "none", // Disable animations
       }}
     >
+      <Stack.Screen name="Welcome" component={Welcome} options={{ headerShown: false }} />
+      {/* Main Tab Navigator */}
       <Stack.Screen name="Main" component={MainTabNavigator} options={{ headerShown: false }} />
       <Stack.Screen name="MessageScreen" component={MessageScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ChatScreenCloud" component={ChatScreenCloud} options={{ headerShown: false }} />
+      <Stack.Screen name="Login" component={Login} options={{ headerShown: false }} />
+      <Stack.Screen name="Register" component={Register} options={{ headerShown: false }} />
+      <Stack.Screen name="VerificationCode" component={VerificationCode} options={{ headerShown: false }} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPassword} options={{ headerShown: false }} />
+      <Stack.Screen name="ResetPassword" component={ResetPassword} options={{ headerShown: false }} />
+      <Stack.Screen name="VerificationCodeRegister" component={VerificationCodeRegister} options={{ headerShown: false }} />
+      
+      
+      
     </Stack.Navigator>
   )
 }

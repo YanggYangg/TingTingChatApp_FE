@@ -11,10 +11,10 @@ const ResetPassword: React.FC<{ navigation: any; route: any }> = ({
 }) => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const { email, phone } = route.params; // Lấy thông tin từ route params
+  const { phoneNumber } = route.params || {};
 
   const handleConfirm = async () => {
-    const data = { email, newPassword };
+    const data = {phone: phoneNumber, newPassword };
     // Simple client-side validation
     if (!newPassword || !confirmPassword) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ mật khẩu.");

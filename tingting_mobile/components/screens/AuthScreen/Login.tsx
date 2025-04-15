@@ -5,11 +5,23 @@ import CustomButton from "@/components/button/CustomButton";
 import { Ionicons } from "@expo/vector-icons";
 import { Api_Auth } from "../../../apis/api_auth"; // Đường dẫn đến Api_Auth của bạn
 
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+
+type RootStackParamList = {
+  Main: undefined;
+  MessageScreen: { userId?: string; username?: string };
+  Login: undefined;
+};
+
+type LoginProps = NativeStackScreenProps<RootStackParamList, "Login">;
+
 const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [phone, setphone] = useState("");
   const [password, setPassword] = useState("");
 
+
   const handleLogin = async () => {
+    
     if (!phone || !password) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
       return;
@@ -28,16 +40,17 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
     try {
       const response = await Api_Auth.login({ phone, password });
 
-      if (response.status === "success") {
-        const { token, user } = response.data;
+      if (response.success === true) {
+        // const { token, user } = response.data;
 
-        console.log("Token:", token);
-        console.log("User info:", user);
+        // console.log("Token:", token);
+        // console.log("User info:", user);
 
         // TODO: Lưu token vào AsyncStorage hoặc Redux nếu cần
 
         // Chuyển sang màn hình chính (hoặc màn nào bạn muốn)
-        navigation.replace("Main");
+        navigation.navigate("VerificationCode", { phoneNumber: phone });
+        // navigation.replace("Main");
       } else {
         Alert.alert("Lỗi", response.message || "Đăng nhập thất bại");
       }

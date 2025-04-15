@@ -2,6 +2,15 @@ import React from "react";
 import { View, Text, StyleSheet, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import CustomButton from "../../../components/button/CustomButton";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+
+type RootStackParamList = {
+  Main: undefined;
+  MessageScreen: { userId?: string; username?: string };
+  Welcome: undefined;
+};
+
+type WelcomeProps = NativeStackScreenProps<RootStackParamList, "Welcome">;
 
 const Welcome: React.FC<{ navigation: any }> = ({ navigation }) => {
   const navigate = useNavigation();
