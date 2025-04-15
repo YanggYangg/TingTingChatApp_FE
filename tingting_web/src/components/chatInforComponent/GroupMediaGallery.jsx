@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react"; // Thêm useRef
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import StoragePage from "./StoragePage";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
@@ -7,35 +7,35 @@ const GroupMediaGallery = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [media, setMedia] = useState([]);
   const [fullScreenMedia, setFullScreenMedia] = useState(null);
-  const videoRef = useRef(null); // Thêm ref để kiểm soát video
+  const videoRef = useRef(null);
+
+  // Hàm lấy lại dữ liệu media từ API
+  const fetchMedia = async () => {
+    try {
+      console.log("Đang lấy dữ liệu từ API...");
+      const response = await Api_chatInfo.getChatMedia(conversationId);
+      console.log("Dữ liệu API nhận được:", response);
+
+      const mediaData = Array.isArray(response?.data) ? response.data : response;
+
+      if (Array.isArray(mediaData)) {
+        const filteredMedia = mediaData.map((item) => ({
+          src: item?.linkURL || "#",
+          name: item?.content || "Không có tên",
+          type: item?.messageType || "image",
+        }));
+        setMedia(filteredMedia);
+      } else {
+        console.warn("API không trả về dữ liệu hợp lệ.");
+        setMedia([]);
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy dữ liệu media:", error);
+    }
+  };
 
   useEffect(() => {
     if (!conversationId) return;
-
-    const fetchMedia = async () => {
-      try {
-        console.log("Đang lấy dữ liệu từ API...");
-        const response = await Api_chatInfo.getChatMedia(conversationId);
-        console.log("Dữ liệu API nhận được:", response);
-
-        const mediaData = Array.isArray(response?.data) ? response.data : response;
-
-        if (Array.isArray(mediaData)) {
-          const filteredMedia = mediaData.map((item) => ({
-            src: item?.linkURL || "#",
-            name: item?.content || "Không có tên",
-            type: item?.messageType || "image",
-          }));
-          setMedia(filteredMedia);
-        } else {
-          console.warn("API không trả về dữ liệu hợp lệ.");
-          setMedia([]);
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy dữ liệu media:", error);
-      }
-    };
-
     fetchMedia();
   }, [conversationId]);
 
@@ -62,7 +62,6 @@ const GroupMediaGallery = ({ conversationId }) => {
     }
   };
 
-  // Xử lý khi fullScreenMedia thay đổi (video play/pause)
   useEffect(() => {
     if (fullScreenMedia && fullScreenMedia.type === "video" && videoRef.current) {
       videoRef.current.play().catch((error) => {
@@ -109,14 +108,19 @@ const GroupMediaGallery = ({ conversationId }) => {
         >
           Xem tất cả
         </button>
-        {isOpen && <StoragePage conversationId={conversationId} files={media} onClose={() => setIsOpen(false)} />}
+        {isOpen && (
+          <StoragePage
+            conversationId={conversationId}
+            onClose={() => setIsOpen(false)}
+            onDelete={fetchMedia} // Truyền callback để gọi lại API sau khi xóa
+          />
+        )}
       </div>
 
       {/* Modal hiển thị media toàn màn hình */}
       {fullScreenMedia && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
           <div className="relative flex bg-white rounded-lg shadow-lg">
-            {/* Khu vực hiển thị media lớn */}
             <div className="relative flex items-center justify-center w-[60vw] h-[90vh] p-4">
               {fullScreenMedia.type === "image" ? (
                 <img
@@ -126,22 +130,18 @@ const GroupMediaGallery = ({ conversationId }) => {
                 />
               ) : (
                 <video
-                  ref={videoRef} // Gắn ref vào video
+                  ref={videoRef}
                   src={fullScreenMedia.src}
                   controls
                   className="max-h-full max-w-full object-contain rounded-lg shadow-lg transition-all"
                 />
               )}
-
-              {/* Nút đóng */}
               <button
                 className="absolute top-2 right-2 text-white bg-gray-800 hover:bg-gray-700 rounded-full p-2"
                 onClick={() => setFullScreenMedia(null)}
               >
                 ✖
               </button>
-
-              {/* Nút tải xuống */}
               <button
                 onClick={() => downloadImage(fullScreenMedia.src, fullScreenMedia.name)}
                 className="absolute bottom-2 right-2 bg-white px-4 py-2 rounded text-sm text-gray-800 hover:bg-gray-200 transition-all"
@@ -149,8 +149,6 @@ const GroupMediaGallery = ({ conversationId }) => {
                 ⬇ Tải xuống
               </button>
             </div>
-
-            {/* Sidebar chứa danh sách media (bên phải) */}
             <div className="w-40 h-[90vh] bg-gray-900 p-2 overflow-y-auto flex flex-col items-center">
               {media.map((item, index) => (
                 <div key={index}>

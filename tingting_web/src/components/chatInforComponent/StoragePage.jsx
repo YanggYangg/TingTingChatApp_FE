@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from "react"; // Thêm useRef
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FaCalendarAlt, FaArrowLeft } from "react-icons/fa";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { FaRegFolderOpen, FaDownload } from "react-icons/fa";
 import DocViewer, { DocViewerRenderers } from 'react-doc-viewer';
 
-const StoragePage = ({ onClose, conversationId }) => {
+const StoragePage = ({ onClose, conversationId, onDelete }) => { // Thêm prop onDelete
   const [activeTab, setActiveTab] = useState("images");
   const [filterSender, setFilterSender] = useState("Tất cả");
   const [startDate, setStartDate] = useState("");
@@ -16,7 +16,7 @@ const StoragePage = ({ onClose, conversationId }) => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [isSelecting, setIsSelecting] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
-  const videoRef = useRef(null); // Thêm ref để kiểm soát video
+  const videoRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -107,14 +107,13 @@ const StoragePage = ({ onClose, conversationId }) => {
     setPreviewFile(file);
   };
 
-  // Xử lý khi fullScreenImage thay đổi (video play/pause)
   useEffect(() => {
     if (fullScreenImage && fullScreenImage.type === "video" && videoRef.current) {
-      videoRef.current.play(); // Phát video khi vào full screen
+      videoRef.current.play();
     }
     return () => {
       if (videoRef.current) {
-        videoRef.current.pause(); // Dừng video khi thoát full screen
+        videoRef.current.pause();
       }
     };
   }, [fullScreenImage]);
@@ -171,11 +170,11 @@ const StoragePage = ({ onClose, conversationId }) => {
         {data.filter((item) => item.date === date).map((item, index) => (
           <div key={index} className="flex flex-col items-center">
             {activeTab === "images" ? (
-              <div className="relative">
+              <div className="relative group">
                 {isSelecting && (
                   <input
                     type="checkbox"
-                    className="absolute top-2 left-2"
+                    className="absolute top-2 left-2 z-10 opacity-100 group-hover:opacity-100"
                     checked={selectedItems.includes(item.id)}
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -190,19 +189,33 @@ const StoragePage = ({ onClose, conversationId }) => {
                   <img
                     src={item.url}
                     alt={item.name}
-                    className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
+                    className={`w-20 h-20 rounded-md object-cover cursor-pointer transition-all ${isSelecting ? "" : "hover:scale-105"}`}
                     onClick={() => setFullScreenImage(item)}
                   />
                 ) : (
                   <video
                     src={item.url}
-                    className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
+                    className={`w-20 h-20 rounded-md object-cover cursor-pointer transition-all ${isSelecting ? "" : "hover:scale-105"}`} // Sửa lỗi cú pháp "hover:scale-/pd5" thành "hover:scale-105"
                     onClick={() => setFullScreenImage(item)}
                   />
                 )}
               </div>
             ) : activeTab === "files" ? (
-              <div className="flex items-center justify-between bg-gray-100 p-2 rounded-md relative w-full">
+              <div className="flex items-center justify-between bg-gray-100 p-2 rounded-md relative w-full group"> {/* Thêm group */}
+                {isSelecting && (
+                  <input
+                    type="checkbox"
+                    className="absolute top-2 left-2 z-10 opacity-100 group-hover:opacity-100"
+                    checked={selectedItems.includes(item.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedItems([...selectedItems, item.id]);
+                      } else {
+                        setSelectedItems(selectedItems.filter((id) => id !== item.id));
+                      }
+                    }}
+                  />
+                )}
                 <a
                   href="#"
                   onClick={() => handlePreviewFile(item)}
@@ -220,11 +233,11 @@ const StoragePage = ({ onClose, conversationId }) => {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between bg-gray-100 p-2 rounded-md relative w-full">
+              <div className="flex items-center justify-between bg-gray-100 p-2 rounded-md relative group">
                 {isSelecting && (
                   <input
                     type="checkbox"
-                    className="absolute top-2 left-2"
+                    className="absolute top-2 left-2 z-10 opacity-100 group-hover:opacity-100"
                     checked={selectedItems.includes(item.id)}
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -254,17 +267,55 @@ const StoragePage = ({ onClose, conversationId }) => {
     </div>
   );
 
-  const handleDeleteSelected = () => {
-    const newData = {
-      images: data.images.filter((item) => !selectedItems.includes(item.id)),
-      files: data.files.filter((item) => !selectedItems.includes(item.id)),
-      links: data.links.filter((item) => !selectedItems.includes(item.id)),
-    };
-    setData(newData);
-    setSelectedItems([]);
-    setIsSelecting(false);
-  };
+  const handleDeleteSelected = async () => {
+    if (selectedItems.length === 0) {
+      console.log("Không có tin nhắn nào được chọn để xóa.");
+      return;
+    }
 
+    try {
+      const response = await Api_chatInfo.deleteMessage({ messageIds: selectedItems });
+      console.log('[DELETE] Phản hồi API (xóa tin nhắn):', response);
+
+      if (response?.message) {
+        const newData = {
+          images: data.images.filter((item) => !selectedItems.includes(item.id)),
+          files: data.files.filter((item) => !selectedItems.includes(item.id)),
+          links: data.links.filter((item) => !selectedItems.includes(item.id)),
+        };
+        setData(newData);
+
+        // Gọi callback để thông báo danh sách ID đã xóa
+        if (onDelete) {
+          onDelete(selectedItems);
+        }
+
+        setSelectedItems([]);
+        setIsSelecting(false);
+
+        if (typeof alert !== 'undefined') {
+          alert('Thành công', response.message || 'Đã xóa tin nhắn.');
+        } else {
+          console.log('Thành công:', response.message || 'Đã xóa tin nhắn.');
+        }
+      } else {
+        console.error('[DELETE] Phản hồi API không mong đợi:', response);
+        if (typeof alert !== 'undefined') {
+          alert('Lỗi', 'Có lỗi xảy ra khi xóa tin nhắn. Phản hồi không hợp lệ.');
+        } else {
+          console.error('Lỗi:', 'Có lỗi xảy ra khi xóa tin nhắn. Phản hồi không hợp lệ.');
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi xóa tin nhắn:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể xóa tin nhắn. Vui lòng thử lại.';
+      if (typeof alert !== 'undefined') {
+        alert('Lỗi', errorMessage);
+      } else {
+        console.error('Lỗi:', errorMessage);
+      }
+    }
+  };
   return (
     <div className="absolute right-0 top-0 h-full w-[410px] bg-white shadow-lg p-4 overflow-y-auto">
       <div className="flex justify-between mb-4">
@@ -312,7 +363,7 @@ const StoragePage = ({ onClose, conversationId }) => {
                 />
               ) : (
                 <video
-                  ref={videoRef} // Gắn ref vào video
+                  ref={videoRef}
                   src={fullScreenImage.url}
                   controls
                   className="max-h-full max-w-full object-contain rounded-lg shadow-lg"

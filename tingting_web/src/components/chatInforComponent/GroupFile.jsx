@@ -9,32 +9,31 @@ const GroupFile = ({ conversationId }) => {
   const [files, setFiles] = useState([]);
   const [previewFile, setPreviewFile] = useState(null);
 
+  // Hàm lấy lại danh sách file từ API
+  const fetchFiles = async () => {
+    try {
+      console.log("Gửi request đến API...");
+      const response = await Api_chatInfo.getChatFiles(conversationId);
+      console.log("Dữ liệu API trả về:", response);
+
+      const fileData = Array.isArray(response) ? response : response?.data;
+
+      if (Array.isArray(fileData)) {
+        const sortedFiles = fileData.sort((a, b) => {
+          return (new Date(b.createdAt) - new Date(a.createdAt)) || 0;
+        });
+        setFiles(sortedFiles.slice(0, 3));
+      } else {
+        setFiles([]);
+        console.warn("API không trả về mảng hợp lệ");
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách file:", error);
+    }
+  };
+
   useEffect(() => {
     if (!conversationId) return;
-
-    const fetchFiles = async () => {
-      try {
-        console.log("Gửi request đến API...");
-        const response = await Api_chatInfo.getChatFiles(conversationId);
-        console.log("Dữ liệu API trả về:", response);
-
-        const fileData = Array.isArray(response) ? response : response?.data;
-
-        if (Array.isArray(fileData)) {
-          const sortedFiles = fileData.sort((a, b) => {
-            return (new Date(b.createdAt) - new Date(a.createdAt)) || 0;
-          });
-
-          setFiles(sortedFiles.slice(0, 3));
-        } else {
-          setFiles([]);
-          console.warn("API không trả về mảng hợp lệ");
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách file:", error);
-      }
-    };
-
     fetchFiles();
   }, [conversationId]);
 
@@ -70,7 +69,7 @@ const GroupFile = ({ conversationId }) => {
               <div className="flex gap-2">
                 <button 
                   className="text-gray-500 hover:text-blue-500"
-                  onClick={() => setPreviewFile(file)} // Xem trước file
+                  onClick={() => setPreviewFile(file)}
                 >
                   <FaRegFolderOpen size={18} />
                 </button>
@@ -93,7 +92,14 @@ const GroupFile = ({ conversationId }) => {
       >
         Xem tất cả
       </button>
-      {isOpen && <StoragePage conversationId={conversationId}  files={files} onClose={() => setIsOpen(false)} />}
+      {isOpen && (
+        <StoragePage
+          conversationId={conversationId}
+          files={files}
+          onClose={() => setIsOpen(false)}
+          onDelete={fetchFiles} // Truyền callback để cập nhật danh sách file
+        />
+      )}
       
       {/* Modal xem trước file */}
       {previewFile && (
@@ -104,7 +110,7 @@ const GroupFile = ({ conversationId }) => {
               <DocViewer
                 documents={[{ uri: previewFile.linkURL }]}
                 pluginRenderers={DocViewerRenderers}
-                style={{ height: '100%' }} // Đặt chiều cao cho DocViewer
+                style={{ height: '100%' }}
               />
             </div>
             <div className="flex justify-between mt-4">
@@ -116,7 +122,7 @@ const GroupFile = ({ conversationId }) => {
               </button>
               <button
                 className="bg-blue-500 text-white px-4 py-2 rounded"
-                onClick={() => handleDownload(previewFile)} // Tải xuống khi nhấn nút
+                onClick={() => handleDownload(previewFile)}
               >
                 Tải xuống
               </button>

@@ -7,44 +7,42 @@ const GroupLinks = ({ conversationId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [links, setLinks] = useState([]);
 
+  // Hàm lấy lại danh sách link từ API
+  const fetchLinks = async () => {
+    try {
+      const response = await Api_chatInfo.getChatLinks(conversationId);
+      const linkData = Array.isArray(response) ? response : response?.data;
+
+      if (Array.isArray(linkData)) {
+        const filteredLinks = linkData
+          .filter((item) => item?.messageType === "link")
+          .map((item) => ({
+            title: item?.content || "Không có tiêu đề",
+            url: item?.linkURL || "#",
+            date: item?.createdAt?.split("T")[0] || "Không có ngày",
+            sender: item?.userId || "Không rõ người gửi",
+          }));
+
+        const sortedLinks = filteredLinks.sort((a, b) => {
+          if (a.date && b.date) {
+            return new Date(b.date) - new Date(a.date);
+          } else {
+            return 0;
+          }
+        });
+
+        setLinks(sortedLinks.slice(0, 3));
+      } else {
+        setLinks([]);
+        console.error("Dữ liệu không hợp lệ:", response);
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách link:", error);
+    }
+  };
+
   useEffect(() => {
     if (!conversationId) return;
-
-    const fetchLinks = async () => {
-      try {
-        const response = await Api_chatInfo.getChatLinks(conversationId);
-        const linkData = Array.isArray(response) ? response : response?.data;
-
-        if (Array.isArray(linkData)) {
-          const filteredLinks = linkData
-            .filter((item) => item?.messageType === "link")
-            .map((item) => ({
-              title: item?.content || "Không có tiêu đề",
-              url: item?.linkURL || "#",
-              date: item?.createdAt?.split("T")[0] || "Không có ngày",
-              sender: item?.userId || "Không rõ người gửi",
-            }));
-
-          // Sắp xếp link theo thời gian (giả sử có trường 'createdAt')
-          const sortedLinks = filteredLinks.sort((a, b) => {
-            if (a.date && b.date) {
-              return new Date(b.date) - new Date(a.date);
-            } else {
-              return 0;
-            }
-          });
-
-          // Lấy 3 link đầu tiên
-          setLinks(sortedLinks.slice(0, 3));
-        } else {
-          setLinks([]);
-          console.error("Dữ liệu không hợp lệ:", response);
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách link:", error);
-      }
-    };
-
     fetchLinks();
   }, [conversationId]);
 
@@ -79,7 +77,14 @@ const GroupLinks = ({ conversationId }) => {
         Xem tất cả
       </button>
 
-      {isOpen && <StoragePage conversationId={conversationId} links={links} onClose={() => setIsOpen(false)} />}
+      {isOpen && (
+        <StoragePage
+          conversationId={conversationId}
+          links={links}
+          onClose={() => setIsOpen(false)}
+          onDelete={fetchLinks} // Truyền callback để cập nhật danh sách link
+        />
+      )}
     </div>
   );
 };
