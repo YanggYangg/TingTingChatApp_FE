@@ -1,10 +1,12 @@
-import classNames from "classnames/bind";
-import styles from "./Login.module.scss";
-import { Link } from "react-router-dom";
-import { MdOutlinePhoneIphone } from "react-icons/md";
-import { IoLockClosed } from "react-icons/io5";
-import { useState } from "react";
-import { useNavigate } from 'react-router-dom';
+"use client"
+
+import classNames from "classnames/bind"
+import styles from "./Login.module.scss"
+import { Link } from "react-router-dom"
+import { MdOutlinePhoneIphone } from "react-icons/md"
+import { IoLockClosed } from "react-icons/io5"
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 import { Api_Auth } from "../../../apis/api_auth";
 import Modal from '../../components/Notification/Modal';

@@ -92,7 +92,6 @@ function EnterOTP() {
           </div>
         </div>
       </div>
-
       {isError && (
         <Modal
           valid={false}

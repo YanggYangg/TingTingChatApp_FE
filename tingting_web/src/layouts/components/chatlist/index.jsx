@@ -1,168 +1,45 @@
-import React,  { useState, useEffect } from "react";
-import classNames from "classnames";
+import React, { useState, useEffect } from "react";
+import classNames from "classnames/bind";
 import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 import { useDispatch } from "react-redux";
 import { setSelectedMessage } from "../../../redux/slices/chatSlice";
+import { useSocket } from "../../../contexts/SocketContext";
+import {
+  loadAndListenConversations,
+  onConversationUpdate,
+  offConversationUpdate,
+  joinConversation,
+} from "../../../services/sockets/events/conversation";
+import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 
 import SibarContact from "../contact-form/SideBarContact/SideBarContact";
 import GroupList from "../contact-form/GroupList";
 import FriendRequests from "../contact-form/FriendRequests";
 import GroupInvites from "../contact-form/GroupInvites";
 import ContactList from "../contact-form/ContactList";
-import ContactsPage from "../../../pages/Chat/ContactsPage";
-
-// import { Api_Conversation } from "../../../../apis/Api_Conversation";
-
 
 const cx = classNames.bind(styles);
 
 function ChatList({ activeTab }) {
-  console.log("Current activeTab:", activeTab);
-  const [messages, setMessages] = useState([]);  // State để lưu dữ liệu từ API
+  const [messages, setMessages] = useState([]);
   const [selectedTab, setSelectedTab] = useState("priority");
-
-  
-
-  // Hàm xử lý khi click vào tin nhắn
+  const socket = useSocket();
   const dispatch = useDispatch();
+
+  // Get currentUserId from socket
+  const currentUserId = socket?.io?.opts?.query?.userId;
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
-    dispatch(setSelectedMessage(message.id));
+    joinConversation(socket, message.id);
+    dispatch(setSelectedMessage(message));
   };
 
   const handleTabClick = (tab) => {
     setSelectedTab(tab);
   }
-
-  // useEffect(() => {
-  //   const fetchConversations = async () => {
-  //     try {
-  //       const data = await Api_Conversation.getAllConversations();
-  //       setMessages(data); // Cập nhật danh sách tin nhắn
-  //     } catch (error) {
-  //       console.error("Lỗi khi lấy danh sách cuộc trò chuyện:", error);
-  //     }
-  //   }
-  //   fetchConversations();
-  // }, []);
-
-  
-
-  // Dữ liệu mẫu
-  const sampleMessages = [
-    {
-      id: 1,
-      name: "Hờ Mờ Hờ Và Những Ngư...",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      lastMessage: "Giải tán hết đi mấy con quỉ cái này",
-      isCall: false,
-      time: "38 phút",
-      members: 99,
-    },
-    {
-      id: 2,
-      name: "Khánh",
-      avatar: "https://picsum.photos/200",
-      type: "personal",
-      isCall: true,
-      missed: false,
-      time: "1 giờ",
-    },
-    {
-      id: 3,
-      name: "Dũng",
-      avatar: "https://picsum.photos/200",
-      type: "personal",
-      lastMessage: "Hello bạn!",
-      isCall: false,
-      time: "2 giờ",
-    },
-    {
-      id: 4,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 5,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 6,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 7,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 8,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 9,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 10,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 11,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-    {
-      id: 12,
-      name: "Lớp ReactJS",
-      avatar: "https://picsum.photos/200",
-      type: "group",
-      isCall: true,
-      missed: true,
-      time: "5 giờ",
-    },
-  ];
 
   // Cloud của tôi item
   const myCloudItem = {
@@ -176,21 +53,66 @@ function ChatList({ activeTab }) {
     isCloud: true // Thêm flag để xác định đây là cloud item
   };
 
-  // Thêm cloud item vào đầu danh sách tin nhắn
-  const messagesWithCloud = [myCloudItem, ...sampleMessages];
+  // Load and listen for conversations
+  useEffect(() => {
+    if (!socket || !currentUserId) return;
 
-  const renderComponent = () => {
-    switch (activeComponent) {
-      case "groups":
-        return <GroupList />;
-      case "friendRequests":
-        return <FriendRequests />;
-      case "groupInvites":
-        return <GroupInvites />;
-      default:
-        return <ContactList />;
-    }
-  };
+    const handleConversations = (conversations) => {
+      const transformedMessages = transformConversationsToMessages(
+        conversations,
+        currentUserId
+      );
+      setMessages(transformedMessages);
+    };
+
+    const handleConversationUpdate = (updatedConversation) => {
+      setMessages((prevMessages) => {
+        const updatedMessages = prevMessages.map((msg) => {
+          if (msg.id === updatedConversation.conversationId) {
+            return {
+              ...msg,
+              lastMessage: updatedConversation.lastMessage?.content || "",
+              lastMessageType:
+                updatedConversation.lastMessage?.messageType || "text",
+              lastMessageSenderId:
+                updatedConversation.lastMessage?.userId || null,
+              time: new Date(updatedConversation.updatedAt).toLocaleTimeString(
+                [],
+                {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }
+              ),
+              updateAt: updatedConversation.updatedAt,
+            };
+          }
+          return msg;
+        });
+
+        if (
+          !updatedMessages.some(
+            (msg) => msg.id === updatedConversation.conversationId
+          )
+        ) {
+          const newMessage = transformConversationsToMessages(
+            [updatedConversation],
+            currentUserId
+          )[0];
+          return [newMessage, ...updatedMessages];
+        }
+
+        return updatedMessages;
+      });
+    };
+
+    const cleanupLoad = loadAndListenConversations(socket, handleConversations);
+    onConversationUpdate(socket, handleConversationUpdate);
+
+    return () => {
+      cleanupLoad();
+      offConversationUpdate(socket);
+    };
+  }, [socket, currentUserId]);
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
@@ -224,16 +146,18 @@ function ChatList({ activeTab }) {
         </div>
       )}
 
-      {/* Danh sách chat */}
-      <div className="flex-grow  text-gray-700">
+      
+
+      { /* Thêm cloud ở đây */}
+
+      <div className="flex-grow text-gray-700">
         {activeTab === "/chat" && (
           <MessageList
-            //messages={messages}
-            messages={messagesWithCloud}
+            // messages={messages}
+            messages={[myCloudItem, ...messages]}
             onMessageClick={handleMessageClick}
           />
         )}
-
         {activeTab === "/contact" && <SibarContact />}
       </div>
     </div>

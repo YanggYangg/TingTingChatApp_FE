@@ -14,10 +14,8 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
   
 
-    if (password.length < 6 || password.length > 32) {
-      Alert.alert("Lỗi", "Mật khẩu phải từ 6 đến 32 ký tự!");
-      return;
-    }
+    // Sau này gọi API login ở đây
+    console.log("Logging in with:", { phoneNumber, password });
 
   };
 

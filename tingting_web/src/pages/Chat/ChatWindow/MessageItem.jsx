@@ -1,45 +1,69 @@
-const MessageItem = ({ msg }) => {
+import {
+  IoReturnDownBack,
+  IoArrowRedoOutline,
+  IoTrashOutline,
+} from "react-icons/io5";
+
+const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
+  const isCurrentUser = msg.userId === currentUserId;
+
   return (
     <div
       className={`flex ${
-        msg.sender === "Bạn" ? "justify-end" : "justify-start"
-      }`}
+        isCurrentUser ? "justify-end" : "justify-start"
+      } mb-4 relative`}
     >
       <div
-        className={`p-2 rounded-lg w-fit max-w-xs ${
-          msg.sender === "Bạn"
-            ? "bg-blue-200 text-black"
-            : "bg-gray-200 text-black"
+        className={`p-3 rounded-lg w-fit max-w-xs relative group ${
+          isCurrentUser ? "bg-blue-200 text-black" : "bg-gray-200 text-black"
         }`}
       >
-        {msg.type === "chat" && <p>{msg.text}</p>}
+        {!isCurrentUser && (
+          <p className="text-xs font-semibold text-gray-700">{msg.sender}</p>
+        )}
 
-        {msg.type === "image" && (
+        {/* Nội dung tin nhắn */}
+        {msg.messageType === "text" && <p>{msg.content}</p>}
+        {msg.messageType === "image" && (
           <img
-            src={msg.imageUrl}
-            alt="Sent image"
+            src={msg.linkURL}
             className="w-40 h-auto rounded-lg"
+            alt="Ảnh"
           />
         )}
 
-        {msg.type === "file" && (
-          <a
-            href={msg.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 underline"
+        <p className="text-xs text-gray-500 text-right mt-1">{msg.time}</p>
+
+        {/* Action buttons hiển thị khi hover vào group */}
+        <div
+          className={`absolute top-[-36px] ${
+            isCurrentUser ? "right-0" : "left-0"
+          } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
+        >
+          <button
+            onClick={() => onReply(msg)}
+            title="Trả lời"
+            className="p-1 rounded-full bg-white/80 hover:bg-blue-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-blue-600"
           >
-            📎 {msg.fileName}
-          </a>
-        )}
-
-        {msg.type === "call" && (
-          <p className="text-red-500">
-            {msg.missed ? "Cuộc gọi nhỡ" : `📞 Cuộc gọi ${msg.callDuration}`}
-          </p>
-        )}
-
-        <p className="text-xs text-gray-500 text-right">{msg.time}</p>
+            <IoReturnDownBack size={18} />
+          </button>
+          <button
+            onClick={() => onForward(msg)}
+            title="Chuyển tiếp"
+            className="p-1 rounded-full bg-white/80 hover:bg-green-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-green-600"
+          >
+            <IoArrowRedoOutline size={18} />
+          </button>
+          {isCurrentUser && (
+            <button
+              onClick={() => onRevoke(msg)}
+              title="Thu hồi"
+              className="p-1 rounded-full bg-white/80 hover:bg-red-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-red-500"
+            >
+              <IoTrashOutline size={18} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

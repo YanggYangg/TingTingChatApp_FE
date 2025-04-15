@@ -1,7 +1,9 @@
-import classNames from "classnames/bind";
-import { Link } from "react-router-dom";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+"use client"
+
+import classNames from "classnames/bind"
+import { Link } from "react-router-dom"
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 import config from "../../config";
 import styles from "./RegisterPage.module.scss";

@@ -5,8 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Api_Auth } from "../../../apis/api_auth";
 import config from "../../config";
-import Modal from "../../components/Notification/Modal"
-import { RiMenu3Line, RiCloseLine } from "react-icons/ri"
+import Modal from "../../components/Notification/Modal";
 
 const cx = classNames.bind(styles)
 
