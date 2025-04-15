@@ -1,24 +1,67 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { AiOutlineLink } from "react-icons/ai";
-import { useNavigate } from "react-router-dom";
+import StoragePage from "./StoragePage";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const GroupLinks = () => {
-  const navigate = useNavigate();
-  const links = [
-    { title: "Google", url: "https://www.google.com" },
-    { title: "Nguyễn Kiến Thức", url: "https://www.facebook.com" },
-    { title: "Đảm bảo chất lượng và kiểm thử", url: "https://docs.google.com" },
-  ];
+const GroupLinks = ({ conversationId }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [links, setLinks] = useState([]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const fetchLinks = async () => {
+      try {
+        const response = await Api_chatInfo.getChatLinks(conversationId);
+        const linkData = Array.isArray(response) ? response : response?.data;
+
+        if (Array.isArray(linkData)) {
+          const filteredLinks = linkData
+            .filter((item) => item?.messageType === "link")
+            .map((item) => ({
+              title: item?.content || "Không có tiêu đề",
+              url: item?.linkURL || "#",
+              date: item?.createdAt?.split("T")[0] || "Không có ngày",
+              sender: item?.userId || "Không rõ người gửi",
+            }));
+
+          // Sắp xếp link theo thời gian (giả sử có trường 'createdAt')
+          const sortedLinks = filteredLinks.sort((a, b) => {
+            if (a.date && b.date) {
+              return new Date(b.date) - new Date(a.date);
+            } else {
+              return 0;
+            }
+          });
+
+          // Lấy 3 link đầu tiên
+          setLinks(sortedLinks.slice(0, 3));
+        } else {
+          setLinks([]);
+          console.error("Dữ liệu không hợp lệ:", response);
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách link:", error);
+      }
+    };
+
+    fetchLinks();
+  }, [conversationId]);
 
   return (
     <div className="mb-4">
-      <h3 className="text-md font-semibold mb-2">Link</h3>
+      <h3 className="text-md font-semibold mb-2">Liên kết</h3>
       <div className="space-y-2">
         {links.map((link, index) => (
           <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded-md">
             <div>
               <p className="text-sm font-semibold">{link.title}</p>
-              <a href={link.url} className="text-blue-500 text-xs" target="_blank" rel="noopener noreferrer">
+              <a
+                href={link.url}
+                className="text-blue-500 text-xs"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {link.url}
               </a>
             </div>
@@ -28,12 +71,15 @@ const GroupLinks = () => {
           </div>
         ))}
       </div>
+
       <button
         className="mt-2 flex items-center justify-center w-full bg-gray-200 text-gray-700 text-sm px-4 py-2 rounded hover:bg-gray-300"
-        onClick={() => navigate("/storage")}
+        onClick={() => setIsOpen(true)}
       >
         Xem tất cả
       </button>
+
+      {isOpen && <StoragePage conversationId={conversationId} links={links} onClose={() => setIsOpen(false)} />}
     </div>
   );
 };

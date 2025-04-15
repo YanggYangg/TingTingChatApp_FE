@@ -11,7 +11,7 @@ const GroupActionButton = ({ icon, text, onClick }) => {
   return (
     <button
       onClick={() => {
-        console.log(`🖱 Nhấn vào: ${text}`);
+        console.log(`Nhấn vào: ${text}`);
         if (onClick) onClick(); // Gọi sự kiện nếu có
       }}
       className="flex flex-col items-center text-sm text-gray-700 hover:text-blue-500"
