@@ -1,0 +1,224 @@
+// Variables
+$primary-color: #0573ff;
+$primary-hover: #0876de;
+$background-color: #abbae1;
+$white: #ffffff;
+$text-color: #333333;
+$header-height: 60px;
+$container-max-width: 1800px;
+
+// Mixins
+@mixin container {
+  max-width: $container-max-width;
+  margin: 0 auto;
+  padding: 0 20px;
+  width: 100%;
+}
+
+// Base styles
+.page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: $background-color;
+}
+
+// Header
+.header {
+  background-color: $white;
+  height: $header-height;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-container {
+  @include container;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.logo {
+  text-decoration: none;
+  
+  .logo-text {
+    font-size: 24px;
+    font-weight: 700;
+    color: $primary-color;
+  }
+}
+
+.nav-container {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-end;
+  
+  @media (min-width: 992px) {
+    justify-content: space-between;
+    margin-left: 40px;
+  }
+}
+
+.menu-toggle {
+  display: block;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-left: auto;
+  color: $text-color;
+  
+  @media (min-width: 992px) {
+    display: none;
+  }
+}
+
+.nav {
+  display: none;
+  
+  @media (min-width: 992px) {
+    display: block;
+    flex: 1;
+  }
+  
+  &.nav-open {
+    display: block;
+    position: fixed;
+    top: $header-height;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: $white;
+    z-index: 90;
+    padding: 20px;
+    overflow-y: auto;
+  }
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  
+  @media (min-width: 992px) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  li {
+    margin: 10px 0;
+    
+    @media (min-width: 992px) {
+      margin: 0 10px;
+    }
+  }
+}
+
+.nav-link {
+    text-decoration: none;
+    color: $text-color;
+    font-size: 14px;
+    font-weight: 600;
+    transition: color 0.2s;
+    
+    &:hover, &.active {
+      color: $primary-color;
+    }
+  }
+
+.user-actions {
+  display: flex;
+  align-items: center;
+}
+
+.login-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  
+  @media (max-width: 991px) {
+    display: none;
+  }
+}
+
+.login-input {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-right: 8px;
+  font-size: 14px;
+  
+  &:focus {
+    outline: none;
+    border-color: $primary-color;
+  }
+}
+
+.login-submit {
+  background-color: $primary-color;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: $primary-hover;
+  }
+}
+
+.register-link {
+  margin-left: 16px;
+  color: $primary-color;
+  font-weight: 600;
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Main content
+.main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.body-container {
+  width: 600px;
+  margin: 30px auto;
+  min-height: 540px;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  
+  @media (max-width: 1100px) {
+    width: 90%;
+  }
+}
+
+// Footer
+.footer {
+  background-color: $white;
+  padding: 15px 0;
+  text-align: center;
+}
+
+.footer-container {
+  @include container;
+}
+
+.copyright {
+  font-size: 14px;
+  color: $text-color;
+  margin: 0;
+}

@@ -2,8 +2,8 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "moduleResolution": "bundler", 
-    "jsx": "react-native",// hoặc "node16", "nodenext"
+    "moduleResolution": "bundler",
+    "jsx": "react-native", // hoặc "node16", "nodenext"
     "paths": {
       "@/*": [
         "./*"
@@ -14,6 +14,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "components/screens/MainScreen/ChatScreen.tsx"
   ]
 }

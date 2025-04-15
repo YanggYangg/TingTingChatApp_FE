@@ -25,6 +25,10 @@ import MessageSupportScreen from "@/components/screens/MainScreen/Chat/MessageSu
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+import { SocketProvider } from "../../contexts/SocketContext";
+import store from "../../redux/store";
+import { Provider } from "react-redux";
+
 function MainTabNavigator() {
   return (
     <Tab.Navigator
@@ -64,6 +68,8 @@ function MainTabNavigator() {
 }
 
 export default function App() {
+  const userId = "67fe031e421896d7bc8c2e10";
+  console.log("Using userId:", userId);
   return (
     // <Stack.Navigator initialRouteName="Welcome">
     //   <Stack.Screen
@@ -107,26 +113,30 @@ export default function App() {
     //     component={MainTabNavigator}
     //     options={{ headerShown: false }}
     //   />
-      
-    // </Stack.Navigator>
-    <Stack.Navigator initialRouteName="Main">
-      <Stack.Screen
-        name="Main"
-        component={MainTabNavigator}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-      name="MessageScreen"
-      component={MessageScreen}
-      options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="MessageSupportScreen"
-        component={MessageSupportScreen}
-        options={{ headerShown: false }}
-      />
-    
-    </Stack.Navigator>
 
+    // </Stack.Navigator>
+    // const userId = "6601a1b2c3d4e5f678901234";
+    // console.log("Using userId:", userId);
+    <Provider store={store}>
+      <SocketProvider userId={userId}>
+        <Stack.Navigator initialRouteName="Main">
+          <Stack.Screen
+            name="Main"
+            component={MainTabNavigator}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="MessageScreen"
+            component={MessageScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="MessageSupportScreen"
+            component={MessageSupportScreen}
+            options={{ headerShown: false }}
+          />
+        </Stack.Navigator>
+      </SocketProvider>
+    </Provider>
   );
 }
