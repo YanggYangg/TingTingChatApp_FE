@@ -41,7 +41,7 @@ function ChatPage() {
     id: "my-cloud",
     name: "Cloud của tôi",
     avatar:
-      "https://help.zalo.me/wp-content/uploads/2023/08/z4650065944256_2971e71cc06a5cfcb0aef41782e5f30e.jpg",
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s",
     type: "cloud",
     messages: cloudMessages,
   };
@@ -154,8 +154,9 @@ function ChatPage() {
   const fetchCloudMessages = async () => {
     setLoading(true);
     try {
+      
       const response = await axios.get(
-        "http://localhost:3000/api/messages/user/user123"
+        `http://localhost:3000/api/messages/user/${localStorage.getItem("userId")}`
       );
       const sortedMessages = response.data.sort(
         (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
@@ -411,8 +412,8 @@ function ChatPage() {
           >
             {selectedChat.type === "cloud" ? (
                 <ChatHeaderCloud
-                  name={selectedChat.name}
-                  avatar={selectedChat.avatar}
+                  name={cloudChat.name}
+                  avatar={cloudChat.avatar}
                   isChatInfoVisible={isChatInfoVisible}
                   setIsChatInfoVisible={setIsChatInfoVisible}
                 />

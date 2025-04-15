@@ -33,7 +33,9 @@ function ChatList({ activeTab }) {
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
-    joinConversation(socket, message.id);
+    if (message.id !== "my-cloud") {
+      joinConversation(socket, message.id);
+    }
     dispatch(setSelectedMessage(message));
   };
 
@@ -45,8 +47,8 @@ function ChatList({ activeTab }) {
   const myCloudItem = {
     id: "my-cloud",
     name: "Cloud của tôi",
-    avatar: "https://help.zalo.me/wp-content/uploads/2023/08/z4650065944256_2971e71cc06a5cfcb0aef41782e5f30e.jpg", // Hoặc link avatar của bạn
-    type: "personal",
+    avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s", // Hoặc link avatar của bạn
+    type: "cloud",
     lastMessage: "Lưu trữ tin nhắn và file cá nhân",
     isCall: false,
     time: "",

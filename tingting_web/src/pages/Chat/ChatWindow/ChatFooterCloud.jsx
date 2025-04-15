@@ -8,12 +8,13 @@ function ChatFooter({ onReload }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef(null);
 
-  const userId = 'user123'; // tạm hardcode
+  const userId = localStorage.getItem("userId")
 
   const handleSendMessage = async () => {
     if (!message.trim()) return;
 
     try {
+      
       const res = await axios.post('http://localhost:3000/api/files/upload', {
         userId,
         content: message,
@@ -49,7 +50,7 @@ function ChatFooter({ onReload }) {
 
       console.log("Uploaded files:", res.data);
 
-      onReload && onReload(); // ✅ gọi lại sau khi upload
+      onReload && onReload(); // 
     } catch (error) {
       console.error('Upload error:', error);
     }
