@@ -156,7 +156,7 @@ function ChatPage() {
                 <div ref={messagesEndRef} />
               </div>
               <ChatFooter
-                className="fixed bottom-0 p-5 left-0 w-full bg-white shadow-md"
+                className="fixed bottom-0 left-0 w-full bg-white shadow-md"
                 sendMessage={sendMessage}
                 replyingTo={replyingTo}
                 setReplyingTo={setReplyingTo}

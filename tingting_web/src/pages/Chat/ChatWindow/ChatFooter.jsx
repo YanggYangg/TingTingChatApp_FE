@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { FaPaperclip, FaSmile, FaRegImage, FaPaperPlane } from "react-icons/fa";
-import EmojiPicker from "emoji-picker-react";
 import { IoClose } from "react-icons/io5";
+import EmojiPicker from "emoji-picker-react";
 
 function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
   const [message, setMessage] = useState("");
@@ -12,12 +12,10 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
   const fileInputRef = useRef(null);
   const mediaInputRef = useRef(null);
 
-  const truncateMessage = (content, maxLength = 50) => {
-    if (!content) return "[Tin nhắn trống]";
-    return content.length > maxLength
-      ? content.substring(0, maxLength) + "..."
-      : content;
-  };
+  const truncateMessage = (content, maxLength = 50) =>
+    content?.length > maxLength
+      ? content.slice(0, maxLength) + "..."
+      : content || "[Tin nhắn trống]";
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -39,22 +37,8 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
   };
 
   const uploadToS3 = async (file) => {
-    // try {
-    //   const formData = new FormData();
-    //   formData.append("file", file);
-    //   const res = await fetch("/api/upload", {
-    //     method: "POST",
-    //     body: formData,
-    //   });
-    //   if (!res.ok) throw new Error("Upload failed");
-    //   const data = await res.json();
-    //   return data.url;
-    // } catch (error) {
-    //   console.error("Upload failed:", error);
-    //   return null; // Handle gracefully
-    // }
-    const data = "https://picsum.photos/200/300";
-    return data; // Placeholder for actual upload logic
+    // Replace with real upload
+    return "https://picsum.photos/200/300";
   };
 
   const handleSend = async () => {
@@ -67,18 +51,12 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
 
       if (attachedFile) {
         fileURL = await uploadToS3(attachedFile.file);
-        if (!fileURL) {
-          console.error("File upload failed, cannot send message");
-          return;
-        }
+        if (!fileURL) return;
         messageType = attachedFile.type;
         content = content || attachedFile.file.name || `[${messageType}]`;
       }
 
-      if (messageType === "text" && !content) {
-        console.error("Text message cannot be empty");
-        return;
-      }
+      if (messageType === "text" && !content) return;
 
       const payload = {
         messageType,
@@ -87,9 +65,9 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         ...(replyingTo && { replyMessageId: replyingTo._id }),
       };
 
-      console.log("Sending payload:", payload);
       sendMessage(payload);
 
+      // Reset UI
       setMessage("");
       setAttachedFile(null);
       setPreviewURL(null);
@@ -111,22 +89,20 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         </div>
       )}
 
-      {/* Replying To Preview */}
+      {/* Reply preview */}
       {replyingTo && (
         <div className="flex items-center justify-between mb-2 p-2 border border-gray-300 rounded-lg bg-gray-50">
-          <div className="flex items-center space-x-3 overflow-hidden">
-            <div className="text-sm">
-              <p className="font-medium text-gray-700">
-                Đang trả lời {replyingTo.sender || "Unknown"}
-              </p>
-              <p className="text-gray-500">
-                {truncateMessage(
-                  replyingTo.messageType === "text"
-                    ? replyingTo.content
-                    : `[${replyingTo.messageType}]`
-                )}
-              </p>
-            </div>
+          <div className="text-sm">
+            <p className="font-medium text-gray-700">
+              Đang trả lời {replyingTo.sender || "Unknown"}
+            </p>
+            <p className="text-gray-500">
+              {truncateMessage(
+                replyingTo.messageType === "text"
+                  ? replyingTo.content
+                  : `[${replyingTo.messageType}]`
+              )}
+            </p>
           </div>
           <button
             className="text-gray-400 hover:text-red-500 ml-2"
@@ -137,7 +113,7 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         </div>
       )}
 
-      {/* File Preview */}
+      {/* File preview */}
       {attachedFile && (
         <div className="flex items-center justify-between mb-2 p-2 border border-gray-300 rounded-lg bg-gray-50">
           <div className="flex items-center space-x-3 overflow-hidden">
@@ -172,7 +148,7 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
       )}
 
       {/* Toolbar */}
-      <div className="flex justify-start w-full space-x-4 mb-2">
+      <div className="flex space-x-4 mb-2">
         <button
           className="p-2 text-gray-500 hover:text-gray-700"
           onClick={() => fileInputRef.current.click()}
@@ -193,12 +169,12 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         </button>
       </div>
 
-      {/* Hidden file inputs */}
+      {/* Hidden inputs */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={(e) => handleFileChange(e, "file")}
-        style={{ display: "none" }}
+        hidden
       />
       <input
         type="file"
@@ -214,11 +190,11 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
             : "file";
           handleFileChange(e, type);
         }}
-        style={{ display: "none" }}
+        hidden
       />
 
       {/* Message input */}
-      <div className="flex w-full items-center">
+      <div className="flex items-center space-x-2">
         <input
           type="text"
           className="flex-1 px-3 py-2 rounded-lg outline-none bg-white text-gray-700 border border-gray-300"
