@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+//Auth: 3000
+//User: 3001
+//Chat: 5000
 const SERVICES = {
-    conversation: 'http://172.27.144.1:5001'
+    authService: 'http://localhost:3000',
+    userService: 'http://localhost:3001',
+    chatService: 'http://localhost:5000',
 };
 
 //Tạo một instance axios theo service
@@ -18,6 +23,16 @@ const createAxiosInstance = (service) => {
         },
         responseType: 'json',
     });
+    // Gắn token mỗi lần request
+    instance.interceptors.request.use((config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        return config;
+    });
+
+    return instance;
 };
 
 //Hàm gọi API chung 
