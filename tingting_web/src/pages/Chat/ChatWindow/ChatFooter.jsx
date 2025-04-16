@@ -36,35 +36,10 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
     e.target.value = null;
   };
 
-  //Hàm upload file lên s3
   const uploadToS3 = async (file) => {
-    const formData = new FormData();
-    formData.append("media", file);
-
-    const res = await fetch(
-      "http://localhost:5000/messages/sendMessageWithMedia",
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-    const text = await res.text(); //log thô dl trả về
-    console.log("Raw response text:", text);
-
-    if (!res.ok) {
-      console.log("Upload failed with status:", res.status);
-      throw new Error("Failed to upload file");
-    }
-
-    // const data = await res.json();
-    // return data.linkURL; //Backend trả về URL S3
-    try {
-      const data = JSON.parse(text); // Chắc chắn là JSON hợp lệ
-      return data.linkURL;
-    } catch (err) {
-      console.error("JSON parse failed:", err);
-      throw new Error("Invalid JSON response from server");
-    }
+    // Replace with real upload
+    //file dạng from
+    return "https://picsum.photos/200/300";
   };
 
   const handleSend = async () => {
@@ -78,29 +53,19 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
       if (attachedFile) {
         fileURL = await uploadToS3(attachedFile.file);
         if (!fileURL) return;
-
         messageType = attachedFile.type;
         content = content || attachedFile.file.name || `[${messageType}]`;
       }
 
-      // 👉 Nếu đang reply thì gán messageType = "reply"
-      if (replyingTo) {
-        messageType = "reply";
-      }
+      if (messageType === "text" && !content) return;
 
       const payload = {
         messageType,
         content,
         ...(fileURL && { linkURL: fileURL }),
-        ...(replyingTo && {
-          replyMessageId: replyingTo._id,
-          replyMessageContent: replyingTo.content,
-          replyMessageType: replyingTo.messageType,
-          replyMessageSender: replyingTo.sender, // optional
-        }),
+        ...(replyingTo && { replyMessageId: replyingTo._id }),
       };
 
-      console.log("Payload gửi đi: ", payload);
       sendMessage(payload);
 
       // Reset UI
@@ -202,7 +167,7 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
         >
           <FaSmile size={20} />
-        </button> 
+        </button>
       </div>
 
       {/* Hidden inputs */}

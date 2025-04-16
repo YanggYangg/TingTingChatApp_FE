@@ -760,7 +760,7 @@ function ChatPage() {
   };
 
   const sendMessage = (message) => {
-    if (socketCloud && selectedMessageId && selectedMessageId !== "my-cloud") {
+    if (socket && selectedMessageId && selectedMessageId !== "my-cloud") {
       const payload = {
         conversationId: selectedMessageId,
         message: {
@@ -773,7 +773,7 @@ function ChatPage() {
         },
       };
       console.log("Emitting sendMessage:", payload);
-      socketCloud.emit("sendMessage", payload);
+      socket.emit("sendMessage", payload);
     } else {
       console.error("Cannot send message: missing socket or conversationId");
     }
