@@ -395,11 +395,14 @@ function Search() {
                 )
               ) : friendRequests[selectedUser._id]?.status === "accepted" ? (
                 <>
-                  <button className="bg-green-500 text-white px-4 py-2 rounded">
+                  {/* <button className="bg-green-500 text-white px-4 py-2 rounded">
                     Gọi điện
                   </button>
                   <button className="bg-blue-500 text-white px-4 py-2 rounded">
                     Nhắn tin
+                  </button> */}
+                   <button className="bg-green-500 text-white px-4 py-2 rounded">
+                    Đã là bạn bè
                   </button>
                 </>
               ) : (

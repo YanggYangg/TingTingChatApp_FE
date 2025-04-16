@@ -9,13 +9,36 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import CustomTextInput from "../../textfield/CustomTextInput";
 import CustomButton from "@/components/button/CustomButton";
 import { Api_Auth } from "../../../apis/api_auth";
 
+import {
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
+import { useNavigation } from "@react-navigation/native";
+
+type RootStackParamList = {
+  Main: undefined;
+  MessageScreen: { userId?: string; username?: string };
+  Register: undefined;
+  VerificationCode: {
+    phoneNumber: string;
+    firstname: string;
+    surname: string;
+    day: string;
+    month: string;
+    year: string;
+    gender: string;
+    email: string;
+    password: string;
+  };
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Register">;
+
 function Register() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
 
   const [firstname, setFirstname] = useState("");
   const [surname, setSurname] = useState("");
@@ -46,30 +69,30 @@ function Register() {
       Alert.alert("Lỗi", "Họ không hợp lệ!");
       return;
     }
-    // phải là số k được có chữ
+
     const patternPhone = /0\d{9,10}/;
     if (!patternPhone.test(phone)) {
       Alert.alert("Lỗi", "Số điện thoại không hợp lệ!");
       return;
     }
+
     const patternEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!patternEmail.test(email)) {
       Alert.alert("Lỗi", "Email không hợp lệ!");
       return;
     }
-    //  maxLength={32}
-    //  minLength={6}
 
     if (password.length < 6 || password.length > 32) {
       Alert.alert("Lỗi", "Mật khẩu phải từ 6 đến 32 ký tự!");
       return;
     }
-    // year <now
+
     const currentYear = new Date().getFullYear();
     if (parseInt(year) > currentYear) {
       Alert.alert("Lỗi", "Năm sinh không hợp lệ!");
       return;
     }
+
     if (password !== confirmPassword) {
       Alert.alert("Lỗi", "Mật khẩu không khớp!");
       return;
@@ -89,14 +112,26 @@ function Register() {
 
     try {
       const response = await Api_Auth.signUp(data);
-      console.log("Đăng ký thành công, user ID:", response.data.user._id);
-      Alert.alert("Thành công", "Đăng ký thành công!");
-      navigation.goBack(); // hoặc navigate đến trang đăng nhập
+      // console.log("Đăng ký thành công, user ID:", response.data.user._id);
+      // Alert.alert("Thành công", "Đăng ký thành công!");
+
+      navigation.navigate("VerificationCode", {
+        phoneNumber: phone,
+        firstname,
+        surname,
+        day,
+        month,
+        year,
+        gender: selectedGender,
+        email,
+        password,
+      });
     } catch (error: any) {
       console.error(error);
       Alert.alert("Lỗi", error.response?.data?.message || "Đã xảy ra lỗi!");
     }
   };
+
 
   return (
     <View style={styles.container}>

@@ -1,12 +1,16 @@
 import axios from 'axios';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = 'http://172.27.144.1:3000';
+
+
+const BASE_URL = 'http://172.27.144.1:3001';
 
 const axiosInstance = axios.create({
     baseURL: BASE_URL,
     withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AsyncStorage.getItem('token')}`,
     },
     responseType: 'json',
 });
@@ -39,26 +43,18 @@ const ApiManager = {
     delete: async (url) => request('delete', url),
 };
 
-export const Api_Auth = {
+export const Api_Profile = {
 
-    login: async (data) => {
-        return ApiManager.post('api/v1/auth/sign-in', data);
+    getProfile: async (id) => {
+        return ApiManager.get(`api/v1/profile/${id}`);
     },
-    signUp: async (data) => {
-        return ApiManager.post('api/v1/auth/sign-up', data);
+    updateProfile: async (id, data) => {
+        return ApiManager.post(`api/v1/profile/${id}`, data);
     },
-    logout: async (data) => {
-        return ApiManager.post('api/v1/auth/sign-out', data);
+    uploadImage: async () => {
+        return ApiManager.post('api/v1/profile/upload');
     },
-    forgotPassword: async (data) => {
-        return ApiManager.post('api/v1/auth/forgot-password', data);
-    },
-    verifyOTP: async (data) => {
-        return ApiManager.post('api/v1/auth/verify-otp', data);
-    },
-    updateNewPassword: async (data) => {
-        return ApiManager.post('api/v1/auth/update-password', data);
-    }
+
 
 
 };
