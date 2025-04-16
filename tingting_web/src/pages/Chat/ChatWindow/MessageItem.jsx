@@ -6,7 +6,12 @@ import {
 
 const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
     const isCurrentUser = msg.userId === currentUserId;
-    const messageId = msg._id || msg.id; // Unified way to get message ID
+    const messageId = msg._id || msg.id;
+    const isForwarded = msg.content && msg.content.includes("\n----\n"); // Kiểm tra xem có phải tin nhắn chuyển tiếp không
+
+    const parts = isForwarded ? msg.content.split("\n----\n") : [msg.content]; // Chia nội dung nếu là tin nhắn chuyển tiếp
+    const forwardedComment = isForwarded ? parts[0] : null; // Phần nội dung người dùng nhập
+    const originalMessageContent = isForwarded && parts.length > 1 ? parts.slice(1).join("\n----\n").trim() : null; // Phần nội dung gốc
 
     const handleRevokeClick = () => {
         if (onRevoke && messageId) {
@@ -37,28 +42,25 @@ const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
                     <p className="text-xs font-semibold text-gray-700">{msg.sender}</p>
                 )}
 
-                {/* Message Content */}
-                {msg.messageType === "text" && <p>{msg.content}</p>}
+                {/* Display Image First */}
                 {msg.messageType === "image" && (
                     <img
                         src={msg.linkURL}
-                        className="w-40 h-auto rounded-lg"
+                        className="w-40 h-auto rounded-lg mb-1" // Added mb-1 for spacing
                         alt="Ảnh"
                     />
                 )}
-                {/* {msg.messageType === "file" && (
-                    <a
-                        href={msg.linkURL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center space-x-2"
-                    >
-                        {/* Add file icon and name here if needed */}
-                {/* </a>
-                )} */}
+
+                {/* Display Content (Original and Forwarded) */}
+                {msg.messageType === "text" && <p className="whitespace-pre-line">{msg.content}</p>}
+                {msg.messageType === "image" && msg.content && (
+                    <p className="text-sm mt-1 whitespace-pre-line">{msg.content.split('\n').slice(2).join('\n').trim()}</p>
+                )}
+                {msg.messageType !== "image" && msg.content && (
+                    <p className="whitespace-pre-line">{msg.content}</p>
+                )}
 
                 <p className="text-xs text-gray-500 text-right mt-1">{msg.time}</p>
-
                 {/* Action Buttons on Hover */}
                 <div
                     className={`absolute top-[-36px] ${isCurrentUser ? "right-0" : "left-0"} flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
