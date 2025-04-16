@@ -94,6 +94,8 @@ function ChatPage() {
           ...(message.linkURL && { linkURL: message.linkURL }),
           ...(message.replyMessageId && {
             replyMessageId: message.replyMessageId,
+            replyMessageContent: message.replyMessageContent,
+            replyMessageType: message.replyMessageType,
           }),
         },
       };
@@ -119,11 +121,13 @@ function ChatPage() {
     <div className="min-h-screen bg-gray-100 flex">
       {selectedChat ? (
         <div className={`flex w-full transition-all duration-300`}>
-          <div
+          {/* <div
             className={`flex-1 transition-all duration-300 ${
               isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
             }`}
-          >
+          > */}
+          <div className={`flex flex-col h-screen transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"}`}>
+
             <ChatHeader
               type={selectedChat.type}
               name={selectedChat.name}
@@ -132,7 +136,8 @@ function ChatPage() {
               isChatInfoVisible={isChatInfoVisible}
               setIsChatInfoVisible={setIsChatInfoVisible}
             />
-            <div className="p-4 w-full h-[calc(100vh-200px)] overflow-y-auto">
+            {/* <div className="p-4 w-full h-[calc(100vh-200px)] overflow-y-auto"> */}
+            <div className="flex-1 overflow-y-auto p-4">
               {messages
                 .filter((msg) => msg.conversationId === selectedMessageId)
                 .map((msg) => (
@@ -163,7 +168,7 @@ function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
             <ChatFooter
-              className="fixed bottom-0 left-0 w-full bg-white shadow-md"
+              //className="fixed bottom-0 left-0 w-full bg-white shadow-md"
               sendMessage={sendMessage}
               replyingTo={replyingTo}
               setReplyingTo={setReplyingTo}
