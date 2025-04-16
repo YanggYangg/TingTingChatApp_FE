@@ -20,6 +20,12 @@ function ChatPage() {
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
 
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
+  const [messageToForward, setMessageToForward] = useState(null); // State để lưu tin nhắn cần chuyển tiếp
+
+
+
+  const conversationId = selectedMessageId;
   // Cuộn xuống tin nhắn mới nhất
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -208,7 +214,10 @@ function ChatPage() {
 
           {isChatInfoVisible && (
             <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
-              <ChatInfo />
+              <ChatInfo
+                userId={currentUserId}
+                conversationId={conversationId}
+              />
             </div>
           )}
         </div>
