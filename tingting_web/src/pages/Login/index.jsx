@@ -98,6 +98,8 @@ function Login() {
                     name="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    pattern="^\S{6,}$"
+                    title="Mật khẩu phải có ít nhất 6 ký tự và không chứa khoảng trắng"
                     required
                     placeholder="Nhập mật khẩu"
                   />

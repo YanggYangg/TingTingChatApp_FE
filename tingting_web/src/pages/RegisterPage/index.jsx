@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import classNames from "classnames/bind"
-import { Link } from "react-router-dom"
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import classNames from "classnames/bind";
+import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import config from "../../config";
 import styles from "./RegisterPage.module.scss";
@@ -27,16 +27,30 @@ function RegisterPage() {
   const [isError, setIsError] = useState(false);
   const [messageError, setMessageError] = useState("");
 
-  const months = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
-  const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i)
-  const days = Array.from({ length: 31 }, (_, i) => i + 1)
+  const months = [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+  ];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => currentYear - 16 - i);
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     // Xử lý logic đăng ký ở đây
     if (password !== passwordConfirm) {
-      alert("Mật khẩu không khớp!")
-      return
+      alert("Mật khẩu không khớp!");
+      return;
     }
     try {
       const data = {
@@ -52,10 +66,11 @@ function RegisterPage() {
       };
       const response = await Api_Auth.signUp(data);
       setIsSuccess(true);
-      
+
       navigator(config.routes.verifyOTP, {
         state: {
-          phone, ...data
+          phone,
+          ...data,
         },
       });
     } catch (err) {
@@ -67,17 +82,16 @@ function RegisterPage() {
       } else {
         setMessageError(err.response.data.message);
       }
-      
     }
-  }
+  };
 
   const handleLoginRedirect = () => {
-    navigator("/login")
-  }
+    navigator("/login");
+  };
 
   const handleTryAgain = () => {
-    setIsError(false)
-  }
+    setIsError(false);
+  };
 
   return (
     <div className={cx("wrapper")}>
@@ -101,14 +115,14 @@ function RegisterPage() {
                   value={firstname}
                   onChange={(e) => setFirstName(e.target.value)}
                   className="border p-2 rounded w-full sm:w-1/2 border-gray-300 mb-2 sm:mb-0"
-                  pattern="[A-Za-z]{1,30}"
+                  pattern="^[A-Za-zÀ-Ỹà-ỹ\s]+$"
                   title="Tên chỉ được chứa chữ cái"
                   required
                 />
                 <input
                   type="text"
                   placeholder="Họ"
-                  pattern="[A-Za-z]{1,30}"
+                  pattern="^[A-Za-zÀ-Ỹà-ỹ\s]+$"
                   title="Họ chỉ được chứa chữ cái"
                   value={surname}
                   onChange={(e) => setSurName(e.target.value)}
@@ -118,7 +132,9 @@ function RegisterPage() {
               </div>
 
               <div className="mb-2">
-                <label className="block text-gray-700 text-sm font-bold mb-2">Ngày sinh của bạn ?</label>
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Ngày sinh của bạn ?
+                </label>
                 <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
                   <select
                     value={day}
@@ -157,7 +173,9 @@ function RegisterPage() {
               </div>
 
               <div className="mb-2">
-                <label className="block text-gray-700 text-sm font-bold mb-2">Giới tính</label>
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Giới tính
+                </label>
                 <div className="flex flex-wrap space-x-4">
                   <label className="inline-flex items-center mb-2">
                     <input
@@ -193,7 +211,9 @@ function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">Thông tin liên hệ của bạn ?</label>
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Thông tin liên hệ của bạn ?
+                </label>
               </div>
 
               <input
@@ -226,7 +246,8 @@ function RegisterPage() {
                 className="border p-2 rounded w-full mb-2 border-gray-300"
                 maxLength={32}
                 minLength={6}
-                title="Mật khẩu phải từ 6 đến 32 ký tự"
+                pattern="^\S{6,}$"
+                title="Mật khẩu phải có ít nhất 6 ký tự và không chứa khoảng trắng"
                 required
               />
 
@@ -238,12 +259,14 @@ function RegisterPage() {
                 className="border p-2 rounded w-full mb-4 border-gray-300"
                 maxLength={32}
                 minLength={6}
-                title="Mật khẩu phải từ 6 đến 32 ký tự"
+                pattern="^\S{6,}$"
+                title="Mật khẩu phải có ít nhất 6 ký tự và không chứa khoảng trắng"
                 required
               />
 
               <p className="text-xs text-gray-600 mb-4">
-                Những người sử dụng dịch vụ của chúng tôi có thể đã tải thông tin liên hệ của bạn lên TingTing App.{" "}
+                Những người sử dụng dịch vụ của chúng tôi có thể đã tải thông
+                tin liên hệ của bạn lên TingTing App.{" "}
                 <a href="#" className="text-blue-600">
                   Tìm hiểu thêm
                 </a>
@@ -251,7 +274,8 @@ function RegisterPage() {
               </p>
 
               <p className="text-xs text-gray-600 mb-4">
-                Những người sử dụng dịch vụ của chúng tôi có thể đã tải thông tin liên hệ của bạn lên Facebook.{" "}
+                Những người sử dụng dịch vụ của chúng tôi có thể đã tải thông
+                tin liên hệ của bạn lên Facebook.{" "}
                 <a href="#" className="text-blue-600">
                   Điều khoản
                 </a>
@@ -263,8 +287,8 @@ function RegisterPage() {
                 <a href="#" className="text-blue-600">
                   Chính sách cookie{" "}
                 </a>
-                của chúng tôi. Bạn có thể nhận được thông báo qua SMS từ chúng tôi và có thể chọn không tham gia bất kỳ
-                lúc nào.
+                của chúng tôi. Bạn có thể nhận được thông báo qua SMS từ chúng
+                tôi và có thể chọn không tham gia bất kỳ lúc nào.
               </p>
 
               <button
@@ -280,7 +304,9 @@ function RegisterPage() {
             <p className="mt-3 text-sm text-gray-600 mb-4">
               Bạn đã có tài khoản?{" "}
               <Link to={config.routes.login}>
-                <button className={cx("nav-item", "text-blue-500")}>Đăng nhập</button>
+                <button className={cx("nav-item", "text-blue-500")}>
+                  Đăng nhập
+                </button>
               </Link>
             </p>
           </div>
@@ -290,8 +316,13 @@ function RegisterPage() {
               <img src="image.png" alt="Image" />
             </div> */}
             <div>
-              <h2 className={cx("font-medium")}>Nâng cao hiệu quả công việc với TingTing PC</h2>
-              <p>Gửi file lớn lên đến 1GB, chụp màn hình, gọi video và nhiều tiện ích hơn nữa</p>
+              <h2 className={cx("font-medium")}>
+                Nâng cao hiệu quả công việc với TingTing PC
+              </h2>
+              <p>
+                Gửi file lớn lên đến 1GB, chụp màn hình, gọi video và nhiều tiện
+                ích hơn nữa
+              </p>
             </div>
             <div className={cx("w-30")}>
               <button className={cx("btn-down-app")}>Tải ngay</button>
@@ -299,30 +330,26 @@ function RegisterPage() {
           </div>
         </div>
       </div>
-       {
-                      isError && (
-                          <Modal
-                              isNotification={true}
-                              valid={false}
-                              title="Register Failed!"
-                              message={messageError}
-                              onClose= {handleTryAgain}
-                          />
-                      )
-                  }
-                   {
-                      isSuccess && (
-                          <Modal
-                              isNotification={true}
-                              valid={true}
-                              title="Register successful!"
-                              message={messageError}
-                              onClose= {handleTryAgain}
-                          />
-                      )
-                  }
+      {isError && (
+        <Modal
+          isNotification={true}
+          valid={false}
+          title="Register Failed!"
+          message={messageError}
+          onClose={handleTryAgain}
+        />
+      )}
+      {isSuccess && (
+        <Modal
+          isNotification={true}
+          valid={true}
+          title="Register successful!"
+          message={messageError}
+          onClose={handleTryAgain}
+        />
+      )}
     </div>
-  )
+  );
 }
 
-export default RegisterPage
+export default RegisterPage;

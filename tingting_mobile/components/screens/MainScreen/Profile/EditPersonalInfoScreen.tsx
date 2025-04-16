@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import {
   View,
@@ -14,41 +12,17 @@ import {
   Platform,
 } from "react-native"
 import { Feather } from "@expo/vector-icons"
-import { RouteProp, useNavigation, useRoute } from "@react-navigation/native"
 import * as ImagePicker from "expo-image-picker"
 import DateTimePicker from "@react-native-community/datetimepicker"
+import { useNavigation } from "@react-navigation/native"
 
-type RootStackParamList = {
-  EditPersonalInfo: {
-    formData: {
-      firstname: string;
-      surname: string;
-      day: string;
-      month: string;
-      year: string;
-      gender: string;
-      phone: string;
-      avatar: string | null;
-      coverPhoto: string | null;
-    };
-  };
-};
-
-type EditPersonalInfoRouteProp = RouteProp<RootStackParamList, "EditPersonalInfo">;
-
-"https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg"
-
-export default function EditPersonalInfoScreen() {
+export default function EditProfileScreen() {
   const navigation = useNavigation()
-  const route = useRoute<EditPersonalInfoRouteProp>();
-  const { formData } = route.params;
 
-  const [name, setName] = useState(`${formData.firstname} ${formData.surname}`);
-  const [birthdate, setBirthdate] = useState(
-    new Date(Number(formData.year), Number(formData.month) - 1, Number(formData.day))
-  );
+  const [name, setName] = useState("Nguyễn Văn A")
+  const [birthdate, setBirthdate] = useState(new Date(2000, 0, 1))
   const [showDatePicker, setShowDatePicker] = useState(false)
-  const [gender, setGender] = useState(formData.gender === "male" ? "Nam" : "Nữ");
+  const [gender, setGender] = useState("Nam")
   const [profileImage, setProfileImage] = useState(
     "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg"
   )
@@ -58,7 +32,7 @@ export default function EditPersonalInfoScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
       if (status !== "granted") {
-        Alert.alert("Permission Denied", "Sorry, we need camera roll permissions to make this work!")
+        Alert.alert("Permission Denied", "Chúng tôi cần quyền truy cập ảnh.")
         return
       }
 
@@ -74,11 +48,9 @@ export default function EditPersonalInfoScreen() {
       }
     } catch (error) {
       console.log("Error picking image:", error)
-      Alert.alert("Error", "There was an error selecting the image.")
+      Alert.alert("Error", "Có lỗi khi chọn ảnh.")
     }
   }
-
-  
 
   const handleDateChange = (event, selectedDate) => {
     if (selectedDate) {
@@ -89,28 +61,24 @@ export default function EditPersonalInfoScreen() {
     }
   }
 
-  const toggleDatePicker = () => {
-    setShowDatePicker(!showDatePicker)
-  }
-
-  const handleDone = () => {
-    setShowDatePicker(false)
-  }
-
-  const toggleEditName = () => {
-    setEditingName(!editingName) // Đổi trạng thái chỉnh sửa tên
-  }
+  const toggleEditName = () => setEditingName(!editingName)
 
   const handleSave = () => {
-    Alert.alert("Success", "Personal information updated successfully!")
+    const payload = {
+      name,
+      birthdate: birthdate.toISOString(),
+      gender,
+      avatar: profileImage,
+    }
+
+    console.log("Saving user info:", payload)
+    Alert.alert("Đã lưu", "Thông tin cá nhân đã được cập nhật.")
     navigation.goBack()
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Feather name="x" size={24} color="white" />
@@ -119,7 +87,7 @@ export default function EditPersonalInfoScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* Profile Picture */}
+        {/* Avatar */}
         <View style={styles.profileImageContainer}>
           <Image source={{ uri: profileImage }} style={styles.profileImage} />
           <TouchableOpacity style={styles.cameraButton} onPress={pickImage}>
@@ -127,7 +95,7 @@ export default function EditPersonalInfoScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Name */}
+        {/* Tên */}
         <View style={styles.infoItem}>
           {editingName ? (
             <TextInput
@@ -139,12 +107,12 @@ export default function EditPersonalInfoScreen() {
           ) : (
             <Text style={styles.infoValue}>{name}</Text>
           )}
-          <TouchableOpacity style={styles.editIcon} onPress={toggleEditName}>
+          <TouchableOpacity onPress={toggleEditName}>
             <Feather name={editingName ? "x" : "edit-2"} size={20} color="#757575" />
           </TouchableOpacity>
         </View>
 
-        {/* Birthdate */}
+        {/* Ngày sinh */}
         <View style={styles.infoItem}>
           <Text style={styles.infoValue}>
             {birthdate.toLocaleDateString("vi-VN", {
@@ -153,12 +121,11 @@ export default function EditPersonalInfoScreen() {
               year: "numeric",
             })}
           </Text>
-          <TouchableOpacity style={styles.editIcon} onPress={toggleDatePicker}>
-            <Feather name={showDatePicker ? "x" : "edit-2"} size={20} color="#757575" />
+          <TouchableOpacity onPress={() => setShowDatePicker(!showDatePicker)}>
+            <Feather name="edit-2" size={20} color="#757575" />
           </TouchableOpacity>
         </View>
 
-        {/* Date Picker */}
         {showDatePicker && (
           <View style={styles.datePickerContainer}>
             <DateTimePicker
@@ -169,14 +136,14 @@ export default function EditPersonalInfoScreen() {
               maximumDate={new Date()}
             />
             {Platform.OS === "ios" && (
-              <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
+              <TouchableOpacity style={styles.doneButton} onPress={() => setShowDatePicker(false)}>
                 <Text style={styles.doneButtonText}>Xong</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        {/* Gender */}
+        {/* Giới tính */}
         <View style={styles.genderContainer}>
           <TouchableOpacity
             style={[styles.genderOption, gender === "Nam" && styles.genderSelected]}
@@ -199,7 +166,7 @@ export default function EditPersonalInfoScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Save Button */}
+        {/* Nút lưu */}
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.saveButtonText}>Lưu</Text>
         </TouchableOpacity>
@@ -267,9 +234,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     flex: 1,
   },
-  editIcon: {
-    padding: 5,
-  },
   textInput: {
     fontSize: 18,
     flex: 1,
@@ -285,7 +249,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 30,
   },
-  genderSelected: {},
   radioOuter: {
     width: 24,
     height: 24,
@@ -306,7 +269,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   saveButton: {
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "#2196F3",
     paddingVertical: 12,
     borderRadius: 25,
     alignItems: "center",
@@ -314,6 +277,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: "bold",
+    color: "#fff",
   },
   datePickerContainer: {
     alignItems: "center",
