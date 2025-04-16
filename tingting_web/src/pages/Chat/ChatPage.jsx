@@ -567,7 +567,11 @@ import ChatHeaderCloud from "./ChatWindow/ChatHeaderCloud";
 import ChatFooterCloud from "./ChatWindow/ChatFooterCloud";
 
 import { useSocket } from "../../contexts/SocketContext";
+<<<<<<< HEAD
 import { useCloudSocket } from "../../contexts/CloudSocketContext";
+=======
+import ShareModal from "../../components/chat/ShareModal";
+>>>>>>> origin/feature/goodLuck
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -588,10 +592,14 @@ function ChatPage() {
   });
   const cloudChatContainerRef = useRef(null);
 
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
+  const [messageToForward, setMessageToForward] = useState(null); // State để lưu tin nhắn cần chuyển tiếp
+  
   const dispatch = useDispatch();
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
 
+<<<<<<< HEAD
   const socketCloud = useCloudSocket(); // Sử dụng socket cloud (port 3000)
   const currUserId = localStorage.getItem('userId');
 
@@ -604,11 +612,21 @@ function ChatPage() {
     messages: cloudMessages,
   };
 
+=======
+
+
+  const conversationId = selectedMessageId;
+  // Cuộn xuống tin nhắn mới nhất
+>>>>>>> origin/feature/goodLuck
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+<<<<<<< HEAD
   // Socket.IO cho phần cloud
+=======
+  // Xử lý socket events
+>>>>>>> origin/feature/goodLuck
   useEffect(() => {
     if (socketCloud && selectedMessageId === "my-cloud") {
       console.log('Socket for cloud active, currentUserId:', currUserId);
@@ -679,11 +697,13 @@ function ChatPage() {
     if (socket && selectedMessageId && selectedMessageId !== "my-cloud") {
       socket.emit("joinConversation", { conversationId: selectedMessageId });
 
+      // Tải tin nhắn
       socket.on("loadMessages", (data) => {
         setMessages(data);
         console.log("Loaded messages:", data);
       });
 
+      // Nhận tin nhắn mới
       socket.on("receiveMessage", (newMessage) => {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
@@ -693,6 +713,7 @@ function ChatPage() {
         });
       });
 
+      // Xác nhận tin nhắn đã gửi
       socket.on("messageSent", (newMessage) => {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
@@ -702,14 +723,17 @@ function ChatPage() {
         });
       });
 
+      // Xử lý lỗi
       socket.on("error", (error) => {
         console.error("Socket error:", error);
       });
 
+      // Dọn dẹp khi component unmount
       return () => {
         socket.off("loadMessages");
         socket.off("receiveMessage");
         socket.off("messageSent");
+        // socket.off("messageDeleted");
         socket.off("error");
       };
     }
@@ -756,13 +780,48 @@ function ChatPage() {
   };
 
   const handleReply = (msg) => setReplyingTo(msg);
-  const handleForward = (msg) => console.log("Forward", msg);
+  const handleForward = (msg) => {
+    setMessageToForward(msg);
+    setIsShareModalVisible(true);
+    console.log("Mở ShareModal để chuyển tiếp:", msg);
+};
+
+  const handleCloseShareModal = () => {
+    setIsShareModalVisible(false);
+    setMessageToForward(null);
+    console.log("Đóng ShareModal");
+  };
+
+  const handleShare = (selectedConversations, messageContent) => {
+    // ... logic chia sẻ thực tế ...
+    console.log("Thực hiện chia sẻ đến:", selectedConversations, "với nội dung:", messageContent, "tin nhắn:", messageToForward);
+    handleCloseShareModal(); // Đóng modal sau khi chia sẻ (hoặc hủy)
+  };
+
+  const handleDelete = (msg) => {
+    if (
+      window.confirm(
+        "Bạn có chắc muốn xóa tin nhắn này?Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi"
+      )
+    ) {
+      // Lắng nghe tin nhắn bị xóa
+      socket.emit("messageDeleted", { messageId: msg._id });
+      // Xóa tin nhắn khỏi danh sách
+      setMessages((prevMessages) =>
+        prevMessages.filter((message) => message._id !== msg._id)
+      );
+      console.log("Deleted message:", msg._id);
+    }
+  };
   const handleRevoke = (msg) => {
-    if (socket) {
-      socket.emit("revokeMessage", {
-        messageId: msg._id,
-        conversationId: selectedMessageId,
-      });
+    if (window.confirm("Bạn có chắc muốn thu hồi tin nhắn này?")) {
+      socket.emit("messageRevoked", { messageId: msg._id });
+
+      setMessages((prevMessages) =>
+        prevMessages.map((message) =>
+          message._id === msg._id ? { ...message, isRevoked: true } : message
+        )
+      );
     }
   };
 
@@ -1029,10 +1088,11 @@ function ChatPage() {
     <div className="min-h-screen bg-gray-100 flex">
       {selectedChat ? (
         <div className={`flex w-full transition-all duration-300`}>
-          <div
+          {/* <div
             className={`flex-1 transition-all duration-300 ${
               isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
             }`}
+<<<<<<< HEAD
           >
             {selectedChat.type === "cloud" ? (
               <ChatHeaderCloud
@@ -1137,11 +1197,64 @@ function ChatPage() {
                 />
               </>
             )}
+=======
+          > */}
+          <div className={`flex flex-col h-screen transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"}`}>
+          <ChatHeader
+              type={selectedChat.type}
+              name={selectedChat.name}
+              lastActive={6}
+              avatar={selectedChat.avatar}
+              isChatInfoVisible={isChatInfoVisible}
+              setIsChatInfoVisible={setIsChatInfoVisible}
+            />
+            <div className="flex-1 overflow-y-auto p-4">
+              {messages
+                .filter((msg) => msg.conversationId === selectedMessageId)
+                .map((msg) => (
+                  <MessageItem
+                    key={msg._id}
+                    msg={{
+                      ...msg,
+                      id: msg._id,
+                      sender:
+                        msg.userId === currentUserId
+                          ? "Bạn"
+                          : selectedMessage.participants?.find(
+                            (p) => p.userId === msg.userId
+                          )
+                            ? ""
+                            : "Unknown",
+                      time: formatTime(msg.createdAt),
+                      messageType: msg.messageType || "text",
+                      content: msg.content || "",
+                      linkURL: msg.linkURL || "",
+                      userId: msg.userId,
+                    }}
+                    currentUserId={currentUserId}
+                    onReply={handleReply}
+                    onForward={handleForward}
+                    onRevoke={handleRevoke}
+
+                  />
+                ))}
+              <div ref={messagesEndRef} />
+            </div>
+            <ChatFooter
+              className="fixed bottom-0 left-0 w-full bg-white shadow-md"
+              sendMessage={sendMessage}
+              replyingTo={replyingTo}
+              setReplyingTo={setReplyingTo}
+            />
+>>>>>>> origin/feature/goodLuck
           </div>
 
           {isChatInfoVisible && (
             <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
-              <ChatInfo />
+              <ChatInfo
+                userId={currentUserId}
+                conversationId={conversationId}
+              />
             </div>
           )}
         </div>
@@ -1159,6 +1272,7 @@ function ChatPage() {
           />
         </div>
       )}
+<<<<<<< HEAD
 
       {contextMenu.visible && (
         <ContextMenu
@@ -1169,7 +1283,20 @@ function ChatPage() {
           onClose={() => setContextMenu((prev) => ({ ...prev, visible: false }))}
         />
       )}
+=======
+      {/* Hiển thị ShareModal có điều kiện */}
+      <ShareModal
+        isOpen={isShareModalVisible}
+        onClose={handleCloseShareModal} // Hàm đóng modal
+        onShare={handleShare} // Hàm xử lý logic chia sẻ
+        messageToForward={messageToForward}
+        userId={currentUserId} // Truyền userId vào ShareModal
+        messageId={messageToForward?._id} // Truyền messageId vào ShareModal
+      />
+
+>>>>>>> origin/feature/goodLuck
     </div>
+    
   );
 }
 

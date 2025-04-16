@@ -60,21 +60,43 @@ function Search() {
         const newRequestStatus = {};
 
         // Ng gui di
+        // sentRes.data.forEach((req) => {
+        //   newRequestStatus[req.recipient._id] = {
+        //     status: req.status, // pending / accepted
+        //     requestId: req._id,
+        //     isRequester: true, //Minh la nguoi gui
+        //   };
+        // });
         sentRes.data.forEach((req) => {
-          newRequestStatus[req.recipient._id] = {
-            status: req.status, // pending / accepted
-            requestId: req._id,
-            isRequester: true, //Minh la nguoi gui
-          };
+          if (req.recipient && req.recipient._id) {
+            newRequestStatus[req.recipient._id] = {
+              status: req.status,
+              requestId: req._id,
+              isRequester: true,
+            };
+          } else {
+            console.warn("Dữ liệu recipient bị thiếu:", req);
+          }
         });
 
         //Ng nhan
+        // receivedRes.data.forEach((req) => {
+        //   newRequestStatus[req.requester._id] = {
+        //     status: req.status,
+        //     requestId: req._id,
+        //     isRequester: false, //Minh la nguoi nhan
+        //   };
+        // });
         receivedRes.data.forEach((req) => {
-          newRequestStatus[req.requester._id] = {
-            status: req.status,
-            requestId: req._id,
-            isRequester: false, //Minh la nguoi nhan
-          };
+          if (req.requester && req.requester._id) {
+            newRequestStatus[req.requester._id] = {
+              status: req.status,
+              requestId: req._id,
+              isRequester: false,
+            };
+          } else {
+            console.warn("Dữ liệu requester bị thiếu:", req);
+          }
         });
 
         setFriendRequests(newRequestStatus);

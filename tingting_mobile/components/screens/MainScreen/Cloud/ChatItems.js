@@ -1,7 +1,14 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import React from "react";
+import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 
-const ChatItems = ({ avatar, username, lastMessage, time, onPress, verified = false }) => {
+const ChatItems = ({
+  avatar,
+  username,
+  lastMessage,
+  time,
+  onPress,
+  verified = false,
+}) => {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <Image source={{ uri: avatar }} style={styles.avatar} />
@@ -20,12 +27,12 @@ const ChatItems = ({ avatar, username, lastMessage, time, onPress, verified = fa
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 15,
-    alignItems: 'center',
-    backgroundColor: 'white',
+    alignItems: "center",
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: "#f0f0f0",
   },
   avatar: {
     width: 50,
@@ -37,21 +44,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 5,
   },
   username: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   time: {
     fontSize: 14,
-    color: '#888',
+    color: "#888",
   },
   message: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
 });
 
