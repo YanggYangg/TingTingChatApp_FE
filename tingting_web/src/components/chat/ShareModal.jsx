@@ -13,8 +13,6 @@ const ShareModal = ({ isOpen, onClose, onShare, messageToForward, userId, messag
     const [searchTerm, setSearchTerm] = useState("");
     const [filteredConversations, setFilteredConversations] = useState([]);
 
-    console.log("ShareModal props:", { isOpen, userId, messageToForward, messageId });
-
     useEffect(() => {
         console.log("ShareModal opened: with userId", userId);
         if (!isOpen || !userId) return;
