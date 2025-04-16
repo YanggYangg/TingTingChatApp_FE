@@ -15,6 +15,7 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink }) => {
       const response = await Api_chatInfo.getChatLinks(conversationId);
       const linkData = Array.isArray(response) ? response : response?.data;
 
+      console.log("Dữ liệu API trả về link:", response);
       if (Array.isArray(linkData)) {
         const filteredLinks = linkData
           .filter((item) => item?.messageType === "link")
@@ -24,7 +25,6 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink }) => {
             url: item?.linkURL || "#",
             date: item?.createdAt?.split("T")[0] || "Không có ngày",
             sender: item?.userId || "Không rõ người gửi",
-            messageId: item?.messageId, // Lấy messageId để xóa
           }));
 
         const sortedLinks = filteredLinks.sort((a, b) => {
@@ -60,22 +60,24 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink }) => {
 
   const handleDeleteClick = async (linkItem, event) => {
     event.stopPropagation();
-    if (!linkItem?.messageId) {
-      console.error("Không có messageId link để xóa.");
+    if (!linkItem?.id) {
+      console.error("Không có id link để xóa.");
       return;
     }
 
     try {
-      const response = await Api_chatInfo.deleteMessage([linkItem.messageId]); // Truyền mảng messageIds
+      // Truyền trực tiếp linkItem.id (là messageId) dưới dạng một phần tử của mảng
+      const response = await Api_chatInfo.deleteMessage([linkItem.id]);
       console.log('[DELETE] Phản hồi API (xóa link):', response);
-
+      console.log("id link:", linkItem.id);
       if (response?.message) {
         console.log("Xóa link thành công:", response.message);
         // Gọi callback để thông báo link đã xóa và cập nhật lại danh sách link
         if (onDeleteLink) {
-          onDeleteLink(linkItem.messageId);
+          onDeleteLink(linkItem.id);
         }
-        fetchLinks(); // Gọi lại để cập nhật danh sách link sau khi xóa
+        // Cập nhật state links để loại bỏ link vừa xóa
+        setLinks(links.filter(link => link.id !== linkItem.id));
       } else {
         console.error('[DELETE] Phản hồi API không mong đợi:', response);
       }
@@ -83,7 +85,6 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink }) => {
       console.error('Lỗi khi xóa liên kết:', error);
     }
   };
-
   const handleForwardClick = (linkItem, event) => {
     event.stopPropagation();
     if (onForwardLink && linkItem) {
