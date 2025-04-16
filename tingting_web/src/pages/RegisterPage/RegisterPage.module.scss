@@ -1,0 +1,142 @@
+.wrapper {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #dae8fc;
+}
+
+.login-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 20px 0;
+  width: 100%;
+  max-width: 600px;
+  height: 100%;
+  
+  .logo h1 {
+    font-size: clamp(28px, 5vw, 36px);
+    font-weight: 700;
+    color: #0573ff;
+    margin-bottom: 20px;
+  }
+}
+
+.body {
+  background-color: #fff;
+  width: 100%;
+  max-width: 550px;
+  height: auto;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+
+  .card-head {
+    width: 100%;
+    height: auto;
+    padding: 14px;
+    border-bottom: 1px solid #e9e4e4;
+    font-size: clamp(16px, 3vw, 18px);
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 10px;
+
+    h2 {
+      font-size: clamp(20px, 4vw, 24px);
+      font-weight: 500;
+    }
+    
+    p {
+      font-size: clamp(14px, 3vw, 16px);
+      font-weight: 400;
+      margin-top: 5px;
+      color: #888383;
+    }
+  }
+  
+  .card-body {
+    padding: 12px;
+    height: auto;
+    
+    @media (max-width: 480px) {
+      padding: 8px;
+    }
+  }
+  
+  .form-signin {
+    max-width: 400px;
+    height: auto;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .card-bottom {
+    padding: 16px 11px;
+    margin: 10px;
+    border-radius: 8px;
+    border: 1px solid #e9e4e4;
+    height: auto;
+    min-height: 120px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: space-between;
+    align-items: center;
+    
+    @media (max-width: 576px) {
+      flex-direction: column;
+      text-align: center;
+    }
+    
+    .w-30 {
+      width: auto;
+      
+      @media (max-width: 576px) {
+        width: 100%;
+      }
+    }
+    
+    .btn-down-app {
+      background-color: #0573ff;
+      color: #fff;
+      min-width: 100px;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: center;
+      margin-top: 10px;
+      cursor: pointer;
+      
+      &:hover {
+        background-color: #559ce7;
+      }
+    }
+  }
+}
+
+.nav-item {
+  font-weight: 500;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+@media (max-width: 640px) {
+  .body {
+    width: 95%;
+  }
+  
+  .login-layout {
+    padding: 15px 10px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .body {
+    padding: 15px 10px;
+  }
+}

@@ -1,0 +1,50 @@
+
+.modal {
+    background-color: #fff;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    width: 300px;
+}
+
+.icon {
+    font-size: 50px;
+    color: green;
+    margin: 0 auto 10px; /* Căn giữa và cách phần tiêu đề một khoảng */
+}
+
+.title {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.message {
+    font-size: 16px;
+    margin: 10px 0;
+}
+
+.actions {
+    display: flex;
+    justify-content: center; /* Căn đều hai nút ở giữa */
+    gap: 10px; /* Khoảng cách giữa hai nút */
+    margin-top: 20px;
+}
+
+.confirmButton,
+.cancelButton {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+}
+
+.confirmButton {
+    background-color: #4caf50;
+}
+
+.cancelButton {
+    background-color: #2196f3;
+}
