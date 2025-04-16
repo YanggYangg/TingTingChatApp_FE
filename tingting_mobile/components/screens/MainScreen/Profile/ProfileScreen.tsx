@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native"
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react"
 import {Api_Profile} from "@/apis/api_profile"
+import axios from "axios";
 
 export default function ProfileScreen() {
   const navigation = useNavigation()
@@ -25,14 +26,26 @@ export default function ProfileScreen() {
     const fetchProfile = async () => {
       try {
         const userId = await AsyncStorage.getItem("userId");
-        console.log("User ID:", userId); // Log the userId to check if it's being retrieved correctly
-        // Alert.alert("User ID:", userId); // Log the userId to check if it's being retrieved correctly
-        if (!userId) return;
+        const token = await AsyncStorage.getItem("token");
 
+        if (!userId || !token) {
+          console.warn("Missing userId or token");
+          return;
+        }
 
+        console.log("User ID:", userId);
 
-        const response = await Api_Profile.getProfile(userId);
-        const user = response.data.user;
+        const response = await axios.get(
+          `http://192.168.1.17:3001/api/v1/profile/${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const user = response.data.data.user;
+        console.log("User Data:", user);
 
         const date = new Date(user.dateOfBirth);
         const day = String(date.getDate());
@@ -55,7 +68,7 @@ export default function ProfileScreen() {
           year,
         });
       } catch (error) {
-        console.error("Lỗi khi lấy thông tin hồ sơ:", error);
+        console.error("Lỗi khi lấy thông tin hồ sơ:", error.message);
       }
     };
 

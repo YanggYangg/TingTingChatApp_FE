@@ -97,8 +97,11 @@ const VerificationCode: React.FC<{ navigation: any; route: any }> = ({ navigatio
         
        
       } else {
+      
         const response = await Api_Auth.generate_token(data);
         await AsyncStorage.setItem("token", response.data.token);
+        Alert.alert("Xác thực thành công", response.data.token);
+        await AsyncStorage.setItem("phone", phoneNumber);
         await AsyncStorage.setItem("userId", response.data.user.userId);
         console.log("Response = ", response.data);
         

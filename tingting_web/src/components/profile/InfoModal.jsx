@@ -23,8 +23,10 @@ function InfoModal({ isOpen, onClose }) {
       try {
         const userId = localStorage.getItem("userId");
         console.log(userId);
+        const phone = localStorage.getItem("phone");
+        const data = { phone };
 
-        const response = await Api_Profile.getProfile(userId);
+        const response = await Api_Profile.getProfile(userId, data);
         const date = new Date(response.data.user.dateOfBirth);
         const day = date.getDate();
         const month = date.getMonth() + 1;
