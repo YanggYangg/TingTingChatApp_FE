@@ -154,7 +154,7 @@
 //   const fetchCloudMessages = async () => {
 //     setLoading(true);
 //     try {
-      
+
 //       const response = await axios.get(
 //         `http://localhost:3000/api/messages/user/${localStorage.getItem("userId")}`
 //       );
@@ -473,7 +473,7 @@
 //                     className="fixed bottom-0 left-0 w-full bg-white shadow-md"
 //                   />
 //                 </>
-//               ) : ( 
+//               ) : (
 //               <>
 //                 <div className="p-4 w-full h-[calc(100vh-200px)] overflow-y-auto">
 //                   {messages
@@ -512,7 +512,7 @@
 //                   setReplyingTo={setReplyingTo}
 //                 />
 //               </>
-        
+
 //             )}
 //           </div>
 
@@ -567,11 +567,8 @@ import ChatHeaderCloud from "./ChatWindow/ChatHeaderCloud";
 import ChatFooterCloud from "./ChatWindow/ChatFooterCloud";
 
 import { useSocket } from "../../contexts/SocketContext";
-<<<<<<< HEAD
 import { useCloudSocket } from "../../contexts/CloudSocketContext";
-=======
 import ShareModal from "../../components/chat/ShareModal";
->>>>>>> origin/feature/goodLuck
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -594,14 +591,13 @@ function ChatPage() {
 
   const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
   const [messageToForward, setMessageToForward] = useState(null); // State để lưu tin nhắn cần chuyển tiếp
-  
+
   const dispatch = useDispatch();
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
 
-<<<<<<< HEAD
   const socketCloud = useCloudSocket(); // Sử dụng socket cloud (port 3000)
-  const currUserId = localStorage.getItem('userId');
+  const currUserId = localStorage.getItem("userId");
 
   const cloudChat = {
     id: "my-cloud",
@@ -612,74 +608,76 @@ function ChatPage() {
     messages: cloudMessages,
   };
 
-=======
-
-
   const conversationId = selectedMessageId;
   // Cuộn xuống tin nhắn mới nhất
->>>>>>> origin/feature/goodLuck
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-<<<<<<< HEAD
   // Socket.IO cho phần cloud
-=======
   // Xử lý socket events
->>>>>>> origin/feature/goodLuck
   useEffect(() => {
     if (socketCloud && selectedMessageId === "my-cloud") {
-      console.log('Socket for cloud active, currentUserId:', currUserId);
-  
+      console.log("Socket for cloud active, currentUserId:", currUserId);
+
       socketCloud.on("newMessage", (newMessage) => {
-        console.log('Received newMessage:', newMessage);
+        console.log("Received newMessage:", newMessage);
         if (!newMessage.userId) {
-          console.warn('newMessage missing userId:', newMessage);
+          console.warn("newMessage missing userId:", newMessage);
           return;
         }
         if (newMessage.userId === currentUserId) {
           setCloudMessages((prevMessages) => {
-            if (!prevMessages.some((msg) => msg.messageId === newMessage.messageId)) {
-              console.log('Adding new message to cloudMessages:', newMessage);
+            if (
+              !prevMessages.some(
+                (msg) => msg.messageId === newMessage.messageId
+              )
+            ) {
+              console.log("Adding new message to cloudMessages:", newMessage);
               const updatedMessages = [...prevMessages, newMessage].sort(
                 (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
               );
               setShouldScrollToBottom(true);
               return updatedMessages;
             }
-            console.log('Message already exists:', newMessage.messageId);
+            console.log("Message already exists:", newMessage.messageId);
             return prevMessages;
           });
         } else {
-          console.log('Message ignored, userId mismatch:', newMessage.userId, 'vs', currentUserId);
+          console.log(
+            "Message ignored, userId mismatch:",
+            newMessage.userId,
+            "vs",
+            currentUserId
+          );
         }
       });
-  
+
       socketCloud.on("messageDeleted", ({ messageId }) => {
-        console.log('Received messageDeleted:', messageId);
+        console.log("Received messageDeleted:", messageId);
         setCloudMessages((prevMessages) =>
           prevMessages.filter((msg) => msg.messageId !== messageId)
         );
       });
-  
-      socketCloud.on('error', (error) => {
-        console.error('Socket error in cloud:', error);
+
+      socketCloud.on("error", (error) => {
+        console.error("Socket error in cloud:", error);
       });
-  
-      socketCloud.on('connect', () => {
-        console.log('Socket reconnected for cloud');
+
+      socketCloud.on("connect", () => {
+        console.log("Socket reconnected for cloud");
       });
-  
-      socketCloud.on('disconnect', () => {
-        console.warn('Socket disconnected for cloud');
+
+      socketCloud.on("disconnect", () => {
+        console.warn("Socket disconnected for cloud");
       });
-  
-      socketCloud.on('connect_error', (error) => {
-        console.error('Socket connect_error in cloud:', error.message);
+
+      socketCloud.on("connect_error", (error) => {
+        console.error("Socket connect_error in cloud:", error.message);
       });
-  
+
       return () => {
-        console.log('Cleaning up socket listeners for cloud');
+        console.log("Cleaning up socket listeners for cloud");
         socketCloud.off("newMessage");
         socketCloud.off("messageDeleted");
         socketCloud.off("error");
@@ -688,7 +686,9 @@ function ChatPage() {
         socketCloud.off("connect_error");
       };
     } else if (selectedMessageId === "my-cloud" && !socketCloud) {
-      console.warn('Socket not initialized for cloud, check userId in localStorage');
+      console.warn(
+        "Socket not initialized for cloud, check userId in localStorage"
+      );
     }
   }, [socketCloud, selectedMessageId, currUserId]);
 
@@ -784,7 +784,7 @@ function ChatPage() {
     setMessageToForward(msg);
     setIsShareModalVisible(true);
     console.log("Mở ShareModal để chuyển tiếp:", msg);
-};
+  };
 
   const handleCloseShareModal = () => {
     setIsShareModalVisible(false);
@@ -794,7 +794,14 @@ function ChatPage() {
 
   const handleShare = (selectedConversations, messageContent) => {
     // ... logic chia sẻ thực tế ...
-    console.log("Thực hiện chia sẻ đến:", selectedConversations, "với nội dung:", messageContent, "tin nhắn:", messageToForward);
+    console.log(
+      "Thực hiện chia sẻ đến:",
+      selectedConversations,
+      "với nội dung:",
+      messageContent,
+      "tin nhắn:",
+      messageToForward
+    );
     handleCloseShareModal(); // Đóng modal sau khi chia sẻ (hoặc hủy)
   };
 
@@ -839,7 +846,9 @@ function ChatPage() {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:3000/api/messages/user/${localStorage.getItem("userId")}`
+        `http://localhost:3000/api/messages/user/${localStorage.getItem(
+          "userId"
+        )}`
       );
       const sortedMessages = response.data.sort(
         (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
@@ -856,7 +865,10 @@ function ChatPage() {
   // Kiểm tra cuộn
   useLayoutEffect(() => {
     if (shouldScrollToBottom && cloudChatContainerRef.current) {
-      console.log('Scrolling to bottom, cloudMessages length:', cloudMessages.length);
+      console.log(
+        "Scrolling to bottom, cloudMessages length:",
+        cloudMessages.length
+      );
       const container = cloudChatContainerRef.current;
       container.scrollTop = container.scrollHeight;
       setShouldScrollToBottom(false);
@@ -915,7 +927,8 @@ function ChatPage() {
       if (fileUrl) {
         const link = document.createElement("a");
         link.href = fileUrl;
-        link.download = message.filenames?.[fileIndex] || fileUrl.split("/").pop();
+        link.download =
+          message.filenames?.[fileIndex] || fileUrl.split("/").pop();
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1092,7 +1105,6 @@ function ChatPage() {
             className={`flex-1 transition-all duration-300 ${
               isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
             }`}
-<<<<<<< HEAD
           >
             {selectedChat.type === "cloud" ? (
               <ChatHeaderCloud
@@ -1197,56 +1209,116 @@ function ChatPage() {
                 />
               </>
             )}
-=======
           > */}
-          <div className={`flex flex-col h-screen transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"}`}>
-          <ChatHeader
-              type={selectedChat.type}
-              name={selectedChat.name}
-              lastActive={6}
-              avatar={selectedChat.avatar}
-              isChatInfoVisible={isChatInfoVisible}
-              setIsChatInfoVisible={setIsChatInfoVisible}
-            />
-            <div className="flex-1 overflow-y-auto p-4">
-              {messages
-                .filter((msg) => msg.conversationId === selectedMessageId)
-                .map((msg) => (
-                  <MessageItem
-                    key={msg._id}
-                    msg={{
-                      ...msg,
-                      id: msg._id,
-                      sender:
-                        msg.userId === currentUserId
-                          ? "Bạn"
-                          : selectedMessage.participants?.find(
-                            (p) => p.userId === msg.userId
-                          )
-                            ? ""
-                            : "Unknown",
-                      time: formatTime(msg.createdAt),
-                      messageType: msg.messageType || "text",
-                      content: msg.content || "",
-                      linkURL: msg.linkURL || "",
-                      userId: msg.userId,
-                    }}
-                    currentUserId={currentUserId}
-                    onReply={handleReply}
-                    onForward={handleForward}
-                    onRevoke={handleRevoke}
+          <div
+            className={`flex flex-col h-screen transition-all duration-300 ${
+              isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
+            }`}
+          >
+            {selectedChat.type === "cloud" ? (
+              <ChatHeaderCloud
+                name={cloudChat.name}
+                avatar={cloudChat.avatar}
+                isChatInfoVisible={isChatInfoVisible}
+                setIsChatInfoVisible={setIsChatInfoVisible}
+              />
+            ) : (
+              <ChatHeader
+                type={selectedChat.type}
+                name={selectedChat.name}
+                lastActive={6}
+                avatar={selectedChat.avatar}
+                isChatInfoVisible={isChatInfoVisible}
+                setIsChatInfoVisible={setIsChatInfoVisible}
+              />
+            )}
 
-                  />
-                ))}
-              <div ref={messagesEndRef} />
-            </div>
-            <ChatFooter
-              className="fixed bottom-0 left-0 w-full bg-white shadow-md"
-              sendMessage={sendMessage}
-              replyingTo={replyingTo}
-              setReplyingTo={setReplyingTo}
-            />
->>>>>>> origin/feature/goodLuck
+            {selectedChat.type === "cloud" ? (
+              <>
+                <div
+                  ref={cloudChatContainerRef}
+                  className="p-4 h-[calc(100vh-200px)] overflow-y-auto"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p>Đang tải tin nhắn từ Cloud...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {cloudMessages.map((message, index) => {
+                        const currentDate = formatDateSeparator(
+                          message.timestamp
+                        );
+                        const prevMessage =
+                          index > 0 ? cloudMessages[index - 1] : null;
+                        const prevDate = prevMessage
+                          ? formatDateSeparator(prevMessage.timestamp)
+                          : null;
+                        const showDateSeparator =
+                          index === 0 || currentDate !== prevDate;
+
+                        return (
+                          <React.Fragment key={message.messageId || index}>
+                            {showDateSeparator && (
+                              <div className="flex justify-center my-4">
+                                <span className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
+                                  {currentDate}
+                                </span>
+                              </div>
+                            )}
+                            {renderCloudMessage(message)}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <ChatFooterCloud
+                  onReload={fetchCloudMessages}
+                  className="fixed bottom-0 left-0 w-full bg-white shadow-md"
+                />
+              </>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto p-4">
+                  {messages
+                    .filter((msg) => msg.conversationId === selectedMessageId)
+                    .map((msg) => (
+                      <MessageItem
+                        key={msg._id}
+                        msg={{
+                          ...msg,
+                          id: msg._id,
+                          sender:
+                            msg.userId === currentUserId
+                              ? "Bạn"
+                              : selectedMessage.participants?.find(
+                                  (p) => p.userId === msg.userId
+                                )
+                              ? ""
+                              : "Unknown",
+                          time: formatTime(msg.createdAt),
+                          messageType: msg.messageType || "text",
+                          content: msg.content || "",
+                          linkURL: msg.linkURL || "",
+                          userId: msg.userId,
+                        }}
+                        currentUserId={currentUserId}
+                        onReply={handleReply}
+                        onForward={handleForward}
+                        onRevoke={handleRevoke}
+                      />
+                    ))}
+                  <div ref={messagesEndRef} />
+                </div>
+                <ChatFooter
+                  className="fixed bottom-0 left-0 w-full bg-white shadow-md"
+                  sendMessage={sendMessage}
+                  replyingTo={replyingTo}
+                  setReplyingTo={setReplyingTo}
+                />
+              </>
+            )}
           </div>
 
           {isChatInfoVisible && (
@@ -1272,7 +1344,6 @@ function ChatPage() {
           />
         </div>
       )}
-<<<<<<< HEAD
 
       {contextMenu.visible && (
         <ContextMenu
@@ -1280,10 +1351,11 @@ function ChatPage() {
           y={contextMenu.y}
           message={contextMenu.message}
           fileIndex={contextMenu.fileIndex}
-          onClose={() => setContextMenu((prev) => ({ ...prev, visible: false }))}
+          onClose={() =>
+            setContextMenu((prev) => ({ ...prev, visible: false }))
+          }
         />
       )}
-=======
       {/* Hiển thị ShareModal có điều kiện */}
       <ShareModal
         isOpen={isShareModalVisible}
@@ -1293,10 +1365,7 @@ function ChatPage() {
         userId={currentUserId} // Truyền userId vào ShareModal
         messageId={messageToForward?._id} // Truyền messageId vào ShareModal
       />
-
->>>>>>> origin/feature/goodLuck
     </div>
-    
   );
 }
 
