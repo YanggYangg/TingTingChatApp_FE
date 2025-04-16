@@ -4,6 +4,7 @@ import {
   IoTrashOutline,
 } from "react-icons/io5";
 
+
 const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
   const isCurrentUser = msg.userId === currentUserId;
   const handleRevokeClick = () => {
@@ -52,7 +53,7 @@ const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
             <IoReturnDownBack size={18} />
           </button>
           <button
-            onClick={() => onForward(msg)}
+            onClick={() => onForward(msg)} // Gọi hàm onForward khi nhấn
             title="Chuyển tiếp"
             className="p-1 rounded-full bg-white/80 hover:bg-green-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-green-600"
           >

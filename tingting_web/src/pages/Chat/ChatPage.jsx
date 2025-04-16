@@ -8,6 +8,7 @@ import ChatFooter from "./ChatWindow/ChatFooter";
 import TingTingImage from "../../assets/TingTing_Chat.png";
 import { useSocket } from "../../contexts/SocketContext";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import ShareModal from "../../components/chat/ShareModal";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -16,6 +17,8 @@ function ChatPage() {
   const socket = useSocket();
   const currentUserId = socket?.io?.opts?.query?.userId;
   const messagesEndRef = useRef(null);
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
+  const [messageToForward, setMessageToForward] = useState(null); // State để lưu tin nhắn cần chuyển tiếp
 
   const dispatch = useDispatch();
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
@@ -113,16 +116,23 @@ function ChatPage() {
   };
 
   const handleReply = (msg) => setReplyingTo(msg);
-  const handleForward = (msg) => console.log("Forward", msg);
-  // const handleRevoke = (msg) => {
-  //   if (socket) {
-  //     socket.emit("revokeMessage", {
-  //       messageId: msg._id,
-  //       conversationId: selectedMessageId,
-  //     });
-  //   }
-  // };
+  const handleForward = (msg) => {
+    setMessageToForward(msg);
+    setIsShareModalVisible(true);
+    console.log("Mở ShareModal để chuyển tiếp:", msg);
+  };
 
+  const handleCloseShareModal = () => {
+    setIsShareModalVisible(false);
+    setMessageToForward(null);
+    console.log("Đóng ShareModal");
+  };
+
+  const handleShare = (selectedConversations, messageContent) => {
+    // ... logic chia sẻ thực tế ...
+    console.log("Thực hiện chia sẻ đến:", selectedConversations, "với nội dung:", messageContent, "tin nhắn:", messageToForward);
+    handleCloseShareModal(); // Đóng modal sau khi chia sẻ (hoặc hủy)
+  };
   const handleRevoke = async (messageId) => {
     try {
       const response = await Api_chatInfo.revokeMessage({ messageIds: [messageId] });
@@ -196,6 +206,7 @@ function ChatPage() {
                     onReply={handleReply}
                     onForward={handleForward}
                     onRevoke={handleRevoke}
+
                   />
                 ))}
               <div ref={messagesEndRef} />
@@ -231,6 +242,13 @@ function ChatPage() {
           />
         </div>
       )}
+      {/* Hiển thị ShareModal có điều kiện */}
+      <ShareModal
+        isOpen={isShareModalVisible}
+        onClose={handleCloseShareModal} // Hàm đóng modal
+        onShare={handleShare} // Hàm xử lý logic chia sẻ
+        messageToForward={messageToForward}
+      />
     </div>
   );
 }
