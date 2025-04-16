@@ -39,4 +39,6 @@ export const Api_chatInfo = {
     // Xóa tin nhắn
     deleteMessage: (messageIds) => ApiManager.delete('chatService', `/messages/delete`, messageIds), // Gửi messageIds trực tiếp
     
+    //thu
+    revokeMessage: (messageIds) => ApiManager.delete('chatService', `/messages/revoke`, messageIds), // Gửi messageIds trực tiếp
 };

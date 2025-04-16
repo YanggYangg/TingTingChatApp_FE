@@ -7,7 +7,7 @@ import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
 import TingTingImage from "../../assets/TingTing_Chat.png";
 import { useSocket } from "../../contexts/SocketContext";
-import {Api_chatInfo} from "../../../apis/Api_chatInfo";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -51,17 +51,23 @@ function ChatPage() {
           }
           return prevMessages;
         });
+
       });
 
-      socket.on("error", (error) => {
-        console.error("Socket error:", error);
-      });
 
+      // Lắng nghe sự kiện tin nhắn đã bị thu hồi
+      socket.on('messageRevoked', ({ messageIds }) => {
+        setMessages(prevMessages => {
+          const updatedMessages = prevMessages.filter(msg => !messageIds.includes(msg._id));
+          return updatedMessages;
+        });
+      });
       return () => {
         socket.off("loadMessages");
         socket.off("receiveMessage");
         socket.off("messageSent");
         socket.off("error");
+        socket.off("messageRevoked"); // Hủy lắng nghe khi component unmount
       };
     }
   }, [socket, selectedMessageId]);
@@ -119,9 +125,9 @@ function ChatPage() {
 
   const handleRevoke = async (messageId) => {
     try {
-      const response = await Api_chatInfo.deleteMessage({ messageIds: [messageId] });
+      const response = await Api_chatInfo.revokeMessage({ messageIds: [messageId] });
       console.log('[DELETE] Phản hồi API (thu hồi):', response);
-  
+
       if (response?.message) {
         setMessages(prevMessages => prevMessages.filter(msg => msg._id !== messageId));
         if (typeof alert !== 'undefined') {

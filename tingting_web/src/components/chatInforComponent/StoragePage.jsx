@@ -42,11 +42,21 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => { // Thêm prop o
     (Array.isArray(items) ? items : []).map(({ linkURL, createdAt, userId, content, _id, messageType }) => ({
       url: linkURL || "#",
       date: createdAt?.split("T")[0] || "",
-      sender: userId?.name || "Không tên",
+      // sender: userId?.name || "Không tên",
+      sender: userId?.name || userId,
       name: content || "Không có tên",
       id: _id,
       type: messageType === "video" ? "video" : "image",
     }));
+  // const formatData = (items) =>
+  //   (Array.isArray(items) ? items : []).map(({ linkURL, createdAt, senderInfo, content, _id, messageType }) => ({
+  //     url: linkURL || "#",
+  //     date: createdAt?.split("T")[0] || "",
+  //     sender: senderInfo?.firstname ? `${senderInfo.firstname} ${senderInfo.surname || ''}` : "Không tên",
+  //     name: content || "Không có tên",
+  //     id: _id,
+  //     type: messageType === "video" ? "video" : "image",
+  //   }));
 
   const filteredData = useMemo(() =>
     (data[activeTab] || []).filter(
