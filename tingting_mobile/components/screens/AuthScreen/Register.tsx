@@ -4,21 +4,48 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
+  Alert,
+  ScrollView,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import CustomTextInput from "../../textfield/CustomTextInput";
 import CustomButton from "@/components/button/CustomButton";
+import { Api_Auth } from "../../../apis/api_auth";
+
+import {
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
+import { useNavigation } from "@react-navigation/native";
+
+type RootStackParamList = {
+  Main: undefined;
+  MessageScreen: { userId?: string; username?: string };
+  Register: undefined;
+  VerificationCode: {
+    phoneNumber: string;
+    firstname: string;
+    surname: string;
+    day: string;
+    month: string;
+    year: string;
+    gender: string;
+    email: string;
+    password: string;
+  };
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Register">;
 
 function Register() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
 
+  const [firstname, setFirstname] = useState("");
+  const [surname, setSurname] = useState("");
   const [day, setDay] = useState("1");
   const [month, setMonth] = useState("1");
   const [year, setYear] = useState("2000");
-  const [selectedGender, setSelectedGender] = useState("");
+  const [selectedGender, setSelectedGender] = useState("Nam");
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -26,6 +53,85 @@ function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const isSelected = (gender: string) => selectedGender === gender;
+
+  const handleRegister = async () => {
+    if (!firstname || !surname || !email || !phone || !password) {
+      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin!");
+      return;
+    }
+
+    const patternName = /^[A-Za-z]{1,30}$/;
+    if (!patternName.test(firstname)) {
+      Alert.alert("Lỗi", "Tên không hợp lệ!");
+      return;
+    }
+    if (!patternName.test(surname)) {
+      Alert.alert("Lỗi", "Họ không hợp lệ!");
+      return;
+    }
+
+    const patternPhone = /0\d{9,10}/;
+    if (!patternPhone.test(phone)) {
+      Alert.alert("Lỗi", "Số điện thoại không hợp lệ!");
+      return;
+    }
+
+    const patternEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!patternEmail.test(email)) {
+      Alert.alert("Lỗi", "Email không hợp lệ!");
+      return;
+    }
+
+    if (password.length < 6 || password.length > 32) {
+      Alert.alert("Lỗi", "Mật khẩu phải từ 6 đến 32 ký tự!");
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    if (parseInt(year) > currentYear) {
+      Alert.alert("Lỗi", "Năm sinh không hợp lệ!");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Lỗi", "Mật khẩu không khớp!");
+      return;
+    }
+
+    const data = {
+      firstname,
+      surname,
+      day,
+      month,
+      year,
+      gender: selectedGender,
+      email,
+      phone,
+      password,
+    };
+
+    try {
+      const response = await Api_Auth.signUp(data);
+      // console.log("Đăng ký thành công, user ID:", response.data.user._id);
+      // Alert.alert("Thành công", "Đăng ký thành công!");
+
+      navigation.navigate("VerificationCode", {
+        phoneNumber: phone,
+        firstname,
+        surname,
+        day,
+        month,
+        year,
+        gender: selectedGender,
+        email,
+        password,
+      });
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert("Lỗi", error.response?.data?.message || "Đã xảy ra lỗi!");
+    }
+  };
+
 
   return (
     <View style={styles.container}>
@@ -41,16 +147,24 @@ function Register() {
         <Text style={styles.headerText}>Đăng ký</Text>
       </View>
 
-      <View style={styles.bodyContainer}>
+      <ScrollView contentContainerStyle={styles.bodyContainer}>
         <Text style={styles.txt01}>Tạo một tài khoản mới</Text>
         <Text style={styles.txt02}>Thật nhanh chóng và dễ dàng</Text>
 
         <View style={styles.row}>
           <View style={styles.halfInput}>
-            <CustomTextInput placeholder="Tên" />
+            <CustomTextInput
+              placeholder="Tên"
+              value={firstname}
+              onChangeText={setFirstname}
+            />
           </View>
           <View style={styles.halfInput}>
-            <CustomTextInput placeholder="Họ" />
+            <CustomTextInput
+              placeholder="Họ"
+              value={surname}
+              onChangeText={setSurname}
+            />
           </View>
         </View>
 
@@ -65,7 +179,6 @@ function Register() {
               <Picker.Item label={`${d + 1}`} value={`${d + 1}`} key={d + 1} />
             ))}
           </Picker>
-
           <Picker
             selectedValue={month}
             style={styles.thirdInput}
@@ -75,7 +188,6 @@ function Register() {
               <Picker.Item label={`${m + 1}`} value={`${m + 1}`} key={m + 1} />
             ))}
           </Picker>
-
           <Picker
             selectedValue={year}
             style={styles.thirdInput}
@@ -110,41 +222,38 @@ function Register() {
             </TouchableOpacity>
           ))}
         </View>
-        <CustomTextInput 
-        placeholder="Địa chỉ email"
-        value = {email}
-        onChangeText={setEmail}
+
+        <CustomTextInput
+          placeholder="Địa chỉ email"
+          value={email}
+          onChangeText={setEmail}
         />
-        <CustomTextInput 
-        placeholder="Số điện thoại di động"
-        value={phone}
-        onChangeText={setPhone}
+        <CustomTextInput
+          placeholder="Số điện thoại di động"
+          value={phone}
+          onChangeText={setPhone}
         />
-        <CustomTextInput 
-        placeholder="Nhập mật khẩu mới" 
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword} 
+        <CustomTextInput
+          placeholder="Nhập mật khẩu mới"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
         />
-        <CustomTextInput 
-        placeholder="Nhập lại mật khẩu" 
-        secureTextEntry 
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
+        <CustomTextInput
+          placeholder="Nhập lại mật khẩu"
+          secureTextEntry
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
         />
 
-        <CustomButton title="Đăng ký" 
-        onPress={() => console.log('Đăng ký')} />
-      </View>
+        <CustomButton title="Đăng ký" onPress={handleRegister} />
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -153,17 +262,9 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     paddingHorizontal: 16,
   },
-  backIcon: {
-    marginRight: 12,
-  },
-  headerText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  bodyContainer: {
-    padding: 16,
-  },
+  backIcon: { marginRight: 12 },
+  headerText: { fontSize: 24, fontWeight: "bold", color: "#fff" },
+  bodyContainer: { padding: 16 },
   txt01: {
     fontSize: 24,
     fontWeight: "bold",
@@ -182,18 +283,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  halfInput: {
-    width: "48%",
-  },
+  halfInput: { width: "48%" },
   thirdInput: {
     width: "32%",
     backgroundColor: "#f5f5f5",
   },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
+  label: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
   radioButton: {
     flex: 1,
     flexDirection: "row",
@@ -211,13 +306,8 @@ const styles = StyleSheet.create({
     borderColor: "#007AFF",
     backgroundColor: "#E0F0FF",
   },
-  radioText: {
-    color: "#000",
-  },
-  radioTextSelected: {
-    color: "#007AFF",
-    fontWeight: "bold",
-  },
+  radioText: { color: "#000" },
+  radioTextSelected: { color: "#007AFF", fontWeight: "bold" },
 });
 
 export default Register;
