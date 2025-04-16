@@ -120,7 +120,7 @@ function ChatPage() {
     setMessageToForward(msg);
     setIsShareModalVisible(true);
     console.log("Mở ShareModal để chuyển tiếp:", msg);
-  };
+};
 
   const handleCloseShareModal = () => {
     setIsShareModalVisible(false);
@@ -248,6 +248,8 @@ function ChatPage() {
         onClose={handleCloseShareModal} // Hàm đóng modal
         onShare={handleShare} // Hàm xử lý logic chia sẻ
         messageToForward={messageToForward}
+        userId={currentUserId} // Truyền userId vào ShareModal
+        messageId={messageToForward?._id} // Truyền messageId vào ShareModal
       />
     </div>
   );

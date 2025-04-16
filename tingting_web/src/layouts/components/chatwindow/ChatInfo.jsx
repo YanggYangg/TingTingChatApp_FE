@@ -12,6 +12,7 @@ import { Api_chatInfo } from "../../../../apis/Api_chatInfo";
 import AddMemberModal from "../../../components/chatInforComponent/AddMemberModal";
 import EditNameModal from "../../../components/chatInforComponent/EditNameModal";
 import CreateGroupModal from "../../../components/chatInforComponent/CreateGroupModal";
+import { Api_Profile } from "../../../../apis/api_profile";
 
 const ChatInfo = ({ userId, conversationId }) => {
     const [chatInfo, setChatInfo] = useState(null);
@@ -22,13 +23,10 @@ const ChatInfo = ({ userId, conversationId }) => {
     const [loading, setLoading] = useState(true);
     const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
     const [conversations, setConversations] = useState([]);
+    const [otherUser, setOtherUser] = useState(null);
 
-    // const conversationId = "67fe043089c79b5ff609cb95";
-    // const userId = "67fe031e421896d7bc8c2e10";
     console.log("userId được truyền vào ChatInfo:", userId);
     console.log("conversationId được truyền vào ChatInfo:", conversationId);
-    const a = Api_chatInfo.getChatInfo(conversationId);
-    console.log("ứng dụng đang chạy", a);
 
     useEffect(() => {
         const fetchChatInfo = async () => {
@@ -43,6 +41,20 @@ const ChatInfo = ({ userId, conversationId }) => {
                     setChatInfo(prev => ({ ...prev, isPinned: participant.isPinned }));
                 } else {
                     setIsMuted(false);
+                }
+
+                if (!response.isGroup) {
+                    // Nếu không phải là nhóm, tìm thông tin của người dùng khác
+                    const otherParticipant = response.participants.find(p => p.userId !== userId);
+                    if (otherParticipant?.userId) {
+                        try {
+                            const userResponse = await Api_Profile.getProfile(otherParticipant.userId);
+                            setOtherUser(userResponse?.data?.user);
+                        } catch (error) {
+                            console.error("Lỗi khi lấy thông tin người dùng khác:", error);
+                            setOtherUser({ firstname: "Không tìm thấy", surname: "" });
+                        }
+                    }
                 }
 
                 setLoading(false);
@@ -108,7 +120,7 @@ const ChatInfo = ({ userId, conversationId }) => {
     };
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(chatInfo?.linkGroup || "https://zalo.me/g/bamwwg826");
+        navigator.clipboard.writeText(chatInfo?.linkGroup || "");
         alert("Đã sao chép link nhóm!");
     };
 
@@ -149,36 +161,44 @@ const ChatInfo = ({ userId, conversationId }) => {
         }
     };
 
+    const chatTitle = chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại";
+    const chatImage = chatInfo?.isGroup
+        ? chatInfo.imageGroup?.trim()
+            ? chatInfo.imageGroup
+            : "https://via.placeholder.com/150" // Placeholder cho ảnh nhóm mặc định
+        : otherUser?.avatar || "https://via.placeholder.com/150"; // Placeholder cho avatar người dùng mặc định
+    const displayName = chatInfo?.isGroup ? chatInfo.name : `${otherUser?.firstname} ${otherUser?.surname}`.trim() || "Đang tải...";
+
     return (
         <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
             <div className="flex-shrink-0">
                 <h2 className="text-xl font-bold text-center mb-4">
-                    {chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại"}
+                    {chatTitle}
                 </h2>
             </div>
 
             <div className="flex-1 overflow-y-auto">
                 <div className="text-center my-4">
                     <img
-                        src={chatInfo?.imageGroup?.trim() ? chatInfo.imageGroup : "https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg"}
-                        className="w-20 h-20 rounded-full mx-auto"
+                        src={chatImage}
+                        className="w-20 h-20 rounded-full mx-auto object-cover"
+                        alt={displayName}
                     />
                     <div className="flex items-center justify-center mt-2">
                         <h2 className="text-lg font-semibold">
-                            {chatInfo?.name || (
-                                !chatInfo?.isGroup && chatInfo?.participants
-                                    ? chatInfo.participants.find(p => p.userId !== userId)?.user?.name || 'Không có tên'
-                                    : 'Không có tên'
-                            )}
+                            {displayName}
                         </h2>
-                        <button
-                            onClick={handleOpenEditNameModal}
-                            className="text-gray-500 hover:text-blue-500 ml-2"
-                        >
-                            <FaEdit size={16} />
-                        </button>
+                        {chatInfo?.isGroup && (
+                            <button
+                                onClick={handleOpenEditNameModal}
+                                className="text-gray-500 hover:text-blue-500 ml-2"
+                            >
+                                <FaEdit size={16} />
+                            </button>
+                        )}
                     </div>
                 </div>
+
 
                 <div className="flex flex-nowrap justify-center gap-4 my-4">
                     <GroupActionButton
