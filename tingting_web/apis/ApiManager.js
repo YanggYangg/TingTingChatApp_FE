@@ -4,28 +4,29 @@ import axios from 'axios';
 //User: 3001
 //Chat: 5000
 const SERVICES = {
-    authService: 'http://localhost:3000',
+    authService: 'http://localhost:3002',
     userService: 'http://localhost:3001',
     chatService: 'http://localhost:5000',
 };
 
-//Tạo một instance axios theo service
+// Tạo một instance axios theo service
 const createAxiosInstance = (service) => {
     if (!SERVICES[service]) {
         throw new Error(`Service ${service} not found`);
     }
 
-    return axios.create({
+    const instance = axios.create({
         baseURL: SERVICES[service],
         withCredentials: true,
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
         },
         responseType: 'json',
     });
+
     // Gắn token mỗi lần request
     instance.interceptors.request.use((config) => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token'); // Hoặc AsyncStorage nếu React Native
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
@@ -35,7 +36,7 @@ const createAxiosInstance = (service) => {
     return instance;
 };
 
-//Hàm gọi API chung 
+// Hàm gọi API chung 
 const request = async (service, method, url, data = null, params = null) => {
     try {
         const axiosInstance = createAxiosInstance(service);
@@ -66,4 +67,3 @@ export const ApiManager = {
     put: async (service, url, data) => request(service, 'put', url, data),
     delete: async (service, url, data) => request(service, 'delete', url, data),
 };
-
