@@ -10,9 +10,6 @@ const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
     const isForwarded = msg.content && msg.content.includes("\n----\n"); // Kiểm tra xem có phải tin nhắn chuyển tiếp không
 
     const parts = isForwarded ? msg.content.split("\n----\n") : [msg.content]; // Chia nội dung nếu là tin nhắn chuyển tiếp
-    const forwardedComment = isForwarded ? parts[0] : null; // Phần nội dung người dùng nhập
-    const originalMessageContent = isForwarded && parts.length > 1 ? parts.slice(1).join("\n----\n").trim() : null; // Phần nội dung gốc
-
     const handleRevokeClick = () => {
         if (onRevoke && messageId) {
             console.log("Revoking message with ID:", messageId);
@@ -42,22 +39,51 @@ const MessageItem = ({ msg, currentUserId, onReply, onForward, onRevoke }) => {
                     <p className="text-xs font-semibold text-gray-700">{msg.sender}</p>
                 )}
 
-                {/* Display Image First */}
-                {msg.messageType === "image" && (
-                    <img
-                        src={msg.linkURL}
-                        className="w-40 h-auto rounded-lg mb-1" // Added mb-1 for spacing
-                        alt="Ảnh"
-                    />
+                {/* Message Content Handling - Simplified */}
+                {msg.messageType === "text" && (
+                    <p className="whitespace-pre-line">{msg.content}</p>
                 )}
 
-                {/* Display Content (Original and Forwarded) */}
-                {msg.messageType === "text" && <p className="whitespace-pre-line">{msg.content}</p>}
-                {msg.messageType === "image" && msg.content && (
-                    <p className="text-sm mt-1 whitespace-pre-line">{msg.content.split('\n').slice(2).join('\n').trim()}</p>
+                {msg.messageType === "image" && (
+                    <>
+                        <img
+                            src={msg.linkURL}
+                            className="w-40 h-auto rounded-lg mb-1"
+                            alt="Ảnh"
+                        />
+                        {msg.content && <p className="text-sm mt-1 whitespace-pre-line">{msg.content}</p>}
+                    </>
                 )}
-                {msg.messageType !== "image" && msg.content && (
-                    <p className="whitespace-pre-line">{msg.content}</p>
+
+                {msg.messageType === "file" && (
+                    <a
+                        href={msg.linkURL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-2"
+                    >
+                        {/* Thêm icon file nếu cần */}
+                        <span>Tệp đã chuyển tiếp</span>
+                        {msg.content && (
+                            <p className="text-sm italic text-gray-600">({msg.content})</p>
+                        )}
+                    </a>
+                )}
+
+                {msg.messageType === "link" && (
+                    <div>
+                        <a
+                            href={msg.linkURL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 underline"
+                        >
+                            Liên kết đã chuyển tiếp
+                        </a>
+                        {msg.content && (
+                            <p className="text-sm italic text-gray-600">({msg.content})</p>
+                        )}
+                    </div>
                 )}
 
                 <p className="text-xs text-gray-500 text-right mt-1">{msg.time}</p>
