@@ -41,50 +41,53 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
     const formData = new FormData();
     formData.append("media", file);
 
-    const res = await fetch("http://localhost:5000/messages/sendMessageWithMedia", {
-      method: "POST",
-      body: formData,
-    });
-    const text = await res.text();//log thô dl trả về
+    const res = await fetch(
+      "http://localhost:5000/messages/sendMessageWithMedia",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+    const text = await res.text(); //log thô dl trả về
     console.log("Raw response text:", text);
 
     if (!res.ok) {
       console.log("Upload failed with status:", res.status);
       throw new Error("Failed to upload file");
-  }
+    }
 
     // const data = await res.json();
-    // return data.linkURL; //Backend trả về URL S3  
+    // return data.linkURL; //Backend trả về URL S3
     try {
-      const data = JSON.parse(text);  // Chắc chắn là JSON hợp lệ
+      const data = JSON.parse(text); // Chắc chắn là JSON hợp lệ
       return data.linkURL;
-  } catch (err) {
+    } catch (err) {
       console.error("JSON parse failed:", err);
       throw new Error("Invalid JSON response from server");
-  }
+    }
   };
 
   const handleSend = async () => {
     if (!message.trim() && !attachedFile) return;
-  
+
     try {
       let fileURL = null;
       let messageType = "text";
       let content = message.trim();
-  
+
       if (attachedFile) {
         fileURL = await uploadToS3(attachedFile.file);
         if (!fileURL) return;
-  
+
         messageType = attachedFile.type;
         content = content || attachedFile.file.name || `[${messageType}]`;
       }
-  
+
       // 👉 Nếu đang reply thì gán messageType = "reply"
       if (replyingTo) {
         messageType = "reply";
       }
-  
+
       const payload = {
         messageType,
         content,
@@ -96,10 +99,10 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
           replyMessageSender: replyingTo.sender, // optional
         }),
       };
-  
+
       console.log("Payload gửi đi: ", payload);
       sendMessage(payload);
-  
+
       // Reset UI
       setMessage("");
       setAttachedFile(null);
@@ -110,7 +113,6 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
       console.error("Failed to send message:", error);
     }
   };
-  
 
   return (
     <div className="bg-white p-3 border-t border-gray-300 w-full relative">

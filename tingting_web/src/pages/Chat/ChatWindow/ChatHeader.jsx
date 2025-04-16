@@ -1,5 +1,4 @@
 import React from "react";
-
 import { PanelRight, Search, Video, UserPlus, User } from "lucide-react";
 const ChatHeader = ({
   type,
@@ -10,6 +9,7 @@ const ChatHeader = ({
   isChatInfoVisible,
   setIsChatInfoVisible,
 }) => {
+
   return (
     <div className={`flex items-center justify-between p-2 border-b bg-white`}>
       {/* Thông tin nhóm/người chat */}

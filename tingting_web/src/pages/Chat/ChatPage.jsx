@@ -20,19 +20,23 @@ function ChatPage() {
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
 
+  // Cuộn xuống tin nhắn mới nhất
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Xử lý socket events
   useEffect(() => {
     if (socket && selectedMessageId) {
       socket.emit("joinConversation", { conversationId: selectedMessageId });
 
+      // Tải tin nhắn
       socket.on("loadMessages", (data) => {
         setMessages(data);
         console.log("Loaded messages:", data);
       });
 
+      // Nhận tin nhắn mới
       socket.on("receiveMessage", (newMessage) => {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
@@ -42,6 +46,7 @@ function ChatPage() {
         });
       });
 
+      // Xác nhận tin nhắn đã gửi
       socket.on("messageSent", (newMessage) => {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
@@ -51,14 +56,17 @@ function ChatPage() {
         });
       });
 
+      // Xử lý lỗi
       socket.on("error", (error) => {
         console.error("Socket error:", error);
       });
 
+      // Dọn dẹp khi component unmount
       return () => {
         socket.off("loadMessages");
         socket.off("receiveMessage");
         socket.off("messageSent");
+        // socket.off("messageDeleted");
         socket.off("error");
       };
     }
@@ -94,8 +102,6 @@ function ChatPage() {
           ...(message.linkURL && { linkURL: message.linkURL }),
           ...(message.replyMessageId && {
             replyMessageId: message.replyMessageId,
-            replyMessageContent: message.replyMessageContent,
-            replyMessageType: message.replyMessageType,
           }),
         },
       };
@@ -108,12 +114,31 @@ function ChatPage() {
 
   const handleReply = (msg) => setReplyingTo(msg);
   const handleForward = (msg) => console.log("Forward", msg);
+
+  const handleDelete = (msg) => {
+    if (
+      window.confirm(
+        "Bạn có chắc muốn xóa tin nhắn này?Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi"
+      )
+    ) {
+      // Lắng nghe tin nhắn bị xóa
+      socket.emit("messageDeleted", { messageId: msg._id });
+      // Xóa tin nhắn khỏi danh sách
+      setMessages((prevMessages) =>
+        prevMessages.filter((message) => message._id !== msg._id)
+      );
+      console.log("Deleted message:", msg._id);
+    }
+  };
   const handleRevoke = (msg) => {
-    if (socket) {
-      socket.emit("revokeMessage", {
-        messageId: msg._id,
-        conversationId: selectedMessageId,
-      });
+    if (window.confirm("Bạn có chắc muốn thu hồi tin nhắn này?")) {
+      socket.emit("messageRevoked", { messageId: msg._id });
+
+      setMessages((prevMessages) =>
+        prevMessages.map((message) =>
+          message._id === msg._id ? { ...message, isRevoked: true } : message
+        )
+      );
     }
   };
 
@@ -127,7 +152,6 @@ function ChatPage() {
             }`}
           > */}
           <div className={`flex flex-col h-screen transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"}`}>
-
             <ChatHeader
               type={selectedChat.type}
               name={selectedChat.name}
@@ -139,7 +163,11 @@ function ChatPage() {
             {/* <div className="p-4 w-full h-[calc(100vh-200px)] overflow-y-auto"> */}
             <div className="flex-1 overflow-y-auto p-4">
               {messages
-                .filter((msg) => msg.conversationId === selectedMessageId)
+                .filter(
+                  (msg) =>
+                    msg.conversationId === selectedMessageId &&
+                    !msg.deletedBy?.includes(currentUserId) // 👈 bỏ tin nhắn đã bị xóa bởi currentUser
+                )
                 .map((msg) => (
                   <MessageItem
                     key={msg._id}
@@ -163,12 +191,15 @@ function ChatPage() {
                     onReply={handleReply}
                     onForward={handleForward}
                     onRevoke={handleRevoke}
+                    onDelete={handleDelete}
+                    messages={messages}
                   />
                 ))}
+
               <div ref={messagesEndRef} />
             </div>
             <ChatFooter
-              //className="fixed bottom-0 left-0 w-full bg-white shadow-md"
+              className="fixed bottom-0 left-0 w-full bg-white shadow-md"
               sendMessage={sendMessage}
               replyingTo={replyingTo}
               setReplyingTo={setReplyingTo}
