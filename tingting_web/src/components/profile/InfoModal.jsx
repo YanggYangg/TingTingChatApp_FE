@@ -17,7 +17,7 @@ function InfoModal({ isOpen, onClose }) {
     gender: "female",
     phone: "",
     avatar: null,
-    coverPhoto: null
+    coverPhoto: null,
   });
   useEffect(() => {
     const fetchProfile = async () => {
@@ -84,7 +84,7 @@ function InfoModal({ isOpen, onClose }) {
       //     withCredentials: true, // nếu bạn đang dùng cookie cho auth
       //   }
       // );
-  
+
       // console.log("Upload thành công!", resp.data);
       const response = await Api_Profile.updateProfile(
         localStorage.getItem("userId"),

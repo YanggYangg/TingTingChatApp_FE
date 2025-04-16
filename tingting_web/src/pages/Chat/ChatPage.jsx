@@ -615,7 +615,6 @@ function ChatPage() {
   }, [messages]);
 
   // Socket.IO cho phần cloud
-  // Xử lý socket events
   useEffect(() => {
     if (socketCloud && selectedMessageId === "my-cloud") {
       console.log("Socket for cloud active, currentUserId:", currUserId);
@@ -692,9 +691,9 @@ function ChatPage() {
     }
   }, [socketCloud, selectedMessageId, currUserId]);
 
-  // Socket.IO cho các cuộc trò chuyện không phải cloud
+  // Xử lý socket events
   useEffect(() => {
-    if (socket && selectedMessageId && selectedMessageId !== "my-cloud") {
+    if (socket && selectedMessageId) {
       socket.emit("joinConversation", { conversationId: selectedMessageId });
 
       // Tải tin nhắn
@@ -1282,13 +1281,16 @@ function ChatPage() {
               <>
                 <div className="flex-1 overflow-y-auto p-4">
                   {messages
-                    .filter((msg) => msg.conversationId === selectedMessageId)
+                    .filter(
+                      (msg) =>
+                        msg.conversationId === selectedMessageId &&
+                        !msg.deletedBy?.includes(currentUserId) // 👈 bỏ tin nhắn đã bị xóa bởi currentUser
+                    )
                     .map((msg) => (
                       <MessageItem
                         key={msg._id}
                         msg={{
                           ...msg,
-                          id: msg._id,
                           sender:
                             msg.userId === currentUserId
                               ? "Bạn"
@@ -1307,6 +1309,8 @@ function ChatPage() {
                         onReply={handleReply}
                         onForward={handleForward}
                         onRevoke={handleRevoke}
+                        onDelete={handleDelete}
+                        messages={messages}
                       />
                     ))}
                   <div ref={messagesEndRef} />
