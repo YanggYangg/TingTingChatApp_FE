@@ -24,6 +24,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 import * as DocumentPicker from "expo-document-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Define the type for the navigation stack params
 type RootStackParamList = {
@@ -340,6 +341,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   // Fetch messages từ API
   useEffect(() => {
     const fetchMessages = async () => {
+      
       try {
         const response = await fetch("http://192.168.1.28:3000/api/messages/user/user123");
         if (!response.ok) {

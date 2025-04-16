@@ -34,7 +34,8 @@ const ResetPassword: React.FC<{ navigation: any; route: any }> = ({
       const response = await Api_Auth.updateNewPassword(data);
       if (response.success === true) {
         //chuyển trang vào login
-        navigation.navigate("Login");
+        Alert.alert("Đổi mật khẩu thành công", "Bạn có thể đăng nhập với mật khẩu mới.");
+        navigation.replace("Login");
       }
     } catch (error) {
       console.error(error);
