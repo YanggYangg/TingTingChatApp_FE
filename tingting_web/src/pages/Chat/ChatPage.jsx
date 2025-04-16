@@ -721,7 +721,6 @@ function ChatPage() {
           }
           return prevMessages;
         });
-
       });
 
       // Xử lý lỗi
@@ -743,15 +742,15 @@ function ChatPage() {
 
   const selectedChat = selectedMessage
     ? {
-      id: selectedMessageId,
-      name:
-        selectedMessage.participants?.find((p) => p.userId !== currentUserId)
-          ?.userId === currentUserId
-          ? "Bạn"
-          : "Unknown",
-      avatar: "https://picsum.photos/200",
-      type: selectedMessage.type || "personal",
-    }
+        id: selectedMessageId,
+        name:
+          selectedMessage.participants?.find((p) => p.userId !== currentUserId)
+            ?.userId === currentUserId
+            ? "Bạn"
+            : "Unknown",
+        avatar: "https://picsum.photos/200",
+        type: selectedMessage.type || "personal",
+      }
     : null;
 
   const formatTime = (createdAt) => {
@@ -1234,7 +1233,6 @@ function ChatPage() {
                 setIsChatInfoVisible={setIsChatInfoVisible}
               />
             )}
-
             {selectedChat.type === "cloud" ? (
               <>
                 <div

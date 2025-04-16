@@ -2,8 +2,8 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "moduleResolution": "bundler", 
-    "jsx": "react-native",// hoặc "node16", "nodenext"
+    "moduleResolution": "bundler",
+    "jsx": "react-native", // hoặc "node16", "nodenext"
     "paths": {
       "@/*": [
         "./*"
@@ -14,6 +14,9 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-, "components/screens/MainScreen/Cloud/ChatItems.js"  ]
+    "expo-env.d.ts",   
+    "components/screens/MainScreen/Cloud/ChatItems.js",
+    "components/screens/MainScreen/ChatScreen.tsx",
+    "components/chatitems/ChatItems.jsx"
+  ]
 }
