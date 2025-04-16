@@ -19,6 +19,28 @@ const MessageItem = ({
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
 
+  const messageId = msg._id || msg.id;
+    const isForwarded = msg.content && msg.content.includes("\n----\n"); // Kiểm tra xem có phải tin nhắn chuyển tiếp không
+
+    const parts = isForwarded ? msg.content.split("\n----\n") : [msg.content]; // Chia nội dung nếu là tin nhắn chuyển tiếp
+    const handleRevokeClick = () => {
+        if (onRevoke && messageId) {
+            console.log("Revoking message with ID:", messageId);
+            onRevoke(messageId);
+        } else {
+            console.error("Cannot revoke message: missing onRevoke or message ID");
+        }
+    };
+
+    const handleForwardClick = () => {
+        if (onForward && msg) {
+            console.log("Forwarding message with ID:", messageId);
+            onForward(msg);
+        } else {
+            console.error("Cannot forward message: missing onForward or message object");
+        }
+    };
+
   return (
     <div
       className={`flex ${
@@ -111,12 +133,12 @@ const MessageItem = ({
               <IoReturnDownBack size={18} />
             </button>
             <button
-              onClick={() => onForward(msg)}
-              title="Chuyển tiếp"
-              className="p-1 rounded-full bg-white/80 hover:bg-green-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-green-600"
-            >
-              <IoArrowRedoOutline size={18} />
-            </button>
+                        onClick={handleForwardClick}
+                        title="Chuyển tiếp"
+                        className="p-1 rounded-full bg-white/80 hover:bg-green-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-green-600"
+                    >
+                        <IoArrowRedoOutline size={18} />
+                    </button>
             {isCurrentUser && (
               <>
                 <button

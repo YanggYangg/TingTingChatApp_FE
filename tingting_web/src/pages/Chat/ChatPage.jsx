@@ -7,6 +7,7 @@ import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
 import TingTingImage from "../../assets/TingTing_Chat.png";
 import { useSocket } from "../../contexts/SocketContext";
+import ShareModal from "../../components/chat/ShareModal";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -16,12 +17,12 @@ function ChatPage() {
   const currentUserId = socket?.io?.opts?.query?.userId;
   const messagesEndRef = useRef(null);
 
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
+  const [messageToForward, setMessageToForward] = useState(null); // State để lưu tin nhắn cần chuyển tiếp
+  
   const dispatch = useDispatch();
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
-
-  const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
-  const [messageToForward, setMessageToForward] = useState(null); // State để lưu tin nhắn cần chuyển tiếp
 
 
 
@@ -119,7 +120,23 @@ function ChatPage() {
   };
 
   const handleReply = (msg) => setReplyingTo(msg);
-  const handleForward = (msg) => console.log("Forward", msg);
+  const handleForward = (msg) => {
+    setMessageToForward(msg);
+    setIsShareModalVisible(true);
+    console.log("Mở ShareModal để chuyển tiếp:", msg);
+};
+
+  const handleCloseShareModal = () => {
+    setIsShareModalVisible(false);
+    setMessageToForward(null);
+    console.log("Đóng ShareModal");
+  };
+
+  const handleShare = (selectedConversations, messageContent) => {
+    // ... logic chia sẻ thực tế ...
+    console.log("Thực hiện chia sẻ đến:", selectedConversations, "với nội dung:", messageContent, "tin nhắn:", messageToForward);
+    handleCloseShareModal(); // Đóng modal sau khi chia sẻ (hoặc hủy)
+  };
 
   const handleDelete = (msg) => {
     if (
@@ -158,7 +175,7 @@ function ChatPage() {
             }`}
           > */}
           <div className={`flex flex-col h-screen transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"}`}>
-            <ChatHeader
+          <ChatHeader
               type={selectedChat.type}
               name={selectedChat.name}
               lastActive={6}
@@ -166,27 +183,23 @@ function ChatPage() {
               isChatInfoVisible={isChatInfoVisible}
               setIsChatInfoVisible={setIsChatInfoVisible}
             />
-            {/* <div className="p-4 w-full h-[calc(100vh-200px)] overflow-y-auto"> */}
             <div className="flex-1 overflow-y-auto p-4">
               {messages
-                .filter(
-                  (msg) =>
-                    msg.conversationId === selectedMessageId &&
-                    !msg.deletedBy?.includes(currentUserId) // 👈 bỏ tin nhắn đã bị xóa bởi currentUser
-                )
+                .filter((msg) => msg.conversationId === selectedMessageId)
                 .map((msg) => (
                   <MessageItem
                     key={msg._id}
                     msg={{
                       ...msg,
+                      id: msg._id,
                       sender:
                         msg.userId === currentUserId
                           ? "Bạn"
                           : selectedMessage.participants?.find(
-                              (p) => p.userId === msg.userId
-                            )
-                          ? ""
-                          : "Unknown",
+                            (p) => p.userId === msg.userId
+                          )
+                            ? ""
+                            : "Unknown",
                       time: formatTime(msg.createdAt),
                       messageType: msg.messageType || "text",
                       content: msg.content || "",
@@ -197,11 +210,9 @@ function ChatPage() {
                     onReply={handleReply}
                     onForward={handleForward}
                     onRevoke={handleRevoke}
-                    onDelete={handleDelete}
-                    messages={messages}
+
                   />
                 ))}
-
               <div ref={messagesEndRef} />
             </div>
             <ChatFooter
@@ -235,7 +246,18 @@ function ChatPage() {
           />
         </div>
       )}
+      {/* Hiển thị ShareModal có điều kiện */}
+      <ShareModal
+        isOpen={isShareModalVisible}
+        onClose={handleCloseShareModal} // Hàm đóng modal
+        onShare={handleShare} // Hàm xử lý logic chia sẻ
+        messageToForward={messageToForward}
+        userId={currentUserId} // Truyền userId vào ShareModal
+        messageId={messageToForward?._id} // Truyền messageId vào ShareModal
+      />
+
     </div>
+    
   );
 }
 
