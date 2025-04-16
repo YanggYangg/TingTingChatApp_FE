@@ -7,7 +7,6 @@ import { Api_Profile } from "../../../apis/api_profile.js";
 function InfoModal({ isOpen, onClose }) {
   // const navigator = useNavigate();
   if (!isOpen) return null;
-  const [selectedFile, setSelectedFile] = useState(null);
   const [formData, setFormData] = useState({
     firstname: "",
     surname: "",
@@ -53,50 +52,59 @@ function InfoModal({ isOpen, onClose }) {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files && e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      console.log("File đã chọn:", selectedFile);
-    } else {
-      console.warn("Không có file nào được chọn.");
+    const file = e.target.files?.[0];
+    console.log("file", file);
+    if (file) {
+      setSelectedFile(file);
     }
   };
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
+  
     try {
-      // if (selectedFile === null) return alert("Vui lòng chọn một ảnh!");
-
-      // const formData2 = new FormData();
-      // formData2.append("avatar", selectedFile);
-      // console.log("formData2", formData2);
-
-      // const resp = await axios.post(
-      //   "http://localhost:3001/api/v1/profile/upload",
-      //   formData2,
-      //   {
-      //     headers: {
-      //       "Content-Type": "multipart/form-data",
-      //       'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      //     },
-      //     withCredentials: true, // nếu bạn đang dùng cookie cho auth
-      //   }
-      // );
-
-      // console.log("Upload thành công!", resp.data);
+      let avatarUrl = formData.avatar;
+  
+      // Nếu người dùng chọn ảnh mới thì upload lên S3
+      if (selectedFile) {
+        const uploadForm = new FormData();
+        uploadForm.append("avatar", selectedFile);
+        console.log("uploadForm", uploadForm);
+        
+  
+        const uploadRes = await axios.put(
+          "http://localhost:3001/api/v1/profile/upload", // bạn đổi lại nếu cần
+          uploadForm,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              "Authorization": `Bearer ${localStorage.getItem("token")}`,
+            },
+            withCredentials: true,
+          }
+        );
+        console.log("uploadRes = ", uploadRes);
+        avatarUrl = uploadRes.data.data.fileUrl; // backend trả về link ảnh trên S3
+        console.log("avatarUrl = ", avatarUrl);
+      }
+  
+      const updatedForm = {
+        ...formData,
+        avatar: avatarUrl,
+      };
+  
       const response = await Api_Profile.updateProfile(
         localStorage.getItem("userId"),
-        formData
+        updatedForm
       );
       console.log("Profile updated successfully:", response);
-      // navigator('/chat');
+      onClose();
     } catch (error) {
       console.error("Error submitting form:", error);
     }
-    console.log("Submit form:", formData);
-    onClose();
   };
 
   const days = Array.from({ length: 31 }, (_, i) => i + 1);

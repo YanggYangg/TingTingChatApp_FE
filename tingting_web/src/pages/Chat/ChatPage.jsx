@@ -569,6 +569,7 @@ import ChatFooterCloud from "./ChatWindow/ChatFooterCloud";
 import { useSocket } from "../../contexts/SocketContext";
 import { useCloudSocket } from "../../contexts/CloudSocketContext";
 import ShareModal from "../../components/chat/ShareModal";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -720,6 +721,7 @@ function ChatPage() {
           }
           return prevMessages;
         });
+
       });
 
       // Xử lý lỗi
@@ -734,21 +736,22 @@ function ChatPage() {
         socket.off("messageSent");
         // socket.off("messageDeleted");
         socket.off("error");
+        socket.off("messageRevoked"); // Hủy lắng nghe khi component unmount
       };
     }
   }, [socket, selectedMessageId]);
 
   const selectedChat = selectedMessage
     ? {
-        id: selectedMessageId,
-        name:
-          selectedMessage.participants?.find((p) => p.userId !== currentUserId)
-            ?.userId === currentUserId
-            ? "Bạn"
-            : "Unknown",
-        avatar: "https://picsum.photos/200",
-        type: selectedMessage.type || "personal",
-      }
+      id: selectedMessageId,
+      name:
+        selectedMessage.participants?.find((p) => p.userId !== currentUserId)
+          ?.userId === currentUserId
+          ? "Bạn"
+          : "Unknown",
+      avatar: "https://picsum.photos/200",
+      type: selectedMessage.type || "personal",
+    }
     : null;
 
   const formatTime = (createdAt) => {

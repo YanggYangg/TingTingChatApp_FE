@@ -19,11 +19,18 @@ const MessageItem = ({
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
 
+  const handleRevokeClick = () => {
+    if (onRevoke && msg && msg.id) {
+      console.log("Revoking message with ID: nầy", msg.id); // Log để kiểm tra
+      onRevoke(msg.id); // Truyền ID tin nhắn
+    } else {
+      console.error("Cannot revoke message: missing onRevoke or msg.id");
+    }
+  };
   return (
     <div
-      className={`flex ${
-        isCurrentUser ? "justify-end" : "justify-start"
-      } mb-4 relative`}
+      className={`flex ${isCurrentUser ? "justify-end" : "justify-start"
+        } mb-4 relative`}
     >
       <div
         className={`p-3 rounded-lg w-fit max-w-xs relative ${

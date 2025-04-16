@@ -14,8 +14,11 @@ import {
 import SettingsModal from "../SettingsModal/SettingsModal";
 import UserProfileModal from "../UserProfileModal/UserProfileModal";
 import { Api_Auth } from "../../../../../apis/api_auth";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 function SettingsMenu({ isOpen, onClose, position }) {
+  const navigator = useNavigate();
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
   const menuRef = useRef(null);
@@ -54,12 +57,25 @@ function SettingsMenu({ isOpen, onClose, position }) {
     setUserProfileModalOpen(true); // Open the user profile modal
   };
   const handleLogout = async () => {
-    onClose(); // Close the menu
+    onClose(); 
      try {
-     await Api_Auth.logout(); // Call the logout API
-      localStorage.removeItem("token"); // Remove token from local storage
-      localStorage.removeItem("userId"); // Remove userId from local storage
-      window.location.reload(); // Reload the page to reflect the changes
+    const userId = localStorage.getItem("userId");
+    const response =  await axios.post(
+      "http://localhost:3002/api/v1/auth/sign-out", userId,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        },
+        withCredentials: true,
+      }  
+    )
+    console.log(response);
+    
+      localStorage.removeItem("token");
+      localStorage.removeItem("userId"); 
+      localStorage.removeItem("phone");
+    
+      navigator('homepage');
     }catch (error) {
       console.error("Logout failed:", error); // Log any errors
     }

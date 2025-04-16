@@ -7,6 +7,7 @@ import { Api_Auth } from "../../../apis/api_auth"; // Đường dẫn đến Api
 
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 
 type RootStackParamList = {
   Main: undefined;
@@ -20,9 +21,7 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [phone, setphone] = useState("");
   const [password, setPassword] = useState("");
 
-
   const handleLogin = async () => {
-    
     if (!phone || !password) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
       return;
@@ -38,30 +37,34 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
       return;
     }
 
-    
-
     try {
-      
       const response = await Api_Auth.login({ phone, password });
-      
-
       if (response.success === true) {
-        // const { token, user } = response.data;
-
-        // console.log("Token:", token);
-        // console.log("User info:", user);
-
-        // TODO: Lưu token vào AsyncStorage hoặc Redux nếu cần
-
-        // Chuyển sang màn hình chính (hoặc màn nào bạn muốn)
-        navigation.navigate("VerificationCode", { phoneNumber: phone });
-        // navigation.replace("Main");
+        handleValidateToken();
       } else {
-        Alert.alert("Lỗi", response.message || "Đăng nhập thất bại");
+        Alert.alert("Lỗi 1", response.message || "Đăng nhập thất bại");
       }
     } catch (error: any) {
-      console.error("Login error:", error);
       Alert.alert("Lỗi", error.response?.data?.message || "Đã có lỗi xảy ra");
+    }
+  };
+  const handleValidateToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) return;
+      const res = await axios.post(
+        "http://192.168.1.17:3002/api/v1/auth/validate-token",
+        { phone },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      navigation.replace("Main");
+    } catch (error: any) {
+      navigation.navigate("VerificationCode", { phoneNumber: phone });
     }
   };
 

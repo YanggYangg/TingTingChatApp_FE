@@ -86,6 +86,7 @@ function VerifyOTP() {
         const response = await Api_Auth.generate_token(data);
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("userId", response.data.user.userId);
+        localStorage.setItem("phone", response.data.user.phone);
         console.log("Response = ", response.data);
         
         setMessageSuccess(response.message);

@@ -40,10 +40,6 @@ const VerificationCode: React.FC<{ navigation: any; route: any }> = ({ navigatio
     email,
     password,
   } = route.params || {}
-  const [isError, setIsError] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [messageError, setMessageError] = useState("");
-  const [messageSuccess, setMessageSuccess] = useState("");
 
   
 
@@ -94,6 +90,7 @@ const VerificationCode: React.FC<{ navigation: any; route: any }> = ({ navigatio
           password,
         };
         console.log("Data = ", data);
+
         const response = await Api_Auth.create_account(data);
         Alert.alert("Đăng kí thành công");
         navigation.replace("Login")
