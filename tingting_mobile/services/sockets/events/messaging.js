@@ -24,3 +24,17 @@ export const onLoadMessages = (socket, callback) => {
 export const offLoadMessages = (socket) => {
     socket.off('loadMessages');
 };
+
+
+
+// Delete message
+export const deleteMessage = (socket, messageId) => {
+    socket.emit('deleteMessage', { messageId });
+};
+// Listen for deleted message   
+export const onMessageDeleted = (socket, callback) => {
+    socket.on('messageDeleted', callback);
+};
+export const offMessageDeleted = (socket) => {
+    socket.off('messageDeleted');
+};

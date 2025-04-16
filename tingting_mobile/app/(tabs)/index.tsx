@@ -1,5 +1,5 @@
 import { View, Text, Image, StyleSheet, Platform } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -28,6 +28,7 @@ const Tab = createBottomTabNavigator();
 import { SocketProvider } from "../../contexts/SocketContext";
 import store from "../../redux/store";
 import { Provider } from "react-redux";
+import axios from "axios";
 
 function MainTabNavigator() {
   return (
@@ -68,8 +69,45 @@ function MainTabNavigator() {
 }
 
 export default function App() {
-  const userId = "67fe031e421896d7bc8c2e10";
-  console.log("Using userId:", userId);
+  const [userId, setUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const userId1 = "67fe031e421896d7bc8c2e10"; // Thay thế bằng userId thực tế của bạn
+
+  // console.log("Using userId:", userId);
+  // const userId = localStorage.getItem("userId");
+  console.log("Using userIdddddđ:", userId);
+  // dùng axios để gọi api lấy userId http://localhost:3001/api/v1/profile/67fe031e421896d7bc8c2e10
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await axios.get(
+          `http://172.16.1.108:3001/api/v1/profile/${userId1}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const fetchedUser = response.data.data.user._id;
+        if (!fetchedUser) {
+          throw new Error("No userId in response");
+        }
+
+        setUserId(fetchedUser);
+        console.log("Fetched userId:", fetchedUser);
+      } catch (err) {
+        console.error("Error fetching user profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
   return (
     // <Stack.Navigator initialRouteName="Welcome">
     //   <Stack.Screen
