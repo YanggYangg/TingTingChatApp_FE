@@ -104,6 +104,8 @@ const VerificationCode: React.FC<{ navigation: any; route: any }> = ({ navigatio
         await AsyncStorage.setItem("phone", phoneNumber);
         await AsyncStorage.setItem("userId", response.data.user.userId);
         console.log("Response = ", response.data);
+        console.log("Token = ", response.data.token);
+        console.log("UserId = ", response.data.user.userId);
         
         // Navigate to next screen on success
         navigation.replace("Main")

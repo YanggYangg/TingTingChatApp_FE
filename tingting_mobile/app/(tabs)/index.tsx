@@ -25,6 +25,9 @@ import ForgotPassword from "@/components/screens/AuthScreen/ForgotPassword"
 import ResetPassword from "@/components/screens/AuthScreen/ResetPassword"
 import VerificationCodeRegister from "@/components/screens/AuthScreen/VerificationCodeRegister"
 
+// Socket cloud
+import { CloudSocketProvider } from '../../context/CloudSocketContext'
+
 
 type RootStackParamList = {
   Main: undefined
@@ -166,27 +169,29 @@ function MainTabNavigator() {
 
 export default function App() {
   return (
-    <Stack.Navigator
-      initialRouteName="Welcome"
-      screenOptions={{
-        headerShown: false,
-        animation: "none", // Disable animations
-      }}
-    >
-      <Stack.Screen name="Welcome" component={Welcome} options={{ headerShown: false }} />
-      {/* Main Tab Navigator */}
-      <Stack.Screen name="Main" component={MainTabNavigator} options={{ headerShown: false }} />
-      <Stack.Screen name="MessageScreen" component={MessageScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="ChatScreenCloud" component={ChatScreenCloud} options={{ headerShown: false }} />
-      <Stack.Screen name="Login" component={Login} options={{ headerShown: false }} />
-      <Stack.Screen name="Register" component={Register} options={{ headerShown: false }} />
-      <Stack.Screen name="VerificationCode" component={VerificationCode} options={{ headerShown: false }} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPassword} options={{ headerShown: false }} />
-      <Stack.Screen name="ResetPassword" component={ResetPassword} options={{ headerShown: false }} />
-      <Stack.Screen name="VerificationCodeRegister" component={VerificationCodeRegister} options={{ headerShown: false }} />
-      
-      
-      
-    </Stack.Navigator>
+    <CloudSocketProvider>
+      <Stack.Navigator
+        initialRouteName="Welcome"
+        screenOptions={{
+          headerShown: false,
+          animation: "none", // Disable animations
+        }}
+      >
+        <Stack.Screen name="Welcome" component={Welcome} options={{ headerShown: false }} />
+        {/* Main Tab Navigator */}
+        <Stack.Screen name="Main" component={MainTabNavigator} options={{ headerShown: false }} />
+        <Stack.Screen name="MessageScreen" component={MessageScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="ChatScreenCloud" component={ChatScreenCloud} options={{ headerShown: false }} />
+        <Stack.Screen name="Login" component={Login} options={{ headerShown: false }} />
+        <Stack.Screen name="Register" component={Register} options={{ headerShown: false }} />
+        <Stack.Screen name="VerificationCode" component={VerificationCode} options={{ headerShown: false }} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPassword} options={{ headerShown: false }} />
+        <Stack.Screen name="ResetPassword" component={ResetPassword} options={{ headerShown: false }} />
+        <Stack.Screen name="VerificationCodeRegister" component={VerificationCodeRegister} options={{ headerShown: false }} />
+        
+        
+        
+      </Stack.Navigator>
+    </CloudSocketProvider>
   )
 }

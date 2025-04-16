@@ -64,6 +64,7 @@ function RegisterPage() {
         phone,
         password,
       };
+      console.log(data)
       const response = await Api_Auth.signUp(data);
       setIsSuccess(true);
 

@@ -12,7 +12,7 @@ import { Api_Auth } from "../../../apis/api_auth";
 import Modal from '../../components/Notification/Modal';
 import config from "../../config";
 
-const cx = classNames.bind(styles)
+const cx = classNames.bind(styles);
 
 function Login() {
   const navigator = useNavigate()
@@ -42,8 +42,7 @@ function Login() {
       
 
     }
-  }
-
+  };
   const handleTryAgain = () => {
     setIsError(false);
 

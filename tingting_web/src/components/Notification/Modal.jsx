@@ -12,7 +12,7 @@ function Modal({
   valid,
   title,
   message,
-  onConfirm,
+  onConfirm = () => {},
   onCancel,
   isCancel = false,
   isConfirm = false,

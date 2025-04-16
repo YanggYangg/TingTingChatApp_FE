@@ -82,7 +82,7 @@ function VerifyUser() {
                 required
               /> */}
               <div className={cx("border-t-1 border-gray-300 w-full mt-3 ")}>
-                <input
+<input
                   type="submit"
                   value="Tìm tài khoản"
                   className={cx(

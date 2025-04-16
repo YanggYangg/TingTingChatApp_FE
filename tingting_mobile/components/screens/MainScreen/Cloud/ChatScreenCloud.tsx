@@ -15,7 +15,7 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
-  Alert, // Thêm để hiển thị thông báo lỗi
+  Alert,
 } from "react-native";
 import type { FlatList as FlatListType } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,6 +24,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 import * as DocumentPicker from "expo-document-picker";
+import { useCloudSocket } from "../../../../context/CloudSocketContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Define the type for the navigation stack params
@@ -34,13 +35,16 @@ type RootStackParamList = {
 };
 
 // Create a type for the component props
-type ChatScreenCloudProps = NativeStackScreenProps<RootStackParamList, "ChatScreenCloud">;
+type ChatScreenCloudProps = NativeStackScreenProps<
+  RootStackParamList,
+  "ChatScreenCloud"
+>;
 
 // Define interfaces for message types
 interface UserMessage {
-  id: string;
+  messageId: string;
   text: string;
-  userId: "user123";
+  userId: string;
   time: string;
   fileUrls: string[];
   thumbnailUrls: string[];
@@ -49,7 +53,7 @@ interface UserMessage {
 }
 
 interface TimestampMessage {
-  id: string;
+  messageId: string;
   userId: "timestamp";
   time: string;
 }
@@ -65,11 +69,37 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   const flatListRef = useRef<FlatListType>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [isListReady, setIsListReady] = useState(false);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false); // Modal xóa
-  const [messageToDelete, setMessageToDelete] = useState<string | null>(null); // ID tin nhắn cần xóa
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const tabs = ["Tất cả", "Văn bản", "Ảnh", "File", "Link"];
+  const { socket } = useCloudSocket();
+
+  // Lấy currentUserId từ AsyncStorage
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        let userId = await AsyncStorage.getItem("userId");
+        if (!userId) {
+          userId = "user123";
+          await AsyncStorage.setItem("userId", userId);
+        }
+        console.log("userId fetched from AsyncStorage:", userId);
+        setCurrentUserId(userId);
+      } catch (error) {
+        console.error("Failed to fetch userId:", error);
+        setCurrentUserId("user123");
+      }
+    };
+
+    fetchUserId();
+  }, []);
+
+  // Log currentUserId sau khi state được cập nhật
+  useEffect(() => {
+    console.log("Current userId set in state (after update):", currentUserId);
+  }, [currentUserId]);
 
   // Hàm định dạng thời gian
   const formatDate = (isoString: string): { time: string; dateStr: string } => {
@@ -77,11 +107,130 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     const hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, "0");
     const time = `${hours}:${minutes}`;
-    const dateStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1)
+    const dateStr = `${date.getDate().toString().padStart(2, "0")}/${(
+      date.getMonth() + 1
+    )
       .toString()
       .padStart(2, "0")}/${date.getFullYear()}`;
     return { time, dateStr };
   };
+
+  // Hàm thêm tin nhắn với kiểm tra timestamp
+  const addMessageWithTimestamp = (newMessage: UserMessage) => {
+    setMessages((prevMessages) => {
+      const lastMessage = prevMessages[prevMessages.length - 1] as
+        | UserMessage
+        | undefined;
+      const lastDate = lastMessage?.timestamp
+        ? formatDate(lastMessage.timestamp).dateStr
+        : null;
+      const { dateStr } = formatDate(newMessage.timestamp);
+
+      const newMessages: Message[] = [];
+      if (lastDate !== dateStr) {
+        newMessages.push({
+          messageId: `ts-${Date.now()}`,
+          userId: "timestamp",
+          time: dateStr,
+        });
+      }
+      newMessages.push(newMessage);
+
+      const updatedMessages = [...prevMessages, ...newMessages];
+
+      // Cuộn xuống ngay sau khi thêm tin nhắn mới
+      setTimeout(() => {
+        if (flatListRef.current && updatedMessages.length > 0) {
+          flatListRef.current.scrollToEnd({ animated: true });
+        }
+      }, 0);
+
+      return updatedMessages;
+    });
+  };
+
+  // Lắng nghe sự kiện Socket.IO
+  useEffect(() => {
+    if (!socket || !currentUserId) {
+      console.warn(
+        "Cloud socket not initialized on mobile or currentUserId missing"
+      );
+      return;
+    }
+
+    console.log("Cloud socket active on mobile, currentUserId:", currentUserId);
+
+    socket.on("newMessage", (newMessage: any) => {
+      console.log("Cloud socket - Received newMessage on mobile:", newMessage);
+      if (!newMessage.userId) {
+        console.warn("Cloud socket - newMessage missing userId:", newMessage);
+        return;
+      }
+      if (newMessage.userId === currentUserId) {
+        const formattedMessage: UserMessage = {
+          messageId: newMessage.messageId,
+          text: newMessage.content || "",
+          userId: newMessage.userId,
+          time: formatDate(newMessage.timestamp).time,
+          fileUrls: newMessage.fileUrls || [],
+          thumbnailUrls: newMessage.thumbnailUrls || [],
+          filenames: newMessage.filenames || [],
+          timestamp: newMessage.timestamp,
+        };
+        addMessageWithTimestamp(formattedMessage);
+      } else {
+        console.log(
+          "Cloud socket - Message ignored, userId mismatch:",
+          newMessage.userId,
+          "vs",
+          currentUserId
+        );
+      }
+    });
+
+    socket.on("messageDeleted", ({ messageId }: { messageId: string }) => {
+      console.log(
+        "Cloud socket - Received messageDeleted on mobile:",
+        messageId
+      );
+      setMessages((prevMessages) =>
+        prevMessages.filter((msg) => msg.messageId !== messageId)
+      );
+    });
+
+    socket.on("error", (error: any) => {
+      console.error("Cloud socket error on mobile:", error);
+    });
+
+    socket.on("connect", () => {
+      console.log("Cloud socket reconnected on mobile");
+    });
+
+    socket.on("disconnect", () => {
+      console.warn("Cloud socket disconnected on mobile");
+    });
+
+    socket.on("connect_error", (error: any) => {
+      console.error("Cloud socket connect_error on mobile:", error.message);
+    });
+
+    return () => {
+      console.log("Cleaning up cloud socket listeners on mobile");
+      socket.off("newMessage");
+      socket.off("messageDeleted");
+      socket.off("error");
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("connect_error");
+    };
+  }, [socket, currentUserId]);
+
+  // Cuộn xuống tin nhắn mới nhất khi filteredMessages thay đổi
+  useEffect(() => {
+    if (filteredMessages.length > 0 && flatListRef.current) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  }, [filteredMessages]);
 
   // Hàm chọn và gửi file
   const pickFileAndUpload = async () => {
@@ -97,11 +246,15 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         result.assets.forEach((file, index) => {
           formData.append("files", {
             uri: file.uri,
-            name: file.name || `file_${index}${file.mimeType ? `.${file.mimeType.split("/")[1]}` : ""}`,
+            name:
+              file.name ||
+              `file_${index}${
+                file.mimeType ? `.${file.mimeType.split("/")[1]}` : ""
+              }`,
             type: file.mimeType || "application/octet-stream",
           } as any);
         });
-        formData.append("userId", "user123");
+        formData.append("userId", currentUserId);
         formData.append("content", "");
 
         const res = await fetch("http://192.168.1.28:3000/api/files/upload", {
@@ -119,38 +272,14 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         }
 
         const data = await res.json();
-
-        const now = new Date();
-        const isoTimestamp = now.toISOString();
-        const { time, dateStr } = formatDate(isoTimestamp);
-
-        const newMessages: Message[] = [];
-        const lastMessage = messages[messages.length - 1] as UserMessage | undefined;
-        const lastDate = lastMessage?.timestamp ? formatDate(lastMessage.timestamp).dateStr : null;
-
-        if (lastDate !== dateStr) {
-          newMessages.push({
-            id: `ts-${Date.now()}`,
-            userId: "timestamp",
-            time: dateStr,
-          });
-        }
-
-        newMessages.push({
-          id: data.data.messageId || String(Date.now()),
-          text: data.data.content || "",
-          userId: "user123",
-          time,
-          fileUrls: data.data.fileUrls || [],
-          thumbnailUrls: data.data.thumbnailUrls || [],
-          filenames: data.data.filenames || [],
-          timestamp: data.data.timestamp || isoTimestamp,
-        });
-
-        setMessages([...messages, ...newMessages]);
+        // Tin nhắn sẽ được thêm qua Socket.IO
       }
     } catch (error: any) {
       console.error("Upload failed:", error.message || error);
+      Alert.alert(
+        "Lỗi",
+        "Không thể tải file lên: " + (error.message || "Vui lòng thử lại")
+      );
     }
   };
 
@@ -163,12 +292,16 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
       const permission = await MediaLibrary.requestPermissionsAsync();
       if (permission.granted) {
         await MediaLibrary.createAssetAsync(uri);
-        console.log("Ảnh đã được lưu vào thư viện!");
+        Alert.alert("Thành công", "Ảnh đã được lưu vào thư viện!");
       } else {
-        console.warn("Quyền truy cập thư viện ảnh bị từ chối!");
+        Alert.alert("Lỗi", "Quyền truy cập thư viện ảnh bị từ chối!");
       }
     } catch (error: any) {
       console.error("Tải ảnh thất bại:", error.message || error);
+      Alert.alert(
+        "Lỗi",
+        "Không thể tải ảnh: " + (error.message || "Vui lòng thử lại")
+      );
     }
   };
 
@@ -190,7 +323,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             type: image.mimeType || "image/jpeg",
           } as any);
         });
-        formData.append("userId", "user123");
+        formData.append("userId", currentUserId);
         formData.append("content", "");
 
         const res = await fetch("http://192.168.1.28:3000/api/files/upload", {
@@ -205,38 +338,14 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         }
 
         const data = await res.json();
-
-        const now = new Date();
-        const isoTimestamp = now.toISOString();
-        const { time, dateStr } = formatDate(isoTimestamp);
-
-        const newMessages: Message[] = [];
-        const lastMessage = messages[messages.length - 1] as UserMessage | undefined;
-        const lastDate = lastMessage?.timestamp ? formatDate(lastMessage.timestamp).dateStr : null;
-
-        if (lastDate !== dateStr) {
-          newMessages.push({
-            id: `ts-${Date.now()}`,
-            userId: "timestamp",
-            time: dateStr,
-          });
-        }
-
-        newMessages.push({
-          id: data.data.messageId || String(Date.now()),
-          text: data.data.content || "",
-          userId: "user123",
-          time,
-          fileUrls: data.data.fileUrls || [],
-          thumbnailUrls: data.data.thumbnailUrls || [],
-          filenames: data.data.filenames || [],
-          timestamp: data.data.timestamp || isoTimestamp,
-        });
-
-        setMessages([...messages, ...newMessages]);
+        // Tin nhắn sẽ được thêm qua Socket.IO
       }
     } catch (error: any) {
       console.error("Upload failed:", error.message || error);
+      Alert.alert(
+        "Lỗi",
+        "Không thể tải ảnh lên: " + (error.message || "Vui lòng thử lại")
+      );
     }
   };
 
@@ -245,25 +354,29 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     if (!messageToDelete) return;
 
     try {
-      const response = await fetch(`http://192.168.1.28:3000/api/messages/${messageToDelete}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `http://192.168.1.28:3000/api/messages/${messageToDelete}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
-      // Cập nhật danh sách tin nhắn
-      const updatedMessages = messages.filter((msg) => msg.id !== messageToDelete);
-      setMessages(updatedMessages);
+      // Tin nhắn sẽ được xóa qua Socket.IO
       setDeleteModalVisible(false);
       setMessageToDelete(null);
     } catch (error: any) {
       console.error("Xóa tin nhắn thất bại:", error.message || error);
-      Alert.alert("Lỗi", "Không thể xóa tin nhắn: " + (error.message || "Vui lòng thử lại"));
+      Alert.alert(
+        "Lỗi",
+        "Không thể xóa tin nhắn: " + (error.message || "Vui lòng thử lại")
+      );
     }
   };
 
@@ -272,59 +385,33 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
     if (!message.trim()) return;
 
     try {
-      const response = await fetch("http://192.168.1.28:3000/api/messages/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: "user123",
-          content: message.trim(),
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      const response = await fetch(
+        "http://192.168.1.28:3000/api/messages/send",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: currentUserId,
+            content: message.trim(),
+            timestamp: new Date().toISOString(),
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
-      const data = await response.json();
-
-      const now = new Date();
-      const isoTimestamp = now.toISOString();
-      const { time, dateStr } = formatDate(isoTimestamp);
-
-      const lastMessage = messages[messages.length - 1] as UserMessage | undefined;
-      const lastDate = lastMessage?.timestamp ? formatDate(lastMessage.timestamp).dateStr : null;
-
-      const newMessages: Message[] = [];
-
-      if (lastDate !== dateStr) {
-        newMessages.push({
-          id: `ts-${Date.now()}`,
-          userId: "timestamp",
-          time: dateStr,
-        });
-      }
-
-      newMessages.push({
-        id: data.messageId || String(Date.now()),
-        text: message.trim(),
-        userId: "user123",
-        time,
-        fileUrls: [],
-        thumbnailUrls: [],
-        filenames: [],
-        timestamp: data.timestamp || isoTimestamp,
-      });
-
-      setMessages([...messages, ...newMessages]);
       setMessage("");
-      if (flatListRef.current) {
-        flatListRef.current.scrollToEnd({ animated: true });
-      }
+      // Tin nhắn sẽ được thêm qua Socket.IO
     } catch (error: any) {
       console.error("Gửi tin nhắn thất bại:", error.message || error);
+      Alert.alert(
+        "Lỗi",
+        "Không thể gửi tin nhắn: " + (error.message || "Vui lòng thử lại")
+      );
     }
   };
 
@@ -332,8 +419,10 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   const getFileIcon = (filename: string) => {
     const lowerCaseName = filename.toLowerCase();
     if (lowerCaseName.endsWith(".pdf")) return "document-text-outline";
-    if (lowerCaseName.endsWith(".doc") || lowerCaseName.endsWith(".docx")) return "document-outline";
-    if (lowerCaseName.endsWith(".xls") || lowerCaseName.endsWith(".xlsx")) return "grid-outline";
+    if (lowerCaseName.endsWith(".doc") || lowerCaseName.endsWith(".docx"))
+      return "document-outline";
+    if (lowerCaseName.endsWith(".xls") || lowerCaseName.endsWith(".xlsx"))
+      return "grid-outline";
     if (lowerCaseName.endsWith(".txt")) return "reader-outline";
     return "document";
   };
@@ -341,16 +430,23 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   // Fetch messages từ API
   useEffect(() => {
     const fetchMessages = async () => {
-      
+      if (!currentUserId) {
+        console.warn("Cannot fetch messages: currentUserId is null");
+        return;
+      }
+
       try {
-        const response = await fetch("http://192.168.1.28:3000/api/messages/user/user123");
+        const response = await fetch(
+          `http://192.168.1.28:3000/api/messages/user/${currentUserId}`
+        );
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const data = await response.json();
 
         const sortedData = data.sort(
-          (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          (a: any, b: any) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
         const formattedMessages: Message[] = [];
@@ -361,7 +457,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
 
           if (lastDate !== dateStr) {
             formattedMessages.push({
-              id: `ts-${msg.messageId}`,
+              messageId: `ts-${msg.messageId}`,
               userId: "timestamp",
               time: dateStr,
             });
@@ -369,9 +465,9 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
           }
 
           formattedMessages.push({
-            id: msg.messageId,
+            messageId: msg.messageId,
             text: msg.content || "",
-            userId: "user123",
+            userId: currentUserId,
             time,
             fileUrls: msg.fileUrls || [],
             thumbnailUrls: msg.thumbnailUrls || [],
@@ -389,15 +485,10 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
       }
     };
 
-    fetchMessages();
-  }, []);
-
-  // Cuộn xuống tin nhắn mới nhất
-  useEffect(() => {
-    if (isListReady && filteredMessages.length > 0 && flatListRef.current) {
-      flatListRef.current.scrollToEnd({ animated: false });
+    if (currentUserId) {
+      fetchMessages();
     }
-  }, [filteredMessages, isListReady]);
+  }, [currentUserId]);
 
   // Lọc tin nhắn theo tab
   useEffect(() => {
@@ -422,7 +513,11 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
           case "Ảnh":
             return m.thumbnailUrls && m.thumbnailUrls.length > 0;
           case "File":
-            return m.filenames && m.filenames.length > 0 && (!m.thumbnailUrls || m.thumbnailUrls.length === 0);
+            return (
+              m.filenames &&
+              m.filenames.length > 0 &&
+              (!m.thumbnailUrls || m.thumbnailUrls.length === 0)
+            );
           case "Link":
             return m.text && /(https?:\/\/[^\s]+)/.test(m.text);
           default:
@@ -451,12 +546,14 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
       <TouchableOpacity
         style={[styles.messageContainer, styles.userMessage]}
         onLongPress={() => {
-          setMessageToDelete(item.id);
+          setMessageToDelete(item.messageId);
           setDeleteModalVisible(true);
         }}
         activeOpacity={0.7}
       >
-        {userMessage.text ? <Text style={styles.messageText}>{userMessage.text}</Text> : null}
+        {userMessage.text ? (
+          <Text style={styles.messageText}>{userMessage.text}</Text>
+        ) : null}
         {userMessage.thumbnailUrls && userMessage.thumbnailUrls.length > 0 ? (
           <View style={styles.fileContainer}>
             {userMessage.thumbnailUrls.map((url, index) => (
@@ -467,22 +564,35 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
                   setModalVisible(true);
                 }}
               >
-                <Image source={{ uri: url }} style={styles.thumbnail} resizeMode="cover" />
+                <Image
+                  source={{ uri: url }}
+                  style={styles.thumbnail}
+                  resizeMode="cover"
+                />
               </TouchableOpacity>
             ))}
           </View>
         ) : null}
-        {userMessage.filenames && userMessage.filenames.length > 0 && !userMessage.thumbnailUrls.length ? (
+        {userMessage.filenames &&
+        userMessage.filenames.length > 0 &&
+        !userMessage.thumbnailUrls.length ? (
           <View style={styles.fileContainer}>
             {userMessage.filenames.map((name, index) => (
               <View key={index} style={styles.fileItem}>
-                <Ionicons name={getFileIcon(name)} size={28} color="#0066CC" style={styles.fileIcon} />
+                <Ionicons
+                  name={getFileIcon(name)}
+                  size={28}
+                  color="#0066CC"
+                  style={styles.fileIcon}
+                />
                 <Text style={styles.fileName}>{name}</Text>
               </View>
             ))}
           </View>
         ) : null}
-        {userMessage.time ? <Text style={styles.messageTime}>{userMessage.time}</Text> : null}
+        {userMessage.time ? (
+          <Text style={styles.messageTime}>{userMessage.time}</Text>
+        ) : null}
       </TouchableOpacity>
     );
   };
@@ -503,7 +613,11 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             <View style={styles.modalBackground} />
           </TouchableWithoutFeedback>
           <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-            <Image source={{ uri: selectedImage || "" }} style={styles.fullImage} resizeMode="contain" />
+            <Image
+              source={{ uri: selectedImage || "" }}
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
           </TouchableWithoutFeedback>
           <View style={styles.downloadButtonContainer}>
             <TouchableOpacity
@@ -528,7 +642,8 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
           <View style={styles.deleteModalContent}>
             <Text style={styles.deleteModalTitle}>Xóa tin nhắn?</Text>
             <Text style={styles.deleteModalText}>
-              Bạn có chắc chắn muốn xóa tin nhắn này? Hành động này không thể hoàn tác.
+              Bạn có chắc chắn muốn xóa tin nhắn này? Hành động này không thể
+              hoàn tác.
             </Text>
             <View style={styles.deleteModalButtons}>
               <TouchableOpacity
@@ -544,7 +659,11 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
                 style={[styles.deleteModalButton, styles.deleteButton]}
                 onPress={deleteMessage}
               >
-                <Text style={[styles.deleteModalButtonText, { color: "white" }]}>Xóa</Text>
+                <Text
+                  style={[styles.deleteModalButtonText, { color: "white" }]}
+                >
+                  Xóa
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -557,7 +676,12 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             <Ionicons name="chevron-back" size={28} color="white" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Cloud của tôi</Text>
-          <Ionicons name="checkmark-circle" size={20} color="#FFA500" style={styles.verifiedIcon} />
+          <Ionicons
+            name="checkmark-circle"
+            size={20}
+            color="#FFA500"
+            style={styles.verifiedIcon}
+          />
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerIcon}>
@@ -604,7 +728,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
           ref={flatListRef}
           data={filteredMessages}
           renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.messageId}
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesList}
           initialNumToRender={10}
@@ -614,7 +738,21 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             index,
           })}
           nestedScrollEnabled={true}
-          onLayout={() => setIsListReady(true)}
+          initialScrollIndex={
+            filteredMessages.length > 0
+              ? filteredMessages.length - 1
+              : undefined
+          }
+          onContentSizeChange={() => {
+            if (filteredMessages.length > 0 && flatListRef.current) {
+              flatListRef.current.scrollToEnd({ animated: true });
+            }
+          }}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Không có tin nhắn</Text>
+            </View>
+          )}
         />
 
         <View style={styles.inputContainer}>
@@ -631,10 +769,16 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             </TouchableOpacity>
           ) : (
             <>
-              <TouchableOpacity style={styles.inputIcon} onPress={pickFileAndUpload}>
+              <TouchableOpacity
+                style={styles.inputIcon}
+                onPress={pickFileAndUpload}
+              >
                 <Ionicons name="attach-outline" size={24} color="#888" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.inputIcon} onPress={pickImageAndUpload}>
+              <TouchableOpacity
+                style={styles.inputIcon}
+                onPress={pickImageAndUpload}
+              >
                 <Ionicons name="image-outline" size={24} color="#888" />
               </TouchableOpacity>
             </>
@@ -863,6 +1007,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#888",
+    textAlign: "center",
   },
 });
 

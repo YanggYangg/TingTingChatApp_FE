@@ -16,7 +16,7 @@ function InfoModal({ isOpen, onClose }) {
     gender: "female",
     phone: "",
     avatar: null,
-    coverPhoto: null
+    coverPhoto: null,
   });
   useEffect(() => {
     const fetchProfile = async () => {

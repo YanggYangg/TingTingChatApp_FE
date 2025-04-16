@@ -33,12 +33,26 @@ function ChatList({ activeTab }) {
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
-    joinConversation(socket, message.id);
+    if (message.id !== "my-cloud") {
+      joinConversation(socket, message.id);
+    }
     dispatch(setSelectedMessage(message));
   };
 
   const handleTabClick = (tab) => {
     setSelectedTab(tab);
+  }
+
+  // Cloud của tôi item
+  const myCloudItem = {
+    id: "my-cloud",
+    name: "Cloud của tôi",
+    avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s", // Hoặc link avatar của bạn
+    type: "cloud",
+    lastMessage: "Lưu trữ tin nhắn và file cá nhân",
+    isCall: false,
+    time: "",
+    isCloud: true // Thêm flag để xác định đây là cloud item
   };
 
   // Load and listen for conversations
@@ -134,11 +148,15 @@ function ChatList({ activeTab }) {
         </div>
       )}
 
-      {/* Danh sách chat */}
+      
+
+      { /* Thêm cloud ở đây */}
+
       <div className="flex-grow text-gray-700">
         {activeTab === "/chat" && (
           <MessageList
-            messages={messages}
+            // messages={messages}
+            messages={[myCloudItem, ...messages]}
             onMessageClick={handleMessageClick}
           />
         )}

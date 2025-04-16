@@ -1,6 +1,7 @@
 import React from "react";
+
 import { PanelRight, Search, Video, UserPlus, User } from "lucide-react";
-const ChatHeader = ({
+const ChatHeaderCloud = ({
   type,
   name,
   members,
@@ -10,7 +11,7 @@ const ChatHeader = ({
   setIsChatInfoVisible,
 }) => {
   return (
-    <div className={`flex items-center justify-between p-2 border-b bg-white`}>
+    <div className={`flex items-center justify-between p-2 border-b border-gray-200 bg-white`}>
       {/* Thông tin nhóm/người chat */}
       <div className="flex items-center">
         <img
@@ -27,7 +28,7 @@ const ChatHeader = ({
             </p>
           ) : (
             <p className="text-sm text-gray-400">
-              Truy cập {lastActive} phút trước
+              Lưu trữ và đồng bộ dữ liệu giữa các thiết bị
             </p>
           )}
         </div>
@@ -35,12 +36,7 @@ const ChatHeader = ({
 
       {/* Action Buttons - Căn phải */}
       <div className="ml-auto flex space-x-3">
-        <button className="text-gray-500 hover:text-gray-700">
-          <UserPlus />
-        </button>
-        <button className="text-gray-500 hover:text-gray-700">
-          <Video />
-        </button>
+    
         <button className="text-gray-500 hover:text-gray-700">
           {/* <FontAwesomeIcon icon={faSearch} /> */}
           <Search />
@@ -60,4 +56,4 @@ const ChatHeader = ({
   );
 };
 
-export default ChatHeader;
+export default ChatHeaderCloud;
