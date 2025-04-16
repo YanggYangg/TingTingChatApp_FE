@@ -1,173 +1,248 @@
-import { useState } from "react";
-import { AiOutlineCopy, AiOutlineArrowRight } from "react-icons/ai"; // Import icon từ react-icons
+import React, { useEffect, useState } from "react";
+import { AiOutlineCopy } from "react-icons/ai";
+import { FaEdit } from 'react-icons/fa';
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
 import GroupMemberList from "../../../components/chatInforComponent/GroupMemberList";
 import GroupMediaGallery from "../../../components/chatInforComponent/GroupMediaGallery";
 import GroupFile from "../../../components/chatInforComponent/GroupFile";
 import GroupLinks from "../../../components/chatInforComponent/GroupLinks";
 import SecuritySettings from "../../../components/chatInforComponent/SecuritySettings";
-import MuteNotificationModal from "../../../components/chatInforComponent/MuteNotificationModal"; // Import modal
+import MuteNotificationModal from "../../../components/chatInforComponent/MuteNotificationModal";
+import { Api_chatInfo } from "../../../../apis/Api_chatInfo";
+import AddMemberModal from "../../../components/chatInforComponent/AddMemberModal";
+import EditNameModal from "../../../components/chatInforComponent/EditNameModal";
+import CreateGroupModal from "../../../components/chatInforComponent/CreateGroupModal";
 
-const ChatInfo = ({ groupName = "Nhóm không tên", groupAvatar, groupLink }) => {
-  const [inviteLink] = useState(groupLink || "https://zalo.me/g/dvfhuk799");
-  const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
-  const [pinnedMessage, setPinnedMessage] = useState(null);
-  const [isMuted, setIsMuted] = useState(false);
+const ChatInfo = ({ userId, conversationId }) => {
+    const [chatInfo, setChatInfo] = useState(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
+    const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
+    const [conversations, setConversations] = useState([]);
 
-  const handleMuteNotification = () => {
-    if (isMuted) {
-      console.log("🔊 Bật lại thông báo");
-      setIsMuted(false);
-    } else {
-      setIsMuteModalOpen(true);
+    // const conversationId = "67fe043089c79b5ff609cb95";
+    // const userId = "67fe031e421896d7bc8c2e10";
+    console.log("userId được truyền vào ChatInfo:", userId);
+    console.log("conversationId được truyền vào ChatInfo:", conversationId);
+    const a = Api_chatInfo.getChatInfo(conversationId);
+    console.log("ứng dụng đang chạy", a);
+
+    useEffect(() => {
+        const fetchChatInfo = async () => {
+            try {
+                const response = await Api_chatInfo.getChatInfo(conversationId);
+                console.log("Thông tin chat nhận được từ API:", response);
+                setChatInfo(response);
+
+                const participant = response.participants.find(p => p.userId === userId);
+                if (participant) {
+                    setIsMuted(!!participant.mute);
+                    setChatInfo(prev => ({ ...prev, isPinned: participant.isPinned }));
+                } else {
+                    setIsMuted(false);
+                }
+
+                setLoading(false);
+            } catch (error) {
+                console.error("Lỗi khi lấy thông tin chat:", error);
+                setLoading(false);
+            }
+        };
+
+        if (conversationId) {
+            fetchChatInfo();
+        }
+    }, [conversationId, userId]);
+
+    const handleMemberAdded = async () => {
+        try {
+            const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId);
+            setChatInfo(updatedChatInfo);
+        } catch (error) {
+            console.error("Lỗi khi cập nhật chatInfo sau khi thêm thành viên:", error);
+        }
+    };
+
+    if (loading) {
+        return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
     }
-  };
 
-  const confirmMuteNotification = (time) => {
-    console.log(`🔕 Đã tắt thông báo trong: ${time}`);
-    setIsMuted(true);
-    setIsMuteModalOpen(false);
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(inviteLink);
-    console.log("Link nhóm đã được sao chép:", inviteLink);
-    alert("Đã sao chép link nhóm!");
-  };
-
-  const togglePinMessage = () => {
-    if (pinnedMessage) {
-      setPinnedMessage(null);
-      console.log("Đã bỏ ghim tin nhắn");
-    } else {
-      const message = prompt("Nhập nội dung tin nhắn cần ghim:");
-      if (message) {
-        setPinnedMessage(message);
-        console.log("Tin nhắn đã ghim:", message);
-      }
+    if (!chatInfo) {
+        return <p className="text-center text-red-500"> Không thể tải thông tin chat.</p>;
     }
-  };
 
-  return (
-    <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
-      {/* Tiêu đề trên cùng */}
+    const handleMuteNotification = () => {
+        if (isMuted) {
+            Api_chatInfo.updateNotification(conversationId, { userId, mute: null })
+                .then(() => setIsMuted(false))
+                .catch(error => console.error("Lỗi khi bật thông báo:", error));
+        } else {
+            setIsMuteModalOpen(true);
+        }
+    };
 
-      <div className="pb-4 border-b border-gray-200 flex-shrink-0">
-        <h2 className="text-xl font-bold text-center text-gray-900 mb-4">
-          Thông tin nhóm
-        </h2>
-      </div>
+    const handleMuteSuccess = (muted) => {
+        setIsMuted(muted);
+    };
 
-      <div className="flex-1 overflow-y-auto mt-4">
+    const handlePinChat = async () => {
+        if (!chatInfo) return;
 
-      {/* Thông tin nhóm */}
-      <div className="text-center mb-4">
-        <img
-          src={
-            groupAvatar ||
-            "https://i.pinimg.com/736x/74/2e/15/742e1531a34e2ea5a4c23e5bbcfa669f.jpg"
-          }
-          alt="Group Avatar"
-          className="w-20 h-20 rounded-full mx-auto object-cover"
-        />
-        <h2 className="text-lg font-semibold mt-2">{groupName}</h2>
-      </div>
+        try {
+            const newIsPinned = !chatInfo.isPinned;
+            await Api_chatInfo.pinChat(conversationId, { isPinned: newIsPinned, userId });
+            setChatInfo({ ...chatInfo, isPinned: newIsPinned });
+        } catch (error) {
+            console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
+            if (error.response) {
+                alert(`Lỗi: ${error.response.data.message || "Lỗi khi ghim/bỏ ghim cuộc trò chuyện."}`);
+            } else if (error.request) {
+                alert("Không thể kết nối đến server.");
+            } else {
+                alert("Lỗi không xác định.");
+            }
+        }
+    };
 
-      {/* Các nút hành động */}
-      <div className="grid grid-cols-4 gap-2 my-4">
-        <GroupActionButton
-          icon="mute"
-          text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
-          onClick={handleMuteNotification}
-        />
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(chatInfo?.linkGroup || "https://zalo.me/g/bamwwg826");
+        alert("Đã sao chép link nhóm!");
+    };
 
-        <GroupActionButton
-          icon="pin"
-          text={pinnedMessage ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn"}
-          onClick={togglePinMessage}
-        />
-        <GroupActionButton
-          icon="add"
-          text="Thêm thành viên"
-          onClick={() => console.log("Nhấn vào 'Thêm thành viên'")}
-        />
-        <GroupActionButton
-          icon="settings"
-          text="Quản lý nhóm"
-          onClick={() => console.log(" Nhấn vào 'Quản lý nhóm'")}
-        />
-      </div>
-      {pinnedMessage && (
-        <div className="bg-yellow-100 p-3 rounded-md flex items-center justify-between mb-4">
-          <p className="text-sm font-semibold">{pinnedMessage}</p>
-          <button onClick={togglePinMessage} className="text-red-500 text-sm">
-            Bỏ ghim
-          </button>
+    const handleAddMember = () => {
+        setIsAddModalOpen(true);
+        setIsCreateGroupModalOpen(false); // Đóng modal tạo nhóm nếu đang mở
+    };
+
+    const handleCreateGroupChat = () => {
+        setIsCreateGroupModalOpen(true);
+        setIsAddModalOpen(false); // Đóng modal thêm thành viên nếu đang mở
+    };
+
+    const handleCloseCreateGroupModal = () => {
+        setIsCreateGroupModalOpen(false);
+    };
+
+
+    const handleCreateGroupSuccess = (newGroup) => {
+        console.log('Nhóm mới được tạo:', newGroup);
+        // Cập nhật state conversations hoặc thực hiện các hành động khác
+        setConversations(prevConversations => [...prevConversations, newGroup]);
+    };
+    const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
+    const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);
+
+    const handleSaveChatName = async (newName) => {
+        if (!chatInfo || !newName.trim()) return;
+
+        try {
+            await Api_chatInfo.updateChatName(conversationId, newName.trim());
+            setChatInfo({ ...chatInfo, name: newName.trim() });
+        } catch (error) {
+            console.error('Lỗi khi cập nhật tên:', error);
+            alert('Cập nhật tên thất bại, vui lòng thử lại.');
+        } finally {
+            handleCloseEditNameModal();
+        }
+    };
+
+    return (
+        <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
+            <div className="flex-shrink-0">
+                <h2 className="text-xl font-bold text-center mb-4">
+                    {chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại"}
+                </h2>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+                <div className="text-center my-4">
+                    <img
+                        src={chatInfo?.imageGroup?.trim() ? chatInfo.imageGroup : "https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg"}
+                        className="w-20 h-20 rounded-full mx-auto"
+                    />
+                    <div className="flex items-center justify-center mt-2">
+                        <h2 className="text-lg font-semibold">
+                            {chatInfo?.name || (
+                                !chatInfo?.isGroup && chatInfo?.participants
+                                    ? chatInfo.participants.find(p => p.userId !== userId)?.user?.name || 'Không có tên'
+                                    : 'Không có tên'
+                            )}
+                        </h2>
+                        <button
+                            onClick={handleOpenEditNameModal}
+                            className="text-gray-500 hover:text-blue-500 ml-2"
+                        >
+                            <FaEdit size={16} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex flex-nowrap justify-center gap-4 my-4">
+                    <GroupActionButton
+                        icon="mute"
+                        text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
+                        onClick={handleMuteNotification}
+                    />
+                    <GroupActionButton
+                        icon="pin"
+                        text={chatInfo?.isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
+                        onClick={handlePinChat}
+                    />
+                    <GroupActionButton
+                        icon="add"
+                        text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
+                        onClick={chatInfo?.isGroup ? handleAddMember : handleCreateGroupChat}
+                    />
+                </div>
+
+                <GroupMemberList chatInfo={chatInfo} conversationId={conversationId} userId={userId} />
+
+                {chatInfo?.linkGroup && (
+                    <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
+                        <p className="text-sm font-semibold">Link tham gia nhóm</p>
+                        <a href={chatInfo.linkGroup} className="text-blue-500 text-sm">{chatInfo.linkGroup}</a>
+                        <button onClick={copyToClipboard} className="text-gray-500 hover:text-blue-500">
+                            <AiOutlineCopy size={20} />
+                        </button>
+                    </div>
+                )}
+
+                <GroupMediaGallery conversationId={conversationId} userId={userId} />
+                <GroupFile conversationId={conversationId} userId={userId} />
+                <GroupLinks conversationId={conversationId} userId={userId} />
+                <SecuritySettings conversationId={conversationId} userId={userId} setChatInfo={setChatInfo} />
+            </div>
+
+            <MuteNotificationModal
+                isOpen={isMuteModalOpen}
+                onClose={() => setIsMuteModalOpen(false)}
+                conversationId={conversationId}
+                userId={userId}
+                onMuteSuccess={handleMuteSuccess}
+            />
+            <EditNameModal
+                isOpen={isEditNameModalOpen}
+                onClose={handleCloseEditNameModal}
+                onSave={handleSaveChatName}
+                initialName={chatInfo?.name}
+            />
+            <AddMemberModal
+                isOpen={isAddModalOpen}
+                conversationId={conversationId}
+                onClose={() => setIsAddModalOpen(false)}
+                onMemberAdded={handleMemberAdded}
+            />
+            <CreateGroupModal
+                isOpen={isCreateGroupModalOpen}
+                onClose={handleCloseCreateGroupModal}
+                userId={userId}
+                onGroupCreated={handleCreateGroupSuccess}
+            />
         </div>
-      )}
-      {/* Thành viên nhóm */}
-      <div className="bg-gray-100 p-3 rounded-lg">
-        <GroupMemberList members={["4 thành viên"]} />
-
-        {/* Link tham gia nhóm */}
-        <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
-          <div>
-            <p className="text-sm font-semibold">Link tham gia nhóm</p>
-            <a
-              href={inviteLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 text-sm"
-              onClick={() =>
-                console.log("🔗 Nhấn vào link tham gia nhóm:", inviteLink)
-              }
-            >
-              {inviteLink}
-            </a>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={copyToClipboard}
-              className="text-gray-500 hover:text-blue-500"
-            >
-              <AiOutlineCopy size={20} />
-            </button>
-            <a
-              href={inviteLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-500 hover:text-blue-500"
-              onClick={() =>
-                console.log("➡️ Nhấn vào icon chuyển hướng đến link nhóm")
-              }
-            >
-              <AiOutlineArrowRight size={20} />
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* Ảnh/Video */}
-      <GroupMediaGallery />
-
-      {/* File */}
-      <GroupFile />
-
-      {/* Link */}
-      <GroupLinks />
-
-      {/* Thiết lập bảo mật */}
-      <SecuritySettings />
-
-      {/* Modal tắt thông báo */}
-      <MuteNotificationModal
-        isOpen={isMuteModalOpen}
-        onClose={() => setIsMuteModalOpen(false)}
-        onConfirm={confirmMuteNotification}
-      />
-    </div>
-    </div>
-  );
+    );
 };
 
 export default ChatInfo;

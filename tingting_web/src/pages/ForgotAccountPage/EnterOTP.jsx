@@ -8,7 +8,7 @@ import { Api_Auth } from "../../../apis/api_auth";
 import Modal from "../../components/Notification/Modal";
 import config from "../../config";
 
-const cx = classNames.bind(styles);
+const cx = classNames.bind(styles)
 
 function EnterOTP() {
   const navigator = useNavigate();
@@ -21,8 +21,7 @@ function EnterOTP() {
   const [messageError, setMessageError] = useState("");
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    // Xử lý logic tìm tài khoản ở đây
+    e.preventDefault()
     try {
       const data = { phone, otp };
       const response = await Api_Auth.verifyOTP(data);
@@ -30,13 +29,14 @@ function EnterOTP() {
         state: { phone },
       });
     } catch (error) {
-      setMessageError(error.response.data.message);
-      setIsError(true);
+      setMessageError(error.response.data.message)
+      setIsError(true)
     }
-  };
+  }
+
   const handleTryAgain = () => {
-    setIsError(false);
-  };
+    setIsError(false)
+  }
 
   return (
     <div className={cx("body-container")}>
@@ -66,7 +66,7 @@ function EnterOTP() {
                 name="otp"
                 value={otp}
                 onChange={(e) => setOTP(e.target.value)}
-                className="w-full p-2 rounded-md border-1 border-gray-400 mb-3"
+                className={cx("form-input", "otp-input")}
                 placeholder="Nhập mã OTP bạn đã nhận được"
                 pattern="\d{6}"
                 title="Vui lòng nhập mã OTP hợp lệ (6 chữ số)"
@@ -102,7 +102,7 @@ function EnterOTP() {
         />
       )}
     </div>
-  );
+  )
 }
 
-export default EnterOTP;
+export default EnterOTP

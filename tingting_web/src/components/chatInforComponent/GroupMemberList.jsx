@@ -1,12 +1,66 @@
-// GroupMemberList.jsx
-const GroupMemberList = ({ members }) => {
-    return (
-      <div className="mb-4">
-        <h3 className="text-md font-semibold mb-2">Thành viên nhóm</h3>
-        <p className="text-gray-600">{members}</p>
-      </div>
-    );
-  };
-  
-  export default GroupMemberList;
-  
+import { useState, useEffect } from "react";
+import MemberListModal from "./MemberListModal";
+import CommonGroupsModal from "./CommonGroupsModal";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+
+const GroupMemberList = ({ chatInfo }) => {
+  const [isMemberModalOpen, setMemberModalOpen] = useState(false);
+  const [isGroupModalOpen, setGroupModalOpen] = useState(false);
+  const [commonGroups, setCommonGroups] = useState([]);
+
+  useEffect(() => {
+    const fetchCommonGroups = async () => {
+      if (!chatInfo?.isGroup && chatInfo?._id) {
+        try {
+          const res = await Api_chatInfo.getCommonGroups(chatInfo._id);
+          setCommonGroups(res?.commonGroups || []);
+          console.log("API Response nhóm:", res);
+
+        } catch (err) {
+          console.error("Lỗi khi lấy nhóm chung", err);
+          setCommonGroups([]);
+        }
+      }
+    };
+
+    fetchCommonGroups();
+  }, [chatInfo]);
+
+  if (!chatInfo) return null;
+
+  return (
+    <div className="mb-4">
+      <h3 className="text-md font-semibold mb-2">Thông tin hội thoại</h3>
+
+      {chatInfo.isGroup ? (
+        <p
+          className="text-blue-500 cursor-pointer"
+          onClick={() => setMemberModalOpen(true)}
+        >
+          {chatInfo.participants.length} thành viên
+        </p>
+      ) : (
+        <p
+          className="text-blue-500 cursor-pointer"
+          onClick={() => setGroupModalOpen(true)}
+        >
+          {commonGroups.length} nhóm chung
+        </p>
+      )}
+
+      <MemberListModal
+        isOpen={isMemberModalOpen}
+        onClose={() => setMemberModalOpen(false)}
+        chatInfo={chatInfo}
+      />
+
+      <CommonGroupsModal
+        isOpen={isGroupModalOpen}
+        onClose={() => setGroupModalOpen(false)}
+        commonGroups={commonGroups}
+      />
+    </div>
+  );
+};
+
+export default GroupMemberList;
