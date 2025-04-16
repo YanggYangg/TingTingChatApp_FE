@@ -5,8 +5,8 @@ export const Api_Profile = {
     getProfiles: async () => {
         return ApiManager.get('userService', 'api/v1/profile/');  
     },
-    getProfile: async (id) => {
-        return ApiManager.get('userService',`api/v1/profile/${id}`);
+    getProfile: async (id, data) => {
+        return ApiManager.get('userService',`api/v1/profile/${id}`, data);
     },
     updateProfile: async (id, data) => {
         return ApiManager.post('userService', `api/v1/profile/${id}`, data);
