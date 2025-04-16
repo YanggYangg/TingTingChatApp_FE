@@ -232,6 +232,8 @@ function Search() {
     }
   };
 
+  
+
   return (
     <div className="flex items-center bg-gray-200 px-3 py-2 rounded-full w-full relative">
       <FaSearch
@@ -395,15 +397,17 @@ function Search() {
                 )
               ) : friendRequests[selectedUser._id]?.status === "accepted" ? (
                 <>
-                  {/* <button className="bg-green-500 text-white px-4 py-2 rounded">
+                  <button className="bg-green-500 text-white px-4 py-2 rounded">
                     Gọi điện
                   </button>
-                  <button className="bg-blue-500 text-white px-4 py-2 rounded">
+                  <button 
+                  className="bg-blue-500 text-white px-4 py-2 rounded"
+                  >
                     Nhắn tin
-                  </button> */}
-                   <button className="bg-green-500 text-white px-4 py-2 rounded">
-                    Đã là bạn bè
                   </button>
+                   {/* <button className="bg-green-500 text-white px-4 py-2 rounded">
+                    Đã là bạn bè
+                  </button> */}
                 </>
               ) : (
                 // Không có yêu cầu nào → hiện "Kết bạn"
