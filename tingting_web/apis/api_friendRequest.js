@@ -34,5 +34,5 @@ export const Api_FriendRequest = {
     },
     getFriendsList: async (userId) => {
         return ApiManager.get('userService', `api/v1/friendRequest/getFriendsLists/${userId}`);
-    }
+    },
 };

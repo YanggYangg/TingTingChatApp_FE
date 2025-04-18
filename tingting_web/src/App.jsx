@@ -10,7 +10,6 @@ import ContactsPage from "./pages/Chat/ContactsPage";
 import Login from "./pages/Login";
 import HomePage from "./pages/HomePage";
 
-import Contact from "./layouts/components/contact-form/Contact";
 import ContactList from "./layouts/components/contact-form/ContactList/ContactList";
 import GroupList from "./layouts/components/contact-form/GroupList/GroupList";
 import FriendRequests from "./layouts/components/contact-form/FriendRequests";

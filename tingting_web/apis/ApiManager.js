@@ -19,14 +19,15 @@ const createAxiosInstance = (service) => {
         baseURL: SERVICES[service],
         withCredentials: true,
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
         },
         responseType: 'json',
     });
 
-    // Gắn token mỗi lần request
+    // // Gắn token mỗi lần request
     instance.interceptors.request.use((config) => {
         const token = localStorage.getItem('token'); // Hoặc AsyncStorage nếu React Native
+        console.log('Token:', token);
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }

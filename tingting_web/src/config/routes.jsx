@@ -12,6 +12,7 @@ const routes = {
     
     chatInfo: '/chatInfo',
     storagePage: '/storagePage',    
+    cloud: "/cloud",
 };
 
 export default routes;
