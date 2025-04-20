@@ -1,7 +1,7 @@
-import { io } from 'socket.io-client';
+import { io } from "socket.io-client";
 export const initSocket = (userId) => {
-    return io('http://172.20.10.10:5000', {
-        query: { userId },
-        transports: ['websocket'], // quan trọng để tránh fallback polling
-    });
+  return io("http://192.168.1.33:5000", {
+    query: { userId },
+    transports: ["websocket"], // quan trọng để tránh fallback polling
+  });
 };

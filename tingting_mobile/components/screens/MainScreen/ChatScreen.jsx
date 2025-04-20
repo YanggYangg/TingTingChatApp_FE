@@ -14,14 +14,39 @@ import {
 } from "../../../services/sockets/events/conversation";
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ChatScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([]);
   const [userProfiles, setUserProfiles] = useState({});
   const socket = useSocket();
   const dispatch = useDispatch();
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-  const currentUserId = socket?.io?.opts?.query?.userId;
+  // Lấy currentUserId từ AsyncStorage
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        let userId = await AsyncStorage.getItem("userId");
+        if (!userId) {
+          userId = "user123";
+          await AsyncStorage.setItem("userId", userId);
+        }
+        console.log("userId fetched from AsyncStorage:", userId);
+        setCurrentUserId(userId);
+      } catch (error) {
+        console.error("Failed to fetch userId:", error);
+        setCurrentUserId("user123");
+      }
+    };
+
+    fetchUserId();
+  }, []);
+
+  // Log currentUserId sau khi state được cập nhật
+  useEffect(() => {
+    console.log("Current userId set in state (after update) 1:", currentUserId);
+  }, [currentUserId]);
 
   // Fetch thông tin user (không phải current user)
   const fetchOtherUserProfiles = async (conversations) => {
@@ -56,7 +81,10 @@ const ChatScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    if (!socket || !currentUserId) return;
+    if (!socket || !currentUserId) {
+      console.warn("Socket not initialized on mobile or currentUserId missing");
+      return;
+    }
 
     const handleConversations = (conversations) => {
       const transformed = transformConversationsToMessages(

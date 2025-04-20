@@ -257,7 +257,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         formData.append("userId", currentUserId);
         formData.append("content", "");
 
-        const res = await fetch("http://192.168.1.28:3000/api/files/upload", {
+        const res = await fetch("http://192.168.1.33:3000/api/files/upload", {
           method: "POST",
           body: formData,
         });
@@ -326,7 +326,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         formData.append("userId", currentUserId);
         formData.append("content", "");
 
-        const res = await fetch("http://192.168.1.28:3000/api/files/upload", {
+        const res = await fetch("http://192.168.1.33:3000/api/files/upload", {
           method: "POST",
           body: formData,
         });
@@ -355,7 +355,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
 
     try {
       const response = await fetch(
-        `http://192.168.1.28:3000/api/messages/${messageToDelete}`,
+        `http://192.168.1.33:3000/api/messages/${messageToDelete}`,
         {
           method: "DELETE",
           headers: {
@@ -386,7 +386,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
 
     try {
       const response = await fetch(
-        "http://192.168.1.28:3000/api/messages/send",
+        "http://192.168.1.33:3000/api/messages/send",
         {
           method: "POST",
           headers: {
@@ -437,7 +437,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
 
       try {
         const response = await fetch(
-          `http://192.168.1.28:3000/api/messages/user/${currentUserId}`
+          `http://192.168.1.33:3000/api/messages/user/${currentUserId}`
         );
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);

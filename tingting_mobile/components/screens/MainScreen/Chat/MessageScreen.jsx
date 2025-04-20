@@ -16,6 +16,7 @@ import { useSelector } from "react-redux";
 import { useSocket } from "../../../../contexts/SocketContext";
 import MessageItem from "../../../chatitems/MessageItem";
 import ChatFooter from "./ChatFooter"; // Import component mới
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ChatScreen = ({ route, navigation }) => {
   const socket = useSocket();
@@ -24,6 +25,7 @@ const ChatScreen = ({ route, navigation }) => {
   const [replyingTo, setReplyingTo] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   const { message, user } = route?.params || {};
 
@@ -33,12 +35,36 @@ const ChatScreen = ({ route, navigation }) => {
     (state) => state.chat.selectedMessage
   );
   const selectedMessageId = selectedMessageData?.id;
-  const currentUserId = socket?.io?.opts?.query?.userId;
+
+  // Lấy currentUserId từ AsyncStorage
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        let userId = await AsyncStorage.getItem("userId");
+        if (!userId) {
+          userId = "user123";
+          await AsyncStorage.setItem("userId", userId);
+        }
+        console.log("userId fetched from AsyncStorage:", userId);
+        setCurrentUserId(userId);
+      } catch (error) {
+        console.error("Failed to fetch userId:", error);
+        setCurrentUserId("user123");
+      }
+    };
+
+    fetchUserId();
+  }, []);
+
+  // Log currentUserId sau khi state được cập nhật
+  useEffect(() => {
+    console.log("Current userId set in state (after update):", currentUserId);
+  }, [currentUserId]);
 
   useEffect(() => {
-    console.log("Selected message ID:", selectedMessageId);
-    console.log("socket:", socket);
-    if (!socket || !selectedMessageId) return;
+    if (!socket || !selectedMessageId || !currentUserId) return;
+
+    console.log("Joining conversation with ID:", selectedMessageId);
 
     socket.emit("joinConversation", { conversationId: selectedMessageId });
 
@@ -86,7 +112,7 @@ const ChatScreen = ({ route, navigation }) => {
       socket.off("messageDeleted");
       socket.off("deleteMessageError");
     };
-  }, [socket, selectedMessageId]);
+  }, [socket, selectedMessageId, currentUserId]);
 
   const sendMessage = (payload) => {
     if (!payload.content && !payload.linkURL) return;

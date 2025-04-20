@@ -187,55 +187,55 @@ function MainTabNavigator() {
 }
 
 export default function App() {
-  const [userId, setUserId] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // const [userId, setUserId] = useState(null);
+  // const [loading, setLoading] = useState(true);
+  // const [error, setError] = useState(null);
 
-  const userId1 = "67fe031e421896d7bc8c2e10"; // Thay thế bằng userId thực tế của bạn
+  // const userId =; // Thay thế bằng userId thực tế của bạn
 
   // console.log("Using userId:", userId);
   // const userId = localStorage.getItem("userId");
-  console.log("Using userIdddddđ:", userId);
+  // console.log("Using userIdddddđ:", userId);
   // dùng axios để gọi api lấy userId http://localhost:3001/api/v1/profile/67fe031e421896d7bc8c2e10
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        // const userId1 = await AsyncStorage.getItem("userId");
-        // if (!userId1) {
-        //   throw new Error("No userId found in AsyncStorage");
-        // }
-        // console.log("Fetched userId from AsyncStorage:", userId1);
-        // Gọi API để lấy thông tin người dùng
-        const response = await axios.get(
-          `http://192.168.1.28:3001/api/v1/profile/${userId1}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+  // useEffect(() => {
+  //   const fetchUserProfile = async () => {
+  //     try {
+  //       // const userId1 = await AsyncStorage.getItem("userId");
+  //       // if (!userId1) {
+  //       //   throw new Error("No userId found in AsyncStorage");
+  //       // }
+  //       // console.log("Fetched userId from AsyncStorage:", userId1);
+  //       // Gọi API để lấy thông tin người dùng
+  //       const response = await axios.get(
+  //         `http://192.168.1.33:3001/api/v1/profile/${userId1}`,
+  //         {
+  //           headers: {
+  //             "Content-Type": "application/json",
+  //           },
+  //         }
+  //       );
 
-        const fetchedUser = response.data.data.user._id;
-        if (!fetchedUser) {
-          throw new Error("No userId in response");
-        }
+  //       const fetchedUser = response.data.data.user._id;
+  //       if (!fetchedUser) {
+  //         throw new Error("No userId in response");
+  //       }
 
-        setUserId(fetchedUser);
-        console.log("Fetched userId:", fetchedUser);
-      } catch (err) {
-        console.error("Error fetching user profile:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  //       setUserId(fetchedUser);
+  //       console.log("Fetched userId:", fetchedUser);
+  //     } catch (err) {
+  //       console.error("Error fetching user profile:", err);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    fetchUserProfile();
-  }, []);
+  //   fetchUserProfile();
+  // }, []);
 
   return (
     <Provider store={store}>
-      <SocketProvider userId={userId}>
+      <SocketProvider>
         <CloudSocketProvider>
           <Stack.Navigator
             initialRouteName="Welcome"
