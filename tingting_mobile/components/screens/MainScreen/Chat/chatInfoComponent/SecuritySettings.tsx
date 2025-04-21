@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, Alert, Picker } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 
@@ -8,6 +8,7 @@ interface Participant {
   name: string;
   avatar: string;
   isHidden: boolean;
+  role?: string; // 'admin' or 'member' for group chats
 }
 
 interface ChatInfoData {
@@ -27,6 +28,10 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
   const [pin, setPin] = useState('');
   const [showPinInput, setShowPinInput] = useState(false);
   const [isGroup, setIsGroup] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false); // Track if user is admin
+  const [participants, setParticipants] = useState<Participant[]>([]); // Store participants
+  const [selectedNewAdmin, setSelectedNewAdmin] = useState<string>(''); // Selected new admin
+  const [showTransferAdmin, setShowTransferAdmin] = useState(false); // Toggle transfer UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +46,13 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
           throw new Error('Không tìm thấy thông tin cuộc trò chuyện');
         }
         setIsGroup(response.isGroup);
+        setParticipants(response.participants);
         const participant = response.participants.find((p: Participant) => p.userId === userId);
         setIsHidden(participant?.isHidden || false);
+        setIsAdmin(participant?.role === 'admin'); // Check if user is admin
       } catch (err: any) {
         console.error('Error fetching chat information:', err);
-        setError('Failed to load security settings. Please try again.');
+        setError('Không thể tải cài đặt bảo mật. Vui lòng thử lại.');
         Alert.alert('Lỗi', 'Không thể tải cài đặt bảo mật. Vui lòng thử lại.');
       } finally {
         setLoading(false);
@@ -96,9 +103,9 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       'Xác nhận',
       'Bạn có chắc chắn muốn xóa lịch sử trò chuyện này?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Hủy', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Xóa',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -122,9 +129,9 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       'Xác nhận',
       'Bạn có chắc chắn muốn rời khỏi nhóm này?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Hủy', style: 'cancel' },
         {
-          text: 'Leave',
+          text: 'Rời',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -145,11 +152,49 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
     );
   }, [isGroup, conversationId, userId, setChatInfo]);
 
+  // Handle transfer group admin
+  const handleTransferAdmin = useCallback(async () => {
+    if (!selectedNewAdmin) {
+      Alert.alert('Lỗi', 'Vui lòng chọn một thành viên để chuyển quyền trưởng nhóm.');
+      return;
+    }
+
+    Alert.alert(
+      'Xác nhận',
+      'Bạn có chắc chắn muốn chuyển quyền trưởng nhóm cho thành viên này?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Chuyển',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updatedConversation = await Api_chatInfo.transferGroupAdmin(conversationId, {
+                requesterUserId: userId,
+                newAdminUserId: selectedNewAdmin,
+              });
+              setChatInfo(updatedConversation); // Update chat info with new roles
+              setIsAdmin(false); // Current user is no longer admin
+              setParticipants(updatedConversation.participants); // Update participants list
+              setShowTransferAdmin(false); // Hide transfer UI
+              setSelectedNewAdmin(''); // Reset selection
+              Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
+            } catch (err: any) {
+              console.error('Error transferring group admin:', err);
+              Alert.alert('Lỗi', 'Chuyển quyền trưởng nhóm không thành công. Vui lòng thử lại.');
+            }
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  }, [conversationId, userId, selectedNewAdmin, setChatInfo]);
+
   if (loading) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Thiết lập bảo mật</Text>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>Đang tải...</Text>
       </View>
     );
   }
@@ -159,8 +204,8 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       <View style={styles.container}>
         <Text style={styles.title}>Thiết lập bảo mật</Text>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => useEffect(() => {}, [])}>
-          <Text style={styles.retryText}>Retry</Text>
+        <TouchableOpacity onPress={() => window.location.reload()}>
+          <Text style={styles.retryText}>Thử lại</Text>
         </TouchableOpacity>
       </View>
     );
@@ -210,6 +255,43 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
           <Text style={styles.actionText}>Rời khỏi nhóm</Text>
         </TouchableOpacity>
       )}
+
+      {isGroup && isAdmin && (
+        <View>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => setShowTransferAdmin(!showTransferAdmin)}
+          >
+            <Ionicons name="person-circle-outline" size={16} color="#ff0000" style={styles.actionIcon} />
+            <Text style={styles.actionText}>Chuyển quyền trưởng nhóm</Text>
+          </TouchableOpacity>
+
+          {showTransferAdmin && (
+            <View style={styles.transferContainer}>
+              <Text style={styles.pinLabel}>Chọn thành viên mới</Text>
+              <Picker
+                selectedValue={selectedNewAdmin}
+                onValueChange={(itemValue) => setSelectedNewAdmin(itemValue)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Chọn thành viên" value="" />
+                {participants
+                  .filter((p) => p.userId !== userId && p.role !== 'admin') // Exclude current user and current admin
+                  .map((participant) => (
+                    <Picker.Item
+                      key={participant.userId}
+                      label={participant.name}
+                      value={participant.userId}
+                    />
+                  ))}
+              </Picker>
+              <TouchableOpacity style={styles.submitButton} onPress={handleTransferAdmin}>
+                <Text style={styles.submitButtonText}>Xác nhận</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 };
@@ -217,11 +299,12 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
 const styles = StyleSheet.create({
   container: {
     marginBottom: 15,
+    padding: 10,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 5,
+    marginBottom: 10,
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -236,7 +319,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     padding: 10,
     borderRadius: 5,
-    marginTop: 5,
+    marginBottom: 10,
   },
   pinLabel: {
     fontSize: 14,
@@ -265,7 +348,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 5,
+    marginVertical: 5,
   },
   actionText: {
     color: '#ff0000',
@@ -289,6 +372,17 @@ const styles = StyleSheet.create({
     color: '#1e90ff',
     textAlign: 'center',
     marginTop: 10,
+  },
+  transferContainer: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 5,
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+    marginBottom: 10,
   },
 });
 

@@ -44,4 +44,6 @@
               `/conversations/createConversation2`,
               groupData
             ),
+            // router.put('/:conversationId/transfer-admin/test', chatInfoController.transferGroupAdmin);
+        transferGroupAdmin: (conversationId, participantData) => ApiManager.put(`/conversations/${conversationId}/transfer-admin/test`, participantData), // Gửi participantData trực tiếp
     };
