@@ -6,9 +6,8 @@ import EmojiPicker from "emoji-picker-react";
 function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
   const [message, setMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [attachedFile, setAttachedFile] = useState(null);
-  const [previewURL, setPreviewURL] = useState(null);
-  const [uploading, setUploading] = useState(false); // 👈 Thêm state upload
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   const fileInputRef = useRef(null);
   const mediaInputRef = useRef(null);
@@ -25,86 +24,95 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
     }
   };
 
-  const handleAttachFile = (file, type) => {
-    setAttachedFile({ file, type });
-    setPreviewURL(URL.createObjectURL(file));
-  };
+  const handleAttachFiles = (files) => {
+    const newFiles = Array.from(files).map((file) => ({
+      file,
+      type: file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("video/")
+        ? "video"
+        : "file",
+      previewURL: URL.createObjectURL(file),
+    }));
 
-  const handleFileChange = (e, type) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    handleAttachFile(file, type);
-    e.target.value = null;
+    setAttachedFiles((prev) => [...prev, ...newFiles]);
   };
 
   const uploadToS3 = async (file) => {
-    setUploading(true); // 👈 Bắt đầu upload
-    try {
-      const formData = new FormData();
-      formData.append("media", file);
+    const formData = new FormData();
+    formData.append("media", file);
 
-      const res = await fetch(
-        "http://localhost:5000/messages/sendMessageWithMedia",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+    const res = await fetch(
+      "http://localhost:5000/messages/sendMessageWithMedia",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
 
-      const text = await res.text();
-      if (!res.ok) throw new Error("Upload failed");
-
-      const data = JSON.parse(text);
-      return data.linkURL;
-    } catch (err) {
-      console.error("Upload failed:", err);
-      return null;
-    } finally {
-      setUploading(false); // 👈 Kết thúc upload
-    }
+    const text = await res.text();
+    if (!res.ok) throw new Error("Upload failed");
+    return JSON.parse(text).linkURL;
   };
 
   const handleSend = async () => {
-    if (uploading || (!message.trim() && !attachedFile)) return;
+    if (uploading || (!message.trim() && attachedFiles.length === 0)) return;
+
+    setUploading(true);
 
     try {
-      let fileURL = null;
-      let messageType = "text";
-      let content = message.trim();
+      let uploadedLinks = [];
 
-      if (attachedFile) {
-        fileURL = await uploadToS3(attachedFile.file);
-        if (!fileURL) return;
-
-        messageType = attachedFile.type;
-        content = content || attachedFile.file.name || `[${messageType}]`;
+      // Nếu có file đính kèm thì upload tất cả lên S3
+      if (attachedFiles.length > 0) {
+        const uploadPromises = attachedFiles.map((item) =>
+          uploadToS3(item.file)
+        );
+        uploadedLinks = await Promise.all(uploadPromises);
       }
 
-      if (replyingTo) {
-        messageType = "reply";
+      // Nếu có file (ảnh/video/file)
+      if (uploadedLinks.length > 0) {
+        const firstType = attachedFiles[0]?.type || "image"; // Ưu tiên dùng loại đầu tiên
+
+        const payload = {
+          messageType: firstType, // Có thể là "image", "video", "file"
+          content: message || "Đã gửi tệp đính kèm",
+          linkURL: uploadedLinks,
+          ...(replyingTo && {
+            messageType: "reply",
+            replyMessageId: replyingTo._id,
+            replyMessageContent: replyingTo.content,
+            replyMessageType: replyingTo.messageType,
+            replyMessageSender: replyingTo.sender,
+          }),
+        };
+
+        sendMessage(payload);
+      } else if (message.trim()) {
+        // Nếu chỉ gửi văn bản
+        const payload = {
+          messageType: replyingTo ? "reply" : "text",
+          content: message.trim(),
+          ...(replyingTo && {
+            replyMessageId: replyingTo._id,
+            replyMessageContent: replyingTo.content,
+            replyMessageType: replyingTo.messageType,
+            replyMessageSender: replyingTo.sender,
+          }),
+        };
+
+        sendMessage(payload);
       }
-
-      const payload = {
-        messageType,
-        content,
-        ...(fileURL && { linkURL: fileURL }),
-        ...(replyingTo && {
-          replyMessageId: replyingTo._id,
-          replyMessageContent: replyingTo.content,
-          replyMessageType: replyingTo.messageType,
-          replyMessageSender: replyingTo.sender,
-        }),
-      };
-
-      sendMessage(payload);
 
       setMessage("");
-      setAttachedFile(null);
-      setPreviewURL(null);
+      setAttachedFiles([]);
       setReplyingTo(null);
       setShowEmojiPicker(false);
-    } catch (error) {
-      console.error("Failed to send message:", error);
+    } catch (err) {
+      console.error("Error sending message:", err);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -141,62 +149,43 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         </div>
       )}
 
-      {attachedFile && (
-        <div className="flex items-center justify-between mb-2 p-2 border border-gray-300 rounded-lg bg-gray-50 relative">
-          <div className="flex items-center space-x-3 overflow-hidden">
-            {attachedFile.type === "image" ? (
-              <img
-                src={previewURL}
-                alt="Preview"
-                className="w-16 h-16 object-cover rounded-lg"
-              />
-            ) : attachedFile.type === "video" ? (
-              <video
-                src={previewURL}
-                controls
-                className="w-20 h-16 object-cover rounded-lg"
-              />
-            ) : (
-              <div className="text-sm font-medium text-gray-700 truncate max-w-xs">
-                📎 {attachedFile.file.name}
-              </div>
-            )}
-          </div>
-          {uploading && (
-            <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center rounded-lg">
-              <svg
-                className="animate-spin h-6 w-6 text-blue-500"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8z"
-                />
-              </svg>
-            </div>
-          )}
-          {!uploading && (
-            <button
-              className="text-gray-400 hover:text-red-500 ml-2 z-10"
-              onClick={() => {
-                setAttachedFile(null);
-                setPreviewURL(null);
-              }}
+      {/* Preview các file đính kèm */}
+      {attachedFiles.length > 0 && (
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          {attachedFiles.map((item, index) => (
+            <div
+              key={index}
+              className="relative border p-1 rounded-md bg-gray-100"
             >
-              <IoClose size={20} />
-            </button>
-          )}
+              {item.type === "image" ? (
+                <img
+                  src={item.previewURL}
+                  alt="Preview"
+                  className="w-full h-24 object-cover rounded"
+                />
+              ) : item.type === "video" ? (
+                <video
+                  src={item.previewURL}
+                  controls
+                  className="w-full h-24 object-cover rounded"
+                />
+              ) : (
+                <p className="text-sm truncate">📎 {item.file.name}</p>
+              )}
+              {!uploading && (
+                <button
+                  onClick={() => {
+                    setAttachedFiles((prev) =>
+                      prev.filter((_, i) => i !== index)
+                    );
+                  }}
+                  className="absolute top-1 right-1 bg-white rounded-full p-1 text-red-500 hover:text-red-700"
+                >
+                  <IoClose size={16} />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -223,23 +212,23 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
 
       <input
         type="file"
+        multiple
         ref={fileInputRef}
-        onChange={(e) => handleFileChange(e, "file")}
+        onChange={(e) => {
+          if (e.target.files.length) handleAttachFiles(e.target.files);
+          e.target.value = null;
+        }}
         hidden
       />
+
       <input
         type="file"
         accept="image/*,video/*"
+        multiple
         ref={mediaInputRef}
         onChange={(e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          const type = file.type.startsWith("image/")
-            ? "image"
-            : file.type.startsWith("video/")
-            ? "video"
-            : "file";
-          handleFileChange(e, type);
+          if (e.target.files.length) handleAttachFiles(e.target.files);
+          e.target.value = null;
         }}
         hidden
       />

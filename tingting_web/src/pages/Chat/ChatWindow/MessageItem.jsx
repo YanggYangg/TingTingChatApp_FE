@@ -20,7 +20,7 @@ const MessageItem = ({
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
 
-  const [openMedia, setOpenMedia] = useState(null); // link URL ảnh/video mở rộng
+  const [openMedia, setOpenMedia] = useState(null);
   const isImage = msg.messageType === "image";
   const isVideo = msg.messageType === "video";
   const isFile = msg.messageType === "file";
@@ -56,6 +56,7 @@ const MessageItem = ({
             <p className="italic text-gray-500">Tin nhắn đã được thu hồi</p>
           ) : (
             <>
+              {/* Tin nhắn trả lời */}
               {msg.messageType === "reply" && (
                 <div className="bg-gray-100 p-2 rounded-md mt-1 border-l-4 border-blue-400 pl-3">
                   <p className="text-sm text-gray-700 font-semibold">
@@ -72,9 +73,26 @@ const MessageItem = ({
                 </div>
               )}
 
+              {/* Tin nhắn văn bản */}
               {isText && !msg.replyMessageId && <p>{msg.content}</p>}
 
-              {isImage && (
+              {/* Tin nhắn hình ảnh (nhiều ảnh) */}
+              {isImage && Array.isArray(msg.linkURL) && (
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  {msg.linkURL.map((url, index) => (
+                    <img
+                      key={index}
+                      src={url}
+                      alt={`Ảnh ${index + 1}`}
+                      className="w-full h-auto rounded-lg cursor-pointer object-cover"
+                      onClick={() => setOpenMedia(url)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Tin nhắn hình ảnh (1 ảnh) */}
+              {isImage && typeof msg.linkURL === "string" && (
                 <img
                   src={msg.linkURL}
                   className="w-40 h-auto rounded-lg cursor-pointer"
@@ -83,6 +101,7 @@ const MessageItem = ({
                 />
               )}
 
+              {/* Tin nhắn video */}
               {isVideo && (
                 <video
                   controls
@@ -94,8 +113,9 @@ const MessageItem = ({
                 </video>
               )}
 
+              {/* Tin nhắn file */}
               {isFile && (
-                <div className="flex items-center justify-between space-x-3 bg-white rounded-md p-2 shadow-sm">
+                <div className="flex items-center justify-between space-x-3 bg-white rounded-md p-2 shadow-sm mt-1">
                   <div className="flex items-center space-x-2 overflow-hidden">
                     <AiFillFileText size={24} className="text-blue-500" />
                     <p className="text-sm text-gray-700 truncate max-w-[150px]">
@@ -115,8 +135,10 @@ const MessageItem = ({
             </>
           )}
 
+          {/* Thời gian */}
           <p className="text-xs text-gray-500 text-right mt-1">{msg.time}</p>
 
+          {/* Nút hành động khi hover */}
           {!msg.isRevoked && (
             <div
               className={`absolute top-[-36px] ${
@@ -160,10 +182,9 @@ const MessageItem = ({
         </div>
       </div>
 
-      {/* Modal xem ảnh/video mở rộng */}
+      {/* Modal xem ảnh/video */}
       {openMedia && (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
-          {/* Nút Đóng */}
           <button
             onClick={handleCloseMedia}
             className="absolute top-4 right-4 text-white text-3xl font-bold bg-black/60 rounded-full px-3 py-1 hover:bg-red-500 transition z-50"
@@ -173,13 +194,7 @@ const MessageItem = ({
           </button>
 
           <div className="relative max-w-[90%] max-h-[90%] flex items-center justify-center">
-            {isImage ? (
-              <img
-                src={openMedia}
-                alt="Media"
-                className="max-w-[600px] max-h-[80vh] object-contain rounded-lg"
-              />
-            ) : (
+            {typeof openMedia === "string" && openMedia.endsWith(".mp4") ? (
               <video
                 controls
                 autoPlay
@@ -188,6 +203,12 @@ const MessageItem = ({
                 <source src={openMedia} type="video/mp4" />
                 Trình duyệt của bạn không hỗ trợ video.
               </video>
+            ) : (
+              <img
+                src={openMedia}
+                alt="Media"
+                className="max-w-[600px] max-h-[80vh] object-contain rounded-lg"
+              />
             )}
           </div>
         </div>
