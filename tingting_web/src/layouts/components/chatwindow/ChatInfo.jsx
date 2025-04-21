@@ -129,6 +129,7 @@ const ChatInfo = ({ userId, conversationId }) => {
         setIsCreateGroupModalOpen(false); // Đóng modal tạo nhóm nếu đang mở
     };
 
+
     const handleCreateGroupChat = () => {
         setIsCreateGroupModalOpen(true);
         setIsAddModalOpen(false); // Đóng modal thêm thành viên nếu đang mở
@@ -138,12 +139,16 @@ const ChatInfo = ({ userId, conversationId }) => {
         setIsCreateGroupModalOpen(false);
     };
 
-
     const handleCreateGroupSuccess = (newGroup) => {
         console.log('Nhóm mới được tạo:', newGroup);
         // Cập nhật state conversations hoặc thực hiện các hành động khác
         setConversations(prevConversations => [...prevConversations, newGroup]);
     };
+
+    // Lấy danh sách participants của cuộc trò chuyện hiện tại
+    const currentConversationParticipants = chatInfo?.participants
+        ?.filter(p => p.userId !== userId) // Loại trừ userId của chính mình
+        ?.map(p => p.userId) || [];
     const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
     const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);
 
@@ -260,6 +265,7 @@ const ChatInfo = ({ userId, conversationId }) => {
                 onClose={handleCloseCreateGroupModal}
                 userId={userId}
                 onGroupCreated={handleCreateGroupSuccess}
+                currentConversationParticipants={currentConversationParticipants}
             />
         </div>
     );
