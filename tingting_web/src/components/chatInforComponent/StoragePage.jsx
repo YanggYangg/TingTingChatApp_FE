@@ -69,6 +69,7 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => { // Thêm prop o
   );
 
   const getUniqueSenders = () => ["Tất cả", ...new Set(data[activeTab].map((item) => item.sender))];
+  const getUniqueSenders = () => ["Tất cả", ...new Set(data[activeTab].map((item) => item.sender))];
 
   const handleDateFilter = (days) => {
     const today = new Date();
@@ -347,12 +348,34 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => { // Thêm prop o
             Chọn
           </button>
         )}
+      <div className="flex justify-between mb-4">
+        <button onClick={onClose} className="text-blue-500 text-sm">
+          <FaArrowLeft />
+        </button>
+        <h1 className="text-lg font-bold">Kho lưu trữ</h1>
+        {isSelecting ? (
+          <>
+            <button className="text-red-500 text-sm" onClick={handleDeleteSelected}>
+              Xóa ({selectedItems.length})
+            </button>
+            <button className="text-gray-500 text-sm" onClick={() => { setIsSelecting(false); setSelectedItems([]); }}>
+              Hủy
+            </button>
+          </>
+        ) : (
+          <button className="text-blue-500 text-sm" onClick={() => setIsSelecting(true)}>
+            Chọn
+          </button>
+        )}
       </div>
+
 
       <div className="flex border-b justify-between">
         {["images", "files", "links"].map((tab) => (
+        {["images", "files", "links"].map((tab) => (
           <button
             key={tab}
+            className={`px-4 py-2 font-medium text-sm ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"}`}
             className={`px-4 py-2 font-medium text-sm ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"}`}
             onClick={() => setActiveTab(tab)}
           >
@@ -446,8 +469,21 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => { // Thêm prop o
             <option key={sender} value={sender}>
               {sender}
             </option>
+        <select
+          className="border p-1 rounded text-sm w-1/2"
+          value={filterSender}
+          onChange={(e) => setFilterSender(e.target.value)}
+        >
+          {getUniqueSenders().map((sender) => (
+            <option key={sender} value={sender}>
+              {sender}
+            </option>
           ))}
         </select>
+        <button
+          className="border p-1 rounded text-sm w-1/2"
+          onClick={() => setShowDateFilter(!showDateFilter)}
+        >
         <button
           className="border p-1 rounded text-sm w-1/2"
           onClick={() => setShowDateFilter(!showDateFilter)}
@@ -455,6 +491,7 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => { // Thêm prop o
           Ngày gửi
         </button>
       </div>
+
 
       {showDateFilter && (
         <DateFilter
@@ -466,9 +503,21 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => { // Thêm prop o
           endDate={endDate}
           setEndDate={setEndDate}
         />
+        <DateFilter
+          showDateSuggestions={showDateSuggestions}
+          setShowDateSuggestions={setShowDateSuggestions}
+          handleDateFilter={handleDateFilter}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+        />
       )}
 
+
       <div className="mt-4">
+        {[...new Set(filteredData.map(({ date }) => date))].map((date) => (
+          <DateSection key={date} date={date} data={filteredData} activeTab={activeTab} />
         {[...new Set(filteredData.map(({ date }) => date))].map((date) => (
           <DateSection key={date} date={date} data={filteredData} activeTab={activeTab} />
         ))}

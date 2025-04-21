@@ -1,6 +1,8 @@
+<<<<<<< HEAD
 import { ApiManager } from "./ApiManager";
 
 export const Api_chatInfo = {
+<<<<<<< HEAD
   // Quản lý hội thoại (chatService)
   getAllConversations: () => ApiManager.get("chatService", `/conversations`),
   getConversationById: (userId) =>
@@ -12,6 +14,13 @@ export const Api_chatInfo = {
     ApiManager.get("chatService", `/conversations/${conversationId}`),
   updateChatName: (conversationId, name) =>
     ApiManager.put("chatService", `/conversations/${conversationId}`, { name }),
+=======
+    // Quản lý hội thoại (chatService)
+    getAllConversations: () => ApiManager.get('chatService', `/conversations`),
+    getConversationById: (userId) => ApiManager.get('chatService', `/conversations/getAllConversationById/${userId}`),
+    getChatInfo: (conversationId) => ApiManager.get('chatService', `/conversations/${conversationId}`),
+    updateChatName: (conversationId, name) => ApiManager.put('chatService', `/conversations/${conversationId}`, { name }),
+>>>>>>> feature/chatInfo_test
 
   // Quản lý thành viên trong hội thoại (chatService)
   getParticipants: (conversationId) =>
@@ -91,6 +100,7 @@ export const Api_chatInfo = {
       groupData
     ),
 
+<<<<<<< HEAD
   // Xóa tin nhắn
   deleteMessage: (messageIds) =>
     ApiManager.delete("chatService", `/messages/delete`, messageIds), // Gửi messageIds trực tiếp
@@ -120,3 +130,71 @@ export const Api_chatInfo = {
     });
   },
 };
+=======
+    // Xóa tin nhắn
+    deleteMessage: (messageIds) => ApiManager.delete('chatService', `/messages/delete`, messageIds), // Gửi messageIds trực tiếp
+
+    //thu
+    revokeMessage: (messageIds) => ApiManager.delete('chatService', `/messages/revoke`, messageIds), // Gửi messageIds trực tiếp
+    // Chuyển tiếp tin nhắn
+    forwardMessage: (data) => {
+        const { messageId, targetConversationIds, userId, content } = data;
+
+        // if (!userId) {
+        //     throw new Error("userId is required for forwarding messages");
+        // }
+        // if (!messageId || !messageId.length) {
+        //     throw new Error("messageId are required");
+        // }
+        // if (!targetConversationIds || !targetConversationIds.length) {
+        //     throw new Error("targetConversationIDs are required");
+        // }
+
+        return ApiManager.post('chatService', `/chats/forwardMessage`, {
+            messageId,
+            targetConversationIds,
+            userId,
+            content,
+        });
+    },
+};
+>>>>>>> feature/chatInfo_test
+=======
+    import { ApiManager } from './ApiManager';
+
+    export const Api_chatInfo = {
+        // Quản lý hội thoại
+        getAllConversations: () => ApiManager.get(`/chats`), 
+        getChatInfo: (conversationId) => ApiManager.get(`/conversations/${conversationId}`),
+        updateChatName: (conversationId, name) => ApiManager.put(`/conversations/${conversationId}`, { name }),
+
+        // Quản lý thành viên trong hội thoại
+        getParticipants: (conversationId) => ApiManager.get(`/conversations/${conversationId}/participants`),
+        addParticipant: (conversationId, participantData) => ApiManager.post(`/conversations/${conversationId}/participants`, participantData),
+        getAvailableMembers: (conversationId) => ApiManager.get(`/conversations/${conversationId}/available`),
+        removeParticipant: (conversationId, participantData) => ApiManager.delete(`/conversations/${conversationId}/participants`, participantData), // Gửi participantData trực tiếp
+   
+        // Media, File, Links, Pin, Reminder
+        getChatMedia: (conversationId) => ApiManager.get(`/messages/${conversationId}/media`),
+        getChatFiles: (conversationId) => ApiManager.get(`/messages/${conversationId}/files`),
+        getChatLinks: (conversationId) => ApiManager.get(`/messages/${conversationId}/links`),
+        getPinnedMessages: (conversationId) => ApiManager.get(`/messages/${conversationId}/pinned-messages`),
+        // getReminders: (conversationId) => ApiManager.get(`/messages/${conversationId}/reminders`),
+
+        // Ghim/Bỏ ghim trò chuyện
+        pinChat: (conversationId, pinData) => ApiManager.put(`/conversations/${conversationId}/pin`, pinData),
+        // Thông báo
+        updateNotification: (conversationId, muteData) => ApiManager.put(`/conversations/${conversationId}/mute`, muteData),
+
+        // Ẩn trò chuyện
+        hideChat: (conversationId, hideData) => ApiManager.put(`/conversations/${conversationId}/hide`, hideData),
+
+        // Xóa lịch sử cuộc trò chuyện (chỉ mình tôi)
+        deleteHistory: (conversationId, participantData) => ApiManager.delete(`/conversations/${conversationId}`, participantData ),
+
+        // Danh sách nhóm chung
+        getCommonGroups: (conversationId) => ApiManager.get(`/conversations/${conversationId}/common`),
+        
+        
+    };
+>>>>>>> feature/chatInfo_mobile
