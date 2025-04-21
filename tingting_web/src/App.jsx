@@ -29,12 +29,12 @@ import { CloudSocketProvider } from "./contexts/CloudSocketContext";
 function App() {
   // const userId = "6601a1b2c3d4e5f678901234";
   // console.log("Using userId:", userId);
-  const userId = localStorage.getItem("userId");
-  console.log("Using userIdddddđ:", userId);
+  // const userId = localStorage.getItem("userId");
+  // console.log("Using userIdddddđ:", userId);
 
   return (
     <Provider store={store}>
-      <SocketProvider userId={userId}>
+      <SocketProvider>
         <CloudSocketProvider>
           <Router>
             <Routes>
