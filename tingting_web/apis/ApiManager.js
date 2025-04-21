@@ -1,4 +1,5 @@
 import axios from "axios";
+import axios from "axios";
 
 //Auth: 3000
 //User: 3001
@@ -54,6 +55,12 @@ const request = async (service, method, url, data = null, params = null) => {
       params,
     });
 
+        console.log('Response:', response.data);
+        return response.data;
+    } catch (error) {
+        const errorData = handleApiError(error);
+        throw errorData;
+    }
     console.log("Response:", response.data);
     return response.data;
   } catch (error) {
@@ -62,8 +69,11 @@ const request = async (service, method, url, data = null, params = null) => {
   }
 };
 
-// Định nghĩa các phương thức API
 export const ApiManager = {
+    get: (url, params = {}) => request("get", url, null, params),
+    post: (url, data) => request("post", url, data),
+    put: (url, data) => request("put", url, data),
+    delete: (url, data = null) => request("delete", url, data),
   get: async (service, url, { params } = {}) =>
     request(service, "get", url, null, params),
   post: async (service, url, data) => request(service, "post", url, data),
