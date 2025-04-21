@@ -9,8 +9,7 @@ const axiosInstance = axios.create({
         "Content-Type": "application/json",
     },
     responseType: "json",
-});cmd
-
+});
 
 const handleApiError = (error) => {
     if (error.response) {

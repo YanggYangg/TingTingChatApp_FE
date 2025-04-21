@@ -40,8 +40,8 @@ interface ChatInfoProps {
 const Icon = FontAwesome;
 
 const ChatInfo: React.FC<ChatInfoProps> = ({
-  userId = "6601a1b2c3d4e5f678901239", // Giá trị mặc định
-  conversationId = "67e2d6bef1ea6ac96f10bf92", // Giá trị mặc định
+  userId = "67fe035d421896d7bc8c2e12", // Giá trị mặc định
+  conversationId = "67fe043089c79b5ff609cb95", // Giá trị mặc định
 }) => {
   const [chatInfo, setChatInfo] = useState<ChatInfoData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
