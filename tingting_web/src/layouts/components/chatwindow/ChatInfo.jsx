@@ -259,6 +259,7 @@ const ChatInfo = ({ userId, conversationId }) => {
                 conversationId={conversationId}
                 onClose={() => setIsAddModalOpen(false)}
                 onMemberAdded={handleMemberAdded}
+                userId={userId}
             />
             <CreateGroupModal
                 isOpen={isCreateGroupModalOpen}
