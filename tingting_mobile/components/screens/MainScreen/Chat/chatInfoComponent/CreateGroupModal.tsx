@@ -42,6 +42,7 @@ const CreateGroupModal: React.FC<Props> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null); // State mới cho thông báo thành công
 
   useEffect(() => {
     if (!isOpen || !userId) return;
@@ -51,7 +52,10 @@ const CreateGroupModal: React.FC<Props> = ({
       setError('');
       try {
         const response = await Api_FriendRequest.getFriendsList(userId);
-        const friendsList = response.data || [];
+        console.log('API response.data tạo nhóm:', response);
+
+        const friendsList = Array.isArray(response.data.data) ? response.data.data : [];
+
         const formattedContacts = friendsList
           .filter(
             (friend) =>
@@ -112,19 +116,24 @@ const CreateGroupModal: React.FC<Props> = ({
         name: actualGroupName,
         participants,
         isGroup: true,
-        imageGroup: 'https://via.placeholder.com/150/007bff/FFFFFF?Text=Group',
+        imageGroup: 'https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A1o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=',
         mute: null,
         isHidden: false,
         isPinned: false,
         pin: null,
       };
 
+      console.log('Group data:', groupData);
       const response = await Api_chatInfo.createConversation(groupData);
       if (response && response.success) {
         setGroupName('');
         setSelectedContacts([]);
-        onGroupCreated(response.data);
-        onClose();
+        onGroupCreated(response.data.data);
+        setSuccessMessage('Tạo nhóm thành công!'); // Hiển thị thông báo thành công
+        setTimeout(() => {
+          setSuccessMessage(null);
+          onClose();
+        }, 2000); // Tự động ẩn sau 2 giây
       } else {
         throw new Error(response?.message || 'Không thể tạo nhóm.');
       }
@@ -223,6 +232,7 @@ const CreateGroupModal: React.FC<Props> = ({
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null} {/* Hiển thị thông báo thành công */}
 
         <View style={styles.footer}>
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
@@ -382,6 +392,11 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 20,
+  },
+  success: { // Style cho thông báo thành công
+    color: 'green',
+    textAlign: 'center',
+    marginVertical: 10,
   },
 });
 

@@ -39,4 +39,9 @@
         
         // Xóa tin nhắn
         deleteMessage: (messageIds) => ApiManager.delete(`/messages/delete`, messageIds), // Gửi messageIds trực tiếp
+        createConversation: (groupData) =>
+            ApiManager.post(
+              `/conversations/createConversation2`,
+              groupData
+            ),
     };
