@@ -34,6 +34,7 @@ import MessageSupportScreen from "@/components/screens/MainScreen/Chat/MessageSu
 
 import VerificationCode from "@/components/screens/AuthScreen/VerificationCode";
 import VerificationCodeRegister from "@/components/screens/AuthScreen/VerificationCodeRegister";
+import ChatInfo from "@/components/screens/MainScreen/Chat/ChatInfo";
 
 // Socket cloud
 import { CloudSocketProvider } from "../../context/CloudSocketContext";
@@ -238,12 +239,17 @@ export default function App() {
       <SocketProvider>
         <CloudSocketProvider>
           <Stack.Navigator
-            initialRouteName="Welcome"
+            initialRouteName="ChatInfo"
             screenOptions={{
               headerShown: false,
               animation: "none", // Disable animations
             }}
           >
+              <Stack.Screen
+              name="ChatInfo"
+              component={ChatInfo}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="Welcome"
               component={Welcome}
