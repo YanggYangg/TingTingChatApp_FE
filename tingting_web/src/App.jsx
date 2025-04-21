@@ -26,7 +26,6 @@ import store from "./redux/store";
 import { SocketProvider } from "./contexts/SocketContext";
 import { CloudSocketProvider } from "./contexts/CloudSocketContext";
 
-
 function App() {
   // const userId = "6601a1b2c3d4e5f678901234";
   // console.log("Using userId:", userId);
