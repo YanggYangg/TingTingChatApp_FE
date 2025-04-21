@@ -1,20 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, Alert, Picker } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Switch, TextInput, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
+import { Api_Profile } from '../../../../../apis/api_profile';
+import Modal from 'react-native-modal';
 
 interface Participant {
   userId: string;
   name: string;
   avatar: string;
   isHidden: boolean;
-  role?: string; // 'admin' or 'member' for group chats
+  role: 'member' | 'admin';
 }
 
 interface ChatInfoData {
   _id: string;
   isGroup: boolean;
   participants: Participant[];
+}
+
+interface ProfileDetails {
+  [userId: string]: {
+    name: string;
+    avatar: string | null;
+  };
 }
 
 interface Props {
@@ -28,45 +37,88 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
   const [pin, setPin] = useState('');
   const [showPinInput, setShowPinInput] = useState(false);
   const [isGroup, setIsGroup] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false); // Track if user is admin
-  const [participants, setParticipants] = useState<Participant[]>([]); // Store participants
-  const [selectedNewAdmin, setSelectedNewAdmin] = useState<string>(''); // Selected new admin
-  const [showTransferAdmin, setShowTransferAdmin] = useState(false); // Toggle transfer UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showTransferAdminModal, setShowTransferAdminModal] = useState(false);
+  const [newAdminUserId, setNewAdminUserId] = useState('');
+  const [groupMembers, setGroupMembers] = useState<Participant[]>([]);
+  const [profileDetails, setProfileDetails] = useState<ProfileDetails>({});
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
-  // Fetch chat information on component mount
-  useEffect(() => {
-    const fetchChatInfo = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await Api_chatInfo.getChatInfo(conversationId);
-        if (!response || !response._id) {
-          throw new Error('Không tìm thấy thông tin cuộc trò chuyện');
-        }
-        setIsGroup(response.isGroup);
-        setParticipants(response.participants);
-        const participant = response.participants.find((p: Participant) => p.userId === userId);
-        setIsHidden(participant?.isHidden || false);
-        setIsAdmin(participant?.role === 'admin'); // Check if user is admin
-      } catch (err: any) {
-        console.error('Error fetching chat information:', err);
-        setError('Không thể tải cài đặt bảo mật. Vui lòng thử lại.');
-        Alert.alert('Lỗi', 'Không thể tải cài đặt bảo mật. Vui lòng thử lại.');
-      } finally {
-        setLoading(false);
+  // Fetch chat information
+  const fetchChatInfo = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await Api_chatInfo.getChatInfo(conversationId);
+      if (!response || !response._id) {
+        throw new Error('Không tìm thấy thông tin cuộc trò chuyện');
       }
-    };
+      setIsGroup(response.isGroup);
+      setGroupMembers(response.participants.filter((p) => p.userId !== userId));
+      const participant = response.participants.find((p: Participant) => p.userId === userId);
+      setIsHidden(participant?.isHidden || false);
+      setIsAdmin(participant?.role === 'admin');
+      setChatInfo(response);
+    } catch (err: any) {
+      console.error('Error fetching chat information:', err);
+      setError('Không thể tải cài đặt bảo mật. Vui lòng thử lại.');
+      Alert.alert('Lỗi', 'Không thể tải cài đặt bảo mật. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  }, [conversationId, userId, setChatInfo]);
 
+  // Fetch profile details for group members
+  const fetchProfileDetails = useCallback(async (members: Participant[]) => {
+    setLoadingDetails(true);
+    setErrorDetails(null);
+    const details: ProfileDetails = {};
+    const fetchPromises = members.map(async (member) => {
+      try {
+        const response = await Api_Profile.getProfile(member.userId);
+        if (response?.data?.user) {
+          details[member.userId] = {
+            name: `${response.data.user.firstname} ${response.data.user.surname}`.trim(),
+            avatar: response.data.user.avatar,
+          };
+        } else {
+          details[member.userId] = { name: 'Không tìm thấy', avatar: null };
+        }
+      } catch (error) {
+        console.error(`Lỗi khi lấy thông tin người dùng ${member.userId}:`, error);
+        details[member.userId] = { name: 'Lỗi tải', avatar: null };
+      }
+    });
+
+    try {
+      await Promise.all(fetchPromises);
+      setProfileDetails(details);
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách thông tin người dùng:', error);
+      setErrorDetails('Không thể tải thông tin thành viên.');
+    } finally {
+      setLoadingDetails(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (conversationId && userId) {
       fetchChatInfo();
     }
-  }, [conversationId, userId]);
+  }, [conversationId, userId, fetchChatInfo]);
 
-  // Function to handle hiding/unhiding chat
+  // Fetch profile details when groupMembers change
+  useEffect(() => {
+    if (groupMembers.length > 0) {
+      fetchProfileDetails(groupMembers);
+    }
+  }, [groupMembers, fetchProfileDetails]);
+
+  // Handle hiding/unhiding chat
   const handleHideChat = useCallback(async (hide: boolean, currentPin: string | null) => {
-    console.log(`Toggling hide chat for user ${userId} in conversation ${conversationId} to ${hide} with PIN: ${currentPin}`);
     try {
       await Api_chatInfo.hideChat(conversationId, { userId, isHidden: hide, pin: currentPin });
       setIsHidden(hide);
@@ -80,13 +132,16 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
   }, [conversationId, userId]);
 
   // Handle toggle switch change
-  const handleToggle = useCallback((checked: boolean) => {
-    if (checked && !isHidden) {
-      setShowPinInput(true);
-    } else {
-      handleHideChat(checked, null);
-    }
-  }, [isHidden, handleHideChat]);
+  const handleToggle = useCallback(
+    (checked: boolean) => {
+      if (checked && !isHidden) {
+        setShowPinInput(true);
+      } else {
+        handleHideChat(checked, null);
+      }
+    },
+    [isHidden, handleHideChat]
+  );
 
   // Handle PIN submission
   const handleSubmitPin = useCallback(() => {
@@ -152,43 +207,39 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
     );
   }, [isGroup, conversationId, userId, setChatInfo]);
 
-  // Handle transfer group admin
+  // Handle opening the transfer admin modal
+  const handleOpenTransferAdminModal = useCallback(() => {
+    setShowTransferAdminModal(true);
+  }, []);
+
+  // Handle closing the transfer admin modal
+  const handleCloseTransferAdminModal = useCallback(() => {
+    setShowTransferAdminModal(false);
+    setNewAdminUserId('');
+  }, []);
+
+  // Handle transferring group admin
   const handleTransferAdmin = useCallback(async () => {
-    if (!selectedNewAdmin) {
+    if (!newAdminUserId) {
       Alert.alert('Lỗi', 'Vui lòng chọn một thành viên để chuyển quyền trưởng nhóm.');
       return;
     }
-
-    Alert.alert(
-      'Xác nhận',
-      'Bạn có chắc chắn muốn chuyển quyền trưởng nhóm cho thành viên này?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Chuyển',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const updatedConversation = await Api_chatInfo.transferGroupAdmin(conversationId, {
-                requesterUserId: userId,
-                newAdminUserId: selectedNewAdmin,
-              });
-              setChatInfo(updatedConversation); // Update chat info with new roles
-              setIsAdmin(false); // Current user is no longer admin
-              setParticipants(updatedConversation.participants); // Update participants list
-              setShowTransferAdmin(false); // Hide transfer UI
-              setSelectedNewAdmin(''); // Reset selection
-              Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
-            } catch (err: any) {
-              console.error('Error transferring group admin:', err);
-              Alert.alert('Lỗi', 'Chuyển quyền trưởng nhóm không thành công. Vui lòng thử lại.');
-            }
-          },
-        },
-      ],
-      { cancelable: false }
-    );
-  }, [conversationId, userId, selectedNewAdmin, setChatInfo]);
+    try {
+      const updatedConversation = await Api_chatInfo.transferGroupAdmin(conversationId, {
+        requesterUserId: userId,
+        newAdminUserId,
+      });
+      setChatInfo(updatedConversation);
+      setIsAdmin(false);
+      setGroupMembers(updatedConversation.participants.filter((p) => p.userId !== userId));
+      handleCloseTransferAdminModal();
+      Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
+    } catch (err: any) {
+      console.error('Lỗi khi chuyển quyền trưởng nhóm:', err);
+      Alert.alert('Lỗi', 'Chuyển quyền trưởng nhóm không thành công. Vui lòng thử lại.');
+      fetchChatInfo();
+    }
+  }, [conversationId, userId, newAdminUserId, setChatInfo, handleCloseTransferAdminModal, fetchChatInfo]);
 
   if (loading) {
     return (
@@ -204,7 +255,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       <View style={styles.container}>
         <Text style={styles.title}>Thiết lập bảo mật</Text>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => window.location.reload()}>
+        <TouchableOpacity onPress={fetchChatInfo}>
           <Text style={styles.retryText}>Thử lại</Text>
         </TouchableOpacity>
       </View>
@@ -257,41 +308,72 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       )}
 
       {isGroup && isAdmin && (
-        <View>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setShowTransferAdmin(!showTransferAdmin)}
-          >
-            <Ionicons name="person-circle-outline" size={16} color="#ff0000" style={styles.actionIcon} />
-            <Text style={styles.actionText}>Chuyển quyền trưởng nhóm</Text>
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton} onPress={handleOpenTransferAdminModal}>
+          <Ionicons name="swap-horizontal-outline" size={16} color="#007bff" style={styles.actionIcon} />
+          <Text style={[styles.actionText, { color: '#007bff' }]}>Chuyển quyền trưởng nhóm</Text>
+        </TouchableOpacity>
+      )}
 
-          {showTransferAdmin && (
-            <View style={styles.transferContainer}>
-              <Text style={styles.pinLabel}>Chọn thành viên mới</Text>
-              <Picker
-                selectedValue={selectedNewAdmin}
-                onValueChange={(itemValue) => setSelectedNewAdmin(itemValue)}
-                style={styles.picker}
-              >
-                <Picker.Item label="Chọn thành viên" value="" />
-                {participants
-                  .filter((p) => p.userId !== userId && p.role !== 'admin') // Exclude current user and current admin
-                  .map((participant) => (
-                    <Picker.Item
-                      key={participant.userId}
-                      label={participant.name}
-                      value={participant.userId}
-                    />
+      {/* Modal for transferring admin */}
+      <Modal visible={showTransferAdminModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Chuyển quyền trưởng nhóm</Text>
+            {loadingDetails ? (
+              <Text style={styles.loadingText}>Đang tải thông tin thành viên...</Text>
+            ) : errorDetails ? (
+              <Text style={styles.errorText}>{errorDetails}</Text>
+            ) : groupMembers.filter((member) => member.role === 'member').length > 0 ? (
+              <View>
+                <Text style={styles.modalLabel}>Chọn thành viên mới:</Text>
+                {groupMembers
+                  .filter((member) => member.role === 'member')
+                  .map((member) => (
+                    <TouchableOpacity
+                      key={member.userId}
+                      style={[
+                        styles.modalOption,
+                        newAdminUserId === member.userId && styles.modalOptionSelected,
+                      ]}
+                      onPress={() => setNewAdminUserId(member.userId)}
+                    >
+                      <View style={styles.memberInfo}>
+                        {profileDetails[member.userId]?.avatar ? (
+                          <Image
+                            source={{ uri: profileDetails[member.userId].avatar }}
+                            style={styles.memberAvatar}
+                          />
+                        ) : (
+                          <Ionicons name="person-circle-outline" size={40} color="#ccc" style={styles.memberAvatar} />
+                        )}
+                        <Text style={styles.memberName}>
+                          {profileDetails[member.userId]?.name || 'Không xác định'}
+                        </Text>
+                      </View>
+                      {newAdminUserId === member.userId && (
+                        <Ionicons name="checkmark" size={18} color="#1e90ff" />
+                      )}
+                    </TouchableOpacity>
                   ))}
-              </Picker>
-              <TouchableOpacity style={styles.submitButton} onPress={handleTransferAdmin}>
-                <Text style={styles.submitButtonText}>Xác nhận</Text>
+              </View>
+            ) : (
+              <Text style={styles.noMembersText}>Không có thành viên nào để chuyển quyền.</Text>
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={handleCloseTransferAdminModal}>
+                <Text style={styles.modalCancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalActionButton, !newAdminUserId && styles.modalActionButtonDisabled]}
+                onPress={handleTransferAdmin}
+                disabled={!newAdminUserId}
+              >
+                <Text style={styles.modalActionButtonText}>Chuyển quyền</Text>
               </TouchableOpacity>
             </View>
-          )}
+          </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 };
@@ -351,8 +433,8 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   actionText: {
-    color: '#ff0000',
     fontSize: 14,
+    color: '#ff0000',
   },
   actionIcon: {
     marginRight: 8,
@@ -373,16 +455,85 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
   },
-  transferContainer: {
-    backgroundColor: '#f0f0f0',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 5,
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  picker: {
-    height: 50,
-    width: '100%',
-    marginBottom: 10,
+  modalContainer: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#e0f7fa',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 20,
+  },
+  modalCancelButton: {
+    padding: 10,
+    marginRight: 15,
+  },
+  modalCancelButtonText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  modalActionButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+  },
+  modalActionButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalActionButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  noMembersText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  memberInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  memberName: {
+    fontSize: 16,
+    color: '#333',
   },
 });
 
