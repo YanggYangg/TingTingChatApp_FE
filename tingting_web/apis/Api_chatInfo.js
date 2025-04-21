@@ -1,6 +1,7 @@
 import { ApiManager } from "./ApiManager";
 
 export const Api_chatInfo = {
+<<<<<<< HEAD
   // Quản lý hội thoại (chatService)
   getAllConversations: () => ApiManager.get("chatService", `/conversations`),
   getConversationById: (userId) =>
@@ -12,6 +13,13 @@ export const Api_chatInfo = {
     ApiManager.get("chatService", `/conversations/${conversationId}`),
   updateChatName: (conversationId, name) =>
     ApiManager.put("chatService", `/conversations/${conversationId}`, { name }),
+=======
+    // Quản lý hội thoại (chatService)
+    getAllConversations: () => ApiManager.get('chatService', `/conversations`),
+    getConversationById: (userId) => ApiManager.get('chatService', `/conversations/getAllConversationById/${userId}`),
+    getChatInfo: (conversationId) => ApiManager.get('chatService', `/conversations/${conversationId}`),
+    updateChatName: (conversationId, name) => ApiManager.put('chatService', `/conversations/${conversationId}`, { name }),
+>>>>>>> feature/chatInfo_test
 
   // Quản lý thành viên trong hội thoại (chatService)
   getParticipants: (conversationId) =>
@@ -91,6 +99,7 @@ export const Api_chatInfo = {
       groupData
     ),
 
+<<<<<<< HEAD
   // Xóa tin nhắn
   deleteMessage: (messageIds) =>
     ApiManager.delete("chatService", `/messages/delete`, messageIds), // Gửi messageIds trực tiếp
@@ -120,3 +129,32 @@ export const Api_chatInfo = {
     });
   },
 };
+=======
+    // Xóa tin nhắn
+    deleteMessage: (messageIds) => ApiManager.delete('chatService', `/messages/delete`, messageIds), // Gửi messageIds trực tiếp
+
+    //thu
+    revokeMessage: (messageIds) => ApiManager.delete('chatService', `/messages/revoke`, messageIds), // Gửi messageIds trực tiếp
+    // Chuyển tiếp tin nhắn
+    forwardMessage: (data) => {
+        const { messageId, targetConversationIds, userId, content } = data;
+
+        // if (!userId) {
+        //     throw new Error("userId is required for forwarding messages");
+        // }
+        // if (!messageId || !messageId.length) {
+        //     throw new Error("messageId are required");
+        // }
+        // if (!targetConversationIds || !targetConversationIds.length) {
+        //     throw new Error("targetConversationIDs are required");
+        // }
+
+        return ApiManager.post('chatService', `/chats/forwardMessage`, {
+            messageId,
+            targetConversationIds,
+            userId,
+            content,
+        });
+    },
+};
+>>>>>>> feature/chatInfo_test

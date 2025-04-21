@@ -33,6 +33,6 @@ export const Api_FriendRequest = {
         return ApiManager.post('userService', 'api/v1/friendRequest/checkFriendStatus', data);
     },
     getFriendsList: async (userId) => {
-        return ApiManager.get('userService', `api/v1/friendRequest/getFriendsLists/${userId}`);
+        return ApiManager.get('userService', `/api/v1/friendRequest/getFriendsLists/${userId}`);
     }
 };
