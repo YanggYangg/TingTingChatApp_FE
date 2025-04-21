@@ -10,9 +10,11 @@ import SecuritySettings from './chatInfoComponent/SecuritySettings';
 import MuteNotificationModal from './chatInfoComponent/MuteNotificationModal';
 import AddMemberModal from './chatInfoComponent/AddMemberModal';
 import EditNameModal from './chatInfoComponent/EditNameModal';
+import CreateGroupModal from './chatInfoComponent/CreateGroupModal';
 import GroupActionButton from './chatInfoComponent/GroupActionButton';
 import { Api_chatInfo } from '../../../../apis/Api_chatInfo';
-import { useNavigation } from '@react-navigation/native'; // Import useNavigation
+import { useNavigation } from '@react-navigation/native';
+import Clipboard from '@react-native-clipboard/clipboard'; // Added for clipboard functionality
 
 interface Participant {
   userId: string;
@@ -33,28 +35,26 @@ interface ChatInfoData {
 }
 
 interface ChatInfoProps {
-  userId?: string; // Optional để có thể gán giá trị mặc định
-  conversationId?: string; // Optional để có thể gán giá trị mặc định
+  userId?: string;
+  conversationId?: string;
 }
 
 const Icon = FontAwesome;
 
 const ChatInfo: React.FC<ChatInfoProps> = ({
-  userId = "67fe035d421896d7bc8c2e12", // Giá trị mặc định
-  conversationId = "67fe043089c79b5ff609cb95", // Giá trị mặc định
+  userId = "67fe031e421896d7bc8c2e10",
+  conversationId = "68063b6aab46ad188c22c085",
 }) => {
   const [chatInfo, setChatInfo] = useState<ChatInfoData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
 
-  // const conversationId = "67e2d6bef1ea6ac96f10bf92";
-  // const userId = "6601a1b2c3d4e5f678901239";
-
-  const navigation = useNavigation(); // Initialize navigation object
+  const navigation = useNavigation();
 
   // Lấy thông tin chat khi component mount
   useEffect(() => {
@@ -65,14 +65,12 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         const response = await Api_chatInfo.getChatInfo(conversationId);
         console.log("Thông tin chat nhận được từ API:", response);
 
-        // Kiểm tra dữ liệu trả về từ API
         if (!response || !response._id) {
           throw new Error('Dữ liệu trả về không hợp lệ.');
         }
 
         setChatInfo(response);
 
-        // Kiểm tra trạng thái mute của người dùng hiện tại
         const participant = response.participants.find((p: Participant) => p.userId === userId);
         if (participant) {
           setIsMuted(!!participant.mute);
@@ -105,6 +103,13 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
       console.error("Lỗi khi cập nhật chatInfo sau khi thêm thành viên:", error);
       Alert.alert('Lỗi', 'Không thể cập nhật danh sách thành viên. Vui lòng thử lại.');
     }
+  };
+
+  // Callback khi tạo nhóm thành công
+  const handleCreateGroupSuccess = (newGroup: any) => {
+    Alert.alert('Thành công', 'Tạo nhóm thành công!');
+    setIsCreateGroupModalOpen(false);
+    navigation.navigate('ChatScreen', { conversationId: newGroup._id });
   };
 
   // Xử lý bật/tắt thông báo
@@ -147,16 +152,25 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
   // Sao chép link nhóm
   const copyToClipboard = () => {
     if (chatInfo?.linkGroup) {
-      navigator.clipboard.writeText(chatInfo.linkGroup);
+      Clipboard.setString(chatInfo.linkGroup);
       Alert.alert('Thông báo', 'Đã sao chép link nhóm!');
     } else {
       Alert.alert('Lỗi', 'Không có link nhóm để sao chép.');
     }
   };
 
-  // Mở modal thêm thành viên
+  // Mở modal thêm thành viên hoặc tạo nhóm
   const handleAddMember = () => {
-    setIsAddModalOpen(true);
+    if (!chatInfo) {
+      Alert.alert('Lỗi', 'Thông tin cuộc trò chuyện chưa được tải. Vui lòng thử lại.');
+      return;
+    }
+    console.log('Opening modal with:', { userId, conversationId, isGroup: chatInfo.isGroup });
+    if (chatInfo.isGroup) {
+      setIsAddModalOpen(true);
+    } else {
+      setIsCreateGroupModalOpen(true);
+    }
   };
 
   // Xử lý chỉnh sửa tên nhóm
@@ -197,12 +211,23 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
     return (
       <View style={styles.centered}>
         <Text style={styles.textRed}>{error || 'Không thể tải thông tin chat.'}</Text>
-        <TouchableOpacity onPress={() => useEffect(() => { }, [])}>
+        <TouchableOpacity onPress={() => {
+          setLoading(true);
+          setError(null);
+          useEffect(() => {}, []); // Trigger re-fetch
+        }}>
           <Text style={styles.retryText}>Thử lại</Text>
         </TouchableOpacity>
       </View>
     );
   }
+
+  // Lấy danh sách participants để truyền vào AddMemberModal và CreateGroupModal
+  const currentConversationParticipants = chatInfo?.participants
+    ? chatInfo.participants
+        .filter((p) => p.userId !== userId)
+        .map((p) => p.userId)
+    : [];
 
   return (
     <View style={styles.container}>
@@ -268,9 +293,9 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
           </View>
         )}
 
-        <GroupMediaGallery conversationId={conversationId}  userId = {userId}/>
-        <GroupFile conversationId={conversationId} userId = {userId} />
-        <GroupLinks conversationId={conversationId} userId = {userId} />
+        <GroupMediaGallery conversationId={conversationId} userId={userId} />
+        <GroupFile conversationId={conversationId} userId={userId} />
+        <GroupLinks conversationId={conversationId} userId={userId} />
         <SecuritySettings
           conversationId={conversationId}
           userId={userId}
@@ -290,12 +315,21 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         conversationId={conversationId}
         onClose={() => setIsAddModalOpen(false)}
         onMemberAdded={handleMemberAdded}
+        userId={userId}
+        currentMembers={currentConversationParticipants}
       />
       <EditNameModal
         isOpen={isEditNameModalOpen}
         onClose={handleCloseEditNameModal}
         onSave={handleSaveChatName}
         initialName={chatInfo.name}
+      />
+      <CreateGroupModal
+        isOpen={isCreateGroupModalOpen}
+        onClose={() => setIsCreateGroupModalOpen(false)}
+        userId={userId}
+        onGroupCreated={handleCreateGroupSuccess}
+        currentConversationParticipants={currentConversationParticipants}
       />
     </View>
   );

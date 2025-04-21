@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import Switch from "react-switch";
 import { FaTrash, FaDoorOpen } from "react-icons/fa";
 import axios from "axios";
@@ -19,7 +19,6 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo }) => {
                 setIsHidden(participant ? participant.isHidden : false);
             } catch (error) {
                 console.error("Lỗi khi lấy thông tin cuộc trò chuyện:", error);
-                alert("Lỗi khi tải thông tin bảo mật. Vui lòng thử lại.");
             }
         };
         fetchChatInfo();
@@ -46,27 +45,24 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo }) => {
     };
 
     const handleSubmitPin = () => {
-        if (pin.length === 4 && /^\d+$/.test(pin)) {
+        if (pin.length === 4) {
             handleHideChat(true, pin); // Gửi mã PIN lên backend
         } else {
-            alert("Mã PIN phải là 4 chữ số!");
+            alert("Mã PIN phải có 4 chữ số!");
         }
     };
-
-    const handleDeleteHistory = useCallback(async () => {
-        const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa lịch sử trò chuyện này khỏi tài khoản của bạn?");
-        if (confirmDelete) {
-            try {
-                await Api_chatInfo.deleteHistory(conversationId, { userId });
-                alert("Đã ẩn lịch sử trò chuyện khỏi tài khoản của bạn!");
-            } catch (error) {
-                console.error("Lỗi khi xóa lịch sử trò chuyện:", error);
-                alert("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
-            }
+console.log("conversationId xóa" , conversationId);
+    const handleDeleteHistory = async () => {
+        try {
+          await Api_chatInfo.deleteConversationHistory(conversationId);
+          alert("Đã xóa lịch sử trò chuyện!");
+        } catch (error) {
+          console.error("Lỗi khi xóa lịch sử trò chuyện:", error);
+          alert("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
         }
-    }, [conversationId, userId]);
+      };
 
-    const handleLeaveGroup = useCallback(async () => {
+    const handleLeaveGroup = async () => {
         if (!isGroup) return;
 
         if (!userId) {
@@ -85,10 +81,9 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo }) => {
                 }));
             } catch (error) {
                 console.error("Lỗi khi rời nhóm:", error);
-                alert("Lỗi khi rời nhóm. Vui lòng thử lại.");
             }
         }
-    }, [isGroup, conversationId, userId, setChatInfo]);
+    };
 
     return (
         <div className="mb-4">

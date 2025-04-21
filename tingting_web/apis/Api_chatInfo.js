@@ -119,4 +119,7 @@ export const Api_chatInfo = {
       content,
     });
   },
+
+  deleteConversationHistory: (conversationId) =>
+    ApiManager.delete("chatService", `/conversations/${conversationId}`),
 };
