@@ -22,19 +22,21 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
         const response = await Api_FriendRequest.getFriendsList(userId);
         const friendsData = response.data || [];
         const existingMemberIds = participants?.map((p) => p.userId) || [];
-        const availableFriends = friendsData.filter((friend) => !existingMemberIds.includes(friend._id));
+        const availableFriends = friendsData.filter(
+          (friend) => friend._id && !existingMemberIds.includes(friend._id)
+        );
 
         setFriendsList(
           availableFriends.map((friend) => ({
             id: friend._id,
-            firstName: friend.name,
+            firstName: friend.name || "Không tên",
             lastName: "",
             avatar: friend.avatar || "https://via.placeholder.com/30/007bff/FFFFFF?Text=User",
           }))
         );
       } catch (error) {
         console.error("Lỗi khi lấy danh sách bạn bè:", error);
-        setError("Không thể tải danh sách bạn bè.");
+        setError("Không thể tải danh sách bạn bè. Vui lòng kiểm tra kết nối.");
         setFriendsList([]);
       } finally {
         setLoadingFriends(false);
@@ -54,7 +56,7 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
 
   const addMember = async (memberId) => {
     if (!conversationId || !memberId) {
-      setError("Thiếu thông tin để thêm thành viên.");
+      setError("Thông tin không hợp lệ để thêm thành viên.");
       return;
     }
 
@@ -67,19 +69,44 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
       setError("");
       setSuccessMessage("");
 
-      const participantData = { userID: memberId, role: "member" };
+      console.log("Adding member with memberId:", memberId);
+      const participantData = { userId: memberId, role: "member" };
       const response = await Api_chatInfo.addParticipant(conversationId, participantData);
-      const newParticipant = response.data?.participant || { userId: memberId, role: "member" };
+
+      // Log full response for debugging
+      console.log("Full API response:", response);
+
+      // Check if response is valid
+      if (!response || !response.data) {
+        throw new Error("Phản hồi API không hợp lệ: Không có dữ liệu trả về.");
+      }
+
+      if (!response.data.success) {
+        throw new Error(
+          `Phản hồi API không thành công: ${JSON.stringify(response.data.message || response.data)}`
+        );
+      }
+
+      // Log participant data
+      console.log("Participant added successfully:", response.data.participant || response.data);
 
       setFriendsList((prev) => prev.filter((friend) => friend.id !== memberId));
       setSuccessMessage("Thêm thành viên thành công!");
 
       if (onMemberAdded) {
-        onMemberAdded(newParticipant);
+        onMemberAdded();
       }
     } catch (error) {
       console.error("Lỗi khi thêm thành viên:", error);
-      setError("Không thể thêm thành viên. Vui lòng thử lại!");
+      if (error.code === "ERR_NETWORK") {
+        setError("Không thể kết nối đến server. Vui lòng kiểm tra mạng hoặc thử lại sau.");
+      } else if (error.response?.status === 400) {
+        setError(error.response.data.message || "Dữ liệu không hợp lệ. Vui lòng thử lại.");
+      } else if (error.response?.status === 500) {
+        setError("Lỗi server. Vui lòng thử lại sau hoặc liên hệ quản trị viên.");
+      } else {
+        setError(error.message || "Không thể thêm thành viên. Vui lòng thử lại!");
+      }
     }
   };
 

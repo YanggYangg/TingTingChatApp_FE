@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from "react-icons/fa";
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
-import GroupMemberList from "../../../components/chatInforComponent/GroupMemberList";
 import GroupMediaGallery from "../../../components/chatInforComponent/GroupMediaGallery";
 import GroupFile from "../../../components/chatInforComponent/GroupFile";
 import GroupLinks from "../../../components/chatInforComponent/GroupLinks";
@@ -36,6 +35,7 @@ const ChatInfo = ({ userId, conversationId }) => {
         const validParticipants = response.participants?.filter(
           (p) => p.userId && typeof p.userId === "string"
         ) || [];
+        console.log("Initial participants:", validParticipants);
         setChatInfo({ ...response, participants: validParticipants });
 
         const participant = validParticipants.find((p) => p.userId === userId);
@@ -73,13 +73,18 @@ const ChatInfo = ({ userId, conversationId }) => {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleMemberAdded = (newParticipant) => {
-    if (newParticipant) {
-      setChatInfo((prev) => ({
-        ...prev,
-        participants: [...(prev.participants || []), newParticipant],
-      }));
+  const handleMemberAdded = async () => {
+    try {
+      const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId);
+      const validParticipants = updatedChatInfo.participants?.filter(
+        (p) => p.userId && typeof p.userId === "string"
+      ) || [];
+      console.log("Danh sách participants sau khi thêm:", validParticipants);
+      setChatInfo({ ...updatedChatInfo, participants: validParticipants });
       showNotification("Thêm thành viên thành công!");
+    } catch (error) {
+      console.error("Lỗi khi cập nhật danh sách thành viên:", error);
+      showNotification("Không thể cập nhật danh sách thành viên.", "error");
     }
   };
 
@@ -135,7 +140,7 @@ const ChatInfo = ({ userId, conversationId }) => {
     setIsAddModalOpen(false);
   };
 
-  const handleCreateGroupSuccess = (newGroup) => {
+  const handleCreateGroupSuccess = () => {
     showNotification("Tạo nhóm thành công!");
   };
 
@@ -175,8 +180,9 @@ const ChatInfo = ({ userId, conversationId }) => {
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
       {notification && (
         <div
-          className={`fixed top-4 right-4 p-3 rounded-md text-white ${notification.type === "success" ? "bg-green-500" : "bg-red-500"
-            }`}
+          className={`fixed top-4 right-4 p-3 rounded-md text-white ${
+            notification.type === "success" ? "bg-green-500" : "bg-red-500"
+          }`}
         >
           {notification.message}
         </div>
@@ -227,9 +233,9 @@ const ChatInfo = ({ userId, conversationId }) => {
         <div className="my-4">
           <button
             onClick={() => setIsMemberListModalOpen(true)}
-            className="text-blue-500 hover:underline"
+            className="bg-blue-500 text-white px-3 py-1 rounded-md"
           >
-            {chatInfo.participants?.length || 0} thành viên
+            Xem danh sách thành viên ({chatInfo.participants?.length || 0})
           </button>
         </div>
 
