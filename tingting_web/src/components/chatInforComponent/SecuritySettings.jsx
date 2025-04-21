@@ -70,15 +70,18 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo }) => {
             return;
         }
 
-        try {
-            await Api_chatInfo.removeParticipant(conversationId, { userId });
-            alert("Bạn đã rời khỏi nhóm!");
-            setChatInfo((prevChatInfo) => ({
-                ...prevChatInfo,
-                participants: prevChatInfo?.participants?.filter(p => p.userId !== userId) || [],
-            }));
-        } catch (error) {
-            console.error("Lỗi khi rời nhóm:", error);
+        const confirmLeave = window.confirm("Bạn có chắc chắn muốn rời khỏi nhóm này không?");
+        if (confirmLeave) {
+            try {
+                await Api_chatInfo.removeParticipant(conversationId, { userId });
+                alert("Bạn đã rời khỏi nhóm!");
+                setChatInfo((prevChatInfo) => ({
+                    ...prevChatInfo,
+                    participants: prevChatInfo?.participants?.filter(p => p.userId !== userId) || [],
+                }));
+            } catch (error) {
+                console.error("Lỗi khi rời nhóm:", error);
+            }
         }
     };
 

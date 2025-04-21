@@ -4,7 +4,7 @@ import axios from "axios";
 //User: 3001
 //Chat: 5000
 const SERVICES = {
-    authService: 'http://localhost:3002',
+    authService: 'http://localhost:3000',
     userService: 'http://localhost:3001',
     chatService: 'http://localhost:5000',
 };
