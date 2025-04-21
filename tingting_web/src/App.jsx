@@ -35,7 +35,6 @@ function App() {
 
   return (
     <Provider store={store}>
-<<<<<<< HEAD
       <SocketProvider userId={userId}>
         <CloudSocketProvider>
           <Router>
@@ -72,38 +71,6 @@ function App() {
           </Router>
         </CloudSocketProvider>
       </SocketProvider>
-=======
-    <Router>
-      <Routes>
-        <Route path="/" element={<DefaultLayout />}>
-          <Route index element={<h1>Chat window</h1>} />
-          <Route path="chat" element={<ChatPage />} />
-          
-          <Route path="/contacts/:tab" element={<ContactsPage />} />
-          <Route path="*" element={<Navigate to="/contacts/friends" />} />{" "}
-        </Route>
-        <Route path="/login" element={<Login />} />
-        <Route path="/homepage" element={<HomePage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/verify-otp" element={<VerifyOTP />} />
-        {forgotPasswordRoutes.map((route, index) => {
-          const Page = route.component;
-          const Layout = ForgotAccountLayout;
-          return (
-            <Route
-              key={index}
-              path={route.path}
-              element={
-                <Layout>
-                  <Page />
-                </Layout>
-              }
-            />
-          );
-        })}
-      </Routes>
-    </Router>
->>>>>>> feature/chatInfo_mobile
     </Provider>
   );
 }

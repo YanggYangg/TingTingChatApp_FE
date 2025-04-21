@@ -151,7 +151,7 @@ function ChatList({ activeTab }) {
 
       {/* Thêm cloud ở đây */}
 
-      <div className="flex-grow text-gray-700">
+      <div className="flex-grow text-gray-700 overflow-y-auto">
         {activeTab === "/chat" && (
           <MessageList
           messages={messages}

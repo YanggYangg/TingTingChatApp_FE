@@ -203,7 +203,6 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
       <button
         className="mt-2 flex items-center justify-center w-full bg-gray-200 text-gray-700 text-sm px-4 py-2 rounded hover:bg-gray-300"
         onClick={() => setIsOpen(true)}
-        onClick={() => setIsOpen(true)}
       >
         Xem tất cả
       </button>
