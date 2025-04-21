@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  Image,
-  StyleSheet,
-  ActivityIndicator,
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    FlatList,
+    Image,
+    StyleSheet,
+    ActivityIndicator,
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,245 +15,257 @@ import { Api_FriendRequest } from '../../../../../apis/api_friendRequest';
 import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 
 interface Contact {
-  id: string;
-  name: string;
-  avatar: string;
+    id: string;
+    name: string;
+    avatar: string;
 }
 
 interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  userId: string;
-  onGroupCreated: (group: any) => void;
-  currentConversationParticipants?: string[];
+    isOpen: boolean;
+    onClose: () => void;
+    userId: string;
+    onGroupCreated: (group: any) => void;
+    currentConversationParticipants?: string[];
 }
 
 const CreateGroupModal: React.FC<Props> = ({
-  isOpen,
-  onClose,
-  userId,
-  onGroupCreated,
-  currentConversationParticipants = [],
+    isOpen,
+    onClose,
+    userId,
+    onGroupCreated,
+    currentConversationParticipants = [],
 }) => {
-  const [groupName, setGroupName] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [createLoading, setCreateLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null); // State mới cho thông báo thành công
+    const [groupName, setGroupName] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
+    const [contacts, setContacts] = useState<Contact[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [createLoading, setCreateLoading] = useState(false);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isOpen || !userId) return;
+    useEffect(() => {
+        if (!isOpen || !userId) return;
 
-    const fetchFriendsList = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await Api_FriendRequest.getFriendsList(userId);
-        console.log('API response.data tạo nhóm:', response);
+        const fetchFriendsList = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const response = await Api_FriendRequest.getFriendsList(userId);
+                console.log('API response.data tạo nhóm:', response);
 
-        const friendsList = Array.isArray(response.data.data) ? response.data.data : [];
+                const friendsList = Array.isArray(response.data.data) ? response.data.data : [];
 
-        const formattedContacts = friendsList
-          .filter(
-            (friend) =>
-              !currentConversationParticipants.includes(
-                friend._id || friend.id || friend.userID
-              )
-          )
-          .map((friend) => ({
-            id: friend._id,
-            name: friend.name,
-            avatar: friend.avatar || 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User',
-          }));
-        setContacts(formattedContacts);
-      } catch (err) {
-        console.error('Lỗi khi lấy danh sách bạn bè:', err);
-        setError('Không thể tải danh sách bạn bè. Vui lòng thử lại.');
-      } finally {
-        setLoading(false);
-      }
+                const formattedContacts = friendsList.map((friend) => ({
+                    id: friend._id,
+                    name: friend.name,
+                    avatar: friend.avatar || 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User',
+                }));
+                setContacts(formattedContacts);
+            } catch (err) {
+                console.error('Lỗi khi lấy danh sách bạn bè:', err);
+                setError('Không thể tải danh sách bạn bè. Vui lòng thử lại.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchFriendsList();
+    }, [isOpen, userId]);
+
+    useEffect(() => {
+        if (isOpen && contacts.length > 0 && currentConversationParticipants.length > 0) {
+            const initialSelectedContacts: Contact[] = [];
+            currentConversationParticipants.forEach((participantId) => {
+                const friend = contacts.find(
+                    (contact) => contact.id === participantId && contact.id !== userId // Không chọn chính mình
+                );
+                if (friend && !selectedContacts.some((c) => c.id === friend.id)) {
+                    initialSelectedContacts.push(friend);
+                }
+            });
+            setSelectedContacts(initialSelectedContacts);
+        } else if (isOpen) {
+            setSelectedContacts([]); // Reset selected contacts khi modal mở mà không có participants
+        }
+    }, [isOpen, contacts, currentConversationParticipants, userId]);
+
+    const filteredContacts = contacts.filter((contact) =>
+        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !currentConversationParticipants.includes(contact.id) && // Loại bỏ người đã ở trong cuộc trò chuyện hiện tại khỏi danh sách có thể chọn
+        contact.id !== userId // Loại bỏ chính mình khỏi danh sách có thể chọn
+    );
+
+    const handleContactSelect = (contact: Contact) => {
+        if (selectedContacts.some((c) => c.id === contact.id)) {
+            setSelectedContacts((prev) => prev.filter((c) => c.id !== contact.id));
+        } else {
+            setSelectedContacts((prev) => [...prev, contact]);
+        }
     };
 
-    fetchFriendsList();
-  }, [isOpen, userId, currentConversationParticipants]);
+    const handleRemoveSelectedContact = (contact: Contact) => {
+        setSelectedContacts((prev) => prev.filter((c) => c.id !== contact.id));
+    };
 
-  const filteredContacts = contacts.filter((contact) =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    const handleCreateGroup = async () => {
+        if (selectedContacts.length < 2) {
+            setError('Vui lòng chọn ít nhất 2 thành viên để tạo nhóm.');
+            return;
+        }
 
-  const handleContactSelect = (contact: Contact) => {
-    if (selectedContacts.some((c) => c.id === contact.id)) {
-      setSelectedContacts((prev) => prev.filter((c) => c.id !== contact.id));
-    } else {
-      setSelectedContacts((prev) => [...prev, contact]);
-    }
-  };
+        const actualGroupName = groupName.trim() === '' ? 'Nhóm không tên' : groupName.trim();
 
-  const handleRemoveSelectedContact = (contact: Contact) => {
-    setSelectedContacts((prev) => prev.filter((c) => c.id !== contact.id));
-  };
+        setCreateLoading(true);
+        setError('');
+        try {
+            const participants = [
+                { userId: userId, role: 'admin' },
+                ...selectedContacts.map((contact) => ({ userId: contact.id, role: 'member' })),
+            ];
 
-  const handleCreateGroup = async () => {
-    if (selectedContacts.length < 2) {
-      setError('Vui lòng chọn ít nhất 2 thành viên để tạo nhóm.');
-      return;
-    }
+            const groupData = {
+                name: actualGroupName,
+                participants,
+                isGroup: true,
+                imageGroup: 'https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A1o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=',
+                mute: null,
+                isHidden: false,
+                isPinned: false,
+                pin: null,
+            };
 
-    const actualGroupName = groupName.trim() === '' ? 'Nhóm không tên' : groupName.trim();
+            console.log('Group data:', groupData);
+            const response = await Api_chatInfo.createConversation(groupData);
+            if (response && response.success) {
+                setGroupName('');
+                setSelectedContacts([]);
+                onGroupCreated(response.data.data);
+                setSuccessMessage('Tạo nhóm thành công!');
+                setTimeout(() => {
+                    setSuccessMessage(null);
+                    onClose();
+                }, 2000);
+            } else {
+                throw new Error(response?.message || 'Không thể tạo nhóm.');
+            }
+        } catch (err) {
+            console.error('Lỗi khi tạo nhóm:', err);
+            setError(err.message || 'Không thể tạo nhóm. Vui lòng thử lại.');
+        } finally {
+            setCreateLoading(false);
+        }
+    };
 
-    setCreateLoading(true);
-    setError('');
-    try {
-      const participants = [
-        { userId: userId, role: 'admin' },
-        ...selectedContacts.map((contact) => ({ userId: contact.id, role: 'member' })),
-      ];
+    const renderContact = ({ item }: { item: Contact }) => (
+        <TouchableOpacity
+            style={styles.contactItem}
+            onPress={() => handleContactSelect(item)}
+        >
+            <View style={styles.checkbox}>
+                {selectedContacts.some((c) => c.id === item.id) && (
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                )}
+            </View>
+            <Image source={{ uri: item.avatar }} style={styles.avatar} />
+            <Text style={styles.contactName}>{item.name}</Text>
+        </TouchableOpacity>
+    );
 
-      const groupData = {
-        name: actualGroupName,
-        participants,
-        isGroup: true,
-        imageGroup: 'https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A1o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=',
-        mute: null,
-        isHidden: false,
-        isPinned: false,
-        pin: null,
-      };
-
-      console.log('Group data:', groupData);
-      const response = await Api_chatInfo.createConversation(groupData);
-      if (response && response.success) {
-        setGroupName('');
-        setSelectedContacts([]);
-        onGroupCreated(response.data.data);
-        setSuccessMessage('Tạo nhóm thành công!'); // Hiển thị thông báo thành công
-        setTimeout(() => {
-          setSuccessMessage(null);
-          onClose();
-        }, 2000); // Tự động ẩn sau 2 giây
-      } else {
-        throw new Error(response?.message || 'Không thể tạo nhóm.');
-      }
-    } catch (err) {
-      console.error('Lỗi khi tạo nhóm:', err);
-      setError(err.message || 'Không thể tạo nhóm. Vui lòng thử lại.');
-    } finally {
-      setCreateLoading(false);
-    }
-  };
-
-  const renderContact = ({ item }: { item: Contact }) => (
-    <TouchableOpacity
-      style={styles.contactItem}
-      onPress={() => handleContactSelect(item)}
-    >
-      <View style={styles.checkbox}>
-        {selectedContacts.some((c) => c.id === item.id) && (
-          <Ionicons name="checkmark" size={16} color="#fff" />
-        )}
-      </View>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
-      <Text style={styles.contactName}>{item.name}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderSelectedContact = ({ item }: { item: Contact }) => (
-    <View style={styles.selectedContact}>
-      <Text style={styles.selectedContactName}>{item.name}</Text>
-      <TouchableOpacity onPress={() => handleRemoveSelectedContact(item)}>
-        <Ionicons name="close" size={16} color="#666" />
-      </TouchableOpacity>
-    </View>
-  );
-
-  return (
-    <Modal isVisible={isOpen} onBackdropPress={onClose} style={styles.modal}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Tạo nhóm</Text>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
+    const renderSelectedContact = ({ item }: { item: Contact }) => (
+        <View style={styles.selectedContact}>
+            <Text style={styles.selectedContactName}>{item.name}</Text>
+            <TouchableOpacity onPress={() => handleRemoveSelectedContact(item)}>
+                <Ionicons name="close" size={16} color="#666" />
+            </TouchableOpacity>
         </View>
+    );
 
-        <View style={styles.inputContainer}>
-          <Ionicons name="camera-outline" size={20} color="#666" style={styles.icon} />
-          <TextInput
-            placeholder="Nhập tên nhóm (tùy chọn)..."
-            style={styles.input}
-            value={groupName}
-            onChangeText={setGroupName}
-          />
-        </View>
+    return (
+        <Modal isVisible={isOpen} onBackdropPress={onClose} style={styles.modal}>
+            <View style={styles.container}>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Tạo nhóm</Text>
+                    <TouchableOpacity onPress={onClose}>
+                        <Ionicons name="close" size={24} color="#666" />
+                    </TouchableOpacity>
+                </View>
 
-        <View style={styles.inputContainer}>
-          <Ionicons name="search-outline" size={20} color="#666" style={styles.icon} />
-          <TextInput
-            placeholder="Nhập tên hoặc số điện thoại..."
-            style={styles.input}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+                <View style={styles.inputContainer}>
+                    <Ionicons name="camera-outline" size={20} color="#666" style={styles.icon} />
+                    <TextInput
+                        placeholder="Nhập tên nhóm (tùy chọn)..."
+                        style={styles.input}
+                        value={groupName}
+                        onChangeText={setGroupName}
+                    />
+                </View>
 
-        <View style={styles.content}>
-          <View style={styles.contacts}>
-            <Text style={styles.sectionTitle}>Danh sách bạn bè</Text>
-            {loading ? (
-              <ActivityIndicator size="large" color="#1e90ff" style={styles.loader} />
-            ) : error ? (
-              <Text style={styles.error}>{error}</Text>
-            ) : filteredContacts.length === 0 ? (
-              <Text style={styles.noResult}>Không tìm thấy bạn bè nào.</Text>
-            ) : (
-              <FlatList
-                data={filteredContacts}
-                keyExtractor={(item) => item.id}
-                renderItem={renderContact}
-                style={styles.contactList}
-              />
-            )}
-          </View>
+                <View style={styles.inputContainer}>
+                    <Ionicons name="search-outline" size={20} color="#666" style={styles.icon} />
+                    <TextInput
+                        placeholder="Nhập tên hoặc số điện thoại..."
+                        style={styles.input}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                </View>
 
-          <View style={styles.selected}>
-            <Text style={styles.sectionTitle}>
-              Đã chọn {selectedContacts.length}/100
-            </Text>
-            <FlatList
-              data={selectedContacts}
-              keyExtractor={(item) => item.id}
-              renderItem={renderSelectedContact}
-              style={styles.selectedList}
-            />
-          </View>
-        </View>
+                <View style={styles.content}>
+                    <View style={styles.contacts}>
+                        <Text style={styles.sectionTitle}>Danh sách bạn bè</Text>
+                        {loading ? (
+                            <ActivityIndicator size="large" color="#1e90ff" style={styles.loader} />
+                        ) : error ? (
+                            <Text style={styles.error}>{error}</Text>
+                        ) : filteredContacts.length === 0 ? (
+                            <Text style={styles.noResult}>Không tìm thấy bạn bè nào.</Text>
+                        ) : (
+                            <FlatList
+                                data={filteredContacts}
+                                keyExtractor={(item) => item.id}
+                                renderItem={renderContact}
+                                style={styles.contactList}
+                            />
+                        )}
+                    </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null} {/* Hiển thị thông báo thành công */}
+                    <View style={styles.selected}>
+                        <Text style={styles.sectionTitle}>
+                            Đã chọn {selectedContacts.length}/100
+                        </Text>
+                        <FlatList
+                            data={selectedContacts}
+                            keyExtractor={(item) => item.id}
+                            renderItem={renderSelectedContact}
+                            style={styles.selectedList}
+                        />
+                    </View>
+                </View>
 
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelText}>Hủy</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.createButton,
-              (createLoading || selectedContacts.length < 2) && styles.disabledButton,
-            ]}
-            onPress={handleCreateGroup}
-            disabled={createLoading || selectedContacts.length < 2}
-          >
-            <Text style={styles.createButtonText}>
-              {createLoading ? 'Đang tạo...' : 'Tạo nhóm'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
+                {error ? <Text style={styles.error}>{error}</Text> : null}
+                {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null}
+
+                <View style={styles.footer}>
+                    <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                        <Text style={styles.cancelText}>Hủy</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.createButton,
+                            (createLoading || selectedContacts.length < 2) && styles.disabledButton,
+                        ]}
+                        onPress={handleCreateGroup}
+                        disabled={createLoading || selectedContacts.length < 2}
+                    >
+                        <Text style={styles.createButtonText}>
+                            {createLoading ? 'Đang tạo...' : 'Tạo nhóm'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+    );
 };
 
 const styles = StyleSheet.create({
