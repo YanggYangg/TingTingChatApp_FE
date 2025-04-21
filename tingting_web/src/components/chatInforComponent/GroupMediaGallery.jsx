@@ -180,13 +180,13 @@ const GroupMediaGallery = ({ conversationId, onDelete, onForward, userId }) => {
                             <div
                                 className={`absolute top-0 right-0 p-1 flex flex-col items-end rounded-tl-md bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-y-1`}
                             >
-                                <button
+                                {/* <button
                                     onClick={(event) => handleDeleteClick(item, event)}
                                     className="p-1 rounded-full bg-white text-red-500 hover:bg-red-100 transition-colors shadow-sm"
                                     title="Xóa"
                                 >
                                     <IoTrashOutline size={16} />
-                                </button>
+                                </button> */}
                                 <button
                                     onClick={(event) => handleForwardClick(item, event)}
                                     className="p-1 rounded-full bg-white text-blue-500 hover:bg-blue-100 transition-colors shadow-sm"

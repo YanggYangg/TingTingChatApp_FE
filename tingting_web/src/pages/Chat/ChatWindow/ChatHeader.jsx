@@ -1,6 +1,7 @@
+// ChatHeader.js
 import React from "react";
-
 import { PanelRight, Search, Video, UserPlus, User } from "lucide-react";
+
 const ChatHeader = ({
   type,
   name,

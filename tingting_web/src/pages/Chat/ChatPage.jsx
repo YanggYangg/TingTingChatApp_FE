@@ -8,6 +8,7 @@ import ChatFooter from "./ChatWindow/ChatFooter";
 import TingTingImage from "../../assets/TingTing_Chat.png";
 import { useSocket } from "../../contexts/SocketContext";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import { Api_Profile } from "../../../apis/api_profile";
 import ShareModal from "../../components/chat/ShareModal";
 
 function ChatPage() {
@@ -19,12 +20,52 @@ function ChatPage() {
   const messagesEndRef = useRef(null);
   const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
   const [messageToForward, setMessageToForward] = useState(null); // State để lưu tin nhắn cần chuyển tiếp
+  const [chatDetails, setChatDetails] = useState({ name: "Unknown", avatar: "https://picsum.photos/200", members: 0, lastActive: 6 });
 
-  const dispatch = useDispatch();
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
-
   const conversationId = selectedMessageId;
+
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const fetchChatDetails = async () => {
+      if (!selectedMessage || !currentUserId) return;
+
+      let name = "Unknown";
+      let avatar = "https://picsum.photos/200";
+      let members = 0;
+      let lastActive = 6; // Giá trị mặc định
+
+      if (selectedMessage.isGroup && selectedMessage.name) {
+        name = selectedMessage.name;
+        avatar = selectedMessage.imageGroup || avatar;
+        members = selectedMessage.participants?.length || 0;
+        console.log("Group details:", { name, avatar, members });
+      } else if (selectedMessage.participants) {
+        const otherParticipant = selectedMessage.participants.find(
+          (p) => p.userId !== currentUserId
+        );
+        if (otherParticipant?.userId) {
+          try {
+            const response = await Api_Profile.getProfile(otherParticipant.userId);
+            if (response?.data?.user) {
+              name = `${response.data.user.firstname} ${response.data.user.surname}`.trim();
+              avatar = response.data.user.avatar || avatar;
+              // lastActive có thể được lấy từ API Profile nếu có thông tin lastActive
+              console.log("Personal details:", { name, avatar });
+            }
+          } catch (error) {
+            console.error("Lỗi khi lấy thông tin người dùng:", error);
+          }
+        }
+      }
+
+      setChatDetails({ name, avatar, members, lastActive });
+    };
+
+    fetchChatDetails();
+  }, [selectedMessage, currentUserId]);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -171,11 +212,12 @@ function ChatPage() {
             className={`flex-1 transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
               }`}
           >
-            <ChatHeader
-              type={selectedChat.type}
-              name={selectedChat.name}
-              lastActive={6}
-              avatar={selectedChat.avatar}
+           <ChatHeader
+              type={chatDetails.type}
+              name={chatDetails.name}
+              avatar={chatDetails.avatar}
+              members={chatDetails.members}
+              lastActive={chatDetails.lastActive}
               isChatInfoVisible={isChatInfoVisible}
               setIsChatInfoVisible={setIsChatInfoVisible}
             />
