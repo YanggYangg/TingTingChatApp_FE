@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from 'react-icons/fa';
-import React, { useEffect, useState } from "react";
-import { AiOutlineCopy } from "react-icons/ai";
-import { FaEdit } from 'react-icons/fa';
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
 import GroupMemberList from "../../../components/chatInforComponent/GroupMemberList";
 import GroupMediaGallery from "../../../components/chatInforComponent/GroupMediaGallery";
