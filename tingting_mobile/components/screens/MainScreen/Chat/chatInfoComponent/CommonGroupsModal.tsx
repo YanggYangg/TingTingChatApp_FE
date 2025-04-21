@@ -15,6 +15,7 @@ interface Props {
 }
 
 const CommonGroupsModal: React.FC<Props> = ({ isOpen, onClose, commonGroups }) => {
+  console.log('CommonGroupsModal', commonGroups);
   return (
     <Modal isVisible={isOpen} onBackdropPress={onClose}>
       <View style={styles.modalContainer}>

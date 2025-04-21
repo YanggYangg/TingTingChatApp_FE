@@ -43,7 +43,7 @@ const Icon = FontAwesome;
 
 const ChatInfo: React.FC<ChatInfoProps> = ({
   userId = "67fe031e421896d7bc8c2e10",
-  conversationId = "68063b6aab46ad188c22c085",
+  conversationId = "67fff7d90f350938e1f6fc49",
 }) => {
   const [chatInfo, setChatInfo] = useState<ChatInfoData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);

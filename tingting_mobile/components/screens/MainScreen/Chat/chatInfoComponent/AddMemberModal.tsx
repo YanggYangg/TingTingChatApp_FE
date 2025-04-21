@@ -44,6 +44,7 @@ const AddMemberModal: React.FC<Props> = ({
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorFriends, setErrorFriends] = useState('');
+  const [addingMember, setAddingMember] = useState(false); // Thêm state để theo dõi quá trình thêm thành viên
 
   console.log('AddMemberModal Props:', { isOpen, conversationId, userId, currentMembers });
 
@@ -161,17 +162,28 @@ const AddMemberModal: React.FC<Props> = ({
       return;
     }
 
+    setAddingMember(true); // Bắt đầu quá trình thêm
+    setError('');
+    setSuccessMessage('');
     try {
-      setError('');
-      setSuccessMessage('');
       const participantData = { userId: memberId, role: 'member' };
-      await Api_chatInfo.addParticipant(conversationId, participantData);
-      setFriendsList((prev) => prev.filter((friend) => friend._id !== memberId));
-      setSuccessMessage('Thêm thành viên thành công!');
-      onMemberAdded();
+      const response = await Api_chatInfo.addParticipant(conversationId, participantData);
+      console.log('Response from addParticipant:', response.data); // Log response để xem server trả về gì
+
+      // Kiểm tra xem response từ server có dấu hiệu thành công hay không
+      // Điều này phụ thuộc vào API của bạn. Ví dụ: có thể có một trường status hoặc message
+      if (response && response.status === 200 || response?.data?.success) {
+        setFriendsList((prev) => prev.filter((friend) => friend._id !== memberId));
+        setSuccessMessage('Thêm thành viên thành công!');
+        onMemberAdded();
+      } else {
+        setError('Không thể thêm thành viên. Vui lòng thử lại!');
+      }
     } catch (error) {
       console.error('Lỗi khi thêm thành viên:', error);
       setError('Không thể thêm thành viên. Vui lòng thử lại!');
+    } finally {
+      setAddingMember(false); // Kết thúc quá trình thêm
     }
   };
 
@@ -182,8 +194,16 @@ const AddMemberModal: React.FC<Props> = ({
         style={styles.avatar}
       />
       <Text style={styles.memberName}>{item.name}</Text>
-      <TouchableOpacity style={styles.addButton} onPress={() => addMember(item._id)}>
-        <Text style={styles.addButtonText}>Thêm</Text>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => addMember(item._id)}
+        disabled={addingMember} // Vô hiệu hóa nút khi đang thêm
+      >
+        {addingMember ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={styles.addButtonText}>Thêm</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
