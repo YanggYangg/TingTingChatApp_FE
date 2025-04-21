@@ -3,7 +3,7 @@ import Modal from "react-modal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_FriendRequest } from "../../../apis/api_friendRequest";
 
-const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId }) => {
+const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId, currentMembers }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
@@ -11,17 +11,25 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
     const [loadingFriends, setLoadingFriends] = useState(false);
     const [errorFriends, setErrorFriends] = useState("");
 
-    console.log("userId trong AddMemberModal:", userId); // Kiểm tra giá trị của userId
-    const response =  Api_FriendRequest.getFriendsList(userId);
-    console.log("response trong AddMemberModal:", response); // Kiểm tra giá trị của response
+    console.log("userId trong AddMemberModal:", userId);
+    console.log("conversationId trong AddMemberModal:", conversationId);
+    console.log("currentMembers trong AddMemberModal:", currentMembers);
+
     useEffect(() => {
         const fetchFriends = async () => {
-            if (!isOpen || !userId) return;
+            if (!isOpen || !userId || !conversationId) return;
             setLoadingFriends(true);
             setErrorFriends("");
             try {
                 const response = await Api_FriendRequest.getFriendsList(userId);
-                setFriendsList(response.data || []);
+                let friends = response.data || [];
+
+                if (currentMembers && currentMembers.length > 0) {
+                    friends = friends.filter(friend =>
+                        !currentMembers.some(memberId => memberId === (friend._id || friend.id || friend.userID))
+                    );
+                }
+                setFriendsList(friends);
             } catch (error) {
                 console.error("Lỗi khi lấy danh sách bạn bè:", error);
                 setErrorFriends("Không thể tải danh sách bạn bè.");
@@ -31,14 +39,14 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
         };
 
         fetchFriends();
-    }, [isOpen, userId]);
+    }, [isOpen, userId, conversationId, currentMembers]);
 
     const filteredFriends = friendsList.filter((friend) => {
-        return friend.name.toLowerCase().includes(searchTerm.toLowerCase()); // Tìm kiếm theo tên đầy đủ
+        return friend.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
     const sortedFriends = filteredFriends.sort((a, b) => {
-        return a.name.localeCompare(b.name); // Sắp xếp theo tên đầy đủ
+        return a.name.localeCompare(b.name);
     });
 
     const addMember = async (memberId) => {
@@ -49,16 +57,15 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
 
         try {
             setError("");
-            setSuccessMessage("");
+            setSuccessMessage(""); // Reset thông báo thành công trước mỗi lần thử thêm
 
             const participantData = { userId: memberId, role: "member" };
             await Api_chatInfo.addParticipant(conversationId, participantData);
 
-            // Lọc người bạn vừa thêm ra khỏi danh sách bạn bè hiển thị
+            // Chỉ hiển thị thông báo thành công và cập nhật UI khi API gọi thành công
             setFriendsList((prev) => prev.filter((friend) => getMemberId(friend) !== memberId));
             setSuccessMessage("Thêm thành viên thành công!");
 
-            // Gọi callback để cập nhật chatInfo trong ChatInfo
             if (onMemberAdded) {
                 onMemberAdded();
             }
@@ -68,7 +75,7 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
         }
     };
 
-    const getMemberId = (member) => member._id || member.id || member.userID; // Đảm bảo xử lý các trường ID khác nhau
+    const getMemberId = (member) => member._id || member.id || member.userID;
 
     return (
         <Modal
@@ -98,7 +105,7 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
                 ) : (
                     <ul className="space-y-2">
                         {sortedFriends.length === 0 ? (
-                            <p className="text-center text-sm text-gray-500">Không tìm thấy bạn bè nào</p>
+                            <p className="text-center text-sm text-gray-500">Không tìm thấy bạn bè nào để thêm</p>
                         ) : (
                             sortedFriends.map((friend) => {
                                 const friendId = getMemberId(friend);
@@ -113,7 +120,7 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
                                             className="w-8 h-8 rounded-full"
                                         />
                                         <p className="flex-1 text-sm">
-                                            {friend.name} {/* Hiển thị tên đầy đủ */}
+                                            {friend.name}
                                         </p>
                                         <button
                                             className="bg-blue-500 text-white px-2 py-1 rounded-md text-xs"
