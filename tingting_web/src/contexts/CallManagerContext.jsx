@@ -107,6 +107,16 @@ export const CallManagerProvider = ({ children, userId }) => {
   const handleIncomingCall = async (callData) => {
     console.log("[CallManager] Incoming call received:", callData);
     try {
+      // Lưu callId vào callState trước để đảm bảo endCall có callId
+      setCallState({
+        callId: callData.callId,
+        status: "ringing",
+        callType: callData.callType,
+        callerId: callData.callerId,
+        receiverId: callData.receiverId,
+        offer: callData.offer,
+      });
+
       const stream = await setupMedia(callData.callType);
       const peer = new Peer({ initiator: false, trickle: false, stream });
       peerRef.current = peer;
@@ -147,18 +157,19 @@ export const CallManagerProvider = ({ children, userId }) => {
         });
       });
 
-      const newState = {
-        ...callData,
-        status: "ringing",
-        stream,
-        peer,
-        offer: callData.offer,
-      };
-      setCallState(newState);
-      console.log(
-        "[CallManager] callState set after handleIncomingCall:",
-        newState
-      );
+      // Cập nhật callState với stream và peer
+      setCallState((prev) => {
+        const newState = {
+          ...prev,
+          stream,
+          peer,
+        };
+        console.log(
+          "[CallManager] callState set after handleIncomingCall:",
+          newState
+        );
+        return newState;
+      });
 
       timeoutRef.current = setTimeout(() => {
         console.warn("[CallManager] Call timeout, forcing end");
@@ -166,7 +177,11 @@ export const CallManagerProvider = ({ children, userId }) => {
       }, 60000);
     } catch (err) {
       console.error("[CallManager] Failed to handle incoming call:", err);
-      endCall("media_error");
+      socket.emit("endCall", {
+        callId: callData.callId,
+        reason: "media_error",
+      });
+      cleanup();
     }
   };
 
