@@ -38,7 +38,7 @@ const ChatInfo = ({ userId, conversationId }) => {
         const participant = response.participants.find((p) => p.userId === userId);
         if (participant) {
           setIsMuted(!!participant.mute);
-          setUserRoleInGroup(participant.role); // Cập nhật vai trò người dùng
+          setUserRoleInGroup(participant.role);
         } else {
           setIsMuted(false);
           setUserRoleInGroup(null);
@@ -75,7 +75,7 @@ const ChatInfo = ({ userId, conversationId }) => {
       setChatInfo(updatedChatInfo);
       const participant = updatedChatInfo.participants.find((p) => p.userId === userId);
       if (participant) {
-        setUserRoleInGroup(participant.role); // Cập nhật vai trò sau khi thêm thành viên
+        setUserRoleInGroup(participant.role);
       }
     } catch (error) {
       console.error("Lỗi khi cập nhật chatInfo sau khi thêm thành viên:", error);
@@ -152,12 +152,9 @@ const ChatInfo = ({ userId, conversationId }) => {
     setConversations((prevConversations) => [...prevConversations, newGroup]);
   };
 
+  // Chỉ lấy danh sách userId của các thành viên hiện tại, bao gồm cả userId của người dùng hiện tại
   const currentConversationParticipants = chatInfo?.participants
-    ?.filter((p) => p.userId !== userId)
-    ?.map((p) => ({
-      userId: p.userId,
-      name: `${p.firstname || ""} ${p.surname || ""}`.trim() || p.userId,
-    })) || [];
+    ?.map((p) => p.userId) || [];
 
   const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
   const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);

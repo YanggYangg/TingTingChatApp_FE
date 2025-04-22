@@ -17,22 +17,43 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
 
     useEffect(() => {
         const fetchFriends = async () => {
-            if (!isOpen || !userId || !conversationId) return;
+            if (!isOpen || !userId || !conversationId) {
+                if (!userId) setErrorFriends("Thiếu thông tin người dùng.");
+                if (!conversationId) setErrorFriends("Thiếu thông tin cuộc trò chuyện.");
+                return;
+            }
+
             setLoadingFriends(true);
             setErrorFriends("");
             try {
                 const response = await Api_FriendRequest.getFriendsList(userId);
-                let friends = response.data || [];
-
-                if (currentMembers && currentMembers.length > 0) {
-                    friends = friends.filter(friend =>
-                        !currentMembers.some(memberId => memberId === (friend._id || friend.id || friend.userID))
-                    );
+                let friends = Array.isArray(response.data) ? response.data : 
+                             response.data?.friends || response.data?.data || [];
+                
+                if (!Array.isArray(friends)) {
+                    console.warn("Dữ liệu bạn bè không đúng định dạng:", response.data);
+                    setErrorFriends("Dữ liệu bạn bè không đúng định dạng. Vui lòng thử lại.");
+                    return;
                 }
-                setFriendsList(friends);
+
+                console.log("Danh sách bạn bè thô:", friends);
+                console.log("currentMembers để lọc:", currentMembers);
+
+                const filteredFriends = friends.filter(friend =>
+                    !currentMembers?.some(memberId => 
+                        memberId === (friend._id || friend.id || friend.userID)
+                    )
+                );
+                console.log("Danh sách bạn bè sau khi lọc:", filteredFriends);
+
+                setFriendsList(filteredFriends);
             } catch (error) {
                 console.error("Lỗi khi lấy danh sách bạn bè:", error);
-                setErrorFriends("Không thể tải danh sách bạn bè.");
+                setErrorFriends(
+                    error.message.includes("timeout")
+                        ? "Yêu cầu hết thời gian. Vui lòng thử lại."
+                        : "Không thể tải danh sách bạn bè. Vui lòng thử lại."
+                );
             } finally {
                 setLoadingFriends(false);
             }
@@ -41,13 +62,13 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
         fetchFriends();
     }, [isOpen, userId, conversationId, currentMembers]);
 
-    const filteredFriends = friendsList.filter((friend) => {
-        return friend.name.toLowerCase().includes(searchTerm.toLowerCase());
-    });
+    const filteredFriends = friendsList.filter((friend) =>
+        friend.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-    const sortedFriends = filteredFriends.sort((a, b) => {
-        return a.name.localeCompare(b.name);
-    });
+    const sortedFriends = filteredFriends.sort((a, b) =>
+        a.name.localeCompare(b.name)
+    );
 
     const addMember = async (memberId) => {
         if (!conversationId || !memberId) {
@@ -55,19 +76,23 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
             return;
         }
 
+        setError("");
+        setSuccessMessage("");
+
         try {
-            setError("");
-            setSuccessMessage(""); // Reset thông báo thành công trước mỗi lần thử thêm
-
             const participantData = { userId: memberId, role: "member" };
-            await Api_chatInfo.addParticipant(conversationId, participantData);
+            const response = await Api_chatInfo.addParticipant(conversationId, participantData);
+            console.log("Response from addParticipant:", response);
 
-            // Chỉ hiển thị thông báo thành công và cập nhật UI khi API gọi thành công
-            setFriendsList((prev) => prev.filter((friend) => getMemberId(friend) !== memberId));
-            setSuccessMessage("Thêm thành viên thành công!");
-
-            if (onMemberAdded) {
-                onMemberAdded();
+            // Kiểm tra xem thành viên đã được thêm vào nhóm
+            if (response && response.participants && response.participants.some(p => p.userId === memberId)) {
+                setFriendsList((prev) => prev.filter((friend) => getMemberId(friend) !== memberId));
+                setSuccessMessage("Thêm thành viên thành công!");
+                if (onMemberAdded) {
+                    onMemberAdded();
+                }
+            } else {
+                setError("Không thể thêm thành viên. Phản hồi từ server không hợp lệ.");
             }
         } catch (error) {
             console.error("Lỗi khi thêm thành viên:", error);
@@ -115,13 +140,11 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
                                         className="flex items-center gap-2 p-2 border rounded-md"
                                     >
                                         <img
-                                            src={friend.avatar}
+                                            src={friend.avatar || "https://via.placeholder.com/30/007bff/FFFFFF?Text=User"}
                                             alt={friend.name}
                                             className="w-8 h-8 rounded-full"
                                         />
-                                        <p className="flex-1 text-sm">
-                                            {friend.name}
-                                        </p>
+                                        <p className="flex-1 text-sm">{friend.name}</p>
                                         <button
                                             className="bg-blue-500 text-white px-2 py-1 rounded-md text-xs"
                                             onClick={() => addMember(friendId)}
