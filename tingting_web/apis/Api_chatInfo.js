@@ -122,4 +122,6 @@ export const Api_chatInfo = {
 
   deleteConversationHistory: (conversationId) =>
     ApiManager.delete("chatService", `/conversations/${conversationId}`),
+
+  disbandGroup: (conversationId, userId) => ApiManager.delete("chatService", `/conversations/disbandGroup/${conversationId}` , { userId }),
 };

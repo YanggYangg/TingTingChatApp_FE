@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import Switch from "react-switch";
-import { FaTrash, FaDoorOpen } from "react-icons/fa";
+import { FaTrash, FaDoorOpen, FaSignOutAlt } from "react-icons/fa";
 import axios from "axios";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const SecuritySettings = ({ conversationId, userId, setChatInfo }) => {
+const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup }) => {
     const [isHidden, setIsHidden] = useState(false);
     const [pin, setPin] = useState("");
     const [showPinInput, setShowPinInput] = useState(false);
@@ -51,7 +51,7 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo }) => {
             alert("Mã PIN phải có 4 chữ số!");
         }
     };
-console.log("conversationId xóa" , conversationId);
+    console.log("conversationId xóa" , conversationId);
     const handleDeleteHistory = async () => {
         try {
           await Api_chatInfo.deleteConversationHistory(conversationId);
@@ -81,6 +81,27 @@ console.log("conversationId xóa" , conversationId);
                 }));
             } catch (error) {
                 console.error("Lỗi khi rời nhóm:", error);
+            }
+        }
+    };
+
+    const handleDisbandGroup = async () => {
+        if (!isGroup || userRoleInGroup !== 'admin') {
+            return;
+        }
+        console.log("conversationId giải tán nhóm" , conversationId);
+        console.log("userId giải tán nhóm" , userId);
+
+        const confirmDisband = window.confirm("Bạn có chắc chắn muốn giải tán nhóm này không? Tất cả thành viên sẽ bị xóa và lịch sử trò chuyện sẽ bị mất.");
+        if (confirmDisband) {
+            try {
+                await Api_chatInfo.disbandGroup(conversationId, { userId });
+                alert("Nhóm đã được giải tán!");
+                // Có thể bạn muốn điều hướng người dùng hoặc cập nhật giao diện sau khi giải tán nhóm
+                // Ví dụ: window.location.href = "/"; // Chuyển về trang chính
+            } catch (error) {
+                console.error("Lỗi khi giải tán nhóm:", error);
+                alert("Lỗi khi giải tán nhóm. Vui lòng thử lại.");
             }
         }
     };
@@ -135,13 +156,24 @@ console.log("conversationId xóa" , conversationId);
                 Xóa lịch sử trò chuyện
             </button>
             {isGroup && (
-                <button
-                    className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
-                    onClick={handleLeaveGroup}
-                >
-                    <FaDoorOpen size={16} />
-                    Rời nhóm
-                </button>
+                <>
+                    <button
+                        className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
+                        onClick={handleLeaveGroup}
+                    >
+                        <FaDoorOpen size={16} />
+                        Rời nhóm
+                    </button>
+                    {userRoleInGroup === 'admin' && (
+                        <button
+                            className="w-full text-red-600 text-left flex items-center gap-2 mt-2"
+                            onClick={handleDisbandGroup}
+                        >
+                            <FaSignOutAlt size={16} />
+                            Giải tán nhóm
+                        </button>
+                    )}
+                </>
             )}
         </div>
     );

@@ -24,6 +24,7 @@ const ChatInfo = ({ userId, conversationId }) => {
     const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
     const [conversations, setConversations] = useState([]);
     const [otherUser, setOtherUser] = useState(null);
+    const [userRoleInGroup, setUserRoleInGroup] = useState(null);
 
     console.log("userId được truyền vào ChatInfo:", userId);
     console.log("conversationId được truyền vào ChatInfo:", conversationId);
@@ -39,12 +40,13 @@ const ChatInfo = ({ userId, conversationId }) => {
                 if (participant) {
                     setIsMuted(!!participant.mute);
                     setChatInfo(prev => ({ ...prev, isPinned: participant.isPinned }));
+                    setUserRoleInGroup(participant.role);
                 } else {
                     setIsMuted(false);
+                    setUserRoleInGroup(null);
                 }
 
                 if (!response.isGroup) {
-                    // Nếu không phải là nhóm, tìm thông tin của người dùng khác
                     const otherParticipant = response.participants.find(p => p.userId !== userId);
                     if (otherParticipant?.userId) {
                         try {
@@ -149,6 +151,7 @@ const ChatInfo = ({ userId, conversationId }) => {
     const currentConversationParticipants = chatInfo?.participants
         ?.filter(p => p.userId !== userId) // Loại trừ userId của chính mình
         ?.map(p => p.userId) || [];
+
     const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
     const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);
 
@@ -204,7 +207,6 @@ const ChatInfo = ({ userId, conversationId }) => {
                     </div>
                 </div>
 
-
                 <div className="flex flex-nowrap justify-center gap-4 my-4">
                     <GroupActionButton
                         icon="mute"
@@ -238,7 +240,12 @@ const ChatInfo = ({ userId, conversationId }) => {
                 <GroupMediaGallery conversationId={conversationId} userId={userId} />
                 <GroupFile conversationId={conversationId} userId={userId} />
                 <GroupLinks conversationId={conversationId} userId={userId} />
-                <SecuritySettings conversationId={conversationId} userId={userId} setChatInfo={setChatInfo} />
+                <SecuritySettings
+                    conversationId={conversationId}
+                    userId={userId}
+                    setChatInfo={setChatInfo}
+                    userRoleInGroup={userRoleInGroup} // Truyền vai trò của người dùng
+                />
             </div>
 
             <MuteNotificationModal
