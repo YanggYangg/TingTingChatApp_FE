@@ -46,7 +46,6 @@ function ChatPage() {
     lastActive: 6,
   });
 
-  const dispatch = useDispatch();
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
   const socketCloud = useCloudSocket();

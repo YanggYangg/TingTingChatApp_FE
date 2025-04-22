@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
-import { FaEdit } from 'react-icons/fa';
+import { FaEdit } from "react-icons/fa";
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
 import GroupMemberList from "../../../components/chatInforComponent/GroupMemberList";
 import GroupMediaGallery from "../../../components/chatInforComponent/GroupMediaGallery";
@@ -15,254 +15,281 @@ import CreateGroupModal from "../../../components/chatInforComponent/CreateGroup
 import { Api_Profile } from "../../../../apis/api_profile";
 
 const ChatInfo = ({ userId, conversationId }) => {
-    const [chatInfo, setChatInfo] = useState(null);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
-    const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
-    const [conversations, setConversations] = useState([]);
-    const [otherUser, setOtherUser] = useState(null);
+  const [chatInfo, setChatInfo] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
+  const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
+  const [conversations, setConversations] = useState([]);
+  const [otherUser, setOtherUser] = useState(null);
+  const [userRoleInGroup, setUserRoleInGroup] = useState(null);
 
-    console.log("userId được truyền vào ChatInfo:", userId);
-    console.log("conversationId được truyền vào ChatInfo:", conversationId);
+  console.log("userId được truyền vào ChatInfo:", userId);
+  console.log("conversationId được truyền vào ChatInfo:", conversationId);
 
-    useEffect(() => {
-        const fetchChatInfo = async () => {
-            try {
-                const response = await Api_chatInfo.getChatInfo(conversationId);
-                console.log("Thông tin chat nhận được từ API:", response);
-                setChatInfo(response);
+  useEffect(() => {
+    const fetchChatInfo = async () => {
+      try {
+        const response = await Api_chatInfo.getChatInfo(conversationId);
+        setChatInfo(response);
 
-                const participant = response.participants.find(p => p.userId === userId);
-                if (participant) {
-                    setIsMuted(!!participant.mute);
-                    setChatInfo(prev => ({ ...prev, isPinned: participant.isPinned }));
-                } else {
-                    setIsMuted(false);
-                }
-
-                if (!response.isGroup) {
-                    // Nếu không phải là nhóm, tìm thông tin của người dùng khác
-                    const otherParticipant = response.participants.find(p => p.userId !== userId);
-                    if (otherParticipant?.userId) {
-                        try {
-                            const userResponse = await Api_Profile.getProfile(otherParticipant.userId);
-                            setOtherUser(userResponse?.data?.user);
-                        } catch (error) {
-                            console.error("Lỗi khi lấy thông tin người dùng khác:", error);
-                            setOtherUser({ firstname: "Không tìm thấy", surname: "" });
-                        }
-                    }
-                }
-
-                setLoading(false);
-            } catch (error) {
-                console.error("Lỗi khi lấy thông tin chat:", error);
-                setLoading(false);
-            }
-        };
-
-        if (conversationId) {
-            fetchChatInfo();
-        }
-    }, [conversationId, userId]);
-
-    const handleMemberAdded = async () => {
-        try {
-            const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId);
-            setChatInfo(updatedChatInfo);
-        } catch (error) {
-            console.error("Lỗi khi cập nhật chatInfo sau khi thêm thành viên:", error);
-        }
-    };
-
-    if (loading) {
-        return <p className="text-center text-gray-500"> Đang tải thông tin chat...</p>;
-    }
-
-    if (!chatInfo) {
-        return <p className="text-center text-red-500"> Không thể tải thông tin chat.</p>;
-    }
-
-    const handleMuteNotification = () => {
-        if (isMuted) {
-            Api_chatInfo.updateNotification(conversationId, { userId, mute: null })
-                .then(() => setIsMuted(false))
-                .catch(error => console.error("Lỗi khi bật thông báo:", error));
+        const participant = response.participants.find((p) => p.userId === userId);
+        if (participant) {
+          setIsMuted(!!participant.mute);
+          setUserRoleInGroup(participant.role);
         } else {
-            setIsMuteModalOpen(true);
+          setIsMuted(false);
+          setUserRoleInGroup(null);
         }
-    };
 
-    const handleMuteSuccess = (muted) => {
-        setIsMuted(muted);
-    };
-
-    const handlePinChat = async () => {
-        if (!chatInfo) return;
-
-        try {
-            const newIsPinned = !chatInfo.isPinned;
-            await Api_chatInfo.pinChat(conversationId, { isPinned: newIsPinned, userId });
-            setChatInfo({ ...chatInfo, isPinned: newIsPinned });
-        } catch (error) {
-            console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
-            if (error.response) {
-                alert(`Lỗi: ${error.response.data.message || "Lỗi khi ghim/bỏ ghim cuộc trò chuyện."}`);
-            } else if (error.request) {
-                alert("Không thể kết nối đến server.");
-            } else {
-                alert("Lỗi không xác định.");
+        if (!response.isGroup) {
+          const otherParticipant = response.participants.find((p) => p.userId !== userId);
+          if (otherParticipant?.userId) {
+            try {
+              const userResponse = await Api_Profile.getProfile(otherParticipant.userId);
+              setOtherUser(userResponse?.data?.user);
+            } catch (error) {
+              console.error("Lỗi khi lấy thông tin người dùng khác:", error);
+              setOtherUser({ firstname: "Không tìm thấy", surname: "" });
             }
+          }
         }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Lỗi khi lấy thông tin chat:", error);
+        setLoading(false);
+      }
     };
 
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(chatInfo?.linkGroup || "");
-        alert("Đã sao chép link nhóm!");
-    };
+    if (conversationId) {
+      fetchChatInfo();
+    }
+  }, [conversationId, userId]);
 
-    const handleAddMember = () => {
-        setIsAddModalOpen(true);
-        setIsCreateGroupModalOpen(false); // Đóng modal tạo nhóm nếu đang mở
-    };
+  const handleMemberAdded = async () => {
+    try {
+      const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId);
+      setChatInfo(updatedChatInfo);
+      const participant = updatedChatInfo.participants.find((p) => p.userId === userId);
+      if (participant) {
+        setUserRoleInGroup(participant.role);
+      }
+    } catch (error) {
+      console.error("Lỗi khi cập nhật chatInfo sau khi thêm thành viên:", error);
+    }
+  };
 
-    const handleCreateGroupChat = () => {
-        setIsCreateGroupModalOpen(true);
-        setIsAddModalOpen(false); // Đóng modal thêm thành viên nếu đang mở
-    };
+  const handleMemberRemoved = (removedUserId) => {
+    setChatInfo((prevChatInfo) => ({
+      ...prevChatInfo,
+      participants: prevChatInfo.participants.filter((p) => p.userId !== removedUserId),
+    }));
+  };
 
-    const handleCloseCreateGroupModal = () => {
-        setIsCreateGroupModalOpen(false);
-    };
+  if (loading) {
+    return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
+  }
 
+  if (!chatInfo) {
+    return <p className="text-center text-red-500">Không thể tải thông tin chat.</p>;
+  }
 
-    const handleCreateGroupSuccess = (newGroup) => {
-        console.log('Nhóm mới được tạo:', newGroup);
-        // Cập nhật state conversations hoặc thực hiện các hành động khác
-        setConversations(prevConversations => [...prevConversations, newGroup]);
-    };
-    const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
-    const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);
+  const handleMuteNotification = () => {
+    if (isMuted) {
+      Api_chatInfo
+        .updateNotification(conversationId, { userId, mute: null })
+        .then(() => setIsMuted(false))
+        .catch((error) => console.error("Lỗi khi bật thông báo:", error));
+    } else {
+      setIsMuteModalOpen(true);
+    }
+  };
 
-    const handleSaveChatName = async (newName) => {
-        if (!chatInfo || !newName.trim()) return;
+  const handleMuteSuccess = (muted) => {
+    setIsMuted(muted);
+  };
 
-        try {
-            await Api_chatInfo.updateChatName(conversationId, newName.trim());
-            setChatInfo({ ...chatInfo, name: newName.trim() });
-        } catch (error) {
-            console.error('Lỗi khi cập nhật tên:', error);
-            alert('Cập nhật tên thất bại, vui lòng thử lại.');
-        } finally {
-            handleCloseEditNameModal();
-        }
-    };
+  const handlePinChat = async () => {
+    if (!chatInfo) return;
 
-    const chatTitle = chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại";
-    const chatImage = chatInfo?.isGroup
-        ? chatInfo.imageGroup?.trim()
-            ? chatInfo.imageGroup
-            : "https://via.placeholder.com/150" // Placeholder cho ảnh nhóm mặc định
-        : otherUser?.avatar || "https://via.placeholder.com/150"; // Placeholder cho avatar người dùng mặc định
-    const displayName = chatInfo?.isGroup ? chatInfo.name : `${otherUser?.firstname} ${otherUser?.surname}`.trim() || "Đang tải...";
+    try {
+      const newIsPinned = !chatInfo.isPinned;
+      await Api_chatInfo.pinChat(conversationId, { isPinned: newIsPinned, userId });
+      setChatInfo({ ...chatInfo, isPinned: newIsPinned });
+    } catch (error) {
+      console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
+      alert(
+        `Lỗi: ${
+          error.response?.data?.message || "Lỗi khi ghim/bỏ ghim cuộc trò chuyện."
+        }`
+      );
+    }
+  };
 
-    return (
-        <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
-            <div className="flex-shrink-0">
-                <h2 className="text-xl font-bold text-center mb-4">
-                    {chatTitle}
-                </h2>
-            </div>
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(chatInfo?.linkGroup || "");
+    alert("Đã sao chép link nhóm!");
+  };
 
-            <div className="flex-1 overflow-y-auto">
-                <div className="text-center my-4">
-                    <img
-                        src={chatImage}
-                        className="w-20 h-20 rounded-full mx-auto object-cover"
-                        alt={displayName}
-                    />
-                    <div className="flex items-center justify-center mt-2">
-                        <h2 className="text-lg font-semibold">
-                            {displayName}
-                        </h2>
-                        {chatInfo?.isGroup && (
-                            <button
-                                onClick={handleOpenEditNameModal}
-                                className="text-gray-500 hover:text-blue-500 ml-2"
-                            >
-                                <FaEdit size={16} />
-                            </button>
-                        )}
-                    </div>
-                </div>
+  const handleAddMember = () => {
+    setIsAddModalOpen(true);
+    setIsCreateGroupModalOpen(false);
+  };
 
+  const handleCreateGroupChat = () => {
+    setIsCreateGroupModalOpen(true);
+    setIsAddModalOpen(false);
+  };
 
-                <div className="flex flex-nowrap justify-center gap-4 my-4">
-                    <GroupActionButton
-                        icon="mute"
-                        text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
-                        onClick={handleMuteNotification}
-                    />
-                    <GroupActionButton
-                        icon="pin"
-                        text={chatInfo?.isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
-                        onClick={handlePinChat}
-                    />
-                    <GroupActionButton
-                        icon="add"
-                        text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
-                        onClick={chatInfo?.isGroup ? handleAddMember : handleCreateGroupChat}
-                    />
-                </div>
+  const handleCloseCreateGroupModal = () => {
+    setIsCreateGroupModalOpen(false);
+  };
 
-                <GroupMemberList chatInfo={chatInfo} conversationId={conversationId} userId={userId} />
+  const handleCreateGroupSuccess = (newGroup) => {
+    setConversations((prevConversations) => [...prevConversations, newGroup]);
+  };
 
-                {chatInfo?.linkGroup && (
-                    <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
-                        <p className="text-sm font-semibold">Link tham gia nhóm</p>
-                        <a href={chatInfo.linkGroup} className="text-blue-500 text-sm">{chatInfo.linkGroup}</a>
-                        <button onClick={copyToClipboard} className="text-gray-500 hover:text-blue-500">
-                            <AiOutlineCopy size={20} />
-                        </button>
-                    </div>
-                )}
+  // Chỉ lấy danh sách userId của các thành viên hiện tại, bao gồm cả userId của người dùng hiện tại
+  const currentConversationParticipants = chatInfo?.participants
+    ?.map((p) => p.userId) || [];
 
-                <GroupMediaGallery conversationId={conversationId} userId={userId} />
-                <GroupFile conversationId={conversationId} userId={userId} />
-                <GroupLinks conversationId={conversationId} userId={userId} />
-                <SecuritySettings conversationId={conversationId} userId={userId} setChatInfo={setChatInfo} />
-            </div>
+  const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
+  const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);
 
-            <MuteNotificationModal
-                isOpen={isMuteModalOpen}
-                onClose={() => setIsMuteModalOpen(false)}
-                conversationId={conversationId}
-                userId={userId}
-                onMuteSuccess={handleMuteSuccess}
-            />
-            <EditNameModal
-                isOpen={isEditNameModalOpen}
-                onClose={handleCloseEditNameModal}
-                onSave={handleSaveChatName}
-                initialName={chatInfo?.name}
-            />
-            <AddMemberModal
-                isOpen={isAddModalOpen}
-                conversationId={conversationId}
-                onClose={() => setIsAddModalOpen(false)}
-                onMemberAdded={handleMemberAdded}
-            />
-            <CreateGroupModal
-                isOpen={isCreateGroupModalOpen}
-                onClose={handleCloseCreateGroupModal}
-                userId={userId}
-                onGroupCreated={handleCreateGroupSuccess}
-            />
+  const handleSaveChatName = async (newName) => {
+    if (!chatInfo || !newName.trim()) return;
+
+    try {
+      await Api_chatInfo.updateChatName(conversationId, newName.trim());
+      setChatInfo({ ...chatInfo, name: newName.trim() });
+    } catch (error) {
+      console.error("Lỗi khi cập nhật tên:", error);
+      alert("Cập nhật tên thất bại, vui lòng thử lại.");
+    } finally {
+      handleCloseEditNameModal();
+    }
+  };
+
+  const chatTitle = chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại";
+  const chatImage = chatInfo?.isGroup
+    ? chatInfo.imageGroup?.trim()
+      ? chatInfo.imageGroup
+      : "https://via.placeholder.com/150"
+    : otherUser?.avatar || "https://via.placeholder.com/150";
+  const displayName = chatInfo?.isGroup
+    ? chatInfo.name
+    : `${otherUser?.firstname} ${otherUser?.surname}`.trim() || "Đang tải...";
+
+  return (
+    <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
+      <div className="flex-shrink-0">
+        <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        <div className="text-center my-4">
+          <img
+            src={chatImage}
+            className="w-20 h-20 rounded-full mx-auto object-cover"
+            alt={displayName}
+          />
+          <div className="flex items-center justify-center mt-2">
+            <h2 className="text-lg font-semibold">{displayName}</h2>
+            {chatInfo?.isGroup && (
+              <button
+                onClick={handleOpenEditNameModal}
+                className="text-gray-500 hover:text-blue-500 ml-2"
+              >
+                <FaEdit size={16} />
+              </button>
+            )}
+          </div>
         </div>
-    );
+
+        <div className="flex flex-nowrap justify-center gap-4 my-4">
+          <GroupActionButton
+            icon="mute"
+            text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
+            onClick={handleMuteNotification}
+          />
+          <GroupActionButton
+            icon="pin"
+            text={chatInfo?.isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
+            onClick={handlePinChat}
+          />
+          <GroupActionButton
+            icon="add"
+            text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
+            onClick={chatInfo?.isGroup ? handleAddMember : handleCreateGroupChat}
+          />
+        </div>
+
+        <GroupMemberList
+          chatInfo={chatInfo}
+          userId={userId}
+          onMemberRemoved={handleMemberRemoved}
+        />
+
+        {chatInfo?.linkGroup && (
+          <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
+            <p className="text-sm font-semibold">Link tham gia nhóm</p>
+            <a href={chatInfo.linkGroup} className="text-blue-500 text-sm">
+              {chatInfo.linkGroup}
+            </a>
+            <button
+              onClick={copyToClipboard}
+              className="text-gray-500 hover:text-blue-500"
+            >
+              <AiOutlineCopy size={20} />
+            </button>
+          </div>
+        )}
+
+        <GroupMediaGallery conversationId={conversationId} userId={userId} />
+        <GroupFile conversationId={conversationId} userId={userId} />
+        <GroupLinks conversationId={conversationId} userId={userId} />
+        <SecuritySettings
+          conversationId={conversationId}
+          userId={userId}
+          setChatInfo={setChatInfo}
+          userRoleInGroup={userRoleInGroup}
+          chatInfo={chatInfo}
+        />
+      </div>
+
+      <MuteNotificationModal
+        isOpen={isMuteModalOpen}
+        onClose={() => setIsMuteModalOpen(false)}
+        conversationId={conversationId}
+        userId={userId}
+        onMuteSuccess={handleMuteSuccess}
+      />
+      <EditNameModal
+        isOpen={isEditNameModalOpen}
+        onClose={handleCloseEditNameModal}
+        onSave={handleSaveChatName}
+        initialName={chatInfo?.name}
+      />
+      <AddMemberModal
+        isOpen={isAddModalOpen}
+        conversationId={conversationId}
+        onClose={() => setIsAddModalOpen(false)}
+        onMemberAdded={handleMemberAdded}
+        userId={userId}
+        currentMembers={currentConversationParticipants}
+      />
+      <CreateGroupModal
+        isOpen={isCreateGroupModalOpen}
+        onClose={handleCloseCreateGroupModal}
+        userId={userId}
+        onGroupCreated={handleCreateGroupSuccess}
+        currentConversationParticipants={currentConversationParticipants}
+      />
+    </div>
+  );
 };
 
 export default ChatInfo;
