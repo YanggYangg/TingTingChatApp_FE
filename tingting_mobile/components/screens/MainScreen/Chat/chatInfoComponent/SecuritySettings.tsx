@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 import { Api_Profile } from '../../../../../apis/api_profile';
 import Modal from 'react-native-modal';
+import { useNavigation } from '@react-navigation/native';
 
 interface Participant {
   userId: string;
@@ -46,6 +47,8 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
   const [profileDetails, setProfileDetails] = useState<ProfileDetails>({});
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+
+  const navigation = useNavigation();
 
   // Fetch chat information
   const fetchChatInfo = useCallback(async () => {
@@ -118,18 +121,21 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
   }, [groupMembers, fetchProfileDetails]);
 
   // Handle hiding/unhiding chat
-  const handleHideChat = useCallback(async (hide: boolean, currentPin: string | null) => {
-    try {
-      await Api_chatInfo.hideChat(conversationId, { userId, isHidden: hide, pin: currentPin });
-      setIsHidden(hide);
-      setShowPinInput(false);
-      setPin('');
-      Alert.alert('Thành công', `Cuộc trò chuyện đã ${hide ? 'được ẩn' : 'được hiện'}!`);
-    } catch (err: any) {
-      console.error('Error toggling hide chat:', err);
-      Alert.alert('Lỗi', `Cuộc trò chuyện ${hide ? 'ẩn' : 'hiện'} thất bại. Vui lòng thử lại.`);
-    }
-  }, [conversationId, userId]);
+  const handleHideChat = useCallback(
+    async (hide: boolean, currentPin: string | null) => {
+      try {
+        await Api_chatInfo.hideChat(conversationId, { userId, isHidden: hide, pin: currentPin });
+        setIsHidden(hide);
+        setShowPinInput(false);
+        setPin('');
+        Alert.alert('Thành công', `Cuộc trò chuyện đã ${hide ? 'được ẩn' : 'được hiện'}!`);
+      } catch (err: any) {
+        console.error('Error toggling hide chat:', err);
+        Alert.alert('Lỗi', `Cuộc trò chuyện ${hide ? 'ẩn' : 'hiện'} thất bại. Vui lòng thử lại.`);
+      }
+    },
+    [conversationId, userId]
+  );
 
   // Handle toggle switch change
   const handleToggle = useCallback(
@@ -196,6 +202,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
                 participants: prevChatInfo?.participants?.filter((p) => p.userId !== userId) || [],
               }));
               Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
+              navigation.navigate('Home'); // Điều hướng về màn hình chính
             } catch (err: any) {
               console.error('Error leaving group:', err);
               Alert.alert('Lỗi', 'Rời nhóm không thành công. Vui lòng thử lại.');
@@ -205,7 +212,37 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       ],
       { cancelable: false }
     );
-  }, [isGroup, conversationId, userId, setChatInfo]);
+  }, [isGroup, conversationId, userId, setChatInfo, navigation]);
+
+  // Disband group functionality
+  const handleDisbandGroup = useCallback(async () => {
+    if (!isGroup || !isAdmin) {
+      return;
+    }
+
+    Alert.alert(
+      'Xác nhận',
+      'Bạn có chắc chắn muốn giải tán nhóm này? Tất cả thành viên sẽ bị xóa và lịch sử trò chuyện sẽ bị mất.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Giải tán',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await Api_chatInfo.disbandGroup(conversationId, { userId });
+              Alert.alert('Thành công', 'Nhóm đã được giải tán!');
+              navigation.navigate('Home'); // Điều hướng về màn hình chính
+            } catch (error) {
+              console.error('Lỗi khi giải tán nhóm:', error);
+              Alert.alert('Lỗi', 'Giải tán nhóm không thành công. Vui lòng thử lại.');
+            }
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  }, [isGroup, isAdmin, conversationId, userId, navigation]);
 
   // Handle opening the transfer admin modal
   const handleOpenTransferAdminModal = useCallback(() => {
@@ -224,6 +261,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       Alert.alert('Lỗi', 'Vui lòng chọn một thành viên để chuyển quyền trưởng nhóm.');
       return;
     }
+
     try {
       const updatedConversation = await Api_chatInfo.transferGroupAdmin(conversationId, {
         requesterUserId: userId,
@@ -308,10 +346,17 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       )}
 
       {isGroup && isAdmin && (
-        <TouchableOpacity style={styles.actionButton} onPress={handleOpenTransferAdminModal}>
-          <Ionicons name="swap-horizontal-outline" size={16} color="#007bff" style={styles.actionIcon} />
-          <Text style={[styles.actionText, { color: '#007bff' }]}>Chuyển quyền trưởng nhóm</Text>
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity style={styles.actionButton} onPress={handleOpenTransferAdminModal}>
+            <Ionicons name="swap-horizontal-outline" size={16} color="#007bff" style={styles.actionIcon} />
+            <Text style={[styles.actionText, { color: '#007bff' }]}>Chuyển quyền trưởng nhóm</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionButton} onPress={handleDisbandGroup}>
+            <Ionicons name="close-circle-outline" size={16} color="#ff0000" style={styles.actionIcon} />
+            <Text style={styles.actionText}>Giải tán nhóm</Text>
+          </TouchableOpacity>
+        </>
       )}
 
       {/* Modal for transferring admin */}

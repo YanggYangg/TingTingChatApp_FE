@@ -44,7 +44,7 @@ const AddMemberModal: React.FC<Props> = ({
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorFriends, setErrorFriends] = useState('');
-  const [addingMember, setAddingMember] = useState(false); // Thêm state để theo dõi quá trình thêm thành viên
+  const [addingMember, setAddingMember] = useState(false);
 
   console.log('AddMemberModal Props:', { isOpen, conversationId, userId, currentMembers });
 
@@ -81,12 +81,12 @@ const AddMemberModal: React.FC<Props> = ({
           return;
         }
 
-        console.log('currentMembers:', currentMembers); // Debug
+        console.log('currentMembers:', currentMembers);
         const filteredFriends = friends.filter(
           (friend: Member) =>
             !currentMembers.includes(friend._id || friend.id || friend.userID)
         );
-        console.log('Filtered friends:', filteredFriends); // Debug
+        console.log('Filtered friends:', filteredFriends);
         setFriendsList(filteredFriends);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách bạn bè:', error);
@@ -129,12 +129,12 @@ const AddMemberModal: React.FC<Props> = ({
           return;
         }
 
-        console.log('currentMembers:', currentMembers); // Debug
+        console.log('currentMembers:', currentMembers);
         const filteredFriends = friends.filter(
           (friend: Member) =>
             !currentMembers.includes(friend._id || friend.id || friend.userID)
         );
-        console.log('Filtered friends:', filteredFriends); // Debug
+        console.log('Filtered friends:', filteredFriends);
         setFriendsList(filteredFriends);
       } catch (error) {
         console.error('Lỗi khi thử lại lấy danh sách bạn bè:', error);
@@ -150,11 +150,11 @@ const AddMemberModal: React.FC<Props> = ({
     fetchFriends();
   };
 
-  console.log('searchTerm:', searchTerm); // Debug
+  console.log('searchTerm:', searchTerm);
   const filteredFriends = friendsList
     .filter((friend) => friend.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name));
-  console.log('Final filteredFriends for FlatList:', filteredFriends); // Debug
+  console.log('Final filteredFriends for FlatList:', filteredFriends);
 
   const addMember = async (memberId: string) => {
     if (!conversationId || !memberId) {
@@ -162,28 +162,27 @@ const AddMemberModal: React.FC<Props> = ({
       return;
     }
 
-    setAddingMember(true); // Bắt đầu quá trình thêm
+    setAddingMember(true);
     setError('');
     setSuccessMessage('');
     try {
       const participantData = { userId: memberId, role: 'member' };
       const response = await Api_chatInfo.addParticipant(conversationId, participantData);
-      console.log('Response from addParticipant:', response.data); // Log response để xem server trả về gì
+      console.log('Response from addParticipant:', response);
 
-      // Kiểm tra xem response từ server có dấu hiệu thành công hay không
-      // Điều này phụ thuộc vào API của bạn. Ví dụ: có thể có một trường status hoặc message
-      if (response && response.status === 200 || response?.data?.success) {
+      // Kiểm tra xem response có chứa thông tin nhóm và memberId đã được thêm
+      if (response && response.participants && response.participants.some(p => p.userId === memberId)) {
         setFriendsList((prev) => prev.filter((friend) => friend._id !== memberId));
         setSuccessMessage('Thêm thành viên thành công!');
         onMemberAdded();
       } else {
-        setError('Không thể thêm thành viên. Vui lòng thử lại!');
+        setError('Không thể thêm thành viên. Phản hồi từ server không hợp lệ.');
       }
     } catch (error) {
       console.error('Lỗi khi thêm thành viên:', error);
       setError('Không thể thêm thành viên. Vui lòng thử lại!');
     } finally {
-      setAddingMember(false); // Kết thúc quá trình thêm
+      setAddingMember(false);
     }
   };
 
@@ -197,7 +196,7 @@ const AddMemberModal: React.FC<Props> = ({
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => addMember(item._id)}
-        disabled={addingMember} // Vô hiệu hóa nút khi đang thêm
+        disabled={addingMember}
       >
         {addingMember ? (
           <ActivityIndicator size="small" color="#fff" />
