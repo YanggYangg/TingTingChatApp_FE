@@ -66,7 +66,7 @@ const AddMemberModal: React.FC<Props> = ({
       setErrorFriends('');
       try {
         const response = await Api_FriendRequest.getFriendsList(userId);
-        console.log('Raw friends list response.data:', response.data);
+        console.log('Raw friends list response:', response);
 
         let friends: Member[] = [];
         if (Array.isArray(response.data)) {
@@ -76,7 +76,7 @@ const AddMemberModal: React.FC<Props> = ({
         } else if (response.data?.data && Array.isArray(response.data.data)) {
           friends = response.data.data;
         } else {
-          console.warn('Unexpected response structure:', response.data);
+          console.warn('Unexpected response structure:', response);
           setErrorFriends('Dữ liệu bạn bè không đúng định dạng. Vui lòng thử lại.');
           return;
         }
@@ -114,7 +114,7 @@ const AddMemberModal: React.FC<Props> = ({
           return;
         }
         const response = await Api_FriendRequest.getFriendsList(userId!);
-        console.log('Retry raw friends list response.data:', response.data);
+        console.log('Retry raw friends list response:', response);
 
         let friends: Member[] = [];
         if (Array.isArray(response.data)) {
@@ -124,7 +124,7 @@ const AddMemberModal: React.FC<Props> = ({
         } else if (response.data?.data && Array.isArray(response.data.data)) {
           friends = response.data.data;
         } else {
-          console.warn('Unexpected response structure:', response.data);
+          console.warn('Unexpected response structure:', response);
           setErrorFriends('Dữ liệu bạn bè không đúng định dạng. Vui lòng thử lại.');
           return;
         }
@@ -164,23 +164,33 @@ const AddMemberModal: React.FC<Props> = ({
 
     setAddingMember(true);
     setError('');
-    setSuccessMessage('');
+    setSuccessMessage(''); // Reset thông báo trước khi gọi API
     try {
       const participantData = { userId: memberId, role: 'member' };
       const response = await Api_chatInfo.addParticipant(conversationId, participantData);
       console.log('Response from addParticipant:', response);
 
-      // Kiểm tra xem response có chứa thông tin nhóm và memberId đã được thêm
-      if (response && response.participants && response.participants.some(p => p.userId === memberId)) {
+      // Kiểm tra phản hồi API kỹ lưỡng
+      if (
+        response &&
+        response._id === conversationId &&
+        Array.isArray(response.participants) &&
+        response.participants.some(p => p.userId === memberId)
+      ) {
         setFriendsList((prev) => prev.filter((friend) => friend._id !== memberId));
         setSuccessMessage('Thêm thành viên thành công!');
         onMemberAdded();
       } else {
+        console.warn('Phản hồi API không hợp lệ:', response);
         setError('Không thể thêm thành viên. Phản hồi từ server không hợp lệ.');
       }
     } catch (error) {
       console.error('Lỗi khi thêm thành viên:', error);
-      setError('Không thể thêm thành viên. Vui lòng thử lại!');
+      setError(
+        error.message.includes('timeout')
+          ? 'Yêu cầu hết thời gian. Vui lòng thử lại.'
+          : error.message || 'Không thể thêm thành viên. Vui lòng thử lại!'
+      );
     } finally {
       setAddingMember(false);
     }
