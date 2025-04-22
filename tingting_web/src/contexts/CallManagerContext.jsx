@@ -11,7 +11,7 @@ import { useSocket } from "./SocketContext";
 const CallManagerContext = createContext();
 export const useCallManager = () => useContext(CallManagerContext);
 
-export const CallManagerProvider = ({ children }) => {
+export const CallManagerProvider = ({ children, userId }) => {
   const socket = useSocket();
   const [callState, setCallState] = useState(null);
   const peerRef = useRef(null);
@@ -27,10 +27,13 @@ export const CallManagerProvider = ({ children }) => {
         audio: true,
       });
       streamRef.current = stream;
-      console.log("[CallManager] Media stream obtained");
+      console.log(
+        "[CallManager] Media stream obtained:",
+        stream.getVideoTracks()
+      );
       return stream;
     } catch (err) {
-      console.error("[CallManager] Media error:", err);
+      console.error("[CallManager] Media error:", err.name, err.message);
       throw err;
     }
   };
@@ -49,106 +52,122 @@ export const CallManagerProvider = ({ children }) => {
       callType,
     });
 
-    const stream = await setupMedia(callType);
-    const peer = new Peer({ initiator: true, trickle: false, stream });
-    peerRef.current = peer;
+    try {
+      const stream = await setupMedia(callType);
+      const peer = new Peer({ initiator: true, trickle: false, stream });
+      peerRef.current = peer;
 
-    peer.on("signal", (offer) => {
-      console.log("[CallManager] Sending offer to socket...");
-      socket.emit("initiateCall", {
-        conversationId,
+      peer.on("signal", (offer) => {
+        console.log("[CallManager] Sending offer to socket:", offer);
+        socket.emit("initiateCall", {
+          conversationId,
+          callerId,
+          receiverId,
+          callType,
+          offer,
+        });
+      });
+
+      peer.on("stream", (remoteStream) => {
+        console.log(
+          "[CallManager] Remote stream received (outgoing):",
+          remoteStream.getVideoTracks()
+        );
+        setCallState((prev) => {
+          const newState = { ...prev, remoteStream };
+          console.log(
+            "[CallManager] callState updated (remoteStream):",
+            newState
+          );
+          return newState;
+        });
+      });
+
+      peer.on("error", (err) => {
+        console.error("[CallManager] Peer error (outgoing):", err);
+        endCall("error");
+      });
+
+      setCallState({
+        status: "initiated",
+        callType,
         callerId,
         receiverId,
-        callType,
-        offer,
+        stream,
+        peer,
       });
-    });
-
-    peer.on("stream", (remoteStream) => {
-      console.log("[CallManager] Remote stream received (outgoing)");
-      setCallState((prev) => {
-        const newState = { ...prev, remoteStream };
-        console.log(
-          "[CallManager] callState updated (remoteStream):",
-          newState
-        );
-        return newState;
-      });
-    });
-
-    peer.on("error", (err) => {
-      console.error("[CallManager] Peer error (outgoing):", err);
-      endCall("error");
-    });
-
-    setCallState({
-      status: "initiated",
-      callType,
-      callerId,
-      receiverId,
-      stream,
-      peer,
-    });
-    console.log("[CallManager] callState set after initiateCall");
+      console.log("[CallManager] callState set after initiateCall");
+    } catch (err) {
+      console.error("[CallManager] Failed to initiate call:", err);
+      endCall("media_error");
+    }
   };
 
   // === Incoming call ===
   const handleIncomingCall = async (callData) => {
     console.log("[CallManager] Incoming call received:", callData);
-    const stream = await setupMedia(callData.callType);
-    const peer = new Peer({ initiator: false, trickle: false, stream });
-    peerRef.current = peer;
+    try {
+      const stream = await setupMedia(callData.callType);
+      const peer = new Peer({ initiator: false, trickle: false, stream });
+      peerRef.current = peer;
 
-    peer.on("signal", (answer) => {
-      console.log("[CallManager] Sending answer to socket...");
-      socket.emit("answerCall", { callId: callData.callId, answer });
-    });
+      peer.on("signal", (answer) => {
+        console.log("[CallManager] Sending answer to socket...");
+        socket.emit("answerCall", { callId: callData.callId, answer });
+      });
 
-    peer.on("stream", (remoteStream) => {
-      console.log("[CallManager] Remote stream received (incoming)");
-      setCallState((prev) => {
-        const newState = { ...prev, remoteStream };
+      peer.on("stream", (remoteStream) => {
         console.log(
-          "[CallManager] callState updated (remoteStream):",
-          newState
+          "[CallManager] Remote stream received (incoming):",
+          remoteStream.getVideoTracks()
         );
-        return newState;
+        setCallState((prev) => {
+          const newState = { ...prev, remoteStream };
+          console.log(
+            "[CallManager] callState updated (remoteStream):",
+            newState
+          );
+          return newState;
+        });
       });
-    });
 
-    peer.on("error", (err) => {
-      console.error("[CallManager] Peer error (incoming):", err);
-      endCall("error");
-    });
-
-    peer.on("icecandidate", (candidate) => {
-      socket.emit("iceCandidate", {
-        callId: callData.callId,
-        candidate,
-        toUserId:
-          callData.callerId === userId
-            ? callData.receiverId
-            : callData.callerId,
+      peer.on("error", (err) => {
+        console.error("[CallManager] Peer error (incoming):", err);
+        endCall("error");
       });
-    });
 
-    const newState = {
-      ...callData,
-      status: "ringing",
-      stream,
-      peer,
-      offer: callData.offer,
-    };
-    setCallState(newState);
-    console.log(
-      "[CallManager] callState set after handleIncomingCall:",
-      newState
-    );
+      peer.on("icecandidate", (candidate) => {
+        socket.emit("iceCandidate", {
+          callId: callData.callId,
+          candidate,
+          toUserId:
+            callData.callerId === userId
+              ? callData.receiverId
+              : callData.callerId,
+        });
+      });
 
-    timeoutRef.current = setTimeout(() => {
-      console.warn("[CallManager] Call timeout, forcing end");
-      endCall("timeout");
-    }, 60000);
+      const newState = {
+        ...callData,
+        status: "ringing",
+        stream,
+        peer,
+        offer: callData.offer,
+      };
+      setCallState(newState);
+      console.log(
+        "[CallManager] callState set after handleIncomingCall:",
+        newState
+      );
+
+      timeoutRef.current = setTimeout(() => {
+        console.warn("[CallManager] Call timeout, forcing end");
+        endCall("timeout");
+      }, 60000);
+    } catch (err) {
+      console.error("[CallManager] Failed to handle incoming call:", err);
+      endCall("media_error");
+    }
   };
 
   const answerCall = () => {
@@ -206,8 +225,10 @@ export const CallManagerProvider = ({ children }) => {
       return;
     }
 
-    console.log("[CallManager] Registering socket listeners...");
-
+    console.log(
+      "[CallManager] Registering socket listeners for userId:",
+      userId
+    );
     const handleConnectError = (err) => {
       console.error("[CallManager] Socket connection error:", err);
     };
@@ -272,7 +293,7 @@ export const CallManagerProvider = ({ children }) => {
       socket.off("callAnswered");
       socket.off("callEnded");
     };
-  }, [socket, callState]);
+  }, [socket, callState, userId]);
 
   return (
     <CallManagerContext.Provider
