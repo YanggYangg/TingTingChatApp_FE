@@ -52,7 +52,9 @@ const GroupMemberList: React.FC<Props> = ({ chatInfo, conversationId, userId, on
     return null;
   }
 
-  const visibleParticipants = chatInfo.participants.filter((p) => !p.isHidden);
+  // const visibleParticipants = chatInfo.participants.filter((p) => !p.isHidden); // Không cần dòng này nữa
+
+  console.log('GroupMemberList render - chatInfo being passed to MemberListModal:', chatInfo); // LOGGING
 
   return (
     <View style={styles.container}>
@@ -62,7 +64,7 @@ const GroupMemberList: React.FC<Props> = ({ chatInfo, conversationId, userId, on
 
       {chatInfo.isGroup ? (
         <TouchableOpacity style={styles.memberRow} onPress={() => setMemberModalOpen(true)}>
-          <Text style={styles.linkText}>{visibleParticipants.length} thành viên</Text>
+          <Text style={styles.linkText}>{chatInfo.participants.length} thành viên</Text> {/* Sử dụng chatInfo.participants.length */}
           <Ionicons name="chevron-forward" size={20} color="#666" />
         </TouchableOpacity>
       ) : (

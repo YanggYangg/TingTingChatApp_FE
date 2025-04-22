@@ -1,3 +1,4 @@
+// MemberListModal.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -18,6 +19,8 @@ interface Participant {
   userId: string;
   role?: 'admin' | 'member';
   isHidden?: boolean;
+  isPinned?: boolean;
+  muted?: string
 }
 
 interface ChatInfoData {
@@ -49,6 +52,7 @@ const MemberListModal: React.FC<Props> = ({
   currentUserId,
   onMemberRemoved,
 }) => {
+  console.log('MemberListModal received chatInfo:', chatInfo); // LOGGING
   const [memberDetails, setMemberDetails] = useState<MemberDetails>({});
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
@@ -172,7 +176,9 @@ const MemberListModal: React.FC<Props> = ({
     );
   };
 
-  const visibleParticipants = chatInfo?.participants?.filter((member) => !member.isHidden) || [];
+  // Loại bỏ việc lọc visibleParticipants dựa trên isHidden
+  const participantsToShow = chatInfo?.participants || [];
+  console.log('MemberListModal participantsToShow:', participantsToShow); // LOGGING
 
   if (!chatInfo?.participants) {
     return null;
@@ -182,7 +188,7 @@ const MemberListModal: React.FC<Props> = ({
     <Modal isVisible={isOpen} onBackdropPress={onClose} style={styles.modal}>
       <View style={styles.modalContainer}>
         <Text style={styles.modalTitle}>
-          Thành viên ({visibleParticipants.length || 0})
+          Thành viên ({participantsToShow.length || 0})
         </Text>
 
         {loadingDetails ? (
@@ -194,7 +200,7 @@ const MemberListModal: React.FC<Props> = ({
           <Text style={styles.errorText}>{errorDetails}</Text>
         ) : (
           <FlatList
-            data={visibleParticipants}
+            data={participantsToShow}
             keyExtractor={(item) => item.userId}
             renderItem={({ item }) => (
               <View style={styles.memberItem}>
@@ -207,12 +213,12 @@ const MemberListModal: React.FC<Props> = ({
                     }}
                     style={styles.avatar}
                   />
-                  <View>
+                  <View style={styles.nameAndRole}>
                     <Text style={styles.memberName}>
                       {memberDetails[item.userId]?.name || 'Không tên'}
                     </Text>
                     {memberDetails[item.userId]?.role === 'admin' && (
-                      <Text style={styles.adminLabel}>(Admin)</Text>
+                      <Text style={styles.adminLabel}>Admin</Text>
                     )}
                   </View>
                 </View>
@@ -276,13 +282,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 12,
   },
+  nameAndRole: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   memberName: {
     fontSize: 14,
     color: '#333',
+    marginRight: 5, // Thêm khoảng cách với chữ Admin
   },
   adminLabel: {
     fontSize: 12,
-    color: '#1e90ff',
+    color: '#1e90ff', // Màu xanh
   },
   removeButton: {
     padding: 8,

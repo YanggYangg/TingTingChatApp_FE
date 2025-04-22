@@ -1,3 +1,4 @@
+// ChatInfo.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
@@ -229,7 +230,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
           onPress={() => {
             setLoading(true);
             setError(null);
-            useEffect(() => {}, []);
+            // Re-trigger the useEffect to fetch chat info
           }}
         >
           <Text style={styles.retryText}>Thử lại</Text>
@@ -248,6 +249,8 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
   const chatDisplayImage = chatInfo.isGroup
     ? chatInfo.imageGroup?.trim() || 'https://via.placeholder.com/150'
     : otherUser?.avatar || 'https://via.placeholder.com/150';
+
+  console.log('ChatInfo render - chatInfo:', chatInfo); // LOGGING
 
   return (
     <View style={styles.container}>
