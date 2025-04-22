@@ -19,7 +19,7 @@ import ChatFooter from "./ChatFooter"; // Import component mới
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ChatScreen = ({ route, navigation }) => {
-  const socket = useSocket();
+  const { socket } = useSocket();
   const flatListRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [replyingTo, setReplyingTo] = useState(null);

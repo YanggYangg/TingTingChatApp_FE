@@ -16,84 +16,39 @@ import { transformConversationsToMessages } from "../../../utils/conversationTra
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { Api_Profile } from "../../../apis/api_profile";
+
 const ChatScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([]);
   const [userProfiles, setUserProfiles] = useState({});
-  const socket = useSocket();
+  const { socket, userId } = useSocket();
   const dispatch = useDispatch();
-  const [currentUserId, setCurrentUserId] = useState(null);
-
-  // Lấy currentUserId từ AsyncStorage
+  const [currentUserId, setCurrentUserId] = useState();
   useEffect(() => {
-    const fetchUserId = async () => {
-      try {
-        let userId = await AsyncStorage.getItem("userId");
-        if (!userId) {
-          userId = "user123";
-          await AsyncStorage.setItem("userId", userId);
-        }
-        console.log("userId fetched from AsyncStorage:", userId);
-        setCurrentUserId(userId);
-      } catch (error) {
-        console.error("Failed to fetch userId:", error);
-        setCurrentUserId("user123");
-      }
-    };
-
-    fetchUserId();
-  }, []);
-
-  // Log currentUserId sau khi state được cập nhật
-  useEffect(() => {
-    console.log("Current userId set in state (after update) 1:", currentUserId);
-  }, [currentUserId]);
-
-  // Fetch thông tin user (không phải current user)
-  const fetchOtherUserProfiles = async (conversations) => {
-    const otherUserIds = conversations
-      .flatMap((con) => con.participants)
-      .filter((p) => p.userId !== currentUserId)
-      .map((p) => p.userId);
-
-    const uniqueUserIds = [...new Set(otherUserIds)];
-
-    try {
-      const responses = await Promise.all(
-        uniqueUserIds.map((id) =>
-          axios.get(`http://172.20.10.2:3001/api/v1/profile/${id}`)
-        )
-      );
-
-      const profiles = {};
-      responses.forEach((res) => {
-        const user = res.data.data.user;
-        profiles[user._id] = {
-          id: user._id,
-          name: `${user.firstname} ${user.surname}`,
-          avatar: user.avatar,
-        };
-      });
-
-      setUserProfiles(profiles);
-    } catch (err) {
-      console.error("Lỗi fetch user profiles:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (!socket || !currentUserId) {
-      console.warn("Socket not initialized on mobile or currentUserId missing");
+    if (!socket) {
+      console.log("Socket or currentUserId is not available.");
+      console.log("hi");
       return;
     }
-
-    const handleConversations = (conversations) => {
-      const transformed = transformConversationsToMessages(
-        conversations,
-        currentUserId
+    const handleConversations = async (conversations) => {
+      // lấy tra toàn bộ userId khác với currentUserId
+      const otherParticipant = conversations.map((conversation) => {
+        const otherParticipant = conversation.participants.find(
+          (p) => p.userId !== currentUserId
+        );
+        return otherParticipant.userId;
+      });
+      // lấy ra profile của người còn lại trong cuộc trò chuyện cá nhân Api_Profile.getProfile
+      const profiles = await Promise.all(
+        otherParticipant.map((userId) => Api_Profile.getProfile(userId))
       );
 
-      setMessages(transformed);
-      fetchOtherUserProfiles(conversations);
+      const transformedMessages = transformConversationsToMessages(
+        conversations,
+        currentUserId,
+        profiles
+      );
+      setMessages(transformedMessages);
     };
 
     const handleConversationUpdate = (updatedConversation) => {

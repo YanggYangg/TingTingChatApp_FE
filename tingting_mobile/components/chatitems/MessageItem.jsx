@@ -9,15 +9,30 @@ const MessageItem = ({
   onDelete,
   onRevoke,
   messages,
-  onLongPress, // Thêm sự kiện onLongPress
+  onLongPress,
 }) => {
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
 
+  const renderImages = () => {
+    if (!msg.linkURL) return null;
+
+    const images = Array.isArray(msg.linkURL) ? msg.linkURL : [msg.linkURL];
+
+    return images.map((uri, index) => (
+      <Image
+        key={index}
+        source={{ uri }}
+        style={styles.imageMessage}
+        alt="Ảnh"
+      />
+    ));
+  };
+
   return (
     <TouchableOpacity
-      onLongPress={() => onLongPress(msg)} // Thêm sự kiện nhấn giữ
-      delayLongPress={500} // Thời gian delay cho sự kiện nhấn giữ
+      onLongPress={() => onLongPress(msg)}
+      delayLongPress={500}
       style={[
         styles.messageContainer,
         isCurrentUser ? styles.messageRight : styles.messageLeft,
@@ -29,17 +44,15 @@ const MessageItem = ({
           isCurrentUser ? styles.messageRightBox : styles.messageLeftBox,
         ]}
       >
-        {/* Hiển thị người gửi nếu không phải current user */}
         {!isCurrentUser && !msg.isRevoked && (
           <Text style={styles.senderText}>{msg.sender}</Text>
         )}
 
-        {/* Nếu đã bị thu hồi thì chỉ hiển thị text */}
         {msg.isRevoked ? (
           <Text style={styles.revokedText}>Tin nhắn đã được thu hồi</Text>
         ) : (
           <>
-            {/* Tin nhắn trả lời */}
+            {/* Reply message */}
             {msg.messageType === "reply" && (
               <View style={styles.replyBox}>
                 <Text style={styles.repliedMessageSender}>
@@ -56,21 +69,15 @@ const MessageItem = ({
               </View>
             )}
 
-            {/* Tin nhắn văn bản không phải reply */}
+            {/* Text message (not reply) */}
             {msg.messageType === "text" && !msg.replyMessageId && (
               <Text>{msg.content}</Text>
             )}
 
-            {/* Tin nhắn hình ảnh */}
-            {msg.messageType === "image" && (
-              <Image
-                source={{ uri: msg.linkURL }}
-                style={styles.imageMessage}
-                alt="Ảnh"
-              />
-            )}
+            {/* Image message */}
+            {msg.messageType === "image" && renderImages()}
 
-            {/* Tin nhắn file */}
+            {/* File message */}
             {msg.messageType === "file" && (
               <View style={styles.fileMessage}>
                 <Text style={styles.fileText}>
@@ -81,7 +88,6 @@ const MessageItem = ({
           </>
         )}
 
-        {/* Thời gian */}
         <Text style={styles.time}>{msg.time}</Text>
       </View>
     </TouchableOpacity>
@@ -94,10 +100,10 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   messageRight: {
-    alignSelf: "flex-end", // Tin nhắn của mình sẽ nằm bên phải
+    alignSelf: "flex-end",
   },
   messageLeft: {
-    alignSelf: "flex-start", // Tin nhắn của người khác sẽ nằm bên trái
+    alignSelf: "flex-start",
   },
   messageBox: {
     padding: 10,
@@ -106,10 +112,10 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   messageRightBox: {
-    backgroundColor: "#dcf8c6", // Màu nền cho tin nhắn của mình
+    backgroundColor: "#dcf8c6",
   },
   messageLeftBox: {
-    backgroundColor: "#fff", // Màu nền cho tin nhắn của người khác
+    backgroundColor: "#fff",
   },
   senderText: {
     fontSize: 12,
@@ -142,11 +148,13 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 8,
+    marginTop: 4,
   },
   fileMessage: {
     padding: 8,
     backgroundColor: "#f9f9f9",
     borderRadius: 8,
+    marginTop: 4,
   },
   fileText: {
     fontSize: 12,
