@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
 import Modal from 'react-native-modal';
 import GroupMemberList from './chatInfoComponent/GroupMemberList';
 import GroupMediaGallery from './chatInfoComponent/GroupMediaGallery';
@@ -13,16 +13,15 @@ import EditNameModal from './chatInfoComponent/EditNameModal';
 import CreateGroupModal from './chatInfoComponent/CreateGroupModal';
 import GroupActionButton from './chatInfoComponent/GroupActionButton';
 import { Api_chatInfo } from '../../../../apis/Api_chatInfo';
+import { Api_Profile } from '../../../../apis/api_profile';
 import { useNavigation } from '@react-navigation/native';
-import Clipboard from '@react-native-clipboard/clipboard';
-import { Api_Profile } from '../../../../apis/api_profile'; // Import API Profile
 
 interface Participant {
   userId: string;
-  name: string;
-  avatar: string;
-  mute: string | null;
-  isPinned: boolean;
+  role?: 'admin' | 'member';
+  isHidden?: boolean;
+  mute?: string | null;
+  isPinned?: boolean;
 }
 
 interface ChatInfoData {
@@ -51,7 +50,7 @@ const Icon = FontAwesome;
 
 const ChatInfo: React.FC<ChatInfoProps> = ({
   userId = "6806780f2d6b2f2b0c3f3ca1",
-  conversationId = "68073f696cdca1faf3d02368",
+  conversationId = "6807bc34f6bdd24e4832fbf9",
 }) => {
   const [chatInfo, setChatInfo] = useState<ChatInfoData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -61,7 +60,8 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
-  const [otherUser, setOtherUser] = useState<UserProfile | null>(null); // State cho thông tin người dùng khác
+  const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
+  const [isMemberListOpen, setIsMemberListOpen] = useState(false);
 
   const navigation = useNavigation();
 
@@ -71,7 +71,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         setLoading(true);
         setError(null);
         const response = await Api_chatInfo.getChatInfo(conversationId);
-        console.log("Thông tin chat nhận được từ API:", response);
+        console.log('Chat info API response:', response);
 
         if (!response || !response._id) {
           throw new Error('Dữ liệu trả về không hợp lệ.');
@@ -80,16 +80,11 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         setChatInfo(response);
 
         const participant = response.participants.find((p: Participant) => p.userId === userId);
-        if (participant) {
-          setIsMuted(!!participant.mute);
-          setChatInfo((prev: ChatInfoData | null) =>
-            prev ? { ...prev, isPinned: participant.isPinned } : prev
-          );
-        } else {
-          setIsMuted(false);
-        }
+        setIsMuted(!!participant?.mute);
+        setChatInfo((prev: ChatInfoData | null) =>
+          prev ? { ...prev, isPinned: participant?.isPinned ?? false } : prev
+        );
 
-        // Lấy thông tin người dùng khác nếu không phải là nhóm
         if (!response.isGroup) {
           const otherParticipant = response.participants.find((p: Participant) => p.userId !== userId);
           if (otherParticipant?.userId) {
@@ -97,16 +92,15 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
               const userResponse = await Api_Profile.getProfile(otherParticipant.userId);
               setOtherUser(userResponse?.data?.user as UserProfile);
             } catch (userError) {
-              console.error("Lỗi khi lấy thông tin người dùng khác:", userError);
+              console.error('Lỗi khi lấy thông tin người dùng khác:', userError);
               setOtherUser({ _id: '', firstname: 'Không tìm thấy', surname: '', avatar: null });
             }
           }
         } else {
-          setOtherUser(null); // Reset otherUser nếu là nhóm
+          setOtherUser(null);
         }
-
       } catch (error) {
-        console.error("Lỗi khi lấy thông tin chat:", error);
+        console.error('Lỗi khi lấy thông tin chat:', error);
         setError('Không thể tải thông tin chat.');
         Alert.alert('Lỗi', 'Không thể tải thông tin chat. Vui lòng thử lại.');
       } finally {
@@ -123,10 +117,19 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
     try {
       const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId);
       setChatInfo(updatedChatInfo);
+      Alert.alert('Thành công', 'Đã thêm thành viên vào nhóm!');
     } catch (error) {
-      console.error("Lỗi khi cập nhật chatInfo sau khi thêm thành viên:", error);
+      console.error('Lỗi khi cập nhật chatInfo sau khi thêm thành viên:', error);
       Alert.alert('Lỗi', 'Không thể cập nhật danh sách thành viên. Vui lòng thử lại.');
     }
+  };
+
+  const handleMemberRemoved = (memberId: string) => {
+    if (!chatInfo) return;
+    setChatInfo({
+      ...chatInfo,
+      participants: chatInfo.participants.filter((p) => p.userId !== memberId),
+    });
   };
 
   const handleCreateGroupSuccess = (newGroup: any) => {
@@ -142,7 +145,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         setIsMuted(false);
         Alert.alert('Thông báo', 'Đã bật thông báo!');
       } catch (error) {
-        console.error("Lỗi khi bật thông báo:", error);
+        console.error('Lỗi khi bật thông báo:', error);
         Alert.alert('Lỗi', 'Không thể bật thông báo. Vui lòng thử lại.');
       }
     } else {
@@ -164,17 +167,8 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
       setChatInfo({ ...chatInfo, isPinned: newIsPinned });
       Alert.alert('Thông báo', newIsPinned ? 'Đã ghim cuộc trò chuyện!' : 'Đã bỏ ghim cuộc trò chuyện!');
     } catch (error) {
-      console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
+      console.error('Lỗi khi ghim/bỏ ghim cuộc trò chuyện:', error);
       Alert.alert('Lỗi', 'Không thể ghim/bỏ ghim cuộc trò chuyện. Vui lòng thử lại.');
-    }
-  };
-
-  const copyToClipboard = () => {
-    if (chatInfo?.linkGroup) {
-      Clipboard.setString(chatInfo.linkGroup);
-      Alert.alert('Thông báo', 'Đã sao chép link nhóm!');
-    } else {
-      Alert.alert('Lỗi', 'Không có link nhóm để sao chép.');
     }
   };
 
@@ -183,7 +177,6 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
       Alert.alert('Lỗi', 'Thông tin cuộc trò chuyện chưa được tải. Vui lòng thử lại.');
       return;
     }
-    console.log('Opening modal with:', { userId, conversationId, isGroup: chatInfo.isGroup });
     if (chatInfo.isGroup) {
       setIsAddModalOpen(true);
     } else {
@@ -225,25 +218,26 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
     return (
       <View style={styles.centered}>
         <Text style={styles.textRed}>{error || 'Không thể tải thông tin chat.'}</Text>
-        <TouchableOpacity onPress={() => {
-          setLoading(true);
-          setError(null);
-          useEffect(() => {}, []);
-        }}>
+        <TouchableOpacity
+          onPress={() => {
+            setLoading(true);
+            setError(null);
+            useEffect(() => {}, []);
+          }}
+        >
           <Text style={styles.retryText}>Thử lại</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const currentConversationParticipants = chatInfo?.participants
-    ? chatInfo.participants
-        .filter((p) => p.userId !== userId)
-        .map((p) => p.userId)
-    : [];
+  const currentConversationParticipants = chatInfo.participants
+    .filter((p) => p.userId !== userId)
+    .map((p) => p.userId);
 
-  // Xác định tên hiển thị
-  const chatDisplayName = chatInfo.isGroup ? chatInfo.name : `${otherUser?.firstname || ''} ${otherUser?.surname || ''}`.trim() || 'Đang tải...';
+  const chatDisplayName = chatInfo.isGroup
+    ? chatInfo.name
+    : `${otherUser?.firstname || ''} ${otherUser?.surname || ''}`.trim() || 'Đang tải...';
   const chatDisplayImage = chatInfo.isGroup
     ? chatInfo.imageGroup?.trim() || 'https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg'
     : otherUser?.avatar || 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User';
@@ -265,9 +259,9 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
           />
           <View style={styles.groupNameContainer}>
             <Text style={styles.groupName}>{chatDisplayName}</Text>
-            {!chatInfo.isGroup && (
+            {!chatInfo.isGroup && otherUser && (
               <Text style={styles.textGray}>
-                {otherUser?.firstname} {otherUser?.surname}
+                {otherUser.firstname} {otherUser.surname}
               </Text>
             )}
             {chatInfo.isGroup && (
@@ -305,13 +299,18 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
           />
         </View>
 
-        <GroupMemberList chatInfo={chatInfo} conversationId={conversationId} />
+        <GroupMemberList
+          chatInfo={chatInfo}
+          conversationId={conversationId}
+          userId={userId}
+          onOpenMemberList={() => setIsMemberListOpen(true)}
+        />
 
         {chatInfo.linkGroup && (
           <View style={styles.linkContainer}>
             <Text style={styles.linkTitle}>Link tham gia nhóm</Text>
             <Text style={styles.linkText}>{chatInfo.linkGroup}</Text>
-            <TouchableOpacity onPress={copyToClipboard}>
+            <TouchableOpacity onPress={() => Alert.alert('Sao chép', 'Đã sao chép link nhóm!')}>
               <Icon name="copy" size={20} color="#666" />
             </TouchableOpacity>
           </View>
@@ -340,7 +339,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         onClose={() => setIsAddModalOpen(false)}
         onMemberAdded={handleMemberAdded}
         userId={userId}
-        currentMembers={currentConversationParticipants}
+        currentMembers={chatInfo.participants.map((p) => p.userId)}
       />
       <EditNameModal
         isOpen={isEditNameModalOpen}
@@ -354,6 +353,13 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         userId={userId}
         onGroupCreated={handleCreateGroupSuccess}
         currentConversationParticipants={currentConversationParticipants}
+      />
+      <MemberListModal
+        isOpen={isMemberListOpen}
+        onClose={() => setIsMemberListOpen(false)}
+        chatInfo={chatInfo}
+        currentUserId={userId}
+        onMemberRemoved={handleMemberRemoved}
       />
     </View>
   );
@@ -386,14 +392,14 @@ const styles = StyleSheet.create({
     borderRadius: 40,
   },
   groupNameContainer: {
-    flexDirection: 'column', // Thay đổi thành column để tên và tên người dùng xếp dọc
+    flexDirection: 'column',
     alignItems: 'center',
     marginTop: 10,
   },
   groupName: {
     fontSize: 18,
     fontWeight: '600',
-    textAlign: 'center', // Canh giữa tên
+    textAlign: 'center',
   },
   editIcon: {
     marginLeft: 5,
@@ -429,8 +435,8 @@ const styles = StyleSheet.create({
   },
   textGray: {
     color: '#666',
-    textAlign: 'center', // Canh giữa text xám
-    marginTop: 5, // Thêm margin top cho text xám
+    textAlign: 'center',
+    marginTop: 5,
   },
   textRed: {
     color: '#ff0000',

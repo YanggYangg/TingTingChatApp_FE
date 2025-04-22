@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Use environment-specific base URL
 const BASE_URL = __DEV__
-  ? 'http://localhost:3001' // Replace with your machine's IP and correct port
+  ? 'http://172.16.1.106:3001' // Replace with your machine's IP and correct port
   : 'https://your-production-server.com'; // Production URL
 
 const ApiManager = axios.create({

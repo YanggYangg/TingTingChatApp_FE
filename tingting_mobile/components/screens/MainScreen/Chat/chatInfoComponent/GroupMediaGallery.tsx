@@ -10,24 +10,28 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 
 interface Media {
+  id: string;
+  messageId: string;
+  urlIndex: number;
   linkURL: string;
   name: string;
   type: string;
-  userId: String
+  userId: string;
 }
 
 interface Props {
   conversationId: string;
   userId: string;
+  otherUser?: { firstname: string; surname: string; avatar?: string } | null;
 }
 
-const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
+const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [media, setMedia] = useState<Media[]>([]);
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const videoRef = useRef<Video>(null); // Ref cho component Video trên modal
-  const gridVideoRefs = useRef<Record<number, Video>>({}); // Refs cho video trong grid
+  const videoRef = useRef<Video>(null);
+  const gridVideoRefs = useRef<Record<number, Video>>({});
   const [loading, setLoading] = useState(true);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [mediaLoadError, setMediaLoadError] = useState<string | null>(null);
@@ -39,15 +43,32 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
       console.log('Đang lấy dữ liệu từ API...');
       const response = await Api_chatInfo.getChatMedia(conversationId);
       console.log('Dữ liệu API nhận được:', response);
-  
+
       const mediaData = Array.isArray(response?.data) ? response.data : response;
-  
+
       if (Array.isArray(mediaData)) {
-        const filteredMedia = mediaData.map((item) => ({
-          linkURL: item?.linkURL || '#',
-          name: item?.content || 'Không có tên',
-          type: item?.messageType || 'image',
-        }));
+        const filteredMedia = mediaData
+          .flatMap((item) => {
+            const urls = Array.isArray(item?.linkURL)
+              ? item.linkURL.filter((url: string) => url && typeof url === 'string')
+              : typeof item?.linkURL === 'string'
+              ? [item.linkURL]
+              : [];
+            if (urls.length === 0) {
+              console.warn(`Tin nhắn ${item._id} thiếu linkURL:`, item);
+              return [];
+            }
+            return urls.map((url: string, urlIndex: number) => ({
+              id: `${item?._id}_${urlIndex}`,
+              messageId: item?._id,
+              urlIndex,
+              linkURL: url,
+              name: item?.content || `Media_${urlIndex + 1}`,
+              type: item?.messageType || 'image',
+              userId: item?.userId || 'unknown',
+            }));
+          })
+          .filter((mediaItem) => mediaItem.linkURL);
         setMedia(filteredMedia);
       } else {
         console.warn('API không trả về dữ liệu hợp lệ.');
@@ -61,12 +82,34 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     if (!conversationId) return;
-    console.log("GRM userId", userId);
+    console.log('GRM userId:', userId);
     fetchMedia();
   }, [conversationId]);
+
+  const handleDeleteFromStorage = (deletedItems: { messageId: string; urlIndex: number }[]) => {
+    console.log('Cập nhật media sau khi xóa:', deletedItems);
+    const newMedia = media.filter((mediaItem) => {
+      const isDeleted = deletedItems.some(
+        (item) => item.messageId === mediaItem.messageId && item.urlIndex === mediaItem.urlIndex
+      );
+      return !isDeleted;
+    });
+
+    if (newMedia.length !== media.length) {
+      setMedia(newMedia);
+      if (fullScreenMedia && !newMedia.find((item) => item.id === fullScreenMedia.id)) {
+        setFullScreenMedia(null);
+        setIsPlaying(false);
+      }
+    } else {
+      console.warn('Không thể cập nhật cục bộ, tải lại media...');
+      fetchMedia();
+    }
+  };
+
   const downloadMedia = async (url: string, type: string) => {
     try {
       const fileName = url.split('/').pop() || (type === 'image' ? 'downloaded_image.jpg' : 'downloaded_video.mp4');
@@ -101,16 +144,15 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
 
   useEffect(() => {
     if (fullScreenMedia) {
-      const index = media.findIndex((item) => item.linkURL === fullScreenMedia.linkURL);
+      const index = media.findIndex((item) => item.id === fullScreenMedia.id);
       if (index !== -1) {
         setCurrentIndex(index);
-        setIsPlaying(false); // Reset trạng thái phát khi chuyển slide
+        setIsPlaying(false);
       }
     } else {
-      setIsPlaying(false); // Dừng phát khi đóng modal
-      // Dừng tất cả video trong grid khi đóng modal
+      setIsPlaying(false);
       Object.values(gridVideoRefs.current).forEach((ref) => {
-        ref?.pauseAsync().catch(() => { });
+        ref?.pauseAsync().catch(() => {});
       });
     }
   }, [fullScreenMedia, media]);
@@ -118,7 +160,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
   const handleSwipe = (index: number) => {
     setCurrentIndex(index);
     setFullScreenMedia(media[index]);
-    setIsPlaying(false); // Dừng video khi swipe
+    setIsPlaying(false);
   };
 
   const handlePlayPause = () => {
@@ -158,12 +200,12 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
         <>
           <View style={styles.grid}>
             {media.slice(0, 8).map((item, index) => (
-              <TouchableOpacity key={index} onPress={() => setFullScreenMedia(item)}>
+              <TouchableOpacity key={item.id} onPress={() => setFullScreenMedia(item)}>
                 {item.type === 'image' ? (
                   <Image
                     source={{ uri: item.linkURL }}
                     style={styles.mediaItem}
-                    onError={(error) => console.error('Lỗi tải ảnh nhỏ:', error)}
+                    onError={(error) => console.error(`Lỗi tải ảnh ${item.id}:`, error)}
                   />
                 ) : (
                   <View style={styles.videoContainer}>
@@ -174,7 +216,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
                       useNativeControls={false}
                       isMuted={true}
                       resizeMode="cover"
-                      onError={(error) => console.error('Lỗi tải video nhỏ:', error)}
+                      onError={(error) => console.error(`Lỗi tải video ${item.id}:`, error)}
                     />
                     <View style={styles.playIconContainer}>
                       <Ionicons name="play-circle-outline" size={30} color="#fff" />
@@ -185,22 +227,20 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
             ))}
           </View>
 
-
           <TouchableOpacity style={styles.viewAllButton} onPress={() => setIsOpen(true)}>
             <Text style={styles.viewAllText}>Xem tất cả ({media.length})</Text>
           </TouchableOpacity>
-
         </>
       )}
 
       {isOpen && (
         <StoragePage
           conversationId={conversationId}
-          files={media}
+          userId={userId}
+          otherUser={otherUser}
           isVisible={isOpen}
           onClose={() => setIsOpen(false)}
-          userId={userId}
-          onDataUpdated={fetchMedia} // Callback để cập nhật danh sách media
+          onDelete={handleDeleteFromStorage}
         />
       )}
 
@@ -208,21 +248,24 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
         isVisible={!!fullScreenMedia}
         onBackdropPress={() => {
           setFullScreenMedia(null);
-          setIsPlaying(false); // Dừng video khi đóng modal bằng backdrop
+          setIsPlaying(false);
         }}
         onBackButtonPress={() => {
           setFullScreenMedia(null);
-          setIsPlaying(false); // Dừng video khi nhấn nút back
+          setIsPlaying(false);
         }}
         style={styles.modal}
         useNativeDriver
       >
         {fullScreenMedia && (
           <View style={styles.fullScreenContainer}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => {
-              setFullScreenMedia(null);
-              setIsPlaying(false); // Dừng video khi nhấn nút đóng
-            }}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                setFullScreenMedia(null);
+                setIsPlaying(false);
+              }}
+            >
               <Ionicons name="close" size={24} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
@@ -236,16 +279,16 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
               onIndexChanged={handleSwipe}
               loop={false}
               showsPagination={false}
-              scrollEnabled={true} // Đảm bảo swipe vẫn hoạt động
+              scrollEnabled={true}
             >
-              {media.map((item, index) => (
-                <View key={index} style={styles.swiperSlide}>
-                  {mediaLoading && index === currentIndex && (
+              {media.map((item) => (
+                <View key={item.id} style={styles.swiperSlide}>
+                  {mediaLoading && item.id === fullScreenMedia.id && (
                     <View style={styles.loadingIndicator}>
                       <ActivityIndicator size="large" color="#fff" />
                     </View>
                   )}
-                  {mediaLoadError && index === currentIndex && (
+                  {mediaLoadError && item.id === fullScreenMedia.id && (
                     <Text style={styles.errorText}>{mediaLoadError}</Text>
                   )}
                   {item.type === 'image' ? (
@@ -260,16 +303,16 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId }) => {
                   ) : (
                     <View style={styles.fullScreenVideoContainer}>
                       <Video
-                        ref={index === currentIndex ? videoRef : undefined}
+                        ref={item.id === fullScreenMedia.id ? videoRef : undefined}
                         source={{ uri: item.linkURL }}
                         style={styles.fullScreenVideo}
-                        useNativeControls={false} // Tự quản lý controls
+                        useNativeControls={false}
                         resizeMode="contain"
                         onLoadStart={handleMediaLoadStart}
                         onLoad={handleMediaLoad}
                         onError={handleMediaError}
-                        isLooping // Thêm thuộc tính này nếu bạn muốn video lặp lại
-                        shouldPlay={isPlaying} // Điều khiển việc phát video bằng state
+                        isLooping
+                        shouldPlay={isPlaying}
                       />
                       {!mediaLoading && mediaLoadError === null && (
                         <TouchableOpacity style={styles.playPauseButton} onPress={handlePlayPause}>

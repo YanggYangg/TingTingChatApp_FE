@@ -26,9 +26,9 @@ const GroupFile: React.FC<Props> = ({ conversationId, userId }) => {
       console.log("Gửi request đến API...");
       const response = await Api_chatInfo.getChatFiles(conversationId);
       console.log("Dữ liệu API trả về:", response);
-  
+
       const fileData = Array.isArray(response) ? response : response?.data;
-  
+
       if (Array.isArray(fileData)) {
         const sortedFiles = fileData.sort((a, b) => {
           return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || 0;
@@ -44,7 +44,7 @@ const GroupFile: React.FC<Props> = ({ conversationId, userId }) => {
       setFiles([]);
     }
   };
-  
+
   useEffect(() => {
     if (!conversationId) return;
     console.log("GRF userId", userId);
@@ -137,14 +137,12 @@ const GroupFile: React.FC<Props> = ({ conversationId, userId }) => {
           files.map((file, index) => (
             <View key={index} style={styles.fileItem}>
               <View style={styles.fileInfo}>
-                <Ionicons name="document-outline" size={20} color="#666" style={{ marginRight: 8 }} />
+                <Ionicons name="document-outline" size={16} color="#1e90ff" style={{ marginRight: 10, paddingBottom: 4, paddingTop: 5 }} />
                 <Text style={styles.fileName}>{file.content || "Không có tên"}</Text>
               </View>
-              <View style={styles.actions}>
-                <TouchableOpacity onPress={() => handleDownload(file)}>
-                  <Ionicons name="download-outline" size={24} color="#1e90ff" />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity onPress={() => handleDownload(file)} style={styles.downloadButton}>
+                <Ionicons name="download-outline" size={20} color="#1e90ff" />
+              </TouchableOpacity>
             </View>
           ))
         ) : (
@@ -162,7 +160,7 @@ const GroupFile: React.FC<Props> = ({ conversationId, userId }) => {
           isVisible={isOpen}
           onClose={() => setIsOpen(false)}
           userId={userId}
-          onDataUpdated={fetchFiles} 
+          onDataUpdated={fetchFiles}
         />
       )}
     </View>
@@ -176,19 +174,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   fileList: {
-    gap: 8,
+    gap: 4,
   },
   fileItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 3,
   },
   fileInfo: {
     flexDirection: 'row',
@@ -196,29 +194,30 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   fileName: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: 12,
+    color: '#1e90ff',
     flexShrink: 1,
+    marginRight: 10,
+    alignItems: 'center',
+    paddingBottom: 10,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 15,
+  downloadButton: {
+    padding: 2,
   },
   viewAllButton: {
     backgroundColor: '#e0e0e0',
-    paddingVertical: 10,
-    borderRadius: 5,
+    paddingVertical: 8,
+    borderRadius: 3,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 8,
   },
   viewAllText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#333',
   },
   placeholder: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
   },
 });
-
 export default GroupFile;
