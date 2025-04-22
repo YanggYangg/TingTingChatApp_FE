@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+// Path: src/components/chatInforComponent/GroupMemberList.js
+import React, { useState, useEffect } from "react";
 import MemberListModal from "./MemberListModal";
 import CommonGroupsModal from "./CommonGroupsModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const GroupMemberList = ({ chatInfo }) => {
+const GroupMemberList = ({ chatInfo, userId, onMemberRemoved }) => {
   const [isMemberModalOpen, setMemberModalOpen] = useState(false);
   const [isGroupModalOpen, setGroupModalOpen] = useState(false);
   const [commonGroups, setCommonGroups] = useState([]);
@@ -14,8 +15,6 @@ const GroupMemberList = ({ chatInfo }) => {
         try {
           const res = await Api_chatInfo.getCommonGroups(chatInfo._id);
           setCommonGroups(res?.commonGroups || []);
-          console.log("API Response nhóm:", res);
-
         } catch (err) {
           console.error("Lỗi khi lấy nhóm chung", err);
           setCommonGroups([]);
@@ -26,6 +25,14 @@ const GroupMemberList = ({ chatInfo }) => {
     fetchCommonGroups();
   }, [chatInfo]);
 
+  const handleOpenMemberModal = () => {
+    setMemberModalOpen(true);
+  };
+
+  const handleCloseMemberModal = () => {
+    setMemberModalOpen(false);
+  };
+
   if (!chatInfo) return null;
 
   return (
@@ -35,7 +42,7 @@ const GroupMemberList = ({ chatInfo }) => {
       {chatInfo.isGroup ? (
         <p
           className="text-blue-500 cursor-pointer"
-          onClick={() => setMemberModalOpen(true)}
+          onClick={handleOpenMemberModal}
         >
           {chatInfo.participants.length} thành viên
         </p>
@@ -50,8 +57,10 @@ const GroupMemberList = ({ chatInfo }) => {
 
       <MemberListModal
         isOpen={isMemberModalOpen}
-        onClose={() => setMemberModalOpen(false)}
+        onClose={handleCloseMemberModal}
         chatInfo={chatInfo}
+        currentUserId={userId}
+        onMemberRemoved={onMemberRemoved}
       />
 
       <CommonGroupsModal
