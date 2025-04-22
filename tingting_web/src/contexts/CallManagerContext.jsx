@@ -5,7 +5,7 @@ import React, {
   useState,
   useRef,
 } from "react";
-import Peer from "simple-peer-light"; // không cần polyfill process
+import Peer from "simple-peer-light";
 import { useSocket } from "./SocketContext";
 
 const CallManagerContext = createContext();
@@ -16,6 +16,7 @@ export const CallManagerProvider = ({ children }) => {
   const [callState, setCallState] = useState(null);
   const peerRef = useRef(null);
   const streamRef = useRef(null);
+  const timeoutRef = useRef(null);
 
   // === Media Setup ===
   const setupMedia = async (callType) => {
@@ -98,8 +99,6 @@ export const CallManagerProvider = ({ children }) => {
     const peer = new Peer({ initiator: false, trickle: false, stream });
     peerRef.current = peer;
 
-    peer.signal(callData.offer);
-
     peer.on("signal", (answer) => {
       console.log("[CallManager] Sending answer to socket...");
       socket.emit("answerCall", { callId: callData.callId, answer });
@@ -124,12 +123,12 @@ export const CallManagerProvider = ({ children }) => {
 
     peer.on("icecandidate", (candidate) => {
       socket.emit("iceCandidate", {
-        callId: callState.callId,
+        callId: callData.callId,
         candidate,
         toUserId:
-          callState.callerId === userId
-            ? callState.receiverId
-            : callState.callerId,
+          callData.callerId === userId
+            ? callData.receiverId
+            : callData.callerId,
       });
     });
 
@@ -138,43 +137,66 @@ export const CallManagerProvider = ({ children }) => {
       status: "ringing",
       stream,
       peer,
+      offer: callData.offer,
     };
     setCallState(newState);
     console.log(
       "[CallManager] callState set after handleIncomingCall:",
       newState
     );
+
+    timeoutRef.current = setTimeout(() => {
+      console.warn("[CallManager] Call timeout, forcing end");
+      endCall("timeout");
+    }, 60000);
   };
 
   const answerCall = () => {
     console.log("[CallManager] Answering call...");
+    if (peerRef.current && callState?.offer) {
+      peerRef.current.signal(callState.offer);
+    }
     setCallState((prev) => {
       const newState = { ...prev, status: "answered" };
       console.log("[CallManager] callState after answer:", newState);
-      // socket.emit("answerCall", { callId, answer: true });
       return newState;
     });
   };
 
   const endCall = (reason = "ended") => {
-    if (callState?.status === "answered") {
-      const minCallDuration = 1000; // 1 giây
-      const callStartTime = callState.createdAt || Date.now();
-      if (Date.now() - callStartTime < minCallDuration) {
-        console.warn("[CallManager] Preventing premature call end");
-        return;
-      }
+    console.log(
+      "[CallManager] Ending call. Reason:",
+      reason,
+      "Call ID:",
+      callState?.callId
+    );
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
-    console.log("[CallManager] Ending call. Reason:", reason);
-    socket.emit("endCall", { callId: callState?.callId, reason });
+    if (callState?.callId) {
+      socket.emit("endCall", { callId: callState.callId, reason });
+    } else {
+      console.warn("[CallManager] No callId available to end call");
+    }
     cleanup();
   };
 
   const cleanup = () => {
     console.log("[CallManager] Cleaning up call resources...");
-    peerRef.current?.destroy();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    if (peerRef.current) {
+      peerRef.current.destroy();
+      peerRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
     setCallState(null);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
   };
 
   // === Socket listener ===
@@ -186,32 +208,71 @@ export const CallManagerProvider = ({ children }) => {
 
     console.log("[CallManager] Registering socket listeners...");
 
+    const handleConnectError = (err) => {
+      console.error("[CallManager] Socket connection error:", err);
+    };
+
+    socket.on("connect_error", handleConnectError);
     socket.on("incomingCall", handleIncomingCall);
     socket.on("callStatus", (statusData) => {
-      console.log("Call status updated:", statusData);
-      // Cập nhật trạng thái UI (ringing, answered, ended)
+      console.log("[CallManager] Call status updated:", statusData);
+      setCallState((prev) => {
+        if (prev && statusData.callId) {
+          const newState = {
+            ...prev,
+            callId: statusData.callId,
+            duration: statusData.duration || prev?.duration,
+          };
+          console.log(
+            "[CallManager] callState updated with callId and duration:",
+            newState
+          );
+          return newState;
+        }
+        return prev;
+      });
     });
-    socket.on("callAnswered", ({ answer }) => {
+    socket.on("callAnswered", ({ answer, callId }) => {
       console.log("[CallManager] Call answered by receiver, signaling peer...");
       peerRef.current?.signal(answer);
       setCallState((prev) => {
-        const newState = { ...prev, status: "answered" };
+        const newState = {
+          ...prev,
+          status: "answered",
+          callId: callId || prev?.callId,
+        };
         console.log("[CallManager] callState after callAnswered:", newState);
         return newState;
       });
     });
-    socket.on("callEnded", ({ status }) => {
-      console.log("[CallManager] Call ended. Status:", status);
-      cleanup();
+    socket.on("callEnded", ({ status, callId, duration }) => {
+      console.log(
+        "[CallManager] Call ended received. Status:",
+        status,
+        "Call ID:",
+        callId,
+        "Duration:",
+        duration
+      );
+      console.log("[CallManager] Current callState:", callState);
+      if (callState) {
+        console.log("[CallManager] Cleaning up due to callEnded event");
+        setCallState((prev) => (prev ? { ...prev, duration } : null));
+        cleanup();
+      } else {
+        console.warn("[CallManager] No active callState to clean up");
+      }
     });
 
     return () => {
       console.log("[CallManager] Cleaning up socket listeners");
+      socket.off("connect_error", handleConnectError);
       socket.off("incomingCall");
+      socket.off("callStatus");
       socket.off("callAnswered");
       socket.off("callEnded");
     };
-  }, [socket]);
+  }, [socket, callState]);
 
   return (
     <CallManagerContext.Provider
