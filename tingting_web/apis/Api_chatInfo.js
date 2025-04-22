@@ -124,4 +124,5 @@ export const Api_chatInfo = {
     ApiManager.delete("chatService", `/conversations/${conversationId}`),
 
   disbandGroup: (conversationId, userId) => ApiManager.delete("chatService", `/conversations/disbandGroup/${conversationId}` , { userId }),
+  transferGroupAdmin: (conversationId, participantData) => ApiManager.put("chatService",`/conversations/${conversationId}/transfer-admin/test`, participantData), // Gửi participantData trực tiếp
 };
