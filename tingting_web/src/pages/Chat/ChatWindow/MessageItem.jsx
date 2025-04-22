@@ -88,17 +88,25 @@ const MessageItem = ({
                       onClick={() => setOpenMedia(url)}
                     />
                   ))}
+                  {msg.content && (
+                    <p className="text-sm text-gray-800 mt-2">{msg.content}</p>
+                  )}
                 </div>
               )}
 
               {/* Tin nhắn hình ảnh (1 ảnh) */}
               {isImage && typeof msg.linkURL === "string" && (
-                <img
-                  src={msg.linkURL}
-                  className="w-40 h-auto rounded-lg cursor-pointer"
-                  alt="Ảnh"
-                  onClick={handleMediaClick}
-                />
+                <>
+                  <img
+                    src={msg.linkURL}
+                    className="w-40 h-auto rounded-lg cursor-pointer"
+                    alt="Ảnh"
+                    onClick={handleMediaClick}
+                  />
+                  {msg.content && (
+                    <p className="text-sm text-gray-800 mt-2">{msg.content}</p>
+                  )}
+                </>
               )}
 
               {/* Tin nhắn video */}
@@ -194,13 +202,17 @@ const MessageItem = ({
           </button>
 
           <div className="relative max-w-[90%] max-h-[90%] flex items-center justify-center">
-            {typeof openMedia === "string" && openMedia.endsWith(".mp4") ? (
+            {typeof openMedia === "string" &&
+            /\.(mp4|mov|avi|mkv)$/i.test(openMedia) ? (
               <video
                 controls
                 autoPlay
                 className="max-w-[600px] max-h-[80vh] object-contain rounded-lg z-10"
               >
-                <source src={openMedia} type="video/mp4" />
+                <source
+                  src={openMedia}
+                  type={`video/${openMedia.split(".").pop()}`}
+                />
                 Trình duyệt của bạn không hỗ trợ video.
               </video>
             ) : (

@@ -77,7 +77,7 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
 
         const payload = {
           messageType: firstType, // Có thể là "image", "video", "file"
-          content: message || "Đã gửi tệp đính kèm",
+          content: message || null,
           linkURL: uploadedLinks,
           ...(replyingTo && {
             messageType: "reply",
