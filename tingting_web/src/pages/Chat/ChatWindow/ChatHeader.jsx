@@ -6,6 +6,7 @@ import {
   UserPlus,
   User,
   PhoneCall,
+  Phone,
 } from "lucide-react";
 
 import { useCallManager } from "../../../contexts/CallManagerContext";
@@ -73,13 +74,13 @@ const ChatHeader = ({
           onClick={() => handleCall("voice")}
           className="text-gray-500 hover:text-gray-700"
         >
-          <PhoneCall />
+          <Phone size={22} />
         </button>
         <button
           onClick={() => handleCall("video")}
           className="text-gray-500 hover:text-gray-700"
         >
-          <Video />
+          <Video size={26} />
         </button>
         <button className="text-gray-500 hover:text-gray-700">
           <Search />

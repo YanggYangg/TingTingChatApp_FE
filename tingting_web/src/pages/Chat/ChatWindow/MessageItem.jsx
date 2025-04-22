@@ -6,6 +6,7 @@ import {
 } from "react-icons/io5";
 import { AiFillFileText } from "react-icons/ai";
 import { HiDownload } from "react-icons/hi";
+import { MdCall, MdVideocam } from "react-icons/md";
 
 const MessageItem = ({
   msg,
@@ -20,13 +21,28 @@ const MessageItem = ({
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
 
   const handleRevokeClick = () => {
-    if (onRevoke && msg && msg.id) {
-      console.log("Revoking message with ID: nầy", msg.id); // Log để kiểm tra
-      onRevoke(msg.id); // Truyền ID tin nhắn
+    if (onRevoke && msg && msg._id) {
+      console.log("Revoking message with ID:", msg._id);
+      onRevoke(msg);
     } else {
-      console.error("Cannot revoke message: missing onRevoke or msg.id");
+      console.error("Cannot revoke message: missing onRevoke or msg._id");
     }
   };
+
+  const renderCallMessage = () => {
+    const isVideoCall = msg.content.toLowerCase().includes("video");
+    return (
+      <div className="flex items-center space-x-2">
+        {isVideoCall ? (
+          <MdVideocam size={20} className="text-blue-500" />
+        ) : (
+          <MdCall size={20} className="text-green-500" />
+        )}
+        <p className="text-sm text-gray-700">{msg.content}</p>
+      </div>
+    );
+  };
+
   return (
     <div
       className={`flex ${
@@ -59,10 +75,20 @@ const MessageItem = ({
                     ? "[Ảnh]"
                     : repliedMessage?.messageType === "file"
                     ? "[Tệp]"
+                    : repliedMessage?.messageType === "call"
+                    ? "[Cuộc gọi]"
                     : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
                 </p>
                 <p className="text-sm text-gray-900 mt-1">{msg.content}</p>
               </div>
+            )}
+
+            {/* Tin nhắn cuộc gọi */}
+            {msg.messageType === "call" && (
+              <>
+                {console.log("Rendering call message:", msg)}
+                {renderCallMessage()}
+              </>
             )}
 
             {/* Tin nhắn văn bản không phải reply */}
