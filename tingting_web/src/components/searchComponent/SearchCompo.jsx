@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FaSearch, FaUserFriends, FaUsers, FaCamera } from "react-icons/fa";
 import { Api_Profile } from "../../../apis/api_profile";
 import { Api_FriendRequest } from "../../../apis/api_friendRequest";
@@ -14,12 +14,19 @@ function Search() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [friendRequests, setFriendRequests] = useState({});
   const [friendStatus, setFriendStatus] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [currentUserPhone, setCurrentUserPhone] = useState("");
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [friendList, setFriendList] = useState([]);
+  const inputRef = useRef(null);
 
   const toggleFriendsModal = () => {
     setIsModalFriendsOpen(!isModalFriendsOpen);
     setSearchValue("");
     setFilteredResults([]);
+    setSelectedUser(null);
   };
+
   const handleSelectUser = (user) => {
     console.log("User selected:", user); // Kiểm tra xem người dùng đã được chọn chưa
     setSelectedUser(user);
@@ -107,7 +114,7 @@ function Search() {
     };
 
     fetchFriendRequests();
-  }, []);
+  }, [refreshTrigger]);
 
   // useEffect(() => {
   //   const fetchReceivedRequests = async () => {
@@ -176,10 +183,10 @@ function Search() {
 
       console.log("Số điện thoại người dùng hiện tại:", currentUserPhone);
 
-      if (!currentUserPhone) {
-        console.error("Số điện thoại người dùng không có");
-        return;
-      }
+      // if (!currentUserPhone) {
+      //   console.error("Số điện thoại người dùng không có");
+      //   return;
+      // }
       await Api_FriendRequest.sendFriendRequest({
         requesterPhone: currentUserPhone,
         recipientPhone: selectedUser?.phone || "",
@@ -197,6 +204,10 @@ function Search() {
         console.log("Updated friend requests:", updatedRequests);
         return updatedRequests;
       });
+      setRefreshTrigger((prev) => prev + 1);
+      setTimeout(() => {
+        setRefreshTrigger((prev) => prev + 1);
+      }, 100); // 100ms sau tăng thêm lần nữa
     } catch (err) {
       console.error("Gửi lời mời kết bạn thất bại:", err);
     }
@@ -210,15 +221,25 @@ function Search() {
         action,
         userId,
       });
-      if (response.message.includes("accepted")) {
-        // Update UI neu accept
-        setFriendRequests((prev) => ({
-          ...prev,
-          [selectedUser._id]: {
-            status: "accepted",
-            requestId,
-          },
-        }));
+      // if (response.message.includes("accepted")) {
+      //   // Update UI neu accept
+      //   setFriendRequests((prev) => ({
+      //     ...prev,
+      //     [selectedUser._id]: {
+      //       status: "accepted",
+      //       requestId,
+      //     },
+      //   }));
+      // }
+      if (response.message.includes("rejected")) {
+        setFriendRequests((prev) => {
+          const updated = { ...prev };
+          delete updated[selectedUser._id];
+          return updated;
+        });
+
+        // ⚠️ Cập nhật lại selectedUser để buộc re-render
+        setSelectedUser((prevUser) => ({ ...prevUser }));
       } else if (response.message.includes("rejected")) {
         // Update UI neu reject
         setFriendRequests((prev) => {
@@ -227,6 +248,10 @@ function Search() {
           return updated;
         });
       }
+      setRefreshTrigger((prev) => prev + 1);
+      setTimeout(() => {
+        setRefreshTrigger((prev) => prev + 1);
+      }, 100); // 100ms sau tăng thêm lần nữa
     } catch (err) {
       console.error("Lỗi khi phản hồi lời mời kết bạn:", err);
     }
@@ -243,6 +268,7 @@ function Search() {
         placeholder="Tìm kiếm"
         className="bg-transparent text-gray-700 placeholder-gray-500 pl-10 pr-2 py-1 flex-grow focus:outline-none"
         onChange={(e) => setPhone(e.target.value)}
+
       />
 
       <FaUserFriends
@@ -395,22 +421,29 @@ function Search() {
                 )
               ) : friendRequests[selectedUser._id]?.status === "accepted" ? (
                 <>
-                  <button className="bg-green-500 text-white px-4 py-2 rounded">
+                  {/* <button className="bg-green-500 text-white px-4 py-2 rounded">
                     Gọi điện
                   </button>
-                  <button className="bg-blue-500 text-white px-4 py-2 rounded">
+                  <button 
+                  className="bg-blue-500 text-white px-4 py-2 rounded"
+                  >
                     Nhắn tin
+                  </button> */}
+                  <button className="bg-green-500 text-white px-4 py-2 rounded">
+                    Đã là bạn bè
                   </button>
                 </>
               ) : (
-                // Không có yêu cầu nào → hiện "Kết bạn"
+
+              //   // Không có yêu cầu nào → hiện "Kết bạn"
                 <button
                   className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                   onClick={() => handleFriendRequest()}
                 >
                   Kết bạn
                 </button>
-              )}
+              )
+            }
             </div>
           </div>
         </div>

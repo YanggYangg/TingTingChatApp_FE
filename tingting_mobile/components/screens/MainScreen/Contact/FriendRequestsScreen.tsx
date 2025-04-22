@@ -1,82 +1,113 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useNavigation } from "@react-navigation/native"
 import { Ionicons } from "@expo/vector-icons"
+import { Api_FriendRequest } from "@/apis/api_friendrequest"
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Dữ liệu mẫu
-const RECEIVED_REQUESTS = [
-  {
-    id: "1",
-    name: "Phước Thanh",
-    avatar: "https://randomuser.me/api/portraits/men/45.jpg",
-    message: "Muốn kết bạn",
-  },
-  {
-    id: "2",
-    name: "Hong Anh",
-    avatar: "https://randomuser.me/api/portraits/women/45.jpg",
-    message: "Muốn kết bạn",
-  },
-  {
-    id: "3",
-    name: "Vân",
-    avatar: "https://randomuser.me/api/portraits/women/46.jpg",
-    message: "Muốn kết bạn",
-  },
-]
 
-const SENT_REQUESTS = [
-  {
-    id: "1",
-    name: "Nguyễn Thành Luân",
-    avatar: "https://randomuser.me/api/portraits/men/47.jpg",
-    message: "Từ cửa sổ trò chuyện",
-    time: "7 giờ trước",
-  },
-  {
-    id: "2",
-    name: "Trần Hoàng Anh",
-    avatar: "https://randomuser.me/api/portraits/men/48.jpg",
-    message: "Từ cửa sổ trò chuyện",
-    time: "21/03",
-  },
-]
 
 export default function FriendRequestsScreen() {
   const navigation = useNavigation()
   const [activeTab, setActiveTab] = useState("received")
+  const [receivedRequests, setReceivedRequests] = useState([]);
+  const [sentRequests, setSentRequests] = useState([]);
+  const [friendRequests, setFriendRequests] = useState({});
 
-  const renderReceivedRequestItem = ({ item }) => (
+  useEffect(() => {
+    fetchReceivedRequests();
+    fetchSentRequests();
+  }, [])
+
+  const fetchReceivedRequests = async () => {
+    try{
+      const userId = await AsyncStorage.getItem("userId");
+      const res = await Api_FriendRequest.getReceivedRequests(userId);
+      console.log("Danh sách lời mời kết bạn đã nhận:", res.data);
+      setReceivedRequests(res.data);
+    }catch(error){
+      console.error("Lỗi lấy danh sách lời mời kết bạn đã nhận:", error);
+    }
+  }
+
+  const fetchSentRequests = async () => {
+    try{
+      const userId = await AsyncStorage.getItem("userId");
+      const res = await Api_FriendRequest.getSentPendingRequests(userId);
+      console.log("Danh sách lời mời kết bạn đã gửi:", res.data);
+      setSentRequests(res.data);
+    }catch(error){
+      console.error("Lỗi lấy danh sách lời mời kết bạn đã gửi:", error);
+    }
+  }
+
+  const handleRespondRequest = async (requestId: any, action: "accepted" | "rejected") => {
+    try{
+      const userId = await AsyncStorage.getItem("userId");
+      const response = await Api_FriendRequest.respondToFriendRequest({
+        requestId,
+        action,
+        userId,
+      });
+      if (response.message.includes("accepted")) {
+        // Nếu accepted, xoá khỏi danh sách đã nhận
+        setReceivedRequests((prev) => prev.filter((req) => req._id !== requestId));
+      } else if (response.message.includes("rejected")) {
+        // Nếu rejected, cũng xoá khỏi danh sách
+        setReceivedRequests((prev) => prev.filter((req) => req._id !== requestId));
+      }
+    }catch(error){
+      console.error("Lỗi phản hồi lời mời kết bạn:", error);
+    }
+  };
+
+  
+
+
+
+  const renderReceivedRequestItem = ({ item }: { item: {
+    requester: any ;_id: string; avatar: string; firstname?: string; surname?: string; message: string 
+} }) => (
     <View style={styles.requestItem}>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      <Image source={{ uri: item.requester.avatar || "https://picsum.photos/200/300" }}   style={styles.avatar} />
 
       <View style={styles.requestInfo}>
-        <Text style={styles.requestName}>{item.name}</Text>
-        <Text style={styles.requestMessage}>{item.message}</Text>
+        <Text style={styles.requestName}>   {item.requester.surname} {item.requester.firstname}</Text>
+        <Text style={styles.requestMessage}>Muốn kết bạn !</Text>
       </View>
 
       <View style={styles.requestActions}>
-        <TouchableOpacity style={styles.rejectButton}>
+        <TouchableOpacity 
+        style={styles.rejectButton}
+        onPress={() => handleRespondRequest(item._id, "rejected")}>
           <Text style={styles.rejectButtonText}>Từ chối</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.acceptButton}>
+        <TouchableOpacity 
+        style={styles.acceptButton}
+        onPress={() => handleRespondRequest(item._id, "accepted")}>
           <Text style={styles.acceptButtonText}>Đồng ý</Text>
         </TouchableOpacity>
       </View>
     </View>
   )
 
-  const renderSentRequestItem = ({ item }) => (
+  const renderSentRequestItem = ({ item }: { item: {
+    createdAt: string | number | Date
+    recipient: any
+    _id: string; id: string; name: string; avatar: string; message: string; time: string 
+} }) => (
     <View style={styles.requestItem}>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      <Image source={{
+        uri: item.recipient.avatar || "https://picsum.photos/200/300", // Đặt ảnh mặc định
+      }} style={styles.avatar} />
 
       <View style={styles.requestInfo}>
-        <Text style={styles.requestName}>{item.name}</Text>
-        <Text style={styles.requestMessage}>{item.message}</Text>
-        <Text style={styles.requestTime}>{item.time}</Text>
+        <Text style={styles.requestName}> {item.recipient.surname} {item.recipient.firstname}</Text>
+        <Text style={styles.requestMessage}>Từ cửa sổ trò chuyện</Text>
+        <Text style={styles.requestTime}>{new Date(item.createdAt).toLocaleString()} </Text>
       </View>
 
       <TouchableOpacity style={styles.withdrawButton}>
@@ -102,8 +133,9 @@ export default function FriendRequestsScreen() {
           style={[styles.topTab, activeTab === "received" && styles.activeTopTab]}
           onPress={() => setActiveTab("received")}
         >
-          <Text style={activeTab === "received" ? styles.activeTopTabText : styles.topTabText}>Đã nhận 6</Text>
+          <Text style={activeTab === "received" ? styles.activeTopTabText : styles.topTabText}>Đã nhận {receivedRequests.length}</Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={[styles.topTab, activeTab === "sent" && styles.activeTopTab]}
           onPress={() => {
@@ -111,31 +143,44 @@ export default function FriendRequestsScreen() {
             navigation.navigate("SentRequests")
           }}
         >
-          <Text style={activeTab === "sent" ? styles.activeTopTabText : styles.topTabText}>Đã gửi 2</Text>
+          <Text style={activeTab === "sent" ? styles.activeTopTabText : styles.topTabText}>Đã gửi {sentRequests.length}</Text>
         </TouchableOpacity>
       </View>
 
       {activeTab === "received" && (
+  <>
+    {receivedRequests.length === 0 ? (
+      <Text style={styles.noRequestText}>Không có lời mời kết bạn</Text>
+    ) : (
+      <FlatList
+        data={receivedRequests}
+        renderItem={renderReceivedRequestItem}
+        keyExtractor={(item) => item._id} // nhớ đổi lại nếu bạn dùng _id thay vì id
+        style={styles.requestList}
+      />
+    )}
+  </>
+)}
+
+      {activeTab === "sent" && (
         <>
-          
-          <FlatList
-            data={RECEIVED_REQUESTS}
-            renderItem={renderReceivedRequestItem}
-            keyExtractor={(item) => item.id}
-            style={styles.requestList}
-          />
-          
+        {sentRequests.length === 0 ? (
+          <Text style={styles.noRequestText}>Không có lời mời đã gửi</Text>
+        ) : (
+        <FlatList
+          data={sentRequests}
+          renderItem={renderSentRequestItem}
+          keyExtractor={(item) => item._id}
+          style={styles.requestList}
+        />
+        )}
         </>
       )}
 
-      {activeTab === "sent" && (
-        <FlatList
-          data={SENT_REQUESTS}
-          renderItem={renderSentRequestItem}
-          keyExtractor={(item) => item.id}
-          style={styles.requestList}
-        />
-      )}
+
+
+
+
     </View>
   )
 }
@@ -276,5 +321,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginRight: 4,
+  },
+  noRequestText: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
+    color: "#888",
   },
 })
