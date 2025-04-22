@@ -29,8 +29,9 @@ const MessageItem = ({
   };
   return (
     <div
-      className={`flex ${isCurrentUser ? "justify-end" : "justify-start"
-        } mb-4 relative`}
+      className={`flex ${
+        isCurrentUser ? "justify-end" : "justify-start"
+      } mb-4 relative`}
     >
       <div
         className={`p-3 rounded-lg w-fit max-w-xs relative ${

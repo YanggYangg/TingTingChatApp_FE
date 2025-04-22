@@ -570,6 +570,7 @@ import { useSocket } from "../../contexts/SocketContext";
 import { useCloudSocket } from "../../contexts/CloudSocketContext";
 import ShareModal from "../../components/chat/ShareModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import { Api_Profile } from "../../../apis/api_profile";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -593,6 +594,13 @@ function ChatPage() {
   const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
   const [messageToForward, setMessageToForward] = useState(null); // State để lưu tin nhắn cần chuyển tiếp
 
+  const [chatDetails, setChatDetails] = useState({
+    name: "Unknown",
+    avatar: "https://picsum.photos/200",
+    members: 0,
+    lastActive: 6,
+  });
+
   const dispatch = useDispatch();
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
@@ -610,6 +618,49 @@ function ChatPage() {
   };
 
   const conversationId = selectedMessageId;
+
+  useEffect(() => {
+    const fetchChatDetails = async () => {
+      if (!selectedMessage || !currentUserId) return;
+
+      let name = "Unknown";
+      let avatar = "https://picsum.photos/200";
+      let members = 0;
+      let lastActive = 6; // Giá trị mặc định
+
+      if (selectedMessage.isGroup && selectedMessage.name) {
+        name = selectedMessage.name;
+        avatar = selectedMessage.imageGroup || avatar;
+        members = selectedMessage.participants?.length || 0;
+        console.log("Group details:", { name, avatar, members });
+      } else if (selectedMessage.participants) {
+        const otherParticipant = selectedMessage.participants.find(
+          (p) => p.userId !== currentUserId
+        );
+        if (otherParticipant?.userId) {
+          try {
+            const response = await Api_Profile.getProfile(
+              otherParticipant.userId
+            );
+            if (response?.data?.user) {
+              name =
+                `${response.data.user.firstname} ${response.data.user.surname}`.trim();
+              avatar = response.data.user.avatar || avatar;
+              // lastActive có thể được lấy từ API Profile nếu có thông tin lastActive
+              console.log("Personal details:", { name, avatar });
+            }
+          } catch (error) {
+            console.error("Lỗi khi lấy thông tin người dùng:", error);
+          }
+        }
+      }
+
+      setChatDetails({ name, avatar, members, lastActive });
+    };
+
+    fetchChatDetails();
+  }, [selectedMessage, currentUserId]);
+
   // Cuộn xuống tin nhắn mới nhất
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -721,7 +772,6 @@ function ChatPage() {
           }
           return prevMessages;
         });
-
       });
 
       // Xử lý lỗi
@@ -743,15 +793,15 @@ function ChatPage() {
 
   const selectedChat = selectedMessage
     ? {
-      id: selectedMessageId,
-      name:
-        selectedMessage.participants?.find((p) => p.userId !== currentUserId)
-          ?.userId === currentUserId
-          ? "Bạn"
-          : "Unknown",
-      avatar: "https://picsum.photos/200",
-      type: selectedMessage.type || "personal",
-    }
+        id: selectedMessageId,
+        name:
+          selectedMessage.participants?.find((p) => p.userId !== currentUserId)
+            ?.userId === currentUserId
+            ? "Bạn"
+            : "Unknown",
+        avatar: "https://picsum.photos/200",
+        type: selectedMessage.type || "personal",
+      }
     : null;
 
   const formatTime = (createdAt) => {
@@ -1226,15 +1276,15 @@ function ChatPage() {
               />
             ) : (
               <ChatHeader
-                type={selectedChat.type}
-                name={selectedChat.name}
-                lastActive={6}
-                avatar={selectedChat.avatar}
+                type={chatDetails.type}
+                name={chatDetails.name}
+                avatar={chatDetails.avatar}
+                members={chatDetails.members}
+                lastActive={chatDetails.lastActive}
                 isChatInfoVisible={isChatInfoVisible}
                 setIsChatInfoVisible={setIsChatInfoVisible}
               />
             )}
-
             {selectedChat.type === "cloud" ? (
               <>
                 <div

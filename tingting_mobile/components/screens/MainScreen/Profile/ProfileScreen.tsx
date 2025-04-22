@@ -1,13 +1,23 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, Alert } from "react-native"
-import { Feather, Ionicons } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react"
-import {Api_Profile} from "@/apis/api_profile"
+import { useEffect, useState } from "react";
+import { Api_Profile } from "@/apis/api_profile";
 import axios from "axios";
 
 export default function ProfileScreen() {
-  const navigation = useNavigation()
+  const navigation = useNavigation();
 
   // Get the user ID from the async-storage
   const [formData, setFormData] = useState({
@@ -36,7 +46,7 @@ export default function ProfileScreen() {
         console.log("User ID:", userId);
 
         const response = await axios.get(
-          `http://192.168.1.17:3001/api/v1/profile/${userId}`,
+          `http://192.168.1.28:3001/api/v1/profile/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -74,13 +84,10 @@ export default function ProfileScreen() {
 
     fetchProfile();
   }, []);
-  
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-
-      
 
       <ScrollView>
         {/* Profile Section */}
@@ -88,7 +95,9 @@ export default function ProfileScreen() {
           {/* Background Image */}
           <Image
             source={{
-              uri: formData.coverPhoto || "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
+              uri:
+                formData.coverPhoto ||
+                "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
             }}
             style={styles.backgroundImage}
           />
@@ -97,17 +106,24 @@ export default function ProfileScreen() {
           <View style={styles.profilePictureContainer}>
             <Image
               source={{
-                uri: formData.avatar || "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
+                uri:
+                  formData.avatar ||
+                  "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
               }}
               style={styles.profilePicture}
             />
           </View>
 
           {/* Name */}
-          <Text style={styles.profileName}>{formData.firstname} {formData.surname}</Text>
+          <Text style={styles.profileName}>
+            {formData.firstname} {formData.surname}
+          </Text>
 
           {/* Update Profile Button */}
-          <TouchableOpacity style={styles.updateProfileButton} onPress={() => navigation.navigate("PersonalInfo", { formData })}>
+          <TouchableOpacity
+            style={styles.updateProfileButton}
+            onPress={() => navigation.navigate("PersonalInfo", { formData })}
+          >
             <Feather name="edit-2" size={16} color="#2196F3" />
             <Text style={styles.updateProfileText}>Cập nhật</Text>
           </TouchableOpacity>
@@ -176,14 +192,18 @@ export default function ProfileScreen() {
               </View>
 
               <TouchableOpacity style={styles.moreButton}>
-                <Ionicons name="ellipsis-horizontal" size={24} color="#616161" />
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={24}
+                  color="#616161"
+                />
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -387,4 +407,4 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     color: "#616161",
   },
-})
+});
