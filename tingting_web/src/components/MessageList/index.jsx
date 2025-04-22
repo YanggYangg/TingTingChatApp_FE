@@ -2,7 +2,7 @@ import React from "react";
 import { Phone, MessageCircle } from "lucide-react";
 
 const MessageList = ({ messages, onMessageClick }) => {
-  console.log("MessageList received messages:", messages);
+  // console.log("MessageList received messages:", messages);
 
   return (
     <div className="w-full max-w-md mx-auto bg-white text-black p-2">

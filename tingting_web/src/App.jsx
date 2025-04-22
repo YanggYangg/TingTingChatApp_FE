@@ -25,7 +25,8 @@ import VerifyOTP from "./pages/VerifyOTP";
 import store from "./redux/store";
 import { SocketProvider } from "./contexts/SocketContext";
 import { CloudSocketProvider } from "./contexts/CloudSocketContext";
-
+import { CallManagerProvider } from "./contexts/CallManagerContext";
+import CallModal from "./components/Call/CallModal";
 
 function App() {
   // const userId = "6601a1b2c3d4e5f678901234";
@@ -37,38 +38,41 @@ function App() {
     <Provider store={store}>
       <SocketProvider userId={userId}>
         <CloudSocketProvider>
-          <Router>
-            <Routes>
-              <Route path="/" element={<DefaultLayout />}>
-                <Route index element={<h1>Chat window</h1>} />
-                <Route path="chat" element={<ChatPage />} />
-                <Route path="/contacts/:tab" element={<ContactsPage />} />
-                <Route
-                  path="*"
-                  element={<Navigate to="/contacts/friends" />}
-                />{" "}
-              </Route>
-              <Route path="/login" element={<Login />} />
-              <Route path="/homepage" element={<HomePage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/verify-otp" element={<VerifyOTP />} />
-              {forgotPasswordRoutes.map((route, index) => {
-                const Page = route.component;
-                const Layout = ForgotAccountLayout;
-                return (
+          <CallManagerProvider>
+            <Router>
+              <Routes>
+                <Route path="/" element={<DefaultLayout />}>
+                  <Route index element={<h1>Chat window</h1>} />
+                  <Route path="chat" element={<ChatPage />} />
+                  <Route path="/contacts/:tab" element={<ContactsPage />} />
                   <Route
-                    key={index}
-                    path={route.path}
-                    element={
-                      <Layout>
-                        <Page />
-                      </Layout>
-                    }
-                  />
-                );
-              })}
-            </Routes>
-          </Router>
+                    path="*"
+                    element={<Navigate to="/contacts/friends" />}
+                  />{" "}
+                </Route>
+                <Route path="/login" element={<Login />} />
+                <Route path="/homepage" element={<HomePage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/verify-otp" element={<VerifyOTP />} />
+                {forgotPasswordRoutes.map((route, index) => {
+                  const Page = route.component;
+                  const Layout = ForgotAccountLayout;
+                  return (
+                    <Route
+                      key={index}
+                      path={route.path}
+                      element={
+                        <Layout>
+                          <Page />
+                        </Layout>
+                      }
+                    />
+                  );
+                })}
+              </Routes>
+              <CallModal />
+            </Router>
+          </CallManagerProvider>
         </CloudSocketProvider>
       </SocketProvider>
     </Provider>

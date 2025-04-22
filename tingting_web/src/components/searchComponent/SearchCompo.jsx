@@ -100,7 +100,7 @@ function Search() {
         });
 
         setFriendRequests(newRequestStatus);
-        console.log("Dữ liệu trạng thái kết bạn:", newRequestStatus);
+        // console.log("Dữ liệu trạng thái kết bạn:", newRequestStatus);
       } catch (error) {
         console.error("Lỗi khi lấy danh sách lời mời:", error);
       }
