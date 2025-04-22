@@ -7,15 +7,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Modal from 'react-native-modal';
+import { Ionicons } from '@expo/vector-icons';
 import { Api_Profile } from '../../../../../apis/api_profile';
+import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 
 interface Participant {
   userId: string;
-  name: string;
-  avatar: string;
-  isHidden: boolean;
+  role?: 'admin' | 'member';
+  isHidden?: boolean;
 }
 
 interface ChatInfoData {
@@ -28,6 +30,7 @@ interface MemberDetails {
   [userId: string]: {
     name: string;
     avatar: string | null;
+    role?: 'admin' | 'member';
   };
 }
 
@@ -35,12 +38,35 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   chatInfo: ChatInfoData;
+  currentUserId: string;
+  onMemberRemoved?: (memberId: string) => void;
 }
 
-const MemberListModal: React.FC<Props> = ({ isOpen, onClose, chatInfo }) => {
+const MemberListModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  chatInfo,
+  currentUserId,
+  onMemberRemoved,
+}) => {
   const [memberDetails, setMemberDetails] = useState<MemberDetails>({});
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = () => {
+      if (chatInfo?.participants && currentUserId) {
+        const adminMember = chatInfo.participants.find(
+          (member) => member.userId === currentUserId && member.role === 'admin'
+        );
+        setIsAdmin(!!adminMember);
+      } else {
+        setIsAdmin(false);
+      }
+    };
+    checkAdminStatus();
+  }, [chatInfo, currentUserId]);
 
   useEffect(() => {
     const fetchMemberDetails = async () => {
@@ -61,12 +87,14 @@ const MemberListModal: React.FC<Props> = ({ isOpen, onClose, chatInfo }) => {
             if (response?.data?.user) {
               details[member.userId] = {
                 name: `${response.data.user.firstname} ${response.data.user.surname}`.trim() || 'Không tên',
-                avatar: response.data.user.avatar,
+                avatar: response.data.user.avatar || null,
+                role: member.role,
               };
             } else {
               details[member.userId] = {
                 name: 'Không tìm thấy',
                 avatar: null,
+                role: member.role,
               };
             }
           } catch (error) {
@@ -74,6 +102,7 @@ const MemberListModal: React.FC<Props> = ({ isOpen, onClose, chatInfo }) => {
             details[member.userId] = {
               name: 'Lỗi tải',
               avatar: null,
+              role: member.role,
             };
           }
         });
@@ -91,11 +120,59 @@ const MemberListModal: React.FC<Props> = ({ isOpen, onClose, chatInfo }) => {
     if (isOpen && chatInfo) {
       fetchMemberDetails();
     } else {
-      setMemberDetails({}); // Clear details when modal is closed
+      setMemberDetails({});
       setLoadingDetails(true);
       setErrorDetails(null);
     }
   }, [isOpen, chatInfo]);
+
+  const handleRemoveMember = async (memberIdToRemove: string) => {
+    if (!isAdmin) {
+      Alert.alert('Lỗi', 'Bạn không có quyền xóa thành viên khỏi nhóm này.');
+      return;
+    }
+
+    if (currentUserId === memberIdToRemove) {
+      Alert.alert(
+        'Lỗi',
+        'Bạn không thể tự xóa mình khỏi đây. Hãy rời nhóm từ trang thông tin nhóm.'
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Xác nhận',
+      'Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await Api_chatInfo.removeParticipant(chatInfo._id, { userId: memberIdToRemove });
+              console.log('Remove member response:', response);
+              if (onMemberRemoved) {
+                onMemberRemoved(memberIdToRemove);
+              }
+              setMemberDetails((prev) => {
+                const newDetails = { ...prev };
+                delete newDetails[memberIdToRemove];
+                return newDetails;
+              });
+              Alert.alert('Thành công', 'Đã xóa thành viên khỏi nhóm.');
+            } catch (error) {
+              console.error('Lỗi khi xóa thành viên:', error);
+              Alert.alert('Lỗi', 'Không thể xóa thành viên. Vui lòng thử lại.');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const visibleParticipants = chatInfo?.participants?.filter((member) => !member.isHidden) || [];
 
   if (!chatInfo?.participants) {
     return null;
@@ -105,7 +182,7 @@ const MemberListModal: React.FC<Props> = ({ isOpen, onClose, chatInfo }) => {
     <Modal isVisible={isOpen} onBackdropPress={onClose} style={styles.modal}>
       <View style={styles.modalContainer}>
         <Text style={styles.modalTitle}>
-          Thành viên ({chatInfo.participants.length || 0})
+          Thành viên ({visibleParticipants.length || 0})
         </Text>
 
         {loadingDetails ? (
@@ -117,21 +194,36 @@ const MemberListModal: React.FC<Props> = ({ isOpen, onClose, chatInfo }) => {
           <Text style={styles.errorText}>{errorDetails}</Text>
         ) : (
           <FlatList
-            data={chatInfo.participants}
+            data={visibleParticipants}
             keyExtractor={(item) => item.userId}
             renderItem={({ item }) => (
               <View style={styles.memberItem}>
-                <Image
-                  source={{
-                    uri:
-                      memberDetails[item.userId]?.avatar ||
-                      'https://encrypted-tbn0.gstatic.com/images?q=tbnpng&s',
-                  }}
-                  style={styles.avatar}
-                />
-                <Text style={styles.memberName}>
-                  {memberDetails[item.userId]?.name || 'Không tên'}
-                </Text>
+                <View style={styles.memberInfo}>
+                  <Image
+                    source={{
+                      uri:
+                        memberDetails[item.userId]?.avatar ||
+                        'https://via.placeholder.com/40',
+                    }}
+                    style={styles.avatar}
+                  />
+                  <View>
+                    <Text style={styles.memberName}>
+                      {memberDetails[item.userId]?.name || 'Không tên'}
+                    </Text>
+                    {memberDetails[item.userId]?.role === 'admin' && (
+                      <Text style={styles.adminLabel}>(Admin)</Text>
+                    )}
+                  </View>
+                </View>
+                {isAdmin && currentUserId !== item.userId && (
+                  <TouchableOpacity
+                    onPress={() => handleRemoveMember(item.userId)}
+                    style={styles.removeButton}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#ff0000" />
+                  </TouchableOpacity>
+                )}
               </View>
             )}
             style={styles.list}
@@ -169,9 +261,14 @@ const styles = StyleSheet.create({
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
+  },
+  memberInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatar: {
     width: 40,
@@ -182,6 +279,13 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 14,
     color: '#333',
+  },
+  adminLabel: {
+    fontSize: 12,
+    color: '#1e90ff',
+  },
+  removeButton: {
+    padding: 8,
   },
   loadingContainer: {
     alignItems: 'center',

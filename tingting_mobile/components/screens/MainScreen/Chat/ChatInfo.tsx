@@ -50,7 +50,7 @@ const Icon = FontAwesome;
 
 const ChatInfo: React.FC<ChatInfoProps> = ({
   userId = "6806780f2d6b2f2b0c3f3ca1",
-  conversationId = "6807bc34f6bdd24e4832fbf9",
+  conversationId = "68073f696cdca1faf3d02368",
 }) => {
   const [chatInfo, setChatInfo] = useState<ChatInfoData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -61,7 +61,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
-  const [isMemberListOpen, setIsMemberListOpen] = useState(false);
+  const [userRoleInGroup, setUserRoleInGroup] = useState<string | null>(null);
 
   const navigation = useNavigation();
 
@@ -80,10 +80,13 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         setChatInfo(response);
 
         const participant = response.participants.find((p: Participant) => p.userId === userId);
-        setIsMuted(!!participant?.mute);
-        setChatInfo((prev: ChatInfoData | null) =>
-          prev ? { ...prev, isPinned: participant?.isPinned ?? false } : prev
-        );
+        if (participant) {
+          setIsMuted(!!participant.mute);
+          setUserRoleInGroup(participant.role);
+        } else {
+          setIsMuted(false);
+          setUserRoleInGroup(null);
+        }
 
         if (!response.isGroup) {
           const otherParticipant = response.participants.find((p: Participant) => p.userId !== userId);
@@ -117,6 +120,10 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
     try {
       const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId);
       setChatInfo(updatedChatInfo);
+      const participant = updatedChatInfo.participants.find((p) => p.userId === userId);
+      if (participant) {
+        setUserRoleInGroup(participant.role);
+      }
       Alert.alert('Thành công', 'Đã thêm thành viên vào nhóm!');
     } catch (error) {
       console.error('Lỗi khi cập nhật chatInfo sau khi thêm thành viên:', error);
@@ -239,8 +246,8 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
     ? chatInfo.name
     : `${otherUser?.firstname || ''} ${otherUser?.surname || ''}`.trim() || 'Đang tải...';
   const chatDisplayImage = chatInfo.isGroup
-    ? chatInfo.imageGroup?.trim() || 'https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2023/12/anh-dai-dien-zalo-thumbnail.jpg'
-    : otherUser?.avatar || 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User';
+    ? chatInfo.imageGroup?.trim() || 'https://via.placeholder.com/150'
+    : otherUser?.avatar || 'https://via.placeholder.com/150';
 
   return (
     <View style={styles.container}>
@@ -301,9 +308,9 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
 
         <GroupMemberList
           chatInfo={chatInfo}
-          conversationId={conversationId}
           userId={userId}
-          onOpenMemberList={() => setIsMemberListOpen(true)}
+          conversationId={conversationId}
+          onMemberRemoved={handleMemberRemoved}
         />
 
         {chatInfo.linkGroup && (
@@ -323,6 +330,8 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
           conversationId={conversationId}
           userId={userId}
           setChatInfo={setChatInfo}
+          userRoleInGroup={userRoleInGroup}
+          chatInfo={chatInfo}
         />
       </ScrollView>
 
@@ -339,7 +348,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         onClose={() => setIsAddModalOpen(false)}
         onMemberAdded={handleMemberAdded}
         userId={userId}
-        currentMembers={chatInfo.participants.map((p) => p.userId)}
+        currentMembers={currentConversationParticipants}
       />
       <EditNameModal
         isOpen={isEditNameModalOpen}
@@ -353,13 +362,6 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         userId={userId}
         onGroupCreated={handleCreateGroupSuccess}
         currentConversationParticipants={currentConversationParticipants}
-      />
-      <MemberListModal
-        isOpen={isMemberListOpen}
-        onClose={() => setIsMemberListOpen(false)}
-        chatInfo={chatInfo}
-        currentUserId={userId}
-        onMemberRemoved={handleMemberRemoved}
       />
     </View>
   );
