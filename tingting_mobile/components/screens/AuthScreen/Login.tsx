@@ -67,6 +67,25 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
   //     navigation.navigate("VerificationCode", { phoneNumber: phone });
   //   }
   // };
+  // const handleValidateToken = async () => {
+  //   try {
+  //     const token = await AsyncStorage.getItem("token");
+  //     if (!token) return;
+  //     const res = await axios.post(
+  //       "http://192.168.1.17:3002/api/v1/auth/validate-token",
+  //       { phone },
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     );
+
+  //     navigation.replace("Main");
+  //   } catch (error: any) {
+  //     navigation.navigate("VerificationCode", { phoneNumber: phone });
+  //   }
+  // };
 
   return (
     <View style={styles.container}>

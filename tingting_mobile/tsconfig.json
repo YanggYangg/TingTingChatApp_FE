@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "moduleResolution": "bundler",
-    "jsx": "react-native", // hoặc "node16", "nodenext"
+    "jsx": "react-native",
     "paths": {
       "@/*": [
         "./*"
@@ -13,8 +13,6 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
     "components/screens/MainScreen/Cloud/ChatItems.js",
     "components/screens/MainScreen/ChatScreen.tsx",
     "components/chatitems/ChatItems.tsx",

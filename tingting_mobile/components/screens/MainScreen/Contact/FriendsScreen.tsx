@@ -1,51 +1,84 @@
 "use client"
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from "react-native"
+import { useEffect, useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useNavigation } from "@react-navigation/native"
 import { Ionicons } from "@expo/vector-icons"
+import { Api_FriendRequest } from "../../../../apis/api_friendRequest";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Dữ liệu mẫu
-const CONTACTS = [
-  {
-    id: "1",
-    name: "Vinh Trần",
-    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-    online: true,
-  },
-  {
-    id: "2",
-    name: "Hữu Trí",
-    avatar: "https://randomuser.me/api/portraits/men/33.jpg",
-    online: true,
-  },
-  {
-    id: "3",
-    name: "Vĩnh Bình",
-    avatar: "https://randomuser.me/api/portraits/men/34.jpg",
-    online: true,
-  },
-  {
-    id: "4",
-    name: "Trọng Phúc",
-    avatar: "https://randomuser.me/api/portraits/men/35.jpg",
-    online: true,
-  },
-  {
-    id: "5",
-    name: "Nguyễn Tấn Lộc",
-    avatar: "https://randomuser.me/api/portraits/men/36.jpg",
-    online: true,
-  },
-]
 
 export default function FriendsScreen() {
   const navigation = useNavigation()
+  const [friends, setFriends] = useState([]);
+  const [receivedRequests, setReceivedRequests] = useState([]);
 
-  const renderContactItem = ({ item }) => (
+
+    const fetchFriends = async () => {
+      try {
+        const userId = await AsyncStorage.getItem("userId"); 
+        const res = await Api_FriendRequest.getFriendsList(userId);
+        console.log("Danh sách bạn bè:", res.data);
+        setFriends(res.data);
+      } catch (error) {
+        console.error("Lỗi lấy danh sách bạn bè:", error);
+      }
+    };
+    useEffect(() => {
+    fetchFriends();
+  }, []);
+
+  useEffect(() => {
+    fetchReceivedRequests();
+  }, [])
+
+  const fetchReceivedRequests = async () => {
+    try{
+      const userId = await AsyncStorage.getItem("userId");
+      const res = await Api_FriendRequest.getReceivedRequests(userId);
+      console.log("Danh sách lời mời kết bạn đã nhận:", res.data);
+      setReceivedRequests(res.data);
+    }catch(error){
+      console.error("Lỗi lấy danh sách lời mời kết bạn đã nhận:", error);
+    }
+  }
+
+  const handleDeleteFriend = async (friendId) => {
+    Alert.alert(
+      "Xác nhận xóa bạn",
+      "Bạn có chắc chắn muốn xóa người này khỏi danh sách bạn bè?",
+      [
+        {
+          text: "Hủy",
+          style: "cancel",
+        },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const currentUserId = await AsyncStorage.getItem("userId");
+              const response = await Api_FriendRequest.unfriend(currentUserId, friendId);
+              console.log("Xóa bạn thành công:", response.data);
+              await fetchFriends(); // Cập nhật danh sách bạn bè sau khi xóa
+            } catch (error) {
+              console.error("Lỗi xóa bạn:", error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  
+  
+  
+
+ 
+  const renderContactItem = ({ item }: { item: { _id: string; name: string; avatar: string } }) => (
     <View style={styles.contactItem}>
       <View style={styles.avatarContainer}>
         <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        {item.online && <View style={styles.onlineIndicator} />}
       </View>
 
       <View style={styles.contactInfo}>
@@ -53,11 +86,16 @@ export default function FriendsScreen() {
       </View>
 
       <View style={styles.contactActions}>
-        <TouchableOpacity style={styles.actionButton}>
+        {/* <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="call-outline" size={22} color="#666" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="videocam-outline" size={22} color="#666" />
+        </TouchableOpacity> */}
+        <TouchableOpacity 
+        style={styles.actionButton}
+        onPress={() => handleDeleteFriend(item._id)} >
+          <Ionicons name="trash-outline" size={22} color="#666" />
         </TouchableOpacity>
       </View>
     </View>
@@ -89,39 +127,25 @@ export default function FriendsScreen() {
 
       {/* Friend Options */}
       <View style={styles.friendOptions}>
-        <TouchableOpacity style={styles.friendOption} onPress={() => navigation.navigate("FriendRequests")}>
+        <TouchableOpacity style={styles.friendOption} 
+        onPress={() => navigation.navigate("FriendRequests")}>
           <View style={styles.friendOptionIcon}>
             <Ionicons name="people" size={24} color="#0091ff" />
           </View>
           <View style={styles.friendOptionTextContainer}>
             <Text style={styles.friendOptionText}>Lời mời kết bạn</Text>
-            <Text style={styles.friendOptionCount}>(6)</Text>
+            <Text style={styles.friendOptionCount}>({receivedRequests.length})</Text>
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.friendOption}>
-          <View style={styles.friendOptionIcon}>
-            <Ionicons name="book" size={24} color="#0091ff" />
-          </View>
-          <View>
-            <Text style={styles.friendOptionText}>Danh bạ máy</Text>
-            <Text style={styles.friendOptionSubtext}>Liên hệ có dùng Zalo</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.friendOption}>
-          <View style={styles.friendOptionIcon}>
-            <Ionicons name="gift" size={24} color="#0091ff" />
-          </View>
-          <Text style={styles.friendOptionText}>Sinh nhật</Text>
-        </TouchableOpacity>
+    
       </View>
 
       {/* Contact List */}
       <FlatList
-        data={CONTACTS}
+        data={friends}
         renderItem={renderContactItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         style={styles.contactList}
       />
     </View>

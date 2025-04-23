@@ -3,6 +3,7 @@ import classNames from "classnames/bind";
 import styles from "./ContactItem.module.scss";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { MoreVertical } from "lucide-react";
+import { faTrash } from "@fortawesome/free-solid-svg-icons"; 
 
 const cx = classNames.bind(styles);
 
@@ -14,7 +15,8 @@ const ContactItem = ({
   className,
   showBorder,
   menuOpen,
-  onMenuToggle,
+  //onMenuToggle,
+  onDeleteFriend,
   showMenuIcon, // Thêm prop để kiểm soát hiển thị nút ba chấm
   isSelected,
 }) => {
@@ -53,27 +55,13 @@ const ContactItem = ({
           <button
             className="ml-auto p-2 rounded hover:bg-gray-300"
             onClick={(e) => {
-              e.stopPropagation();
-              onMenuToggle();
+              e.stopPropagation();//ngan click lan len
+              // onMenuToggle();
+              onDeleteFriend();
             }}
           >
-            <MoreVertical size={18} />
+            <FontAwesomeIcon icon={faTrash} className="text-red-500" />
           </button>
-        )}
-
-        {/* Dropdown menu */}
-        {menuOpen && (
-          <div className="absolute right-4 top-10 bg-white shadow-md rounded-md p-2 w-40 z-10">
-            <button className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
-              Xem chi tiết
-            </button>
-            <button className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
-              Nhắn tin
-            </button>
-            <button className="block w-full text-left px-3 py-2 text-red-500 hover:bg-red-100 text-sm">
-              Xóa bạn
-            </button>
-          </div>
         )}
       </div>
     </div>

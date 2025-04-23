@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Modal from 'react-native-modal';
 import { Ionicons } from '@expo/vector-icons';
-import { Api_FriendRequest } from '../../../../../apis/api_friendRequest';
+import { Api_FriendRequest } from '../../../../../apis/api_friendrequest';
 import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 import { Api_Profile } from '../../../../../apis/api_profile';
 

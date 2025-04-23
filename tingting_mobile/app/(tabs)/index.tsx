@@ -157,7 +157,6 @@ function MainTabNavigator() {
       tabBar={(props) => <FooterTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        // Tab navigator uses transitionSpec or animation for custom transitions, but default is fine for none
       }}
     >
       <Tab.Screen name="ChatScreen" options={{ tabBarLabel: "Tin nhắn" }}>
@@ -167,7 +166,8 @@ function MainTabNavigator() {
           </MainLayout>
         )}
       </Tab.Screen>
-      <Tab.Screen name="ContactTab" options={{ tabBarLabel: "Danh bạ" }}>
+      <Tab.Screen name="ContactTab" 
+      options={{ tabBarLabel: "Danh bạ" }}>
         {() => (
           <MainLayout>
             <ContactStackNavigator />
@@ -241,6 +241,7 @@ export default function App() {
       <SocketProvider>
         <CloudSocketProvider>
           <Stack.Navigator
+            initialRouteName="Welcome"
             initialRouteName="Welcome"
             screenOptions={{
               headerShown: false,
