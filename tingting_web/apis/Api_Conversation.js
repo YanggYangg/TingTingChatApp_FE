@@ -8,6 +8,6 @@ export const Api_Conversation = {
         return ApiManager.get('chatService', '/groups');
     },
     getUserJoinGroup: async (userId) => {
-        return ApiManager.get('chatService', `/userGroups/${userId}`);
+        return ApiManager.get('chatService', `/conversations/userGroups/${userId}`);
     },
 };

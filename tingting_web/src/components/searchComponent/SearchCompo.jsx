@@ -154,65 +154,110 @@ function Search() {
     console.log(filtered);
   };
 
+  // const handleFriendRequest = async () => {
+  //   console.log("Nút Kết bạn đã được nhấn");
+  //   console.log("selectedUser at the time of request:", selectedUser);
+  //   console.log(
+  //     "selectedUser phone:",
+  //     selectedUser ? selectedUser.phone : "No phone available"
+  //   );
+
+  //   if (!selectedUser || !selectedUser.phone) {
+  //     console.error(
+  //       "Thông tin người dùng không đầy đủ hoặc chưa chọn người dùng."
+  //     );
+  //     return;
+  //   }
+
+  //   try {
+  //     const userId = localStorage.getItem("userId");
+  //     if (!userId) {
+  //       console.error("Không tìm thấy userId trong localStorage");
+  //       return;
+  //     }
+
+  //     const response = await Api_Profile.getUserPhone(userId);
+  //     console.log("API responseeeeee:", response);
+  //     console.log("response.data:", response.data);
+  //     const currentUserPhone = response.phone;
+
+  //     console.log("Số điện thoại người dùng hiện tại:", currentUserPhone);
+
+     
+  //     await Api_FriendRequest.sendFriendRequest({
+  //       requesterPhone: currentUserPhone,
+  //       recipientPhone: selectedUser?.phone || "",
+  //     });
+
+  //     setFriendRequests((prev) => {
+  //       const updatedRequests = {
+  //         ...prev,
+  //         [selectedUser._id]: {
+  //           status: "pending",
+  //           requestId: "temp-id-local", // bạn có thể để rỗng hoặc gán sau từ backend
+  //           isRequester: true, // <- Quan trọng nhất
+  //         },
+  //       };
+  //       console.log("Updated friend requests:", updatedRequests);
+  //       return updatedRequests;
+  //     });
+  //     setRefreshTrigger((prev) => prev + 1);
+  //     setTimeout(() => {
+  //       setRefreshTrigger((prev) => prev + 1);
+  //     }, 100); // 100ms sau tăng thêm lần nữa
+  //   } catch (err) {
+  //     console.error("Gửi lời mời kết bạn thất bại:", err);
+  //   }
+  // };
+
   const handleFriendRequest = async () => {
-    console.log("Nút Kết bạn đã được nhấn");
-    console.log("selectedUser at the time of request:", selectedUser);
-    console.log(
-      "selectedUser phone:",
-      selectedUser ? selectedUser.phone : "No phone available"
-    );
-
-    if (!selectedUser || !selectedUser.phone) {
-      console.error(
-        "Thông tin người dùng không đầy đủ hoặc chưa chọn người dùng."
-      );
-      return;
-    }
-
+    const userId = localStorage.getItem("userId");
+    if (!userId || !selectedUser || !selectedUser._id) return;
+  
+    const existingRequest = friendRequests[selectedUser._id];
+  
     try {
-      const userId = localStorage.getItem("userId");
-      if (!userId) {
-        console.error("Không tìm thấy userId trong localStorage");
-        return;
-      }
-
-      const response = await Api_Profile.getUserPhone(userId);
-      console.log("API responseeeeee:", response);
-      console.log("response.data:", response.data);
-      const currentUserPhone = response.phone;
-
-      console.log("Số điện thoại người dùng hiện tại:", currentUserPhone);
-
-      // if (!currentUserPhone) {
-      //   console.error("Số điện thoại người dùng không có");
-      //   return;
-      // }
-      await Api_FriendRequest.sendFriendRequest({
-        requesterPhone: currentUserPhone,
-        recipientPhone: selectedUser?.phone || "",
-      });
-
-      setFriendRequests((prev) => {
-        const updatedRequests = {
+      const userPhoneRes = await Api_Profile.getUserPhone(userId);
+      const currentUserPhone = userPhoneRes.phone;
+  
+      if (existingRequest && existingRequest.status === "pending" && existingRequest.isRequester) {
+        // Nếu đã gửi lời mời => thu hồi
+        await Api_FriendRequest.cancelFriendRequest({
+          requesterId: userId,
+          recipientId: selectedUser._id,
+        });
+  
+        // Xóa trạng thái lời mời khỏi state
+        setFriendRequests((prev) => {
+          const updated = { ...prev };
+          delete updated[selectedUser._id];
+          return updated;
+        });
+      } else {
+        // Gửi lời mời mới
+        await Api_FriendRequest.sendFriendRequest({
+          requesterPhone: currentUserPhone,
+          recipientPhone: selectedUser.phone,
+        });
+  
+        setFriendRequests((prev) => ({
           ...prev,
           [selectedUser._id]: {
             status: "pending",
-            requestId: "temp-id-local", // bạn có thể để rỗng hoặc gán sau từ backend
-            isRequester: true, // <- Quan trọng nhất
+            requestId: "temp", // Bạn có thể thay bằng ID thực sau
+            isRequester: true,
           },
-        };
-        console.log("Updated friend requests:", updatedRequests);
-        return updatedRequests;
-      });
+        }));
+      }
+  
+      // Refresh dữ liệu
       setRefreshTrigger((prev) => prev + 1);
-      setTimeout(() => {
-        setRefreshTrigger((prev) => prev + 1);
-      }, 100); // 100ms sau tăng thêm lần nữa
     } catch (err) {
-      console.error("Gửi lời mời kết bạn thất bại:", err);
+      console.error("Lỗi xử lý lời mời kết bạn:", err);
     }
   };
 
+  
   const handleRespondRequest = async (requestId, action) => {
     try {
       const userId = localStorage.getItem("userId");
@@ -384,7 +429,7 @@ function Search() {
             </div>
 
             {/* Modal thông tin ng dùng */}
-            <div className="flex justify-end space-x-2 mt-4">
+            {/* <div className="flex justify-end space-x-2 mt-4">
               {friendRequests[selectedUser._id]?.status === "pending" ? (
                 friendRequests[selectedUser._id].isRequester ? (
                   <button
@@ -421,14 +466,6 @@ function Search() {
                 )
               ) : friendRequests[selectedUser._id]?.status === "accepted" ? (
                 <>
-                  {/* <button className="bg-green-500 text-white px-4 py-2 rounded">
-                    Gọi điện
-                  </button>
-                  <button 
-                  className="bg-blue-500 text-white px-4 py-2 rounded"
-                  >
-                    Nhắn tin
-                  </button> */}
                   <button className="bg-green-500 text-white px-4 py-2 rounded">
                     Đã là bạn bè
                   </button>
@@ -444,7 +481,61 @@ function Search() {
                 </button>
               )
             }
-            </div>
+            </div> */}
+
+{selectedUser && (
+  <div className="flex justify-end space-x-2 mt-4">
+    {friendRequests[selectedUser._id] ? (
+      friendRequests[selectedUser._id].status === "pending" ? (
+        friendRequests[selectedUser._id].isRequester ? (
+          <button
+            onClick={handleFriendRequest}
+            className="px-4 py-2 bg-red-500 text-white rounded"
+          >
+            Thu hồi lời mời
+          </button>
+        ) : (
+          <>
+            <button
+              className="bg-green-500 text-white px-4 py-2 rounded"
+              onClick={() =>
+                handleRespondRequest(
+                  friendRequests[selectedUser._id].requestId,
+                  "accepted"
+                )
+              }
+            >
+              Chấp nhận
+            </button>
+            <button
+              className="bg-red-500 text-white px-4 py-2 rounded"
+              onClick={() =>
+                handleRespondRequest(
+                  friendRequests[selectedUser._id].requestId,
+                  "rejected"
+                )
+              }
+            >
+              Từ chối
+            </button>
+          </>
+        )
+      ) : friendRequests[selectedUser._id].status === "accepted" ? (
+        <button className="bg-green-500 text-white px-4 py-2 rounded">
+          Đã là bạn bè
+        </button>
+      ) : null
+    ) : (
+      <button
+        onClick={handleFriendRequest}
+        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+      >
+        Kết bạn
+      </button>
+    )}
+  </div>
+)}
+
           </div>
         </div>
       )}
