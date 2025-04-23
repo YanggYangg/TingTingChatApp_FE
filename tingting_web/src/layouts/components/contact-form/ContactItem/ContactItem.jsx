@@ -60,25 +60,9 @@ const ContactItem = ({
               onDeleteFriend();
             }}
           >
-            {/* <MoreVertical size={18} /> */}
             <FontAwesomeIcon icon={faTrash} className="text-red-500" />
           </button>
         )}
-
-        {/* Dropdown menu
-        {menuOpen && (
-          <div className="absolute right-4 top-10 bg-white shadow-md rounded-md p-2 w-40 z-10">
-            <button className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
-              Xem chi tiết
-            </button>
-            <button className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
-              Nhắn tin
-            </button>
-            <button className="block w-full text-left px-3 py-2 text-red-500 hover:bg-red-100 text-sm">
-              Xóa bạn
-            </button>
-          </div>
-        )} */}
       </div>
     </div>
   );

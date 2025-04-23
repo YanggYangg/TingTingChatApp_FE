@@ -19,7 +19,7 @@ const ContactList = () => {
 
   const [allFriends, setAllFriends] = useState([]);
 
-  useEffect(() => {
+
     const fetchFriends = async () => {
       try {
         const userId = localStorage.getItem("userId"); // thay bằng userId thật
@@ -32,7 +32,7 @@ const ContactList = () => {
         console.error("Error fetching friends:", error);
       }
     };
-  
+    useEffect(() => {
     fetchFriends();
   }, []);
 
@@ -61,7 +61,7 @@ const ContactList = () => {
     }, {});
 
     setGroupedFriends(grouped);
-  }, [searchQuery, , allFriends]);
+  }, [searchQuery, allFriends]);
 
   // Clear search
   const clearSearch = () => {
@@ -101,6 +101,20 @@ const ContactList = () => {
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
   };
+
+  const handleDeleteFriend = async (friendId) => {
+    const confirmDelete = window.confirm("Bạn có chắc muốn huỷ kết bạn với người này không?");
+    if (!confirmDelete) return;
+    try{
+      const currentUserId = localStorage.getItem("userId");
+      const response = await Api_FriendRequest.unfriend(currentUserId, friendId);
+      console.log("====Xoa ban be====", response.data);
+      //setAllFriends((prev) =>  prev.filter((f) => f.id !== friendId));
+      await fetchFriends();
+    }catch (error) {
+      console.error("Error deleting friend:", error);
+    }
+  }
 
   return (
     <div className="w-full h-full bg-white text-black flex flex-col ">
@@ -193,17 +207,18 @@ const ContactList = () => {
                       <div className="bg-white rounded-md">
                         {groupedFriends[letter].map((friend, index, array) => (
                           <ContactItem
-                            key={friend.id}
+                            key={friend._id}
                             label={friend.name}
                             image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpg"
                             showBorder={index !== array.length - 1}
                             showMenuIcon={true}
                             menuOpen={menuOpenId === friend.id}
-                            onMenuToggle={() =>
-                              setMenuOpenId(
-                                menuOpenId === friend.id ? null : friend.id
-                              )
-                            }
+                            onDeleteFriend={() => handleDeleteFriend(friend._id)}
+                            // onMenuToggle={() =>
+                            //   setMenuOpenId(
+                            //     menuOpenId === friend.id ? null : friend.id
+                            //   )
+                            // }
                           />
                         ))}
                       </div>
