@@ -15,7 +15,7 @@ import SentRequestsScreen from "@/components/screens/MainScreen/Contact/SentRequ
 import GroupsScreen from "@/components/screens/MainScreen/Contact/GroupsScreen";
 import OAScreen from "@/components/screens/MainScreen/Contact/OAScreen";
 import PersonalInfoScreen from "@/components/screens/MainScreen/Profile/PersonalInfoScreen";
-// import EditPersonalInfoScreen from "@/components/screens/MainScreen/Profile/EditPersonalInfoScreen";
+import EditPersonalInfoScreen from "@/components/screens/MainScreen/Profile/EditPersonalInfoScreen";
 import { View, Text, Image, StyleSheet, Platform } from "react-native";
 import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
@@ -34,10 +34,11 @@ import MessageSupportScreen from "@/components/screens/MainScreen/Chat/MessageSu
 
 import VerificationCode from "@/components/screens/AuthScreen/VerificationCode";
 import VerificationCodeRegister from "@/components/screens/AuthScreen/VerificationCodeRegister";
-import ChatInfo from "@/components/screens/MainScreen/Chat/ChatInfo";
 
 // Socket cloud
 import { CloudSocketProvider } from "../../context/CloudSocketContext";
+
+import ChatInfo from "@/components/screens/MainScreen/Chat/ChatInfo";
 
 type RootStackParamList = {
   Main: undefined;
@@ -136,10 +137,10 @@ function ProfileStackNavigator() {
     >
       <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} />
       <ProfileStack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
-      {/* <ProfileStack.Screen
+      <ProfileStack.Screen
         name="EditPersonalInfo"
         component={EditPersonalInfoScreen}
-      /> */}
+      />
     </ProfileStack.Navigator>
   );
 }
@@ -239,13 +240,13 @@ export default function App() {
       <SocketProvider>
         <CloudSocketProvider>
           <Stack.Navigator
-            initialRouteName="ChatInfo"
+            initialRouteName="Welcome"
             screenOptions={{
               headerShown: false,
               animation: "none", // Disable animations
             }}
           >
-              <Stack.Screen
+             <Stack.Screen
               name="ChatInfo"
               component={ChatInfo}
               options={{ headerShown: false }}

@@ -1,16 +1,16 @@
-/**
- * Transform conversation data from backend format to MessageList format
- * @param {Array} conversations - Array of conversations from backend
- * @param {string} currentUserId - Current user's ID
- * @returns {Array} Transformed messages in MessageList format
- */
-export const transformConversationsToMessages = (conversations, currentUserId) => {
+export const transformConversationsToMessages = (conversations, currentUserId, profiles) => {
     console.log("Transforming conversations:", conversations);
+    console.log("profiles", profiles);
 
     return conversations.map(conversation => {
-        // Tìm người còn lại trong cuộc trò chuyện cá nhân
-        const otherParticipant = conversation.participants
+        // Tìm ID người còn lại (nếu không phải group)
+        const otherParticipantId = conversation.participants
             .find(p => p.userId !== currentUserId)?.userId;
+
+        // Tìm profile tương ứng từ danh sách profiles
+        const otherParticipantProfile = profiles.find(
+            p => p?.data?.user?._id === otherParticipantId
+        )?.data?.user;
 
         const lastMessage = conversation.lastMessage;
 
@@ -36,10 +36,10 @@ export const transformConversationsToMessages = (conversations, currentUserId) =
             imageGroup: conversation.imageGroup || 'https://picsum.photos/200',
             name: conversation.isGroup
                 ? conversation.name
-                : otherParticipant?.name || 'Unknown',
+                : `${otherParticipantProfile?.firstname || 'Unknown'} ${otherParticipantProfile?.surname || ''}`.trim(),
             avatar: conversation.isGroup
                 ? conversation.imageGroup
-                : otherParticipant?.avatar || 'https://picsum.photos/200',
+                : otherParticipantProfile?.avatar || 'https://picsum.photos/200',
             type: conversation.isGroup ? 'group' : 'personal',
             lastMessage: lastMessage?.content || '',
             lastMessageType: lastMessage?.messageType || 'text',
@@ -49,7 +49,7 @@ export const transformConversationsToMessages = (conversations, currentUserId) =
             createAt: conversation.createAt,
             updateAt: conversation.updateAt,
             members: conversation.isGroup ? conversation.participants.length : 0,
-            // unreadCount: conversation.unreadCount || 0 // Nếu backend trả về
+            // unreadCount: conversation.unreadCount || 0
         };
     });
 };

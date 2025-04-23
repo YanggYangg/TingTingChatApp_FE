@@ -1,9 +1,9 @@
 import axios from 'axios';
 
 // Use environment-specific base URL
-const BASE_URL = __DEV__
-  ? 'http://172.16.1.106:3001' // Replace with your machine's IP and correct port
-  : 'https://your-production-server.com'; // Production URL
+const BASE_URL = 'http://172.16.1.106:3001' 
+
+// const BASE_URL = 'http://192.168.139.71:3001' 
 
 const ApiManager = axios.create({
   baseURL: BASE_URL,
@@ -41,7 +41,7 @@ ApiManager.interceptors.response.use(
 );
 
 export const Api_FriendRequest = {
-  getFriendsList: async (userId: string) => {
+  getFriendsList: async (userId) => {
     if (!userId) {
       throw new Error('userId is required to fetch friends list.');
     }

@@ -110,6 +110,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
   };
 
   // Tải xuống media
+
   const downloadImage = async (url, filename) => {
     try {
       const response = await fetch(url);
@@ -122,8 +123,8 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error("Lỗi khi tải file:", error);
-      alert("Không thể tải file. Thử tải trực tiếp!");
+      console.error("Lỗi khi tải file (CORS hoặc khác):", error);
+      alert("Fetch bị chặn, thử tải trực tiếp!");
       const fallbackLink = document.createElement("a");
       fallbackLink.href = url;
       fallbackLink.download = filename;

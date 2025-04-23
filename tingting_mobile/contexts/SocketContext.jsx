@@ -1,25 +1,27 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { initSocket } from "../services/sockets";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SocketContext = createContext(null);
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
+  const [userId, setUserId] = useState(null);
 
+  // Lấy userId từ AsyncStorage khi component mount
   useEffect(() => {
-    const initializeSocket = async () => {
-      const userId = (await AsyncStorage.getItem("userId")) || "user123";
-      if (!userId) {
-        console.error("No userId found in AsyncStorage");
-        return;
+    const loadUserId = async () => {
+      const storedUserId = await AsyncStorage.getItem("userId");
+      if (storedUserId) {
+        setUserId(storedUserId);
+        console.log("Loaded userId from AsyncStorage:", storedUserId);
       }
-
-      console.log("Connecting to cloud socket with userId:", userId);
-      return userId;
     };
+    loadUserId();
+  }, []);
 
-    const userId = initializeSocket();
-
+  // Khởi tạo socket khi đã có userId
+  useEffect(() => {
     if (!userId) return;
 
     const socketInstance = initSocket(userId);
@@ -28,10 +30,12 @@ export const SocketProvider = ({ children }) => {
     return () => {
       socketInstance.disconnect();
     };
-  }, []);
+  }, [userId]);
 
   return (
-    <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>
+    <SocketContext.Provider value={{ socket, userId, setUserId }}>
+      {children}
+    </SocketContext.Provider>
   );
 };
 
