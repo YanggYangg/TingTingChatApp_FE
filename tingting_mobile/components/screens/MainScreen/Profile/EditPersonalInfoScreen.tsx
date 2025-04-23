@@ -1,337 +1,335 @@
-"use client"
+// "use client"
 
-import { useState } from "react"
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  TextInput,
-  Alert,
-  Platform,
-} from "react-native"
-import { Feather } from "@expo/vector-icons"
-import { RouteProp, useNavigation, useRoute } from "@react-navigation/native"
-import * as ImagePicker from "expo-image-picker"
-import DateTimePicker from "@react-native-community/datetimepicker"
+// import { useState } from "react"
+// import {
+//   View,
+//   Text,
+//   StyleSheet,
+//   Image,
+//   TouchableOpacity,
+//   SafeAreaView,
+//   StatusBar,
+//   TextInput,
+//   Alert,
+//   Platform,
+// } from "react-native"
+// import { Feather } from "@expo/vector-icons"
+// import { RouteProp, useNavigation, useRoute } from "@react-navigation/native"
+// import * as ImagePicker from "expo-image-picker"
+// import DateTimePicker from "@react-native-community/datetimepicker"
 
-type RootStackParamList = {
-  EditPersonalInfo: {
-    formData: {
-      firstname: string;
-      surname: string;
-      day: string;
-      month: string;
-      year: string;
-      gender: string;
-      phone: string;
-      avatar: string | null;
-      coverPhoto: string | null;
-    };
-  };
-};
+// type RootStackParamList = {
+//   EditPersonalInfo: {
+//     formData: {
+//       firstname: string;
+//       surname: string;
+//       day: string;
+//       month: string;
+//       year: string;
+//       gender: string;
+//       phone: string;
+//       avatar: string | null;
+//       coverPhoto: string | null;
+//     };
+//   };
+// };
 
-type EditPersonalInfoRouteProp = RouteProp<RootStackParamList, "EditPersonalInfo">;
+// type EditPersonalInfoRouteProp = RouteProp<RootStackParamList, "EditPersonalInfo">;
 
-"https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg"
+// "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg"
 
-export default function EditPersonalInfoScreen() {
-  const navigation = useNavigation()
-  const route = useRoute<EditPersonalInfoRouteProp>();
-  const { formData } = route.params;
+// export default function EditPersonalInfoScreen() {
+//   const navigation = useNavigation()
+//   const route = useRoute<EditPersonalInfoRouteProp>();
+//   const { formData } = route.params;
 
-  const [name, setName] = useState(`${formData.firstname} ${formData.surname}`);
-  const [birthdate, setBirthdate] = useState(
-    new Date(Number(formData.year), Number(formData.month) - 1, Number(formData.day))
-  );
-  const [showDatePicker, setShowDatePicker] = useState(false)
-  const [gender, setGender] = useState(formData.gender === "male" ? "Nam" : "Nữ");
-  const [profileImage, setProfileImage] = useState(
-    "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg"
-  )
-  const [editingName, setEditingName] = useState(false)
+//   const [name, setName] = useState(`${formData.firstname} ${formData.surname}`);
+//   const [birthdate, setBirthdate] = useState(
+//     new Date(Number(formData.year), Number(formData.month) - 1, Number(formData.day))
+//   );
+//   const [showDatePicker, setShowDatePicker] = useState(false)
+//   const [gender, setGender] = useState(formData.gender === "male" ? "Nam" : "Nữ");
+//   const [profileImage, setProfileImage] = useState(
+//     "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg"
+//   )
+//   const [editingName, setEditingName] = useState(false)
 
-  const pickImage = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (status !== "granted") {
-        Alert.alert("Permission Denied", "Sorry, we need camera roll permissions to make this work!")
-        return
-      }
+//   const pickImage = async () => {
+//     try {
+//       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+//       if (status !== "granted") {
+//         Alert.alert("Permission Denied", "Sorry, we need camera roll permissions to make this work!")
+//         return
+//       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 1,
-      })
+//       const result = await ImagePicker.launchImageLibraryAsync({
+//         mediaTypes: ImagePicker.MediaTypeOptions.Images,
+//         allowsEditing: true,
+//         aspect: [1, 1],
+//         quality: 1,
+//       })
 
-      if (!result.canceled) {
-        setProfileImage(result.assets[0].uri)
-      }
-    } catch (error) {
-      console.log("Error picking image:", error)
-      Alert.alert("Error", "There was an error selecting the image.")
-    }
-  }
+//       if (!result.canceled) {
+//         setProfileImage(result.assets[0].uri)
+//       }
+//     } catch (error) {
+//       console.log("Error picking image:", error)
+//       Alert.alert("Error", "There was an error selecting the image.")
+//     }
+//   }
 
-  
+//   const handleDateChange = (event, selectedDate) => {
+//     if (selectedDate) {
+//       setBirthdate(selectedDate)
+//     }
+//     if (Platform.OS === "android") {
+//       setShowDatePicker(false)
+//     }
+//   }
 
-  const handleDateChange = (event, selectedDate) => {
-    if (selectedDate) {
-      setBirthdate(selectedDate)
-    }
-    if (Platform.OS === "android") {
-      setShowDatePicker(false)
-    }
-  }
+//   const toggleDatePicker = () => {
+//     setShowDatePicker(!showDatePicker)
+//   }
 
-  const toggleDatePicker = () => {
-    setShowDatePicker(!showDatePicker)
-  }
+//   const handleDone = () => {
+//     setShowDatePicker(false)
+//   }
 
-  const handleDone = () => {
-    setShowDatePicker(false)
-  }
+//   const toggleEditName = () => {
+//     setEditingName(!editingName) // Đổi trạng thái chỉnh sửa tên
+//   }
 
-  const toggleEditName = () => {
-    setEditingName(!editingName) // Đổi trạng thái chỉnh sửa tên
-  }
+//   const handleSave = () => {
+//     Alert.alert("Success", "Personal information updated successfully!")
+//     navigation.goBack()
+//   }
 
-  const handleSave = () => {
-    Alert.alert("Success", "Personal information updated successfully!")
-    navigation.goBack()
-  }
+//   return (
+//     <SafeAreaView style={styles.container}>
+//       <StatusBar barStyle="light-content" />
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+//       {/* Header */}
+//       <View style={styles.header}>
+//         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+//           <Feather name="x" size={24} color="white" />
+//         </TouchableOpacity>
+//         <Text style={styles.headerTitle}>Thông tin cá nhân</Text>
+//       </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Feather name="x" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thông tin cá nhân</Text>
-      </View>
+//       <View style={styles.content}>
+//         {/* Profile Picture */}
+//         <View style={styles.profileImageContainer}>
+//           <Image source={{ uri: profileImage }} style={styles.profileImage} />
+//           <TouchableOpacity style={styles.cameraButton} onPress={pickImage}>
+//             <Feather name="camera" size={20} color="#333" />
+//           </TouchableOpacity>
+//         </View>
 
-      <View style={styles.content}>
-        {/* Profile Picture */}
-        <View style={styles.profileImageContainer}>
-          <Image source={{ uri: profileImage }} style={styles.profileImage} />
-          <TouchableOpacity style={styles.cameraButton} onPress={pickImage}>
-            <Feather name="camera" size={20} color="#333" />
-          </TouchableOpacity>
-        </View>
+//         {/* Name */}
+//         <View style={styles.infoItem}>
+//           {editingName ? (
+//             <TextInput
+//               style={styles.textInput}
+//               value={name}
+//               onChangeText={setName}
+//               autoFocus
+//             />
+//           ) : (
+//             <Text style={styles.infoValue}>{name}</Text>
+//           )}
+//           <TouchableOpacity style={styles.editIcon} onPress={toggleEditName}>
+//             <Feather name={editingName ? "x" : "edit-2"} size={20} color="#757575" />
+//           </TouchableOpacity>
+//         </View>
 
-        {/* Name */}
-        <View style={styles.infoItem}>
-          {editingName ? (
-            <TextInput
-              style={styles.textInput}
-              value={name}
-              onChangeText={setName}
-              autoFocus
-            />
-          ) : (
-            <Text style={styles.infoValue}>{name}</Text>
-          )}
-          <TouchableOpacity style={styles.editIcon} onPress={toggleEditName}>
-            <Feather name={editingName ? "x" : "edit-2"} size={20} color="#757575" />
-          </TouchableOpacity>
-        </View>
+//         {/* Birthdate */}
+//         <View style={styles.infoItem}>
+//           <Text style={styles.infoValue}>
+//             {birthdate.toLocaleDateString("vi-VN", {
+//               day: "2-digit",
+//               month: "2-digit",
+//               year: "numeric",
+//             })}
+//           </Text>
+//           <TouchableOpacity style={styles.editIcon} onPress={toggleDatePicker}>
+//             <Feather name={showDatePicker ? "x" : "edit-2"} size={20} color="#757575" />
+//           </TouchableOpacity>
+//         </View>
 
-        {/* Birthdate */}
-        <View style={styles.infoItem}>
-          <Text style={styles.infoValue}>
-            {birthdate.toLocaleDateString("vi-VN", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            })}
-          </Text>
-          <TouchableOpacity style={styles.editIcon} onPress={toggleDatePicker}>
-            <Feather name={showDatePicker ? "x" : "edit-2"} size={20} color="#757575" />
-          </TouchableOpacity>
-        </View>
+//         {/* Date Picker */}
+//         {showDatePicker && (
+//           <View style={styles.datePickerContainer}>
+//             <DateTimePicker
+//               value={birthdate}
+//               mode="date"
+//               display={Platform.OS === "ios" ? "inline" : "default"}
+//               onChange={handleDateChange}
+//               maximumDate={new Date()}
+//             />
+//             {Platform.OS === "ios" && (
+//               <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
+//                 <Text style={styles.doneButtonText}>Xong</Text>
+//               </TouchableOpacity>
+//             )}
+//           </View>
+//         )}
 
-        {/* Date Picker */}
-        {showDatePicker && (
-          <View style={styles.datePickerContainer}>
-            <DateTimePicker
-              value={birthdate}
-              mode="date"
-              display={Platform.OS === "ios" ? "inline" : "default"}
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-            />
-            {Platform.OS === "ios" && (
-              <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
-                <Text style={styles.doneButtonText}>Xong</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+//         {/* Gender */}
+//         <View style={styles.genderContainer}>
+//           <TouchableOpacity
+//             style={[styles.genderOption, gender === "Nam" && styles.genderSelected]}
+//             onPress={() => setGender("Nam")}
+//           >
+//             <View style={styles.radioOuter}>
+//               {gender === "Nam" && <View style={styles.radioInner} />}
+//             </View>
+//             <Text style={styles.genderText}>Nam</Text>
+//           </TouchableOpacity>
 
-        {/* Gender */}
-        <View style={styles.genderContainer}>
-          <TouchableOpacity
-            style={[styles.genderOption, gender === "Nam" && styles.genderSelected]}
-            onPress={() => setGender("Nam")}
-          >
-            <View style={styles.radioOuter}>
-              {gender === "Nam" && <View style={styles.radioInner} />}
-            </View>
-            <Text style={styles.genderText}>Nam</Text>
-          </TouchableOpacity>
+//           <TouchableOpacity
+//             style={[styles.genderOption, gender === "Nữ" && styles.genderSelected]}
+//             onPress={() => setGender("Nữ")}
+//           >
+//             <View style={styles.radioOuter}>
+//               {gender === "Nữ" && <View style={styles.radioInner} />}
+//             </View>
+//             <Text style={styles.genderText}>Nữ</Text>
+//           </TouchableOpacity>
+//         </View>
 
-          <TouchableOpacity
-            style={[styles.genderOption, gender === "Nữ" && styles.genderSelected]}
-            onPress={() => setGender("Nữ")}
-          >
-            <View style={styles.radioOuter}>
-              {gender === "Nữ" && <View style={styles.radioInner} />}
-            </View>
-            <Text style={styles.genderText}>Nữ</Text>
-          </TouchableOpacity>
-        </View>
+//         {/* Save Button */}
+//         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+//           <Text style={styles.saveButtonText}>Lưu</Text>
+//         </TouchableOpacity>
+//       </View>
+//     </SafeAreaView>
+//   )
+// }
 
-        {/* Save Button */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Lưu</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  )
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 15,
-    paddingVertical: 15,
-    backgroundColor: "#2196F3",
-  },
-  backButton: {
-    marginRight: 15,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "white",
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  profileImageContainer: {
-    alignSelf: "center",
-    marginBottom: 30,
-    position: "relative",
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  cameraButton: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: "white",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-  },
-  infoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEEEEE",
-  },
-  infoValue: {
-    fontSize: 18,
-    flex: 1,
-  },
-  editIcon: {
-    padding: 5,
-  },
-  textInput: {
-    fontSize: 18,
-    flex: 1,
-    padding: 0,
-  },
-  genderContainer: {
-    flexDirection: "row",
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  genderOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 30,
-  },
-  genderSelected: {},
-  radioOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#2196F3",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#2196F3",
-  },
-  genderText: {
-    fontSize: 16,
-  },
-  saveButton: {
-    backgroundColor: "#E0E0E0",
-    paddingVertical: 12,
-    borderRadius: 25,
-    alignItems: "center",
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  datePickerContainer: {
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    padding: 10,
-    marginVertical: 10,
-  },
-  doneButton: {
-    backgroundColor: "#2196F3",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    marginTop: 10,
-  },
-  doneButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-})
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: "#F5F5F5",
+//   },
+//   header: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     paddingHorizontal: 15,
+//     paddingVertical: 15,
+//     backgroundColor: "#2196F3",
+//   },
+//   backButton: {
+//     marginRight: 15,
+//   },
+//   headerTitle: {
+//     fontSize: 18,
+//     fontWeight: "bold",
+//     color: "white",
+//   },
+//   content: {
+//     flex: 1,
+//     padding: 20,
+//   },
+//   profileImageContainer: {
+//     alignSelf: "center",
+//     marginBottom: 30,
+//     position: "relative",
+//   },
+//   profileImage: {
+//     width: 100,
+//     height: 100,
+//     borderRadius: 50,
+//   },
+//   cameraButton: {
+//     position: "absolute",
+//     bottom: 0,
+//     right: 0,
+//     backgroundColor: "white",
+//     width: 36,
+//     height: 36,
+//     borderRadius: 18,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     borderWidth: 1,
+//     borderColor: "#E0E0E0",
+//   },
+//   infoItem: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     justifyContent: "space-between",
+//     paddingVertical: 15,
+//     borderBottomWidth: 1,
+//     borderBottomColor: "#EEEEEE",
+//   },
+//   infoValue: {
+//     fontSize: 18,
+//     flex: 1,
+//   },
+//   editIcon: {
+//     padding: 5,
+//   },
+//   textInput: {
+//     fontSize: 18,
+//     flex: 1,
+//     padding: 0,
+//   },
+//   genderContainer: {
+//     flexDirection: "row",
+//     marginTop: 20,
+//     marginBottom: 30,
+//   },
+//   genderOption: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     marginRight: 30,
+//   },
+//   genderSelected: {},
+//   radioOuter: {
+//     width: 24,
+//     height: 24,
+//     borderRadius: 12,
+//     borderWidth: 2,
+//     borderColor: "#2196F3",
+//     justifyContent: "center",
+//     alignItems: "center",
+//     marginRight: 10,
+//   },
+//   radioInner: {
+//     width: 12,
+//     height: 12,
+//     borderRadius: 6,
+//     backgroundColor: "#2196F3",
+//   },
+//   genderText: {
+//     fontSize: 16,
+//   },
+//   saveButton: {
+//     backgroundColor: "#E0E0E0",
+//     paddingVertical: 12,
+//     borderRadius: 25,
+//     alignItems: "center",
+//   },
+//   saveButtonText: {
+//     fontSize: 16,
+//     fontWeight: "bold",
+//   },
+//   datePickerContainer: {
+//     alignItems: "center",
+//     backgroundColor: "#FFFFFF",
+//     borderRadius: 10,
+//     padding: 10,
+//     marginVertical: 10,
+//   },
+//   doneButton: {
+//     backgroundColor: "#2196F3",
+//     paddingVertical: 10,
+//     paddingHorizontal: 20,
+//     borderRadius: 5,
+//     marginTop: 10,
+//   },
+//   doneButtonText: {
+//     color: "white",
+//     fontSize: 16,
+//     fontWeight: "bold",
+//   },
+// })

@@ -5,7 +5,9 @@
     "moduleResolution": "bundler",
     "jsx": "react-native", // hoặc "node16", "nodenext"
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
   "include": [
@@ -15,7 +17,7 @@
     "expo-env.d.ts",
     "components/screens/MainScreen/Cloud/ChatItems.js",
     "components/screens/MainScreen/ChatScreen.tsx",
-    "components/chatitems/ChatItems.jsx",
+    "components/chatitems/ChatItems.tsx",
     "components/screens/MainScreen/Cloud/ChatScreenCloud.jsx"
   ]
 }

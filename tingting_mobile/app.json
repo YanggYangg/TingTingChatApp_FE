@@ -11,15 +11,28 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-      "NSPhotoLibraryUsageDescription": "Ứng dụng cần quyền truy cập ảnh"
-    }
+        "NSPhotoLibraryUsageDescription": "Ứng dụng cần quyền truy cập ảnh",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff",
-        "permissions": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
-      }
+        "permissions": [
+          "READ_EXTERNAL_STORAGE",
+          "WRITE_EXTERNAL_STORAGE",
+          "READ_EXTERNAL_STORAGE",
+          "WRITE_EXTERNAL_STORAGE"
+        ]
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.CAMERA"
+      ],
+      "package": "com.anonymous.tingting_mobile"
     },
     "web": {
       "bundler": "metro",
@@ -37,7 +50,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-barcode-scanner"
+      "expo-barcode-scanner",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

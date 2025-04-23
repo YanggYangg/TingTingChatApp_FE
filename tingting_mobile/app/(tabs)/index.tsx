@@ -187,61 +187,35 @@ function MainTabNavigator() {
 }
 
 export default function App() {
-  // const [userId, setUserId] = useState(null);
-  // const [loading, setLoading] = useState(true);
-  // const [error, setError] = useState(null);
+  const [initialRoute, setInitialRoute] = useState<
+    null | keyof RootStackParamList
+  >(null);
 
-  // const userId =; // Thay thế bằng userId thực tế của bạn
+  useEffect(() => {
+    const checkAuth = async () => {
+      const userId = await AsyncStorage.getItem("userId");
+      setInitialRoute(userId ? "Main" : "Welcome");
+    };
+    checkAuth();
+  }, []);
 
-  // console.log("Using userId:", userId);
-  // const userId = localStorage.getItem("userId");
-  // console.log("Using userIdddddđ:", userId);
-  // dùng axios để gọi api lấy userId http://localhost:3001/api/v1/profile/67fe031e421896d7bc8c2e10
-
-  // useEffect(() => {
-  //   const fetchUserProfile = async () => {
-  //     try {
-  //       // const userId1 = await AsyncStorage.getItem("userId");
-  //       // if (!userId1) {
-  //       //   throw new Error("No userId found in AsyncStorage");
-  //       // }
-  //       // console.log("Fetched userId from AsyncStorage:", userId1);
-  //       // Gọi API để lấy thông tin người dùng
-  //       const response = await axios.get(
-  //         `http://192.168.1.33:3001/api/v1/profile/${userId1}`,
-  //         {
-  //           headers: {
-  //             "Content-Type": "application/json",
-  //           },
-  //         }
-  //       );
-
-  //       const fetchedUser = response.data.data.user._id;
-  //       if (!fetchedUser) {
-  //         throw new Error("No userId in response");
-  //       }
-
-  //       setUserId(fetchedUser);
-  //       console.log("Fetched userId:", fetchedUser);
-  //     } catch (err) {
-  //       console.error("Error fetching user profile:", err);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-
-  //   fetchUserProfile();
-  // }, []);
+  if (initialRoute === null) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Đang kiểm tra đăng nhập...</Text>
+      </View>
+    );
+  }
 
   return (
     <Provider store={store}>
       <SocketProvider>
         <CloudSocketProvider>
           <Stack.Navigator
-            initialRouteName="Welcome"
+            initialRouteName={initialRoute}
             screenOptions={{
               headerShown: false,
-              animation: "none", // Disable animations
+              animation: "none",
             }}
           >
             <Stack.Screen
