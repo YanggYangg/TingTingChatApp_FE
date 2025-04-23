@@ -230,7 +230,7 @@ const CreateGroupModal: React.FC<Props> = ({
       <Text style={styles.selectedContactName}>
         {item.id === userId ? `${item.name} (Bạn)` : item.name}
       </Text>
-      <Text style={styles.defaultTag}>Bắt buộc</Text>
+      {/* <Text style={styles.defaultTag}>Bắt buộc</Text> */}
     </View>
   );
 
