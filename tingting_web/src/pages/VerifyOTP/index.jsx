@@ -87,7 +87,8 @@ function VerifyOTP() {
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("userId", response.data.user.userId);
         localStorage.setItem("phone", response.data.user.phone);
-        console.log("Response = ", response.data);
+        localStorage.setItem("profile", JSON.stringify(response.data.profile.data.user));
+        console.log("Response login = ", response.data);
         
         setMessageSuccess(response.message);
         setIsSuccess(true);

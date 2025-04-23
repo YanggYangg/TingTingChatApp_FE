@@ -1,4 +1,6 @@
-import { useState } from "react"
+"use client"
+
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
@@ -10,23 +12,95 @@ import {
   TextInput,
   Alert,
   Platform,
+  ActivityIndicator,
 } from "react-native"
 import { Feather } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { useNavigation } from "@react-navigation/native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import axios from "axios"
+import { Api_Profile } from "@/apis/api_profile"
+
+// Thay đổi localhost thành IP thực tế của máy tính
+const API_BASE_URL = "http://192.168.1.171:3001/api/v1"
 
 export default function EditProfileScreen() {
   const navigation = useNavigation()
-
-  const [name, setName] = useState("Nguyễn Văn A")
-  const [birthdate, setBirthdate] = useState(new Date(2000, 0, 1))
-  const [showDatePicker, setShowDatePicker] = useState(false)
-  const [gender, setGender] = useState("Nam")
+  const [formData, setFormData] = useState({
+    firstname: "",
+    surname: "",
+    day: "1",
+    month: "1",
+    year: "2025",
+    gender: "female",
+    phone: "",
+    avatar: null,
+    coverPhoto: null,
+  })
   const [profileImage, setProfileImage] = useState(
-    "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg"
+    "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg",
   )
-  const [editingName, setEditingName] = useState(false)
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [birthdate, setBirthdate] = useState(new Date(2000, 0, 1))
+  const [isLoading, setIsLoading] = useState(false)
+  const [token, setToken] = useState("")
+
+  useEffect(() => {
+    const loadProfileAndToken = async () => {
+      try {
+        // Lấy token trước
+        const authToken = await AsyncStorage.getItem("token")
+        if (authToken) {
+          setToken(authToken)
+        }
+
+        // Sau đó lấy profile
+        const storedProfile = await AsyncStorage.getItem("profile")
+        if (!storedProfile) return
+
+        const profile = JSON.parse(storedProfile)
+        console.log("Loaded profile:", profile)
+
+        // Kiểm tra và xử lý dateOfBirth
+        let date = new Date()
+        if (profile.dateOfBirth) {
+          try {
+            date = new Date(profile.dateOfBirth)
+            if (isNaN(date.getTime())) {
+              // Nếu date không hợp lệ, sử dụng ngày mặc định
+              date = new Date()
+              console.log("Invalid date format, using default date")
+            }
+          } catch (error) {
+            console.error("Error parsing date:", error)
+            date = new Date()
+          }
+        }
+
+        setBirthdate(date)
+        setProfileImage(profile.avatar || "https://anhnail.com/wp-content/uploads/2024/10/Hinh-gai-xinh-k8-cute.jpg")
+
+        setFormData((prev) => ({
+          ...prev,
+          firstname: profile.firstname || "",
+          surname: profile.surname || "",
+          phone: profile.phone || "",
+          avatar: profile.avatar || null,
+          coverPhoto: profile.coverPhoto || null,
+          gender: profile.gender === "male" ? "Nam" : "Nữ",
+          day: date.getDate().toString(),
+          month: (date.getMonth() + 1).toString(),
+          year: date.getFullYear().toString(),
+        }))
+      } catch (error) {
+        console.error("Error loading profile from localStorage:", error)
+        Alert.alert("Lỗi", "Không thể tải thông tin người dùng. Vui lòng thử lại sau.")
+      }
+    }
+
+    loadProfileAndToken()
+  }, [])
 
   const pickImage = async () => {
     try {
@@ -40,11 +114,12 @@ export default function EditProfileScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 1,
+        quality: 0.8, // Giảm chất lượng để giảm kích thước file
       })
 
       if (!result.canceled) {
         setProfileImage(result.assets[0].uri)
+        console.log("Selected image:", result.assets[0].uri)
       }
     } catch (error) {
       console.log("Error picking image:", error)
@@ -55,25 +130,133 @@ export default function EditProfileScreen() {
   const handleDateChange = (event, selectedDate) => {
     if (selectedDate) {
       setBirthdate(selectedDate)
+
+      // Update formData with new date values
+      setFormData((prev) => ({
+        ...prev,
+        day: selectedDate.getDate().toString(),
+        month: (selectedDate.getMonth() + 1).toString(),
+        year: selectedDate.getFullYear().toString(),
+      }))
     }
     if (Platform.OS === "android") {
       setShowDatePicker(false)
     }
   }
 
-  const toggleEditName = () => setEditingName(!editingName)
+  const updateField = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
 
-  const handleSave = () => {
-    const payload = {
-      name,
-      birthdate: birthdate.toISOString(),
-      gender,
-      avatar: profileImage,
+  const handleSave = async () => {
+    try {
+      setIsLoading(true)
+
+      // Kiểm tra token
+      if (!token) {
+        Alert.alert("Lỗi", "Bạn chưa đăng nhập. Vui lòng đăng nhập lại.")
+        return
+      }
+
+      // Create form data for the API request
+      const uploadForm = new FormData()
+
+      // Add user information to form data
+      uploadForm.append("firstname", formData.firstname)
+      uploadForm.append("surname", formData.surname)
+
+      // Format date as ISO string
+      const dateOfBirth = new Date(
+        Number.parseInt(formData.year),
+        Number.parseInt(formData.month) - 1,
+        Number.parseInt(formData.day),
+      ).toISOString()
+      uploadForm.append("dateOfBirth", dateOfBirth)
+
+      // Add gender (convert from Vietnamese to API format)
+      uploadForm.append("gender", formData.gender === "Nam" ? "male" : "female")
+
+      // Add phone if available
+      if (formData.phone) {
+        uploadForm.append("phone", formData.phone)
+      }
+
+      // Add avatar if it's a file URI (from image picker)
+      if (profileImage && profileImage.startsWith("file://")) {
+        const filename = profileImage.split("/").pop()
+        const match = /\.(\w+)$/.exec(filename || "")
+        const type = match ? `image/${match[1]}` : "image/jpeg"
+
+        // Log để debug
+        console.log("Adding image to form:", {
+          uri: profileImage,
+          name: filename,
+          type,
+        })
+
+        uploadForm.append("avatar", {
+          uri: profileImage,
+          name: filename || "avatar.jpg",
+          type,
+        })
+      }
+
+      // Log form data để debug
+      console.log("Form data prepared:", Object.fromEntries(uploadForm._parts))
+
+      // Make API request với URL đã sửa
+      console.log("Sending request to:", `${API_BASE_URL}/profile/upload`)
+      const uploadRes = await axios.put(`${API_BASE_URL}/profile/upload`, uploadForm, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+        withCredentials: true,
+        timeout: 10000, // Thêm timeout để tránh chờ quá lâu
+      })
+
+      console.log("Response:", uploadRes.data)
+
+      const updatedForm = {
+              ...formData,
+              avatar: uploadRes.data.data.fileUrl || formData.avatar,
+            };
+      
+            const response = await Api_Profile.updateProfile(
+              await  AsyncStorage.getItem("userId"),
+              updatedForm
+            );
+            console.log("Profile updated successfully:", response);
+           
+
+      // Update local storage with new profile data
+      if (response.data) {
+        await AsyncStorage.removeItem("profile");
+        await AsyncStorage.setItem("profile", JSON.stringify(response.data.profile));
+      }
+
+      Alert.alert("Đã lưu", "Thông tin cá nhân đã được cập nhật.")
+      navigation.goBack()
+    } catch (error) {
+      console.error("Error updating profile:", error.response || error)
+
+      let errorMessage = "Không thể cập nhật thông tin. Vui lòng thử lại sau."
+
+      // Hiển thị thông báo lỗi chi tiết hơn nếu có
+      if (error.response) {
+        console.log("Error response:", error.response.data)
+        errorMessage = `Lỗi máy chủ: ${error.response.status}. ${error.response.data?.message || ""}`
+      } else if (error.request) {
+        errorMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng."
+      }
+
+      Alert.alert("Lỗi", errorMessage)
+    } finally {
+      setIsLoading(false)
     }
-
-    console.log("Saving user info:", payload)
-    Alert.alert("Đã lưu", "Thông tin cá nhân đã được cập nhật.")
-    navigation.goBack()
   }
 
   return (
@@ -97,23 +280,28 @@ export default function EditProfileScreen() {
 
         {/* Tên */}
         <View style={styles.infoItem}>
-          {editingName ? (
-            <TextInput
-              style={styles.textInput}
-              value={name}
-              onChangeText={setName}
-              autoFocus
-            />
-          ) : (
-            <Text style={styles.infoValue}>{name}</Text>
-          )}
-          <TouchableOpacity onPress={toggleEditName}>
-            <Feather name={editingName ? "x" : "edit-2"} size={20} color="#757575" />
-          </TouchableOpacity>
+          <Text style={styles.infoLabel}>Họ:</Text>
+          <TextInput
+            style={styles.textInput}
+            value={formData.surname}
+            onChangeText={(text) => updateField("surname", text)}
+            placeholder="Nhập họ"
+          />
+        </View>
+
+        <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>Tên:</Text>
+          <TextInput
+            style={styles.textInput}
+            value={formData.firstname}
+            onChangeText={(text) => updateField("firstname", text)}
+            placeholder="Nhập tên"
+          />
         </View>
 
         {/* Ngày sinh */}
         <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>Ngày sinh:</Text>
           <Text style={styles.infoValue}>
             {birthdate.toLocaleDateString("vi-VN", {
               day: "2-digit",
@@ -146,29 +334,25 @@ export default function EditProfileScreen() {
         {/* Giới tính */}
         <View style={styles.genderContainer}>
           <TouchableOpacity
-            style={[styles.genderOption, gender === "Nam" && styles.genderSelected]}
-            onPress={() => setGender("Nam")}
+            style={[styles.genderOption, formData.gender === "Nam" && styles.genderSelected]}
+            onPress={() => updateField("gender", "Nam")}
           >
-            <View style={styles.radioOuter}>
-              {gender === "Nam" && <View style={styles.radioInner} />}
-            </View>
+            <View style={styles.radioOuter}>{formData.gender === "Nam" && <View style={styles.radioInner} />}</View>
             <Text style={styles.genderText}>Nam</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.genderOption, gender === "Nữ" && styles.genderSelected]}
-            onPress={() => setGender("Nữ")}
+            style={[styles.genderOption, formData.gender === "Nữ" && styles.genderSelected]}
+            onPress={() => updateField("gender", "Nữ")}
           >
-            <View style={styles.radioOuter}>
-              {gender === "Nữ" && <View style={styles.radioInner} />}
-            </View>
+            <View style={styles.radioOuter}>{formData.gender === "Nữ" && <View style={styles.radioInner} />}</View>
             <Text style={styles.genderText}>Nữ</Text>
           </TouchableOpacity>
         </View>
 
         {/* Nút lưu */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Lưu</Text>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isLoading}>
+          {isLoading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveButtonText}>Lưu</Text>}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -297,5 +481,10 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  infoLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    width: 80,
   },
 })

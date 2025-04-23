@@ -5,8 +5,8 @@ import axios from "axios";
 import { Api_Profile } from "../../../apis/api_profile.js";
 
 function InfoModal({ isOpen, onClose }) {
-  // const navigator = useNavigate();
   if (!isOpen) return null;
+
   const [formData, setFormData] = useState({
     firstname: "",
     surname: "",
@@ -18,38 +18,41 @@ function InfoModal({ isOpen, onClose }) {
     avatar: null,
     coverPhoto: null,
   });
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const userId = localStorage.getItem("userId");
-        console.log(userId);
-        const phone = localStorage.getItem("phone");
-        const data = { phone };
 
-        const response = await Api_Profile.getProfile(userId, data);
-        const date = new Date(response.data.user.dateOfBirth);
-        const day = date.getDate();
-        const month = date.getMonth() + 1;
-        const year = date.getFullYear();
+  useEffect(() => {
+    const loadProfileFromLocal = () => {
+      try {
+        const storedProfile = localStorage.getItem("profile");
+        if (!storedProfile) return;
+
+        const profile = JSON.parse(storedProfile);
+        const date = new Date(profile.dateOfBirth);
+        const day = date.getDate().toString();
+        const month = (date.getMonth() + 1).toString();
+        const year = date.getFullYear().toString();
+
         setFormData((prev) => ({
           ...prev,
-          phone: response.data.user.phone,
-          firstname: response.data.user.firstname,
-          surname: response.data.user.surname,
+          firstname: profile.firstname || "",
+          surname: profile.surname || "",
+          phone: profile.phone || "",
           avatar:
-            response.data.user.avatar ||
+            profile.avatar ||
             "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
+          coverPhoto: profile.coverPhoto || null,
+          gender: profile.gender || "female",
           day,
           month,
           year,
         }));
-        console.log(formData);
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("Error loading profile from localStorage:", error);
       }
     };
-    fetchProfile();
+
+    loadProfileFromLocal();
   }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -63,27 +66,26 @@ function InfoModal({ isOpen, onClose }) {
       setSelectedFile(file);
     }
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     try {
       let avatarUrl = formData.avatar;
-  
+
       // Nếu người dùng chọn ảnh mới thì upload lên S3
       if (selectedFile) {
         const uploadForm = new FormData();
         uploadForm.append("avatar", selectedFile);
         console.log("uploadForm", uploadForm);
-        
-  
+
         const uploadRes = await axios.put(
           "http://localhost:3001/api/v1/profile/upload", // bạn đổi lại nếu cần
           uploadForm,
           {
             headers: {
               "Content-Type": "multipart/form-data",
-              "Authorization": `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
             withCredentials: true,
           }
@@ -92,17 +94,18 @@ function InfoModal({ isOpen, onClose }) {
         avatarUrl = uploadRes.data.data.fileUrl; // backend trả về link ảnh trên S3
         console.log("avatarUrl = ", avatarUrl);
       }
-  
+
       const updatedForm = {
         ...formData,
         avatar: avatarUrl,
       };
-  
+
       const response = await Api_Profile.updateProfile(
         localStorage.getItem("userId"),
         updatedForm
       );
       console.log("Profile updated successfully:", response);
+      localStorage.setItem("profile", JSON.stringify(response.data.profile));
       onClose();
     } catch (error) {
       console.error("Error submitting form:", error);

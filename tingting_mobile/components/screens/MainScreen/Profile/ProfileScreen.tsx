@@ -3,6 +3,7 @@ import {
   Text,
   StyleSheet,
   Image,
+  ImageBackground,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
@@ -15,6 +16,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { Api_Profile } from "@/apis/api_profile";
 import axios from "axios";
+
+const API_BASE_URL = "http://192.168.1.171:3002/api/v1";
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
@@ -33,58 +36,81 @@ export default function ProfileScreen() {
   });
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const loadProfileFromLocal = async () => {
       try {
-        const userId = await AsyncStorage.getItem("userId");
-        const token = await AsyncStorage.getItem("token");
+        const storedProfile = await AsyncStorage.getItem("profile");
+        if (!storedProfile) return;
 
-        if (!userId || !token) {
-          console.warn("Missing userId or token");
-          return;
-        }
+        const profile = JSON.parse(storedProfile);
+        const date = new Date(profile.dateOfBirth);
+        const day = date.getDate().toString();
+        const month = (date.getMonth() + 1).toString();
+        const year = date.getFullYear().toString();
 
-        console.log("User ID:", userId);
-
-        const response = await axios.get(
-          `http://192.168.1.28:3001/api/v1/profile/${userId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const user = response.data.data.user;
-        console.log("User Data:", user);
-
-        const date = new Date(user.dateOfBirth);
-        const day = String(date.getDate());
-        const month = String(date.getMonth() + 1);
-        const year = String(date.getFullYear());
-
-        setFormData({
-          firstname: user.firstname || "",
-          surname: user.surname || "",
-          phone: user.phone || "",
-          gender: user.gender || "female",
+        setFormData((prev) => ({
+          ...prev,
+          firstname: profile.firstname || "",
+          surname: profile.surname || "",
+          phone: profile.phone || "",
           avatar:
-            user.avatar ||
+            profile.avatar ||
             "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
-          coverPhoto:
-            user.coverPhoto ||
-            "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
+          coverPhoto: profile.coverPhoto || null,
+          gender: profile.gender || "female",
           day,
           month,
           year,
-        });
+        }));
       } catch (error) {
-        console.error("Lỗi khi lấy thông tin hồ sơ:", error.message);
+        console.error("Error loading profile from localStorage:", error);
       }
     };
 
-    fetchProfile();
+    loadProfileFromLocal();
   }, []);
+  const handleLogout = async () => {
+    Alert.alert(
+      "Đăng xuất",
+      "Bạn có chắc chắn muốn đăng xuất?",
+      [
+        {
+          text: "Hủy",
+          style: "cancel",
+        },
+        {
+          text: "Đăng xuất",
+          onPress: async () => {
+            try {
+              const userId = await AsyncStorage.getItem("userId");
+              const response = await axios.post(
+                `${API_BASE_URL}/auth/sign-out`,
+                userId,
+                {
+                  headers: {
+                    Authorization: `Bearer ${await AsyncStorage.getItem(
+                      "token"
+                    )}`,
+                  },
+                  withCredentials: true,
+                }
+              );
+              console.log("Logout response:", response.data); // Log the response data
 
+              await AsyncStorage.removeItem("userId");
+              await AsyncStorage.removeItem("phone");
+              await AsyncStorage.removeItem("profile");
+              await AsyncStorage.removeItem("token");
+              navigation.replace("Welcome");
+            } catch (error) {
+              console.error("Logout failed:", error); // Log any errors
+            }
+          },
+          style: "destructive",
+        },
+      ],
+      { cancelable: true }
+    );
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -93,14 +119,19 @@ export default function ProfileScreen() {
         {/* Profile Section */}
         <View style={styles.profileSection}>
           {/* Background Image */}
-          <Image
+
+          <ImageBackground
             source={{
               uri:
                 formData.coverPhoto ||
                 "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
-            }}
+            }} // hoặc từ local như require("...")
             style={styles.backgroundImage}
-          />
+          >
+            <TouchableOpacity style={styles.logoutIcon} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={20} color="white" />
+            </TouchableOpacity>
+          </ImageBackground>
 
           {/* Profile Picture */}
           <View style={styles.profilePictureContainer}>
@@ -211,6 +242,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F5F5F5",
   },
+  logoutIcon: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.4)", // nền trong suốt
+    borderRadius: 20,
+    padding: 12,
+    fontSize: 20,
+  },
+
   header: {
     flexDirection: "row",
     justifyContent: "space-between",

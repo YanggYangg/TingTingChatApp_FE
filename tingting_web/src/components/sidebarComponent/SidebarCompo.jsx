@@ -21,6 +21,8 @@ function SidebarCompo({ setActiveTab }) {
   const toggleSettings = () => {
     setSettingsOpen(!settingsOpen);
   };
+  const profile = JSON.parse(localStorage.getItem("profile"));
+  const avatar = profile?.avatar || "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg";
 
   // End Menu setting
 
@@ -28,7 +30,7 @@ function SidebarCompo({ setActiveTab }) {
         <div className="w-16 h-screen bg-blue-600 flex flex-col items-center py-4">
         {/* Avatar */}
         <div className="w-12 h-12 rounded-full overflow-hidden border-white mb-4" onClick={toggleModal}>
-            <SidebarItem icon={FaUserCircle} />
+            <SidebarItem image={avatar} />
         </div>
 
       {/* Top*/}

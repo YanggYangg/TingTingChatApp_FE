@@ -16,37 +16,38 @@ function UserProfileModal({ isOpen, onCloseUserProfile }) {
     avatar: null,
     coverPhoto: null,
   });
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const userId = localStorage.getItem("userId");
-        console.log(userId);
-
-        const response = await Api_Profile.getProfile(userId);
-        const date = new Date(response.data.user.dateOfBirth);
-        const day = date.getDate();
-        const month = date.getMonth() + 1;
-        const year = date.getFullYear();
-        setFormData((prev) => ({
-          ...prev,
-          phone: response.data.user.phone,
-          firstname: response.data.user.firstname,
-          surname: response.data.user.surname,
-          gender: response.data.user.gender,
-          avatar: response.data.user.avatar || "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
-          coverPhoto: response.data.user.coverPhoto || "https://images2.thanhnien.vn/528068263637045248/2024/1/25/e093e9cfc9027d6a142358d24d2ee350-65a11ac2af785880-17061562929701875684912.jpg",
-          day,
-          month,
-          year,
-        }));
-        console.log(formData);
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      }
-    };
-    fetchProfile();
-  }, []);
-
+ useEffect(() => {
+     const loadProfileFromLocal = () => {
+       try {
+         const storedProfile = localStorage.getItem("profile");
+         if (!storedProfile) return;
+   
+         const profile = JSON.parse(storedProfile);
+         const date = new Date(profile.dateOfBirth);
+         const day = date.getDate().toString();
+         const month = (date.getMonth() + 1).toString();
+         const year = date.getFullYear().toString();
+   
+         setFormData((prev) => ({
+           ...prev,
+           firstname: profile.firstname || "",
+           surname: profile.surname || "",
+           phone: profile.phone || "",
+           avatar: profile.avatar ||
+             "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
+           coverPhoto: profile.coverPhoto || null,
+           gender: profile.gender || "female",
+           day,
+           month,
+           year,
+         }));
+       } catch (error) {
+         console.error("Error loading profile from localStorage:", error);
+       }
+     };
+   
+     loadProfileFromLocal();
+   }, []);
   const modalRef = useRef(null);
 
   // Close modal when clicking outside
