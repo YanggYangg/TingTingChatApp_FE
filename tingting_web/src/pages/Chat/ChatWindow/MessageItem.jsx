@@ -86,7 +86,7 @@ const MessageItem = ({
             {/* Tin nhắn cuộc gọi */}
             {msg.messageType === "call" && (
               <>
-                {console.log("Rendering call message:", msg)}
+                {/* {console.log("Rendering call message:", msg)} */}
                 {renderCallMessage()}
               </>
             )}
