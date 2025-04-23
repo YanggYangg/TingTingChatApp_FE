@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use environment-specific base URL
-const BASE_URL = 'http://172.16.1.106:3001' 
+const BASE_URL = 'http://localhost:3001' 
 
 // const BASE_URL = 'http://192.168.139.71:3001' 
 

@@ -66,7 +66,7 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
           url,
           date: createdAt ? new Date(createdAt).toISOString().split("T")[0] : "",
           sender: typeof userId === "string" ? userId : userId?._id || "Không tên",
-          name: content || `Media_${urlIndex + 1}`,
+          name: content || `Không có tên`,
           type: messageType === "video" ? "video" : dataType === "file" ? "file" : dataType === "link" ? "link" : "image",
         }));
       })
