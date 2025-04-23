@@ -6,8 +6,8 @@ import EmojiPicker from "emoji-picker-react";
 function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
   const [message, setMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [attachedFile, setAttachedFile] = useState(null);
-  const [previewURL, setPreviewURL] = useState(null);
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   const fileInputRef = useRef(null);
   const mediaInputRef = useRef(null);
@@ -24,19 +24,20 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
     }
   };
 
-  const handleAttachFile = (file, type) => {
-    setAttachedFile({ file, type });
-    setPreviewURL(URL.createObjectURL(file));
+  const handleAttachFiles = (files) => {
+    const newFiles = Array.from(files).map((file) => ({
+      file,
+      type: file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("video/")
+        ? "video"
+        : "file",
+      previewURL: URL.createObjectURL(file),
+    }));
+
+    setAttachedFiles((prev) => [...prev, ...newFiles]);
   };
 
-  const handleFileChange = (e, type) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    handleAttachFile(file, type);
-    e.target.value = null;
-  };
-
-  //Hàm upload file lên s3
   const uploadToS3 = async (file) => {
     const formData = new FormData();
     formData.append("media", file);
@@ -48,75 +49,75 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         body: formData,
       }
     );
-    const text = await res.text(); //log thô dl trả về
-    console.log("Raw response text:", text);
 
-    if (!res.ok) {
-      console.log("Upload failed with status:", res.status);
-      throw new Error("Failed to upload file");
-    }
-
-    // const data = await res.json();
-    // return data.linkURL; //Backend trả về URL S3
-    try {
-      const data = JSON.parse(text); // Chắc chắn là JSON hợp lệ
-      return data.linkURL;
-    } catch (err) {
-      console.error("JSON parse failed:", err);
-      throw new Error("Invalid JSON response from server");
-    }
+    const text = await res.text();
+    if (!res.ok) throw new Error("Upload failed");
+    return JSON.parse(text).linkURL;
   };
 
   const handleSend = async () => {
-    if (!message.trim() && !attachedFile) return;
+    if (uploading || (!message.trim() && attachedFiles.length === 0)) return;
+
+    setUploading(true);
 
     try {
-      let fileURL = null;
-      let messageType = "text";
-      let content = message.trim();
+      let uploadedLinks = [];
 
-      if (attachedFile) {
-        fileURL = await uploadToS3(attachedFile.file);
-        if (!fileURL) return;
-
-        messageType = attachedFile.type;
-        content = content || attachedFile.file.name || `[${messageType}]`;
+      // Nếu có file đính kèm thì upload tất cả lên S3
+      if (attachedFiles.length > 0) {
+        const uploadPromises = attachedFiles.map((item) =>
+          uploadToS3(item.file)
+        );
+        uploadedLinks = await Promise.all(uploadPromises);
       }
 
-      // 👉 Nếu đang reply thì gán messageType = "reply"
-      if (replyingTo) {
-        messageType = "reply";
+      // Nếu có file (ảnh/video/file)
+      if (uploadedLinks.length > 0) {
+        const firstType = attachedFiles[0]?.type || "image"; // Ưu tiên dùng loại đầu tiên
+
+        const payload = {
+          messageType: firstType, // Có thể là "image", "video", "file"
+          content: message || null,
+          linkURL: uploadedLinks,
+          ...(replyingTo && {
+            messageType: "reply",
+            replyMessageId: replyingTo._id,
+            replyMessageContent: replyingTo.content,
+            replyMessageType: replyingTo.messageType,
+            replyMessageSender: replyingTo.sender,
+          }),
+        };
+
+        sendMessage(payload);
+      } else if (message.trim()) {
+        // Nếu chỉ gửi văn bản
+        const payload = {
+          messageType: replyingTo ? "reply" : "text",
+          content: message.trim(),
+          ...(replyingTo && {
+            replyMessageId: replyingTo._id,
+            replyMessageContent: replyingTo.content,
+            replyMessageType: replyingTo.messageType,
+            replyMessageSender: replyingTo.sender,
+          }),
+        };
+
+        sendMessage(payload);
       }
 
-      const payload = {
-        messageType,
-        content,
-        ...(fileURL && { linkURL: fileURL }),
-        ...(replyingTo && {
-          replyMessageId: replyingTo._id,
-          replyMessageContent: replyingTo.content,
-          replyMessageType: replyingTo.messageType,
-          replyMessageSender: replyingTo.sender, // optional
-        }),
-      };
-
-      console.log("Payload gửi đi: ", payload);
-      sendMessage(payload);
-
-      // Reset UI
       setMessage("");
-      setAttachedFile(null);
-      setPreviewURL(null);
+      setAttachedFiles([]);
       setReplyingTo(null);
       setShowEmojiPicker(false);
-    } catch (error) {
-      console.error("Failed to send message:", error);
+    } catch (err) {
+      console.error("Error sending message:", err);
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
     <div className="bg-white p-3 border-t border-gray-300 w-full relative">
-      {/* Emoji Picker */}
       {showEmojiPicker && (
         <div className="absolute bottom-24 left-3 z-10 bg-white shadow-md rounded-lg border border-gray-200">
           <EmojiPicker
@@ -125,7 +126,6 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         </div>
       )}
 
-      {/* Reply preview */}
       {replyingTo && (
         <div className="flex items-center justify-between mb-2 p-2 border border-gray-300 rounded-lg bg-gray-50">
           <div className="text-sm">
@@ -149,41 +149,46 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         </div>
       )}
 
-      {/* File preview */}
-      {attachedFile && (
-        <div className="flex items-center justify-between mb-2 p-2 border border-gray-300 rounded-lg bg-gray-50">
-          <div className="flex items-center space-x-3 overflow-hidden">
-            {attachedFile.type === "image" ? (
-              <img
-                src={previewURL}
-                alt="Preview"
-                className="w-16 h-16 object-cover rounded-lg"
-              />
-            ) : attachedFile.type === "video" ? (
-              <video
-                src={previewURL}
-                controls
-                className="w-20 h-16 object-cover rounded-lg"
-              />
-            ) : (
-              <div className="text-sm font-medium text-gray-700 truncate max-w-xs">
-                📎 {attachedFile.file.name}
-              </div>
-            )}
-          </div>
-          <button
-            className="text-gray-400 hover:text-red-500 ml-2"
-            onClick={() => {
-              setAttachedFile(null);
-              setPreviewURL(null);
-            }}
-          >
-            <IoClose size={20} />
-          </button>
+      {/* Preview các file đính kèm */}
+      {attachedFiles.length > 0 && (
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          {attachedFiles.map((item, index) => (
+            <div
+              key={index}
+              className="relative border p-1 rounded-md bg-gray-100"
+            >
+              {item.type === "image" ? (
+                <img
+                  src={item.previewURL}
+                  alt="Preview"
+                  className="w-full h-24 object-cover rounded"
+                />
+              ) : item.type === "video" ? (
+                <video
+                  src={item.previewURL}
+                  controls
+                  className="w-full h-24 object-cover rounded"
+                />
+              ) : (
+                <p className="text-sm truncate">📎 {item.file.name}</p>
+              )}
+              {!uploading && (
+                <button
+                  onClick={() => {
+                    setAttachedFiles((prev) =>
+                      prev.filter((_, i) => i !== index)
+                    );
+                  }}
+                  className="absolute top-1 right-1 bg-white rounded-full p-1 text-red-500 hover:text-red-700"
+                >
+                  <IoClose size={16} />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Toolbar */}
       <div className="flex space-x-4 mb-2">
         <button
           className="p-2 text-gray-500 hover:text-gray-700"
@@ -205,31 +210,29 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         </button>
       </div>
 
-      {/* Hidden inputs */}
       <input
         type="file"
+        multiple
         ref={fileInputRef}
-        onChange={(e) => handleFileChange(e, "file")}
-        hidden
-      />
-      <input
-        type="file"
-        accept="image/*,video/*"
-        ref={mediaInputRef}
         onChange={(e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          const type = file.type.startsWith("image/")
-            ? "image"
-            : file.type.startsWith("video/")
-            ? "video"
-            : "file";
-          handleFileChange(e, type);
+          if (e.target.files.length) handleAttachFiles(e.target.files);
+          e.target.value = null;
         }}
         hidden
       />
 
-      {/* Message input */}
+      <input
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        ref={mediaInputRef}
+        onChange={(e) => {
+          if (e.target.files.length) handleAttachFiles(e.target.files);
+          e.target.value = null;
+        }}
+        hidden
+      />
+
       <div className="flex items-center space-x-2">
         <input
           type="text"
@@ -238,12 +241,41 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyPress}
+          disabled={uploading}
         />
         <button
-          className="p-2 text-blue-500 hover:text-blue-700"
+          className={`p-2 ${
+            uploading
+              ? "text-gray-400 cursor-not-allowed"
+              : "text-blue-500 hover:text-blue-700"
+          }`}
           onClick={handleSend}
+          disabled={uploading}
         >
-          <FaPaperPlane size={20} />
+          {uploading ? (
+            <svg
+              className="animate-spin h-5 w-5 text-gray-400"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+          ) : (
+            <FaPaperPlane size={20} />
+          )}
         </button>
       </div>
     </div>

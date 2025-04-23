@@ -7,12 +7,13 @@ import { Ionicons } from "@expo/vector-icons"
 import { Api_FriendRequest } from "../../../../apis/api_friendrequest";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+
 export default function FriendsScreen() {
   const navigation = useNavigation()
   const [friends, setFriends] = useState([]);
   const [receivedRequests, setReceivedRequests] = useState([]);
 
-  useEffect(() => {
+
     const fetchFriends = async () => {
       try {
         const userId = await AsyncStorage.getItem("userId"); 
@@ -23,7 +24,7 @@ export default function FriendsScreen() {
         console.error("Lỗi lấy danh sách bạn bè:", error);
       }
     };
-
+    useEffect(() => {
     fetchFriends();
   }, []);
 
@@ -42,48 +43,42 @@ export default function FriendsScreen() {
     }
   }
 
-  const handleUnfriend = async (friendId) => {
-    try {
-      const userId = await AsyncStorage.getItem("userId");
-      if (!userId) {
-        Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng.");
-        return;
-      }
-  
-      const payload = {
-        userId1: userId,
-        userId2: friendId,
-      };
-  
-      console.log("Payload:", JSON.stringify(payload)); // Kiểm tra payload
-  
-      // Gửi đúng định dạng JSON
-      const response = await Api_FriendRequest.unfriend(payload);
-      
-      if (response.success) {
-        Alert.alert("Thành công", "Đã hủy kết bạn");
-        // Cập nhật lại danh sách bạn bè
-        const res = await Api_FriendRequest.getFriendsList(userId);
-        setFriends(res.data);
-      } else {
-        Alert.alert("Lỗi", "Không thể hủy kết bạn");
-      }
-    } catch (error) {
-      console.error("Lỗi khi hủy kết bạn:", error);
-      Alert.alert("Lỗi", "Có lỗi xảy ra. Thử lại sau.");
-    }
+  const handleDeleteFriend = async (friendId) => {
+    Alert.alert(
+      "Xác nhận xóa bạn",
+      "Bạn có chắc chắn muốn xóa người này khỏi danh sách bạn bè?",
+      [
+        {
+          text: "Hủy",
+          style: "cancel",
+        },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const currentUserId = await AsyncStorage.getItem("userId");
+              const response = await Api_FriendRequest.unfriend(currentUserId, friendId);
+              console.log("Xóa bạn thành công:", response.data);
+              await fetchFriends(); // Cập nhật danh sách bạn bè sau khi xóa
+            } catch (error) {
+              console.error("Lỗi xóa bạn:", error);
+            }
+          },
+        },
+      ]
+    );
   };
-  
+
   
   
   
 
  
-  const renderContactItem = ({ item }: { item: { id: string; name: string; avatar: string; online: boolean } }) => (
+  const renderContactItem = ({ item }: { item: { _id: string; name: string; avatar: string } }) => (
     <View style={styles.contactItem}>
       <View style={styles.avatarContainer}>
         <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        {item.online && <View style={styles.onlineIndicator} />}
       </View>
 
       <View style={styles.contactInfo}>
@@ -99,7 +94,7 @@ export default function FriendsScreen() {
         </TouchableOpacity> */}
         <TouchableOpacity 
         style={styles.actionButton}
-        onPress={() => handleUnfriend(item._id)} >
+        onPress={() => handleDeleteFriend(item._id)} >
           <Ionicons name="trash-outline" size={22} color="#666" />
         </TouchableOpacity>
       </View>

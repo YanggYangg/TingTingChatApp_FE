@@ -1,134 +1,174 @@
 import React, { useState, useEffect } from "react";
 import Modal from "react-modal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import { Api_FriendRequest } from "../../../apis/api_friendRequest";
 
-const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [availableMembers, setAvailableMembers] = useState([]);
+const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId, currentMembers }) => {
+    const [searchTerm, setSearchTerm] = useState("");
+    const [error, setError] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
+    const [friendsList, setFriendsList] = useState([]);
+    const [loadingFriends, setLoadingFriends] = useState(false);
+    const [errorFriends, setErrorFriends] = useState("");
 
-  useEffect(() => {
-    const fetchAvailableMembers = async () => {
-      if (!conversationId || !isOpen) return;
+    console.log("userId trong AddMemberModal:", userId);
+    console.log("conversationId trong AddMemberModal:", conversationId);
+    console.log("currentMembers trong AddMemberModal:", currentMembers);
 
-      try {
+    useEffect(() => {
+        const fetchFriends = async () => {
+            if (!isOpen || !userId || !conversationId) {
+                if (!userId) setErrorFriends("Thiếu thông tin người dùng.");
+                if (!conversationId) setErrorFriends("Thiếu thông tin cuộc trò chuyện.");
+                return;
+            }
+
+            setLoadingFriends(true);
+            setErrorFriends("");
+            try {
+                const response = await Api_FriendRequest.getFriendsList(userId);
+                let friends = Array.isArray(response.data) ? response.data : 
+                             response.data?.friends || response.data?.data || [];
+                
+                if (!Array.isArray(friends)) {
+                    console.warn("Dữ liệu bạn bè không đúng định dạng:", response.data);
+                    setErrorFriends("Dữ liệu bạn bè không đúng định dạng. Vui lòng thử lại.");
+                    return;
+                }
+
+                console.log("Danh sách bạn bè thô:", friends);
+                console.log("currentMembers để lọc:", currentMembers);
+
+                const filteredFriends = friends.filter(friend =>
+                    !currentMembers?.some(memberId => 
+                        memberId === (friend._id || friend.id || friend.userID)
+                    )
+                );
+                console.log("Danh sách bạn bè sau khi lọc:", filteredFriends);
+
+                setFriendsList(filteredFriends);
+            } catch (error) {
+                console.error("Lỗi khi lấy danh sách bạn bè:", error);
+                setErrorFriends(
+                    error.message.includes("timeout")
+                        ? "Yêu cầu hết thời gian. Vui lòng thử lại."
+                        : "Không thể tải danh sách bạn bè. Vui lòng thử lại."
+                );
+            } finally {
+                setLoadingFriends(false);
+            }
+        };
+
+        fetchFriends();
+    }, [isOpen, userId, conversationId, currentMembers]);
+
+    const filteredFriends = friendsList.filter((friend) =>
+        friend.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const sortedFriends = filteredFriends.sort((a, b) =>
+        a.name.localeCompare(b.name)
+    );
+
+    const addMember = async (memberId) => {
+        if (!conversationId || !memberId) {
+            setError("Thiếu thông tin để thêm thành viên.");
+            return;
+        }
+
         setError("");
-        const response = await Api_chatInfo.getAvailableMembers(conversationId);
-        const members = response || [];
-        setAvailableMembers(members);
-      } catch (error) {
-        console.error("Lỗi khi lấy thành viên khả dụng:", error);
-        setError("Không thể tải danh sách thành viên.");
-      }
+        setSuccessMessage("");
+
+        try {
+            const participantData = { userId: memberId, role: "member" };
+            const response = await Api_chatInfo.addParticipant(conversationId, participantData);
+            console.log("Response from addParticipant:", response);
+
+            // Kiểm tra xem thành viên đã được thêm vào nhóm
+            if (response && response.participants && response.participants.some(p => p.userId === memberId)) {
+                setFriendsList((prev) => prev.filter((friend) => getMemberId(friend) !== memberId));
+                setSuccessMessage("Thêm thành viên thành công!");
+                if (onMemberAdded) {
+                    onMemberAdded();
+                }
+            } else {
+                setError("Không thể thêm thành viên. Phản hồi từ server không hợp lệ.");
+            }
+        } catch (error) {
+            console.error("Lỗi khi thêm thành viên:", error);
+            setError("Không thể thêm thành viên. Vui lòng thử lại!");
+        }
     };
 
-    fetchAvailableMembers();
-  }, [isOpen, conversationId]);
+    const getMemberId = (member) => member._id || member.id || member.userID;
 
-  const filteredMembers = availableMembers.filter((member) => {
-    const fullName = `${member.lastName} ${member.firstName}`.toLowerCase();
-    return fullName.includes(searchTerm.toLowerCase());
-  });
-
-  const sortedMembers = filteredMembers.sort((a, b) => {
-    return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
-  });
-
-  const addMember = async (memberId) => {
-    if (!conversationId || !memberId) {
-      setError("Thiếu thông tin để thêm thành viên.");
-      return;
-    }
-
-    try {
-      setError("");
-      setSuccessMessage("");
-
-      const participantData = { userID: memberId, role: "member" }; 
-      await Api_chatInfo.addParticipant(conversationId, participantData);
-
-      setAvailableMembers((prev) =>
-        prev.filter((m) => getMemberId(m) !== memberId)
-      );
-      setSuccessMessage("Thêm thành viên thành công!");
-
-      // Gọi callback để cập nhật chatInfo trong ChatInfo
-      if (onMemberAdded) {
-        onMemberAdded();
-      }
-    } catch (error) {
-      console.error("Lỗi khi thêm thành viên:", error);
-      setError("Không thể thêm thành viên. Vui lòng thử lại!");
-    }
-  };
-
-  const getMemberId = (member) => member.id || member._id || member.userID; // Sửa userID thành userID
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onRequestClose={onClose}
-      contentLabel="Thêm thành viên"
-      overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm"
-      className="bg-white p-4 rounded-lg shadow-lg w-96 max-h-[70vh] flex flex-col"
-    >
-      <h2 className="text-lg font-semibold mb-3 text-center">Thêm thành viên</h2>
-
-      <input
-        type="text"
-        placeholder="Nhập tên, số điện thoại..."
-        className="w-full p-2 border rounded-md mb-3"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
-
-      {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-      {successMessage && <p className="text-green-500 text-sm text-center">{successMessage}</p>}
-
-      <div className="flex-1 overflow-y-auto">
-        <ul className="space-y-2">
-          {sortedMembers.length === 0 ? (
-            <p className="text-center text-sm text-gray-500">Không tìm thấy thành viên nào</p>
-          ) : (
-            sortedMembers.map((member) => {
-              const memberId = getMemberId(member);
-              return (
-                <li
-                  key={memberId}
-                  className="flex items-center gap-2 p-2 border rounded-md"
-                >
-                  <img
-                    src={member.avatar}
-                    alt={`${member.firstName} ${member.lastName}`}
-                    className="w-8 h-8 rounded-full"
-                  />
-                  <p className="flex-1 text-sm">
-                    {member.lastName} {member.firstName}
-                  </p>
-                  <button
-                    className="bg-blue-500 text-white px-2 py-1 rounded-md text-xs"
-                    onClick={() => addMember(memberId)}
-                  >
-                    Thêm
-                  </button>
-                </li>
-              );
-            })
-          )}
-        </ul>
-      </div>
-
-      <div className="mt-3 flex justify-end gap-2 border-t pt-3">
-        <button
-          className="bg-gray-300 px-3 py-1 rounded-md text-sm"
-          onClick={onClose}
+    return (
+        <Modal
+            isOpen={isOpen}
+            onRequestClose={onClose}
+            contentLabel="Thêm thành viên"
+            overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm"
+            className="bg-white p-4 rounded-lg shadow-lg w-96 max-h-[70vh] flex flex-col"
         >
-          Hủy
-        </button>
-      </div>
-    </Modal>
-  );
+            <h2 className="text-lg font-semibold mb-3 text-center">Thêm thành viên</h2>
+
+            <input
+                type="text"
+                placeholder="Nhập tên bạn bè..."
+                className="w-full p-2 border rounded-md mb-3"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+
+            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+            {successMessage && <p className="text-green-500 text-sm text-center">{successMessage}</p>}
+            {errorFriends && <p className="text-red-500 text-sm text-center">{errorFriends}</p>}
+
+            <div className="flex-1 overflow-y-auto">
+                {loadingFriends ? (
+                    <p className="text-center text-gray-500">Đang tải danh sách bạn bè...</p>
+                ) : (
+                    <ul className="space-y-2">
+                        {sortedFriends.length === 0 ? (
+                            <p className="text-center text-sm text-gray-500">Không tìm thấy bạn bè nào để thêm</p>
+                        ) : (
+                            sortedFriends.map((friend) => {
+                                const friendId = getMemberId(friend);
+                                return (
+                                    <li
+                                        key={friendId}
+                                        className="flex items-center gap-2 p-2 border rounded-md"
+                                    >
+                                        <img
+                                            src={friend.avatar || "https://via.placeholder.com/30/007bff/FFFFFF?Text=User"}
+                                            alt={friend.name}
+                                            className="w-8 h-8 rounded-full"
+                                        />
+                                        <p className="flex-1 text-sm">{friend.name}</p>
+                                        <button
+                                            className="bg-blue-500 text-white px-2 py-1 rounded-md text-xs"
+                                            onClick={() => addMember(friendId)}
+                                        >
+                                            Thêm
+                                        </button>
+                                    </li>
+                                );
+                            })
+                        )}
+                    </ul>
+                )}
+            </div>
+
+            <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+                <button
+                    className="bg-gray-300 px-3 py-1 rounded-md text-sm"
+                    onClick={onClose}
+                >
+                    Hủy
+                </button>
+            </div>
+        </Modal>
+    );
 };
 
 export default AddMemberModal;

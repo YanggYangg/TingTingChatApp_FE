@@ -20,16 +20,16 @@ import FriendRequests from "../contact-form/FriendRequests";
 import GroupInvites from "../contact-form/GroupInvites";
 import ContactList from "../contact-form/ContactList";
 
+import { Api_Profile } from "../../../../apis/api_profile";
+
 const cx = classNames.bind(styles);
 
 function ChatList({ activeTab }) {
   const [messages, setMessages] = useState([]);
   const [selectedTab, setSelectedTab] = useState("priority");
-  const socket = useSocket();
   const dispatch = useDispatch();
 
-  // Get currentUserId from socket
-  const currentUserId = socket?.io?.opts?.query?.userId;
+  const { socket, userId: currentUserId } = useSocket();
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
@@ -60,10 +60,23 @@ function ChatList({ activeTab }) {
   useEffect(() => {
     if (!socket || !currentUserId) return;
 
-    const handleConversations = (conversations) => {
+    const handleConversations = async (conversations) => {
+      // lấy tra toàn bộ userId khác với currentUserId
+      const otherParticipant = conversations.map((conversation) => {
+        const otherParticipant = conversation.participants.find(
+          (p) => p.userId !== currentUserId
+        );
+        return otherParticipant.userId;
+      });
+      // lấy ra profile của người còn lại trong cuộc trò chuyện cá nhân Api_Profile.getProfile
+      const profiles = await Promise.all(
+        otherParticipant.map((userId) => Api_Profile.getProfile(userId))
+      );
+
       const transformedMessages = transformConversationsToMessages(
         conversations,
-        currentUserId
+        currentUserId,
+        profiles
       );
       setMessages(transformedMessages);
     };
@@ -154,9 +167,9 @@ function ChatList({ activeTab }) {
       <div className="flex-grow text-gray-700">
         {activeTab === "/chat" && (
           <MessageList
-            // messages={messages}
-            messages={[myCloudItem, ...messages]}
-            onMessageClick={handleMessageClick}
+          messages={messages}
+          onMessageClick={handleMessageClick}
+          userId={currentUserId}
           />
         )}
         {activeTab === "/contact" && <SibarContact />}

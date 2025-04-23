@@ -3,8 +3,23 @@ import { initSocket } from "../services/sockets";
 
 const SocketContext = createContext(null);
 
-export const SocketProvider = ({ userId, children }) => {
+export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
+  const [userId, setUserId] = useState(() => localStorage.getItem("userId"));
+  console.log("userId socket", userId);
+  useEffect(() => {
+    if (userId) {
+      const userLoad = localStorage.getItem("userId");
+      if (userLoad) {
+        setUserId(userLoad);
+        console.log("userId", userLoad);
+      } else {
+        localStorage.setItem("userId", userId);
+      }
+    } else {
+      localStorage.removeItem("userId");
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -18,7 +33,9 @@ export const SocketProvider = ({ userId, children }) => {
   }, [userId]);
 
   return (
-    <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>
+    <SocketContext.Provider value={{ socket, userId, setUserId }}>
+      {children}
+    </SocketContext.Provider>
   );
 };
 

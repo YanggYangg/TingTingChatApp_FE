@@ -6,7 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 
 const SearchHeader = () => {
   const [isFocused, setIsFocused] = useState(false);
-
+  
   const navigation = useNavigation<any>();
 
 

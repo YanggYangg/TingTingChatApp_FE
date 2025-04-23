@@ -1,36 +1,52 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
+import { FaArrowLeft, FaDownload } from "react-icons/fa";
+import { IoArrowRedoOutline, IoTrashOutline } from "react-icons/io5";
 import StoragePage from "./StoragePage";
+import ShareModal from "../../components/chat/ShareModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 
-const GroupMediaGallery = ({ conversationId }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
   const [media, setMedia] = useState([]);
+  const [error, setError] = useState(null);
+  const [isOpen, setIsOpen] = useState(false);
   const [fullScreenMedia, setFullScreenMedia] = useState(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [mediaToForward, setMediaToForward] = useState(null);
+  const [messageIdToForward, setMessageIdToForward] = useState(null);
+  const [hoveredIndex, setHoveredIndex] = useState(null);
   const videoRef = useRef(null);
 
-  // Hàm lấy lại dữ liệu media từ API
   const fetchMedia = async () => {
     try {
-      console.log("Đang lấy dữ liệu từ API...");
       const response = await Api_chatInfo.getChatMedia(conversationId);
-      console.log("Dữ liệu API nhận được:", response);
-
       const mediaData = Array.isArray(response?.data) ? response.data : response;
-
-      if (Array.isArray(mediaData)) {
-        const filteredMedia = mediaData.map((item) => ({
-          src: item?.linkURL || "#",
-          name: item?.content || "Không có tên",
-          type: item?.messageType || "image",
-        }));
-        setMedia(filteredMedia);
-      } else {
-        console.warn("API không trả về dữ liệu hợp lệ.");
-        setMedia([]);
-      }
+      const filteredMedia = mediaData
+        .flatMap((item) => {
+          const urls = Array.isArray(item?.linkURL)
+            ? item.linkURL.filter((url) => url && typeof url === "string")
+            : typeof item?.linkURL === "string"
+            ? [item.linkURL]
+            : [];
+          if (urls.length === 0) {
+            console.warn(`Tin nhắn ${item._id} thiếu linkURL:`, item);
+            return [];
+          }
+          return urls.map((url, urlIndex) => ({
+            id: `${item?._id}_${urlIndex}`,
+            messageId: item?._id,
+            src: url,
+            name: item?.content || `Media_${urlIndex + 1}`,
+            type: item?.messageType || "image",
+            urlIndex, // Thêm urlIndex để so sánh khi xóa
+          }));
+        })
+        .filter((mediaItem) => mediaItem.src);
+      setMedia(filteredMedia.length ? filteredMedia : []);
+      setError(filteredMedia.length ? null : "Không có ảnh nào.");
     } catch (error) {
       console.error("Lỗi khi lấy dữ liệu media:", error);
+      setError("Lỗi khi tải media. Vui lòng thử lại.");
+      setMedia([]);
     }
   };
 
@@ -39,6 +55,61 @@ const GroupMediaGallery = ({ conversationId }) => {
     fetchMedia();
   }, [conversationId]);
 
+  // Xử lý onDelete từ StoragePage
+  const handleDeleteFromStorage = (deletedItems) => {
+    console.log("Cập nhật media sau khi xóa:", deletedItems);
+    
+    // Cập nhật media cục bộ
+    const newMedia = media.filter((mediaItem) => {
+      const isDeleted = deletedItems.some(
+        (item) =>
+          item.messageId === mediaItem.messageId &&
+          item.urlIndex === mediaItem.urlIndex
+      );
+      return !isDeleted;
+    });
+
+    if (newMedia.length !== media.length) {
+      setMedia(newMedia);
+      setError(newMedia.length ? null : "Không có media hợp lệ để hiển thị.");
+    } else {
+      console.warn("Không thể cập nhật cục bộ, tải lại media...");
+      fetchMedia();
+    }
+  };
+
+  // Xử lý hover
+  const handleMouseEnter = (index) => {
+    setHoveredIndex(index);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredIndex(null);
+  };
+
+  // Xử lý chuyển tiếp
+  const handleForwardClick = (item, event) => {
+    event.stopPropagation();
+    setMediaToForward(item);
+    setMessageIdToForward(item.messageId);
+    setIsShareModalOpen(true);
+  };
+
+  // Xử lý chia sẻ từ ShareModal
+  const handleMediaShared = () => {
+    setIsShareModalOpen(false);
+    setMediaToForward(null);
+    setMessageIdToForward(null);
+  };
+
+  // Xử lý đóng ShareModal
+  const handleShareModalClose = () => {
+    setIsShareModalOpen(false);
+    setMediaToForward(null);
+    setMessageIdToForward(null);
+  };
+
+  // Tải xuống media
   const downloadImage = async (url, filename) => {
     try {
       const response = await fetch(url);
@@ -51,8 +122,8 @@ const GroupMediaGallery = ({ conversationId }) => {
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error("Lỗi khi tải file (CORS hoặc khác):", error);
-      alert("Fetch bị chặn, thử tải trực tiếp!");
+      console.error("Lỗi khi tải file:", error);
+      alert("Không thể tải file. Thử tải trực tiếp!");
       const fallbackLink = document.createElement("a");
       fallbackLink.href = url;
       fallbackLink.download = filename;
@@ -62,11 +133,10 @@ const GroupMediaGallery = ({ conversationId }) => {
     }
   };
 
+  // Xử lý video trong fullScreenMedia
   useEffect(() => {
     if (fullScreenMedia && fullScreenMedia.type === "video" && videoRef.current) {
-      videoRef.current.play().catch((error) => {
-        console.error("Lỗi khi phát video:", error);
-      });
+      videoRef.current.play().catch((error) => console.error("Lỗi khi phát video:", error));
     }
     return () => {
       if (videoRef.current) {
@@ -77,31 +147,50 @@ const GroupMediaGallery = ({ conversationId }) => {
 
   return (
     <div>
-      {/* Gallery chính */}
       <div className="flex-1">
         <h3 className="text-md font-semibold mb-2">Ảnh/Video</h3>
-        <div className="grid grid-cols-4 gap-2">
-          {media.slice(0, 8).map((item, index) => (
-            <div key={index} className="relative">
-              {item.type === "image" ? (
-                <img
-                  src={item.src}
-                  alt={item.name}
-                  className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
-                  onClick={() => setFullScreenMedia(item)}
-                />
-              ) : (
-                <video
-                  src={item.src}
-                  className="w-20 h-20 rounded-md object-cover cursor-pointer transition-all hover:scale-105"
-                  onClick={() => setFullScreenMedia(item)}
-                />
-              )}
-            </div>
-          ))}
-        </div>
+        {error ? (
+          <p className="text-red-500 text-sm">{error}</p>
+        ) : media.length === 0 ? (
+          <p className="text-gray-500 text-sm">Không có media để hiển thị.</p>
+        ) : (
+          <div className="grid grid-cols-4 gap-2">
+            {media.slice(0, 8).map((item, index) => (
+              <div
+                key={item.id}
+                className="relative group cursor-pointer"
+                onMouseEnter={() => handleMouseEnter(index)}
+                onMouseLeave={handleMouseLeave}
+                onClick={() => setFullScreenMedia(item)}
+              >
+                {item.type === "image" ? (
+                  <img
+                    src={item.src}
+                    alt={item.name}
+                    className="w-20 h-20 rounded-md object-cover transition-all hover:scale-105"
+                  />
+                ) : (
+                  <video
+                    src={item.src}
+                    className="w-20 h-20 rounded-md object-cover transition-all hover:scale-105"
+                  />
+                )}
+                <div
+                  className={`absolute top-0 right-0 p-1 flex flex-col items-end rounded-tl-md bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-y-1`}
+                >
+                  <button
+                    onClick={(event) => handleForwardClick(item, event)}
+                    className="p-1 rounded-full bg-white text-blue-500 hover:bg-blue-100 transition-colors shadow-sm"
+                    title="Chuyển tiếp"
+                  >
+                    <IoArrowRedoOutline size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-        {/* Open Storage Page */}
         <button
           className="mt-2 flex items-center justify-center w-full bg-gray-200 text-gray-700 text-sm px-4 py-2 rounded hover:bg-gray-300"
           onClick={() => setIsOpen(true)}
@@ -112,12 +201,11 @@ const GroupMediaGallery = ({ conversationId }) => {
           <StoragePage
             conversationId={conversationId}
             onClose={() => setIsOpen(false)}
-            onDelete={fetchMedia} // Truyền callback để gọi lại API sau khi xóa
+            onDelete={handleDeleteFromStorage}
           />
         )}
       </div>
 
-      {/* Modal hiển thị media toàn màn hình */}
       {fullScreenMedia && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
           <div className="relative flex bg-white rounded-lg shadow-lg">
@@ -150,14 +238,14 @@ const GroupMediaGallery = ({ conversationId }) => {
               </button>
             </div>
             <div className="w-40 h-[90vh] bg-gray-900 p-2 overflow-y-auto flex flex-col items-center">
-              {media.map((item, index) => (
-                <div key={index}>
+              {media.map((item) => (
+                <div key={item.id}>
                   {item.type === "image" ? (
                     <img
                       src={item.src}
                       alt={item.name}
                       className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${
-                        fullScreenMedia.src === item.src
+                        fullScreenMedia?.src === item.src
                           ? "opacity-100 border-2 border-blue-400"
                           : "opacity-50 hover:opacity-100"
                       }`}
@@ -167,7 +255,7 @@ const GroupMediaGallery = ({ conversationId }) => {
                     <video
                       src={item.src}
                       className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${
-                        fullScreenMedia.src === item.src
+                        fullScreenMedia?.src === item.src
                           ? "opacity-100 border-2 border-blue-400"
                           : "opacity-50 hover:opacity-100"
                       }`}
@@ -180,6 +268,15 @@ const GroupMediaGallery = ({ conversationId }) => {
           </div>
         </div>
       )}
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={handleShareModalClose}
+        onShare={handleMediaShared}
+        userId={userId}
+        messageId={messageIdToForward}
+        messageToForward={mediaToForward}
+      />
     </div>
   );
 };
