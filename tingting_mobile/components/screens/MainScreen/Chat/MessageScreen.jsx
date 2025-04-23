@@ -30,8 +30,22 @@ const ChatScreen = ({ route, navigation }) => {
   const [userCache, setUserCache] = useState({});
 
   const { message, user } = route?.params || {};
-
+  const conversationId = message?.id || null;
+  const userId = currentUserId || null;
+  console.log("userId", userId);
+  console.log("conversationId", conversationId);
+  console.log("message", message);
+  console.log("selectmessage", selectedMessage);
   console.log("user", user);
+
+ // Log params for debugging
+ console.log("ChatScreen params:", {
+  userId,
+  conversationId,
+  message,
+  user,
+  routeParams: route.params,
+});
 
   const selectedMessageData = useSelector(
     (state) => state.chat.selectedMessage
@@ -337,7 +351,18 @@ const ChatScreen = ({ route, navigation }) => {
             <Ionicons name="videocam-outline" size={28} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => console.log("Menu")}
+            onPress={() => {
+              console.log("Navigating to ChatInfo with:", { userId, conversationId });
+              if (!userId || !conversationId) {
+                console.warn("Cannot navigate to ChatInfo: missing userId or conversationId");
+                Alert.alert(
+                  "Lỗi",
+                  "Không thể mở thông tin chat do thiếu userId hoặc conversationId."
+                );
+                return;
+              }
+              navigation.push("ChatInfo", { userId, conversationId });
+            }}
             style={{ marginLeft: 15 }}
           >
             <Ionicons name="menu-outline" size={28} color="#fff" />

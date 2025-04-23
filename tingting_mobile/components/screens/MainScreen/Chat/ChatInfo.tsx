@@ -1,8 +1,8 @@
-// ChatInfo.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import Modal from 'react-native-modal';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import GroupMemberList from './chatInfoComponent/GroupMemberList';
 import GroupMediaGallery from './chatInfoComponent/GroupMediaGallery';
 import GroupFile from './chatInfoComponent/GroupFile';
@@ -15,7 +15,6 @@ import CreateGroupModal from './chatInfoComponent/CreateGroupModal';
 import GroupActionButton from './chatInfoComponent/GroupActionButton';
 import { Api_chatInfo } from '../../../../apis/Api_chatInfo';
 import { Api_Profile } from '../../../../apis/api_profile';
-import { useNavigation } from '@react-navigation/native';
 
 interface Participant {
   userId: string;
@@ -43,16 +42,21 @@ interface UserProfile {
 }
 
 interface ChatInfoProps {
-  userId?: string;
-  conversationId?: string;
+  route: {
+    params: {
+      userId: string;
+      conversationId: string;
+    };
+  };
 }
 
 const Icon = FontAwesome;
 
-const ChatInfo: React.FC<ChatInfoProps> = ({
-  userId = "680676142d6b2f2b0c3f3c3c",
-  conversationId = "6807d267bad181467e18c96f",
-}) => {
+const ChatInfo: React.FC<ChatInfoProps> = () => {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { userId, conversationId } = route.params || {};
+
   const [chatInfo, setChatInfo] = useState<ChatInfoData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
@@ -64,15 +68,40 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
   const [userRoleInGroup, setUserRoleInGroup] = useState<string | null>(null);
 
-  const navigation = useNavigation();
+  // Unique instance ID for debugging
+  const instanceId = Math.random().toString(36).substring(7);
+
+  // Log received props
+  console.log(`ChatInfo instance ${instanceId} received props at:`, new Date().toISOString(), {
+    userId,
+    conversationId,
+    routeParams: route.params,
+    navigationState: navigation.getState()?.routes,
+  });
+
+  // Check for missing props
+  useEffect(() => {
+    if (!userId || !conversationId) {
+      console.warn(`ChatInfo instance ${instanceId} missing userId or conversationId:`, {
+        userId,
+        conversationId,
+      });
+      Alert.alert('Lỗi', 'Thiếu thông tin người dùng hoặc cuộc trò chuyện.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+      setLoading(false);
+    }
+  }, [userId, conversationId, navigation]);
 
   useEffect(() => {
     const fetchChatInfo = async () => {
+      if (!userId || !conversationId) return;
+
       try {
         setLoading(true);
         setError(null);
         const response = await Api_chatInfo.getChatInfo(conversationId);
-        console.log('Chat info API response:', response);
+        console.log(`ChatInfo instance ${instanceId} chat info API response:`, response);
 
         if (!response || !response._id) {
           throw new Error('Dữ liệu trả về không hợp lệ.');
@@ -96,7 +125,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
               const userResponse = await Api_Profile.getProfile(otherParticipant.userId);
               setOtherUser(userResponse?.data?.user as UserProfile);
             } catch (userError) {
-              console.error('Lỗi khi lấy thông tin người dùng khác:', userError);
+              console.error(`ChatInfo instance ${instanceId} error fetching other user:`, userError);
               setOtherUser({ _id: '', firstname: 'Không tìm thấy', surname: '', avatar: null });
             }
           }
@@ -104,7 +133,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
           setOtherUser(null);
         }
       } catch (error) {
-        console.error('Lỗi khi lấy thông tin chat:', error);
+        console.error(`ChatInfo instance ${instanceId} error fetching chat info:`, error);
         setError('Không thể tải thông tin chat.');
         Alert.alert('Lỗi', 'Không thể tải thông tin chat. Vui lòng thử lại.');
       } finally {
@@ -112,10 +141,8 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
       }
     };
 
-    if (conversationId) {
-      fetchChatInfo();
-    }
-  }, [conversationId, userId]);
+    fetchChatInfo();
+  }, [userId, conversationId]);
 
   const handleMemberAdded = async () => {
     try {
@@ -127,7 +154,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
       }
       Alert.alert('Thành công', 'Đã thêm thành viên vào nhóm!');
     } catch (error) {
-      console.error('Lỗi khi cập nhật chatInfo sau khi thêm thành viên:', error);
+      console.error(`ChatInfo instance ${instanceId} error updating chatInfo after adding member:`, error);
       Alert.alert('Lỗi', 'Không thể cập nhật danh sách thành viên. Vui lòng thử lại.');
     }
   };
@@ -153,7 +180,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
         setIsMuted(false);
         Alert.alert('Thông báo', 'Đã bật thông báo!');
       } catch (error) {
-        console.error('Lỗi khi bật thông báo:', error);
+        console.error(`ChatInfo instance ${instanceId} error enabling notification:`, error);
         Alert.alert('Lỗi', 'Không thể bật thông báo. Vui lòng thử lại.');
       }
     } else {
@@ -175,7 +202,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
       setChatInfo({ ...chatInfo, isPinned: newIsPinned });
       Alert.alert('Thông báo', newIsPinned ? 'Đã ghim cuộc trò chuyện!' : 'Đã bỏ ghim cuộc trò chuyện!');
     } catch (error) {
-      console.error('Lỗi khi ghim/bỏ ghim cuộc trò chuyện:', error);
+      console.error(`ChatInfo instance ${instanceId} error pinning/unpinning chat:`, error);
       Alert.alert('Lỗi', 'Không thể ghim/bỏ ghim cuộc trò chuyện. Vui lòng thử lại.');
     }
   };
@@ -203,7 +230,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
       setChatInfo({ ...chatInfo, name: newName.trim() });
       Alert.alert('Thông báo', 'Cập nhật tên thành công!');
     } catch (error) {
-      console.error('Lỗi khi cập nhật tên:', error);
+      console.error(`ChatInfo instance ${instanceId} error updating chat name:`, error);
       Alert.alert('Lỗi', 'Cập nhật tên thất bại!');
     } finally {
       handleCloseEditNameModal();
@@ -230,7 +257,6 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
           onPress={() => {
             setLoading(true);
             setError(null);
-            // Re-trigger the useEffect to fetch chat info
           }}
         >
           <Text style={styles.retryText}>Thử lại</Text>
@@ -250,7 +276,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
     ? chatInfo.imageGroup?.trim() || 'https://via.placeholder.com/150'
     : otherUser?.avatar || 'https://via.placeholder.com/150';
 
-  console.log('ChatInfo render - chatInfo:', chatInfo); // LOGGING
+  console.log(`ChatInfo instance ${instanceId} render - chatInfo:`, chatInfo);
 
   return (
     <View style={styles.container}>
@@ -265,7 +291,7 @@ const ChatInfo: React.FC<ChatInfoProps> = ({
           <Image
             source={{ uri: chatDisplayImage }}
             style={styles.groupImage}
-            onError={() => console.log('Lỗi tải ảnh nhóm/avatar')}
+            onError={() => console.log(`ChatInfo instance ${instanceId} error loading group/avatar image`)}
           />
           <View style={styles.groupNameContainer}>
             <Text style={styles.groupName}>{chatDisplayName}</Text>

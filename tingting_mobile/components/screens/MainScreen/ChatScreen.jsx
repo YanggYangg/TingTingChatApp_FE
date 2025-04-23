@@ -106,6 +106,7 @@ const ChatScreen = ({ navigation }) => {
     joinConversation(socket, message.id);
     dispatch(setSelectedMessage(message));
     console.log("Selected message jhasdgashjdgs:", message);
+    console.log("chat user profile", userProfiles[message.participants[0].userId]);
     navigation.navigate("MessageScreen", {
       message,
       user: userProfiles[message.participants[0].userId], // Thêm thông tin user vào params

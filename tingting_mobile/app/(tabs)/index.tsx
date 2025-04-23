@@ -184,6 +184,7 @@ function MainTabNavigator() {
       <Tab.Screen name="ProfileTab" options={{ tabBarLabel: "Cá nhân" }}>
         {() => <ProfileStackNavigator />}
       </Tab.Screen>
+      
     </Tab.Navigator>
   );
 }
