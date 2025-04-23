@@ -12,6 +12,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     const loadUserId = async () => {
       const storedUserId = await AsyncStorage.getItem("userId");
+      console.log("Stored userId from AsyncStorage:", storedUserId);
       if (storedUserId) {
         setUserId(storedUserId);
         console.log("Loaded userId from AsyncStorage:", storedUserId);
