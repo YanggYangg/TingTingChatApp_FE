@@ -109,7 +109,6 @@ const ContactList = () => {
       const currentUserId = localStorage.getItem("userId");
       const response = await Api_FriendRequest.unfriend(currentUserId, friendId);
       console.log("====Xoa ban be====", response.data);
-      //setAllFriends((prev) =>  prev.filter((f) => f.id !== friendId));
       await fetchFriends();
     }catch (error) {
       console.error("Error deleting friend:", error);
