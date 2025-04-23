@@ -9,7 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 interface Participant {
   userId: string;
   name: string;
-  avatar: string;
+  avatar: string | null;
   isHidden: boolean;
   role: 'member' | 'admin';
 }
@@ -113,7 +113,6 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
     }
   }, [conversationId, userId, fetchChatInfo]);
 
-  // Fetch profile details when groupMembers change
   useEffect(() => {
     if (groupMembers.length > 0) {
       fetchProfileDetails(groupMembers);
@@ -197,12 +196,9 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
           onPress: async () => {
             try {
               await Api_chatInfo.removeParticipant(conversationId, { userId });
-              setChatInfo((prevChatInfo) => ({
-                ...prevChatInfo,
-                participants: prevChatInfo?.participants?.filter((p) => p.userId !== userId) || [],
-              }));
+              setChatInfo(null); // Clear chat info to prevent further interactions
               Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
-              navigation.navigate('Home'); // Điều hướng về màn hình chính
+              navigation.navigate('Main', { screen: 'ChatScreen' }); // Navigate to ChatScreen tab
             } catch (err: any) {
               console.error('Error leaving group:', err);
               Alert.alert('Lỗi', 'Rời nhóm không thành công. Vui lòng thử lại.');
@@ -216,10 +212,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
 
   // Disband group functionality
   const handleDisbandGroup = useCallback(async () => {
-    if (!isGroup || !isAdmin) {
-      return;
-    }
-
+    if (!isGroup || !isAdmin) return;
     Alert.alert(
       'Xác nhận',
       'Bạn có chắc chắn muốn giải tán nhóm này? Tất cả thành viên sẽ bị xóa và lịch sử trò chuyện sẽ bị mất.',
@@ -230,9 +223,11 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('Disbanding group with conversationId:', conversationId);
               await Api_chatInfo.disbandGroup(conversationId, { userId });
+              setChatInfo(null); // Clear chat info
               Alert.alert('Thành công', 'Nhóm đã được giải tán!');
-              navigation.navigate('Home'); // Điều hướng về màn hình chính
+              navigation.navigate('Main', { screen: 'ChatScreen' }); // Navigate to ChatScreen tab
             } catch (error) {
               console.error('Lỗi khi giải tán nhóm:', error);
               Alert.alert('Lỗi', 'Giải tán nhóm không thành công. Vui lòng thử lại.');
@@ -242,7 +237,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       ],
       { cancelable: false }
     );
-  }, [isGroup, isAdmin, conversationId, userId, navigation]);
+  }, [isGroup, isAdmin, conversationId, userId, setChatInfo, navigation]);
 
   // Handle opening the transfer admin modal
   const handleOpenTransferAdminModal = useCallback(() => {
@@ -261,7 +256,6 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       Alert.alert('Lỗi', 'Vui lòng chọn một thành viên để chuyển quyền trưởng nhóm.');
       return;
     }
-
     try {
       const updatedConversation = await Api_chatInfo.transferGroupAdmin(conversationId, {
         requesterUserId: userId,
@@ -359,63 +353,70 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
         </>
       )}
 
-      {/* Modal for transferring admin */}
-      <Modal visible={showTransferAdminModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Chuyển quyền trưởng nhóm</Text>
-            {loadingDetails ? (
-              <Text style={styles.loadingText}>Đang tải thông tin thành viên...</Text>
-            ) : errorDetails ? (
-              <Text style={styles.errorText}>{errorDetails}</Text>
-            ) : groupMembers.filter((member) => member.role === 'member').length > 0 ? (
-              <View>
-                <Text style={styles.modalLabel}>Chọn thành viên mới:</Text>
-                {groupMembers
-                  .filter((member) => member.role === 'member')
-                  .map((member) => (
-                    <TouchableOpacity
-                      key={member.userId}
-                      style={[
-                        styles.modalOption,
-                        newAdminUserId === member.userId && styles.modalOptionSelected,
-                      ]}
-                      onPress={() => setNewAdminUserId(member.userId)}
-                    >
-                      <View style={styles.memberInfo}>
-                        {profileDetails[member.userId]?.avatar ? (
-                          <Image
-                            source={{ uri: profileDetails[member.userId].avatar }}
-                            style={styles.memberAvatar}
-                          />
-                        ) : (
-                          <Ionicons name="person-circle-outline" size={40} color="#ccc" style={styles.memberAvatar} />
-                        )}
-                        <Text style={styles.memberName}>
-                          {profileDetails[member.userId]?.name || 'Không xác định'}
-                        </Text>
-                      </View>
-                      {newAdminUserId === member.userId && (
-                        <Ionicons name="checkmark" size={18} color="#1e90ff" />
+      <Modal
+        isVisible={showTransferAdminModal}
+        onBackdropPress={handleCloseTransferAdminModal}
+        onBackButtonPress={handleCloseTransferAdminModal}
+        style={styles.modalOverlay}
+      >
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>Chuyển quyền trưởng nhóm</Text>
+          {loadingDetails ? (
+            <Text style={styles.loadingText}>Đang tải thông tin thành viên...</Text>
+          ) : errorDetails ? (
+            <Text style={styles.errorText}>{errorDetails}</Text>
+          ) : groupMembers.filter((member) => member.role === 'member').length > 0 ? (
+            <View>
+              <Text style={styles.modalLabel}>Chọn thành viên mới:</Text>
+              {groupMembers
+                .filter((member) => member.role === 'member')
+                .map((member) => (
+                  <TouchableOpacity
+                    key={member.userId}
+                    style={[
+                      styles.modalOption,
+                      newAdminUserId === member.userId && styles.modalOptionSelected,
+                    ]}
+                    onPress={() => setNewAdminUserId(member.userId)}
+                  >
+                    <View style={styles.memberInfo}>
+                      {profileDetails[member.userId]?.avatar ? (
+                        <Image
+                          source={{ uri: profileDetails[member.userId].avatar }}
+                          style={styles.memberAvatar}
+                        />
+                      ) : (
+                        <Ionicons
+                          name="person-circle-outline"
+                          size={40}
+                          color="#ccc"
+                          style={styles.memberAvatar}
+                        />
                       )}
-                    </TouchableOpacity>
-                  ))}
-              </View>
-            ) : (
-              <Text style={styles.noMembersText}>Không có thành viên nào để chuyển quyền.</Text>
-            )}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalCancelButton} onPress={handleCloseTransferAdminModal}>
-                <Text style={styles.modalCancelButtonText}>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalActionButton, !newAdminUserId && styles.modalActionButtonDisabled]}
-                onPress={handleTransferAdmin}
-                disabled={!newAdminUserId}
-              >
-                <Text style={styles.modalActionButtonText}>Chuyển quyền</Text>
-              </TouchableOpacity>
+                      <Text style={styles.memberName}>
+                        {profileDetails[member.userId]?.name || 'Không xác định'}
+                      </Text>
+                    </View>
+                    {newAdminUserId === member.userId && (
+                      <Ionicons name="checkmark" size={18} color="#1e90ff" />
+                    )}
+                  </TouchableOpacity>
+                ))}
             </View>
+          ) : (
+            <Text style={styles.noMembersText}>Không có thành viên nào để chuyển quyền.</Text>
+          )}
+          <View style={styles.modalButtons}>
+            <TouchableOpacity style={styles.modalCancelButton} onPress={handleCloseTransferAdminModal}>
+              <Text style={styles.modalCancelButtonText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalActionButton, !newAdminUserId && styles.modalActionButtonDisabled]}
+              onPress={handleTransferAdmin}
+              disabled={!newAdminUserId}
+            >
+              <Text style={styles.modalActionButtonText}>Chuyển quyền</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

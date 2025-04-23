@@ -23,7 +23,7 @@ const ChatScreen = ({ navigation }) => {
   const [userProfiles, setUserProfiles] = useState({});
   const { socket, userId } = useSocket();
   const dispatch = useDispatch();
-  const [currentUserId, setCurrentUserId] = useState();
+  const [currentUserId, setCurrentUserId] = useState(userId);
   useEffect(() => {
     if (!socket) {
       console.log("Socket is not available.", socket);
