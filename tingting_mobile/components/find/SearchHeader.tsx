@@ -36,7 +36,7 @@ const SearchHeader = () => {
         
         {isFocused && (
   <View style={styles.searchOverlay}>
-    <Text style={styles.sectionTitle}>Không có kết quả tìm kiếm</Text>
+    <Text style={styles.sectionTitle}>Không có kết quả tìm kiếm !!!</Text>
   </View>
 )}
      

@@ -5,7 +5,7 @@ import { Api_FriendRequest } from "../../../apis/api_friendRequest";
 
 function Search() {
   const [isModalFriendsOpen, setIsModalFriendsOpen] = useState(false);
-  const [isModalGroupsOpen, setIsModalGroupsOpen] = useState(false);
+  // const [isModalGroupsOpen, setIsModalGroupsOpen] = useState(false);
 
   const [phone, setPhone] = useState("");
   const [searchValue, setSearchValue] = useState("");
@@ -276,11 +276,11 @@ function Search() {
         size={20}
         onClick={toggleFriendsModal}
       />
-      <FaUsers
+      {/* <FaUsers
         className="text-gray-500 mx-2 cursor-pointer"
         size={20}
         onClick={toggleGroupsModal}
-      />
+      /> */}
 
       {/* Modal tìm kiếm bạn bè */}
       {isModalFriendsOpen && (
@@ -449,7 +449,7 @@ function Search() {
         </div>
       )}
 
-      {/* Modal tạo nhóm */}
+      {/* Modal tạo nhóm
       {isModalGroupsOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
@@ -496,7 +496,7 @@ function Search() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

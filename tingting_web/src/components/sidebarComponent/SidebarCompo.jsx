@@ -74,6 +74,7 @@ function SidebarCompo({ setActiveTab }) {
       {/* Top*/}
       <SidebarItem
         icon={FaComments}
+        // badge='4'
         to={routes.chat}
         onClick={() => setActiveTab(routes.chat)}
       />

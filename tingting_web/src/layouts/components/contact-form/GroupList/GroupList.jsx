@@ -11,6 +11,8 @@ import ContactItem from "../ContactItem";
 import GroupItem from "../GroupItem";
 import Search from "../Search";
 
+import { Api_Conversation } from "../../../../../apis/Api_Conversation";
+
 const GroupList = () => {
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -18,6 +20,7 @@ const GroupList = () => {
   const [filteredFriends, setFilteredFriends] = useState([]);
   const [groupedFriends, setGroupedFriends] = useState({});
   const [menuOpenId, setMenuOpenId] = useState(null); // Quản lý menu đang mở
+
 
   // Sample friends data
   const allFriends = [
@@ -30,54 +33,6 @@ const GroupList = () => {
     {
       id: 2,
       name: "An",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 1,
-    },
-    {
-      id: 3,
-      name: "An Quốc Việt",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 1,
-    },
-    {
-      id: 4,
-      name: "Anh Khoa",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 5,
-      name: "Anh Thư",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 6,
-      name: "Ba",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 7,
-      name: "Bảo Châu",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 8,
-      name: "Bảo Trân",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 9,
-      name: "Bảoo Ngocc",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 1,
-    },
-    {
-      id: 10,
-      name: "Bích Phương",
       avatar: "/placeholder.svg?height=40&width=40",
       memberCount: 1,
     },
