@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
   const getConversationName = (msg, memberDetails) => {
+    if (msg?.customName) return msg.customName; // Ưu tiên nếu có custom
     if (msg?.isGroup) {
       return msg.name;
     } else if (msg?.participants) {
@@ -17,13 +18,17 @@ const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
   };
 
   const getConversationAvatar = (msg, memberDetails) => {
+    if (msg?.customAvatar) return msg.customAvatar; // Ưu tiên nếu có custom
     if (msg?.isGroup && msg.imageGroup) {
       return msg.imageGroup;
     } else if (msg?.participants) {
       const otherParticipant = msg.participants.find(
         (participant) => participant.userId !== userId
       );
-      return memberDetails?.[otherParticipant?.userId]?.avatar || "https://via.placeholder.com/150";
+      return (
+        memberDetails?.[otherParticipant?.userId]?.avatar ||
+        "https://via.placeholder.com/150"
+      );
     }
     return "https://via.placeholder.com/150";
   };
@@ -37,8 +42,14 @@ const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
       <div className="flex items-center space-x-3">
         <div className="relative">
           <img
-            src={getConversationAvatar(message, memberDetails?.[message.id]?.memberDetails)}
-            alt={getConversationName(message, memberDetails?.[message.id]?.memberDetails)}
+            src={getConversationAvatar(
+              message,
+              memberDetails?.[message.id]?.memberDetails
+            )}
+            alt={getConversationName(
+              message,
+              memberDetails?.[message.id]?.memberDetails
+            )}
             className="w-12 h-12 rounded-full object-cover"
           />
           {message.isGroup && message.participants?.length > 2 && (
@@ -48,7 +59,12 @@ const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
           )}
         </div>
         <div className="w-40">
-          <div className="font-semibold truncate">{getConversationName(message, memberDetails?.[message.id]?.memberDetails)}</div>
+          <div className="font-semibold truncate">
+            {getConversationName(
+              message,
+              memberDetails?.[message.id]?.memberDetails
+            )}
+          </div>
           <div className="text-sm text-gray-400 flex items-center space-x-1">
             {message.isCall ? (
               <>
@@ -64,7 +80,9 @@ const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
           </div>
         </div>
       </div>
-      <div className="text-xs text-gray-400 whitespace-nowrap">{message.time}</div>
+      <div className="text-xs text-gray-400 whitespace-nowrap">
+        {message.time}
+      </div>
     </div>
   );
 };
@@ -85,22 +103,30 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
         const conversationDetailsPromises = messages.map(async (msg) => {
           if (msg?.isGroup && msg.participants) {
             const participantDetails = {};
-            const fetchParticipantPromises = msg.participants.map(async (member) => {
-              try {
-                const response = await Api_Profile.getProfile(member.userId);
-                if (response?.data?.user) {
+            const fetchParticipantPromises = msg.participants.map(
+              async (member) => {
+                try {
+                  const response = await Api_Profile.getProfile(member.userId);
+                  if (response?.data?.user) {
+                    participantDetails[member.userId] = {
+                      name: `${response.data.user.firstname} ${response.data.user.surname}`.trim(),
+                      avatar: response.data.user.avatar,
+                    };
+                  } else {
+                    participantDetails[member.userId] = {
+                      name: "Không tìm thấy",
+                      avatar: null,
+                    };
+                  }
+                } catch (error) {
+                  console.error("Lỗi khi lấy thông tin người dùng:", error);
                   participantDetails[member.userId] = {
-                    name: `${response.data.user.firstname} ${response.data.user.surname}`.trim(),
-                    avatar: response.data.user.avatar,
+                    name: "Lỗi tải",
+                    avatar: null,
                   };
-                } else {
-                  participantDetails[member.userId] = { name: "Không tìm thấy", avatar: null };
                 }
-              } catch (error) {
-                console.error("Lỗi khi lấy thông tin người dùng:", error);
-                participantDetails[member.userId] = { name: "Lỗi tải", avatar: null };
               }
-            });
+            );
             await Promise.all(fetchParticipantPromises);
             details[msg.id] = { memberDetails: participantDetails };
           } else if (msg?.participants && msg.participants.length === 2) {
@@ -109,7 +135,9 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
             );
             if (otherParticipant?.userId) {
               try {
-                const response = await Api_Profile.getProfile(otherParticipant.userId);
+                const response = await Api_Profile.getProfile(
+                  otherParticipant.userId
+                );
                 if (response?.data?.user) {
                   details[msg.id] = {
                     memberDetails: {
@@ -120,11 +148,25 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
                     },
                   };
                 } else {
-                  details[msg.id] = { memberDetails: { [otherParticipant.userId]: { name: "Không tìm thấy", avatar: null } } };
+                  details[msg.id] = {
+                    memberDetails: {
+                      [otherParticipant.userId]: {
+                        name: "Không tìm thấy",
+                        avatar: null,
+                      },
+                    },
+                  };
                 }
               } catch (error) {
                 console.error("Lỗi khi lấy thông tin người dùng:", error);
-                details[msg.id] = { memberDetails: { [otherParticipant.userId]: { name: "Lỗi tải", avatar: null } } };
+                details[msg.id] = {
+                  memberDetails: {
+                    [otherParticipant.userId]: {
+                      name: "Lỗi tải",
+                      avatar: null,
+                    },
+                  },
+                };
               }
             } else {
               details[msg.id] = { memberDetails: {} };
@@ -145,15 +187,27 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
   return (
     <div className="w-full max-w-md mx-auto bg-white text-black p-2">
       {messages &&
-        messages.map((msg) => (
-          <MessageItem
-            key={msg.id}
-            message={msg}
-            userId={userId}
-            memberDetails={memberDetails}
-            onMessageClick={onMessageClick}
-          />
-        ))}
+        messages.map((msg, index) => {
+          // Gán avatar và name đặc biệt nếu là item đầu tiên
+          const customProps =
+            index === 0
+              ? {
+                  customName: "Cloud của tôi",
+                  customAvatar:
+                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s",
+                }
+              : {};
+
+          return (
+            <MessageItem
+              key={msg.id}
+              message={{ ...msg, ...customProps }} // gán thêm prop
+              userId={userId}
+              memberDetails={memberDetails}
+              onMessageClick={onMessageClick}
+            />
+          );
+        })}
     </div>
   );
 };

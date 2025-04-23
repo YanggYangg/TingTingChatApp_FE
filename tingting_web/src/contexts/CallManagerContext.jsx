@@ -11,8 +11,8 @@ import { useSocket } from "./SocketContext";
 const CallManagerContext = createContext();
 export const useCallManager = () => useContext(CallManagerContext);
 
-export const CallManagerProvider = ({ children, userId }) => {
-  const socket = useSocket();
+export const CallManagerProvider = ({ children, userId1 }) => {
+  const { socket, userId } = useSocket();
   const [callState, setCallState] = useState(null);
   const peerRef = useRef(null);
   const streamRef = useRef(null);
@@ -151,7 +151,7 @@ export const CallManagerProvider = ({ children, userId }) => {
           callId: callData.callId,
           candidate,
           toUserId:
-            callData.callerId === userId
+            callData.callerId === userId1
               ? callData.receiverId
               : callData.callerId,
         });
@@ -241,8 +241,8 @@ export const CallManagerProvider = ({ children, userId }) => {
     }
 
     console.log(
-      "[CallManager] Registering socket listeners for userId:",
-      userId
+      "[CallManager] Registering socket listeners for userId1:",
+      userId1
     );
     const handleConnectError = (err) => {
       console.error("[CallManager] Socket connection error:", err);
@@ -308,7 +308,7 @@ export const CallManagerProvider = ({ children, userId }) => {
       socket.off("callAnswered");
       socket.off("callEnded");
     };
-  }, [socket, callState, userId]);
+  }, [socket, callState, userId1]);
 
   return (
     <CallManagerContext.Provider

@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import { Api_S3 } from "../../../../apis/api_s3"; 
+import { Api_S3 } from "../../../../apis/api_s3";
 
 const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
   const [message, setMessage] = useState("");
@@ -113,7 +113,7 @@ const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
           `Attempt ${attempt}: Uploading to http://192.168.1.33:5000`
         );
         const res = await fetch(
-          "http://192.168.1.7:5000/messages/sendMessageWithMedia",
+          "http://192.168.1.33:5000/messages/sendMessageWithMedia",
           {
             method: "POST",
             body: formData,

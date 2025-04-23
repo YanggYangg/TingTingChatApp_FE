@@ -123,7 +123,7 @@ const MessageItem = ({
     return (
       <View style={styles.replyBox}>
         <Text style={styles.repliedMessageSender}>
-          {repliedMessage?.sender || "Không rõ"}
+          {repliedMessage?.sender || ""}
         </Text>
         <Text style={styles.repliedMessageContent}>
           {repliedMessage?.messageType === "image"

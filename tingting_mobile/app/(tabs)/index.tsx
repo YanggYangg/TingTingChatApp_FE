@@ -166,8 +166,7 @@ function MainTabNavigator() {
           </MainLayout>
         )}
       </Tab.Screen>
-      <Tab.Screen name="ContactTab" 
-      options={{ tabBarLabel: "Danh bạ" }}>
+      <Tab.Screen name="ContactTab" options={{ tabBarLabel: "Danh bạ" }}>
         {() => (
           <MainLayout>
             <ContactStackNavigator />
@@ -184,7 +183,6 @@ function MainTabNavigator() {
       <Tab.Screen name="ProfileTab" options={{ tabBarLabel: "Cá nhân" }}>
         {() => <ProfileStackNavigator />}
       </Tab.Screen>
-      
     </Tab.Navigator>
   );
 }
@@ -242,13 +240,12 @@ export default function App() {
         <CloudSocketProvider>
           <Stack.Navigator
             initialRouteName="Welcome"
-            initialRouteName="Welcome"
             screenOptions={{
               headerShown: false,
               animation: "none", // Disable animations
             }}
           >
-             <Stack.Screen
+            <Stack.Screen
               name="ChatInfo"
               component={ChatInfo}
               options={{ headerShown: false }}

@@ -167,9 +167,9 @@ function ChatList({ activeTab }) {
       <div className="flex-grow text-gray-700 overflow-auto">
         {activeTab === "/chat" && (
           <MessageList
-          messages={messages}
-          onMessageClick={handleMessageClick}
-          userId={currentUserId}
+            messages={[myCloudItem, ...messages]}
+            onMessageClick={handleMessageClick}
+            userId={currentUserId}
           />
         )}
         {activeTab === "/contact" && <SibarContact />}

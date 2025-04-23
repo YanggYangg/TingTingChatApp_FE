@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,12 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
-} from 'react-native';
-import Modal from 'react-native-modal';
-import { Ionicons } from '@expo/vector-icons';
-import { Api_FriendRequest } from '../../../../../apis/api_friendrequest';
-import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
-import { Api_Profile } from '../../../../../apis/api_profile';
+} from "react-native";
+import Modal from "react-native-modal";
+import { Ionicons } from "@expo/vector-icons";
+import { Api_FriendRequest } from "../../../../../apis/api_friendRequest";
+import { Api_chatInfo } from "../../../../../apis/Api_chatInfo";
+import { Api_Profile } from "../../../../../apis/api_profile";
 
 interface Contact {
   id: string;
@@ -36,14 +36,14 @@ const CreateGroupModal: React.FC<Props> = ({
   onGroupCreated,
   currentConversationParticipants = [],
 }) => {
-  const [groupName, setGroupName] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [groupName, setGroupName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [defaultMembers, setDefaultMembers] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const maxRetries = 3;
@@ -53,62 +53,86 @@ const CreateGroupModal: React.FC<Props> = ({
       setContacts([]);
       setDefaultMembers([]);
       setSelectedContacts([]);
-      setSearchQuery('');
-      setError('');
+      setSearchQuery("");
+      setError("");
       setRetryCount(0);
       return;
     }
 
     const fetchData = async () => {
       setLoading(true);
-      setError('');
+      setError("");
 
       try {
         // Fetch current user's profile
         const userResponse = await Api_Profile.getProfile(userId);
         const userData = userResponse?.data?.user;
         if (!userData) {
-          throw new Error('Không thể tải thông tin người dùng.');
+          throw new Error("Không thể tải thông tin người dùng.");
         }
 
         // Fetch friends list
         const friendsResponse = await Api_FriendRequest.getFriendsList(userId);
-        console.log('API response.data tạo nhóm:', friendsResponse);
-        const friendsList = Array.isArray(friendsResponse.data.data) ? friendsResponse.data.data : [];
+        console.log("API response.data tạo nhóm:", friendsResponse);
+        const friendsList = Array.isArray(friendsResponse.data)
+          ? friendsResponse.data
+          : [];
 
         const formattedContacts = friendsList
-          .filter((friend) => friend._id !== userId && !currentConversationParticipants.includes(friend._id))
+          .filter(
+            (friend) =>
+              friend._id !== userId &&
+              !currentConversationParticipants.includes(friend._id)
+          )
           .map((friend) => ({
             id: friend._id,
-            name: friend.name || 'Không tên',
-            avatar: friend.avatar || 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User',
+            name: friend.name || "Không tên",
+            avatar:
+              friend.avatar ||
+              "https://via.placeholder.com/30/007bff/FFFFFF?Text=User",
           }));
 
         // Fetch profiles for conversation participants
         const defaultMembersList: Contact[] = [
           {
             id: userId,
-            name: userData.name || `${userData.firstname} ${userData.surname}`.trim() || 'Bạn',
-            avatar: userData.avatar || 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User',
+            name:
+              userData.name ||
+              `${userData.firstname} ${userData.surname}`.trim() ||
+              "Bạn",
+            avatar:
+              userData.avatar ||
+              "https://via.placeholder.com/30/007bff/FFFFFF?Text=User",
           },
         ];
 
         for (const participantId of currentConversationParticipants) {
           if (participantId !== userId) {
             try {
-              const participantResponse = await Api_Profile.getProfile(participantId);
+              const participantResponse = await Api_Profile.getProfile(
+                participantId
+              );
               const participantData = participantResponse?.data?.user;
               defaultMembersList.push({
                 id: participantId,
-                name: participantData?.name || `${participantData?.firstname} ${participantData?.surname}`.trim() || 'Không xác định',
-                avatar: participantData?.avatar || 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User',
+                name:
+                  participantData?.name ||
+                  `${participantData?.firstname} ${participantData?.surname}`.trim() ||
+                  "Không xác định",
+                avatar:
+                  participantData?.avatar ||
+                  "https://via.placeholder.com/30/007bff/FFFFFF?Text=User",
               });
             } catch (err) {
-              console.error(`Lỗi khi lấy thông tin người dùng ${participantId}:`, err);
+              console.error(
+                `Lỗi khi lấy thông tin người dùng ${participantId}:`,
+                err
+              );
               defaultMembersList.push({
                 id: participantId,
-                name: 'Không xác định',
-                avatar: 'https://via.placeholder.com/30/007bff/FFFFFF?Text=User',
+                name: "Không xác định",
+                avatar:
+                  "https://via.placeholder.com/30/007bff/FFFFFF?Text=User",
               });
             }
           }
@@ -118,12 +142,14 @@ const CreateGroupModal: React.FC<Props> = ({
         setContacts(formattedContacts);
         setRetryCount(0);
       } catch (err) {
-        console.error('Lỗi khi tải dữ liệu:', err);
+        console.error("Lỗi khi tải dữ liệu:", err);
         if (retryCount < maxRetries) {
           setRetryCount((prev) => prev + 1);
           setTimeout(() => fetchData(), 2000); // Retry after 2 seconds
         } else {
-          setError('Không thể tải danh sách bạn bè hoặc thông tin người dùng do lỗi mạng. Vui lòng thử lại.');
+          setError(
+            "Không thể tải danh sách bạn bè hoặc thông tin người dùng do lỗi mạng. Vui lòng thử lại."
+          );
         }
       } finally {
         setLoading(false);
@@ -154,20 +180,23 @@ const CreateGroupModal: React.FC<Props> = ({
     const allParticipants = [...defaultMembers, ...selectedContacts];
 
     if (allParticipants.length < 3) {
-      setError('Nhóm phải có ít nhất 3 thành viên (bao gồm bạn và người trong cuộc trò chuyện).');
+      setError(
+        "Nhóm phải có ít nhất 3 thành viên (bao gồm bạn và người trong cuộc trò chuyện)."
+      );
       return;
     }
 
-    const actualGroupName = groupName.trim() === '' ? 'Nhóm không tên' : groupName.trim();
+    const actualGroupName =
+      groupName.trim() === "" ? "Nhóm không tên" : groupName.trim();
 
     setCreateLoading(true);
-    setError('');
+    setError("");
     setSuccessMessage(null);
 
     try {
       const participants = allParticipants.map((contact) => ({
         userId: contact.id,
-        role: contact.id === userId ? 'admin' : 'member',
+        role: contact.id === userId ? "admin" : "member",
       }));
 
       const groupData = {
@@ -175,37 +204,40 @@ const CreateGroupModal: React.FC<Props> = ({
         participants,
         isGroup: true,
         imageGroup:
-          'https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A1o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=612x612&w=0&k=20&c=7Lav2mL407Cuiv_ab2-itQstAvqTRA9vocvtkOWmBa0=',
+          "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A1o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=612x612&w=0&k=20&c=7Lav2mL407Cuiv_ab2-itQstAvqTRA9vocvtkOWmBa0=",
         mute: null,
         isHidden: false,
         isPinned: false,
         pin: null,
       };
 
-      console.log('Group data:', groupData);
+      console.log("Group data:", groupData);
       const response = await Api_chatInfo.createConversation(groupData);
       if (response && response.success) {
-        setGroupName('');
+        setGroupName("");
         setSelectedContacts([]);
         onGroupCreated(response.data.data);
-        setSuccessMessage('Tạo nhóm thành công!');
+        setSuccessMessage("Tạo nhóm thành công!");
         setTimeout(() => {
           setSuccessMessage(null);
           onClose();
         }, 2000);
       } else {
-        throw new Error(response?.message || 'Không thể tạo nhóm.');
+        throw new Error(response?.message || "Không thể tạo nhóm.");
       }
     } catch (err) {
-      console.error('Lỗi khi tạo nhóm:', err);
-      setError(err.message || 'Không thể tạo nhóm. Vui lòng thử lại.');
+      console.error("Lỗi khi tạo nhóm:", err);
+      setError(err.message || "Không thể tạo nhóm. Vui lòng thử lại.");
     } finally {
       setCreateLoading(false);
     }
   };
 
   const renderContact = ({ item }: { item: Contact }) => (
-    <TouchableOpacity style={styles.contactItem} onPress={() => handleContactSelect(item)}>
+    <TouchableOpacity
+      style={styles.contactItem}
+      onPress={() => handleContactSelect(item)}
+    >
       <View style={styles.checkbox}>
         {selectedContacts.some((c) => c.id === item.id) && (
           <Ionicons name="checkmark" size={16} color="#fff" />
@@ -245,7 +277,12 @@ const CreateGroupModal: React.FC<Props> = ({
         </View>
 
         <View style={styles.inputContainer}>
-          <Ionicons name="camera-outline" size={20} color="#666" style={styles.icon} />
+          <Ionicons
+            name="camera-outline"
+            size={20}
+            color="#666"
+            style={styles.icon}
+          />
           <TextInput
             placeholder="Nhập tên nhóm (tùy chọn)..."
             style={styles.input}
@@ -255,7 +292,12 @@ const CreateGroupModal: React.FC<Props> = ({
         </View>
 
         <View style={styles.inputContainer}>
-          <Ionicons name="search-outline" size={20} color="#666" style={styles.icon} />
+          <Ionicons
+            name="search-outline"
+            size={20}
+            color="#666"
+            style={styles.icon}
+          />
           <TextInput
             placeholder="Tìm kiếm bạn bè..."
             style={styles.input}
@@ -268,11 +310,18 @@ const CreateGroupModal: React.FC<Props> = ({
           <View style={styles.contacts}>
             <Text style={styles.sectionTitle}>Danh sách bạn bè</Text>
             {loading ? (
-              <ActivityIndicator size="large" color="#1e90ff" style={styles.loader} />
+              <ActivityIndicator
+                size="large"
+                color="#1e90ff"
+                style={styles.loader}
+              />
             ) : error ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.error}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={() => setRetryCount(0)}>
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={() => setRetryCount(0)}
+                >
                   <Text style={styles.retryButtonText}>Thử lại</Text>
                 </TouchableOpacity>
               </View>
@@ -318,14 +367,18 @@ const CreateGroupModal: React.FC<Props> = ({
           <TouchableOpacity
             style={[
               styles.createButton,
-              (createLoading || defaultMembers.length + selectedContacts.length < 3) &&
+              (createLoading ||
+                defaultMembers.length + selectedContacts.length < 3) &&
                 styles.disabledButton,
             ]}
             onPress={handleCreateGroup}
-            disabled={createLoading || defaultMembers.length + selectedContacts.length < 3}
+            disabled={
+              createLoading ||
+              defaultMembers.length + selectedContacts.length < 3
+            }
           >
             <Text style={styles.createButtonText}>
-              {createLoading ? 'Đang tạo...' : 'Tạo nhóm'}
+              {createLoading ? "Đang tạo..." : "Tạo nhóm"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -336,30 +389,30 @@ const CreateGroupModal: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   modal: {
-    justifyContent: 'center',
+    justifyContent: "center",
     margin: 20,
   },
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 20,
-    maxHeight: '80%',
+    maxHeight: "80%",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 15,
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
     marginBottom: 10,
   },
@@ -371,8 +424,8 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   content: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   contacts: {
     flex: 1,
@@ -381,13 +434,13 @@ const styles = StyleSheet.create({
   selected: {
     width: 150,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
     padding: 10,
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 10,
   },
   contactList: {
@@ -397,20 +450,20 @@ const styles = StyleSheet.create({
     maxHeight: 200,
   },
   contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 5,
   },
   checkbox: {
     width: 20,
     height: 20,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 10,
-    backgroundColor: '#1e90ff',
+    backgroundColor: "#1e90ff",
   },
   avatar: {
     width: 30,
@@ -422,9 +475,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   selectedContact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
     borderRadius: 5,
     padding: 5,
     marginBottom: 5,
@@ -435,64 +488,64 @@ const styles = StyleSheet.create({
   },
   defaultTag: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 15,
   },
   cancelButton: {
     padding: 10,
   },
   cancelText: {
-    color: '#666',
+    color: "#666",
     fontSize: 16,
   },
   createButton: {
-    backgroundColor: '#1e90ff',
+    backgroundColor: "#1e90ff",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: "#ccc",
   },
   createButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
   },
   error: {
-    color: 'red',
-    textAlign: 'center',
+    color: "red",
+    textAlign: "center",
     marginVertical: 10,
   },
   noResult: {
-    textAlign: 'center',
-    color: '#999',
+    textAlign: "center",
+    color: "#999",
     marginVertical: 20,
   },
   loader: {
     marginVertical: 20,
   },
   success: {
-    color: 'green',
-    textAlign: 'center',
+    color: "green",
+    textAlign: "center",
     marginVertical: 10,
   },
   errorContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 20,
   },
   retryButton: {
-    backgroundColor: '#1e90ff',
+    backgroundColor: "#1e90ff",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 5,
     marginTop: 10,
   },
   retryButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
   },
 });

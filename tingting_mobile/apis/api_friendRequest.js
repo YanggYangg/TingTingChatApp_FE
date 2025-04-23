@@ -2,9 +2,9 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Use environment-specific base URL
-const BASE_URL = 'http://192.168.1.7:3001' 
+const BASE_URL = "http://192.168.1.33:3001";
 
-// const BASE_URL = 'http://192.168.139.71:3001' 
+// const BASE_URL = 'http://192.168.139.71:3001'
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -52,32 +52,35 @@ const request = async (method, url, data = null, params = null) => {
 };
 // 🔧 API Manager
 const ApiManager = {
-    get: async (url, { params } = {}) => request("get", url, null, params),
-    post: async (url, data) => request("post", url, data),
-    put: async (url, data) => request("put", url, data),
-    delete: async (url) => request("delete", url),
-  };
+  get: async (url, { params } = {}) => request("get", url, null, params),
+  post: async (url, data) => request("post", url, data),
+  put: async (url, data) => request("put", url, data),
+  delete: async (url) => request("delete", url),
+};
 
 // 📂 API Calls
 export const Api_FriendRequest = {
   getFriendsList: async (userId) => {
     if (!userId) {
-      throw new Error('userId is required to fetch friends list.');
+      throw new Error("userId is required to fetch friends list.");
     }
     try {
-      const response = await ApiManager.get(`/api/v1/friendRequest/getFriendsLists/${userId}`);
+      const response = await ApiManager.get(
+        `/api/v1/friendRequest/getFriendsLists/${userId}`
+      );
+      console.log("Friends list response:", response);
       if (!response.data) {
-        throw new Error('No data returned from friends list API.');
+        throw new Error("No data returned from friends list API.");
       }
       return response;
     } catch (error) {
-      console.error('Error fetching friends list:', error);
+      console.error("Error fetching friends list:", error);
       throw new Error(
         error.response?.status === 404
-          ? 'Friends list endpoint not found.'
-          : error.message === 'Network Error'
-          ? 'Unable to connect to the server. Please check your network or server status.'
-          : 'Failed to fetch friends list. Please try again.'
+          ? "Friends list endpoint not found."
+          : error.message === "Network Error"
+          ? "Unable to connect to the server. Please check your network or server status."
+          : "Failed to fetch friends list. Please try again."
       );
     }
   },
@@ -87,7 +90,7 @@ export const Api_FriendRequest = {
   respondToFriendRequest: async (data) => {
     return ApiManager.post("api/v1/friendRequest/respondToFriendRequest", data);
   },
-  //Ket ban da gui 
+  //Ket ban da gui
   getSentRequests: async (userId) => {
     return ApiManager.get(`api/v1/friendRequest/getSentRequests/${userId}`);
   },
@@ -104,12 +107,14 @@ export const Api_FriendRequest = {
   unfriend: async (userId1, userId2) => {
     return ApiManager.post(`/api/v1/friendRequest/unfriend`, {
       userId1,
-      userId2
+      userId2,
     });
   },
-  
+
   getFriendRequestsForUser: async (userId) => {
-    return ApiManager.get(`api/v1/friendRequest/getFriendRequestsForUser/${userId}`);
+    return ApiManager.get(
+      `api/v1/friendRequest/getFriendRequestsForUser/${userId}`
+    );
   },
   checkFriendStatus: async (data) => {
     return ApiManager.post("api/v1/friendRequest/checkFriendStatus", data);
@@ -119,6 +124,8 @@ export const Api_FriendRequest = {
   //   return ApiManager.get(`/api/v1/friendRequest/getFriendsLists/${userId}`);
   // },
   getSentPendingRequests: async (userId) => {
-    return ApiManager.get(`/api/v1/friendRequest/getSentPendingRequests/${userId}`);
-  }
+    return ApiManager.get(
+      `/api/v1/friendRequest/getSentPendingRequests/${userId}`
+    );
+  },
 };

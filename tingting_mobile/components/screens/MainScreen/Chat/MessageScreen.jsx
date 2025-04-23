@@ -19,8 +19,9 @@ import ChatFooter from "./ChatFooter";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios"; // Add axios for API calls
 import { Api_Profile } from "../../../../apis/api_profile"; // Import the API module
+import ShareModal from "../Chat/chatInfoComponent/ShareModal"; // Import ShareModal component
 
-const MessageScreen = ({ route, navigation }) => {
+const ChatScreen = ({ route, navigation }) => {
   const { socket, userId: currentUserId } = useSocket();
   const flatListRef = useRef(null);
   const [messages, setMessages] = useState([]);
@@ -28,6 +29,8 @@ const MessageScreen = ({ route, navigation }) => {
   const [showOptions, setShowOptions] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [userCache, setUserCache] = useState({});
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
+  const [messageToForward, setMessageToForward] = useState(null); // Tin nhắn cần chuyển tiếp
 
   const { message, user } = route?.params || {};
   const conversationId = message?.id || null;
@@ -130,6 +133,7 @@ const MessageScreen = ({ route, navigation }) => {
     if (!socket || !selectedMessageId || !currentUserId) return;
 
     console.log("Joining conversation with ID:", selectedMessageId);
+
     socket.emit("joinConversation", { conversationId: selectedMessageId });
 
     socket.on("loadMessages", (data) => setMessages(data));
@@ -192,6 +196,7 @@ const MessageScreen = ({ route, navigation }) => {
         }),
       },
     };
+
     socket.emit("sendMessage", socketPayload);
   };
 
@@ -264,11 +269,36 @@ const MessageScreen = ({ route, navigation }) => {
     );
   };
 
+  // const handleForward = () => {
+  //   Alert.alert("Chuyển tiếp", "Tính năng chuyển tiếp đang được phát triển.");
+  //   setShowOptions(false);
+  // };
   const handleForward = () => {
-    Alert.alert("Chuyển tiếp", "Tính năng chuyển tiếp đang được phát triển.");
+    if (!selectedMessage?._id) {
+      Alert.alert("Lỗi", "Không thể chuyển tiếp: Tin nhắn không hợp lệ.");
+      return;
+    }
+    setMessageToForward(selectedMessage);
+    setIsShareModalVisible(true);
     setShowOptions(false);
+    console.log("Mở ShareModal để chuyển tiếp:", selectedMessage);
   };
 
+  const handleShare = (selectedConversations, content) => {
+    if (selectedConversations.length === 0) {
+      Alert.alert(
+        "Lỗi",
+        "Vui lòng chọn ít nhất một cuộc trò chuyện để chia sẻ."
+      );
+      return;
+    }
+    console.log(
+      "Chuyển tiếp tin nhắn đến:",
+      selectedConversations,
+      "với ghi chú:",
+      content
+    );
+  };
   const formatTime = (createdAt) => {
     return new Date(createdAt).toLocaleTimeString("vi-VN", {
       hour: "2-digit",
@@ -327,12 +357,15 @@ const MessageScreen = ({ route, navigation }) => {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={60}
     >
+      {/* Header */}
       <View style={styles.headerContainer}>
         <View style={styles.leftContainer}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back-outline" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerText}>{user?.name || "Chat"}</Text>
+          <Text style={styles.headerText}>
+            {message?.name || userCache[user?.id]?.name || "Cuộc trò chuyện"}
+          </Text>
         </View>
         <View style={styles.rightContainer}>
           <TouchableOpacity
@@ -374,7 +407,7 @@ const MessageScreen = ({ route, navigation }) => {
 
       <FlatList
         ref={flatListRef}
-        data={messages.filter((msg) => !msg.deleteBy?.includes(currentUserId))}
+        data={messages.filter((msg) => !msg.deletedBy?.includes(currentUserId))}
         renderItem={renderItem}
         keyExtractor={(item) => item._id}
         contentContainerStyle={{ padding: 10 }}
@@ -413,6 +446,18 @@ const MessageScreen = ({ route, navigation }) => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+      <ShareModal
+        isOpen={isShareModalVisible}
+        onClose={() => {
+          setIsShareModalVisible(false);
+          setMessageToForward(null);
+          console.log("Đóng ShareModal");
+        }}
+        onShare={handleShare}
+        messageToForward={messageToForward}
+        userId={currentUserId}
+        messageId={messageToForward?._id}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -473,4 +518,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MessageScreen;
+export default ChatScreen;

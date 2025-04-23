@@ -28,6 +28,19 @@ export const transformConversationsToMessages = (
       ? lastMessageDate.toDateString() === today.toDateString()
       : false;
 
+    const formattedTime = lastMessageDate
+      ? isToday
+        ? lastMessageDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : lastMessageDate.toLocaleDateString([], {
+            day: "2-digit",
+            month: "2-digit",
+            year: "2-digit",
+          })
+      : "";
+
     return {
       id: conversation._id,
       participants: conversation.participants,

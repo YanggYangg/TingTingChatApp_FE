@@ -27,7 +27,7 @@ const ChatScreen = ({ navigation }) => {
   useEffect(() => {
     if (!socket) {
       console.log("Socket is not available.", socket);
-      console.log("Socket or currentUserId is not available.");
+      // console.log("Socket or currentUserId is not available.");
       return;
     }
     const handleConversations = async (conversations) => {
