@@ -15,10 +15,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import { useSocket } from "../../../../contexts/SocketContext";
 import MessageItem from "../../../chatitems/MessageItem";
-import ChatFooter from "./ChatFooter"; // Import component mới
+import ChatFooter from "./ChatFooter";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const ChatScreen = ({ route, navigation }) => {
+const MessageScreen = ({ route, navigation }) => {
   const { socket } = useSocket();
   const flatListRef = useRef(null);
   const [messages, setMessages] = useState([]);
@@ -29,14 +29,11 @@ const ChatScreen = ({ route, navigation }) => {
 
   const { message, user } = route?.params || {};
 
-  console.log("user", user);
-
   const selectedMessageData = useSelector(
     (state) => state.chat.selectedMessage
   );
   const selectedMessageId = selectedMessageData?.id;
 
-  // Lấy currentUserId từ AsyncStorage
   useEffect(() => {
     const fetchUserId = async () => {
       try {
@@ -52,20 +49,13 @@ const ChatScreen = ({ route, navigation }) => {
         setCurrentUserId("user123");
       }
     };
-
     fetchUserId();
   }, []);
-
-  // Log currentUserId sau khi state được cập nhật
-  useEffect(() => {
-    console.log("Current userId set in state (after update):", currentUserId);
-  }, [currentUserId]);
 
   useEffect(() => {
     if (!socket || !selectedMessageId || !currentUserId) return;
 
     console.log("Joining conversation with ID:", selectedMessageId);
-
     socket.emit("joinConversation", { conversationId: selectedMessageId });
 
     socket.on("loadMessages", (data) => setMessages(data));
@@ -128,7 +118,6 @@ const ChatScreen = ({ route, navigation }) => {
         }),
       },
     };
-
     socket.emit("sendMessage", socketPayload);
   };
 
@@ -221,13 +210,12 @@ const ChatScreen = ({ route, navigation }) => {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={60}
     >
-      {/* Header */}
       <View style={styles.headerContainer}>
         <View style={styles.leftContainer}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back-outline" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerText}></Text>
+          <Text style={styles.headerText}>{user?.name || "Chat"}</Text>
         </View>
         <View style={styles.rightContainer}>
           <TouchableOpacity
@@ -253,7 +241,7 @@ const ChatScreen = ({ route, navigation }) => {
 
       <FlatList
         ref={flatListRef}
-        data={messages.filter((msg) => !msg.deletedBy?.includes(currentUserId))}
+        data={messages.filter((msg) => !msg.deleteBy?.includes(currentUserId))}
         renderItem={renderItem}
         keyExtractor={(item) => item._id}
         contentContainerStyle={{ padding: 10 }}
@@ -320,7 +308,6 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     color: "#fff",
   },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold" },
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -340,4 +327,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ChatScreen;
+export default MessageScreen;

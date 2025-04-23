@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import Icon from "react-native-vector-icons/Feather"; // Thêm Feather icon
 
 const MessageItem = ({
   msg,
@@ -27,6 +28,23 @@ const MessageItem = ({
         alt="Ảnh"
       />
     ));
+  };
+
+  const renderCallMessage = () => {
+    return (
+      <View style={styles.callMessage}>
+        <Icon
+          name={msg.callType === "video" ? "video" : "phone"}
+          size={16}
+          color={msg.missed ? "red" : "#555"}
+        />
+        <Text style={[styles.callText, { color: msg.missed ? "red" : "#555" }]}>
+          {msg.callType === "video" ? "Video call" : "Voice call"} -{" "}
+          {msg.callDuration}
+          {msg.missed ? " (Nhỡ)" : ""}
+        </Text>
+      </View>
+    );
   };
 
   return (
@@ -63,6 +81,12 @@ const MessageItem = ({
                     ? "[Ảnh]"
                     : repliedMessage?.messageType === "file"
                     ? "[Tệp]"
+                    : repliedMessage?.messageType === "call"
+                    ? `[${
+                        repliedMessage.callType === "video"
+                          ? "Video call"
+                          : "Voice call"
+                      }]`
                     : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
                 </Text>
                 <Text style={styles.repliedMessage}>{msg.content}</Text>
@@ -85,6 +109,9 @@ const MessageItem = ({
                 </Text>
               </View>
             )}
+
+            {/* Call message */}
+            {msg.messageType === "call" && renderCallMessage()}
           </>
         )}
 
@@ -159,6 +186,18 @@ const styles = StyleSheet.create({
   fileText: {
     fontSize: 12,
     color: "blue",
+  },
+  callMessage: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  callText: {
+    fontSize: 12,
+    marginLeft: 4,
   },
   time: {
     fontSize: 10,
