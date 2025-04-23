@@ -23,14 +23,15 @@ const ChatScreen = ({ navigation }) => {
   const [userProfiles, setUserProfiles] = useState({});
   const { socket, userId } = useSocket();
   const dispatch = useDispatch();
-  const [currentUserId, setCurrentUserId] = useState();
+  const [currentUserId, setCurrentUserId] = useState(userId);
   useEffect(() => {
     if (!socket) {
+      console.log("Socket is not available.", socket);
       console.log("Socket or currentUserId is not available.");
-      console.log("hi");
       return;
     }
     const handleConversations = async (conversations) => {
+      console.log("Received conversations from socket:", conversations);
       // lấy tra toàn bộ userId khác với currentUserId
       const otherParticipant = conversations.map((conversation) => {
         const otherParticipant = conversation.participants.find(
@@ -105,6 +106,10 @@ const ChatScreen = ({ navigation }) => {
     joinConversation(socket, message.id);
     dispatch(setSelectedMessage(message));
     console.log("Selected message jhasdgashjdgs:", message);
+    console.log(
+      "chat user profile",
+      userProfiles[message.participants[0].userId]
+    );
     navigation.navigate("MessageScreen", {
       message,
       user: userProfiles[message.participants[0].userId], // Thêm thông tin user vào params

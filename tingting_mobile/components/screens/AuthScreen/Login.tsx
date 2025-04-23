@@ -39,15 +39,34 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     try {
       const response = await Api_Auth.login({ phone, password });
-      if (response.success === true) {
+      // if (response.success === true) {
         navigation.navigate("VerificationCode", { phoneNumber: phone });
-      } else {
-        Alert.alert("Lỗi 1", response.message || "Đăng nhập thất bại");
-      }
+      // } else {
+      //   Alert.alert("Lỗi 1", response.message || "Đăng nhập thất bại");
+      // }
     } catch (error: any) {
       Alert.alert("Lỗi", error.response?.data?.message || "Đã có lỗi xảy ra");
     }
   };
+  // const handleValidateToken = async () => {
+  //   try {
+  //     const token = await AsyncStorage.getItem("token");
+  //     if (!token) return;
+  //     const res = await axios.post(
+  //       "http://192.168.1.17:3002/api/v1/auth/validate-token",
+  //       { phone },
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     );
+
+  //     navigation.replace("Main");
+  //   } catch (error: any) {
+  //     navigation.navigate("VerificationCode", { phoneNumber: phone });
+  //   }
+  // };
   // const handleValidateToken = async () => {
   //   try {
   //     const token = await AsyncStorage.getItem("token");

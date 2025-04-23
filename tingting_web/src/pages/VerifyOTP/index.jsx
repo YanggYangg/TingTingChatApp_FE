@@ -7,23 +7,17 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Api_Auth } from "../../../apis/api_auth";
 import Modal from "../../components/Notification/Modal";
 import config from "../../config";
+import { useSocket } from "../../contexts/SocketContext";
 
 const cx = classNames.bind(styles);
 
 function VerifyOTP() {
+  const { setUserId } = useSocket();
   const navigator = useNavigate();
   const location = useLocation();
   const { phone } = location.state || { phone: "" };
-  const {
-    firstname,
-    surname,
-    day,
-    month,
-    year,
-    gender,
-    email,
-    password,
-  } = location.state; // Lấy số điện thoại từ state nếu có
+  const { firstname, surname, day, month, year, gender, email, password } =
+    location.state; // Lấy số điện thoại từ state nếu có
   const [isError, setIsError] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [messageError, setMessageError] = useState("");
@@ -80,19 +74,15 @@ function VerifyOTP() {
         const response = await Api_Auth.create_account(data);
         setMessageSuccess(response.message);
         setIsSuccess(true);
-        
-       
       } else {
         const response = await Api_Auth.generate_token(data);
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("userId", response.data.user.userId);
         localStorage.setItem("phone", response.data.user.phone);
         console.log("Response = ", response.data);
-        
+        setUserId(response.data.user.userId);
         setMessageSuccess(response.message);
         setIsSuccess(true);
-       
-        
       }
     } catch (err) {
       setMessageError(err.response.data.message);
@@ -113,13 +103,13 @@ function VerifyOTP() {
     }
   };
   const handleSuccess = () => {
-    if (firstname) {
-      navigator(config.routes.login, { state: { phone } });
-    }
-    else {
-      navigator(config.routes.chat);
-    }
-  }
+    // if (firstname) {
+    //   navigator(config.routes.login, { state: { phone } });
+    // } else {
+    navigator(config.routes.chat);
+
+    // }
+  };
 
   return (
     <div className={cx("wrapper")}>
@@ -223,21 +213,23 @@ function VerifyOTP() {
       </div>
       {isError && (
         <Modal
-        isNotification={true}
-        valid={false}
-        title="Verify OTP Failed!"
-        message={messageError}
-        onClose= {handleTryAgain}
+          isNotification={true}
+          valid={false}
+          title="Verify OTP Failed!"
+          message={messageError}
+          onClose={handleTryAgain}
         />
       )}
       {isSuccess && (
         <Modal
-        isNotification={true}
-        valid={true}
-        title="Verify OTP Successful!"
-        message={messageSuccess}
-        onConfirm = {handleSuccess}
-        onClose={() => {console.log(messageSuccess)}}
+          isNotification={true}
+          valid={true}
+          title="Verify OTP Successful!"
+          message={messageSuccess}
+          onConfirm={handleSuccess}
+          onClose={() => {
+            console.log(messageSuccess);
+          }}
         />
       )}
     </div>

@@ -17,41 +17,115 @@ import { useSocket } from "../../../../contexts/SocketContext";
 import MessageItem from "../../../chatitems/MessageItem";
 import ChatFooter from "./ChatFooter";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios"; // Add axios for API calls
+import { Api_Profile } from "../../../../apis/api_profile"; // Import the API module
 
 const MessageScreen = ({ route, navigation }) => {
-  const { socket } = useSocket();
+  const { socket, userId: currentUserId } = useSocket();
   const flatListRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [replyingTo, setReplyingTo] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [userCache, setUserCache] = useState({});
 
   const { message, user } = route?.params || {};
+  const conversationId = message?.id || null;
+  const userId = currentUserId || null;
+  console.log("userId", userId);
+  console.log("conversationId", conversationId);
+  console.log("message", message);
+  console.log("selectmessage", selectedMessage);
+  console.log("user", user);
+
+  // Log params for debugging
+  console.log("ChatScreen params:", {
+    userId,
+    conversationId,
+    message,
+    user,
+    routeParams: route.params,
+  });
 
   const selectedMessageData = useSelector(
     (state) => state.chat.selectedMessage
   );
   const selectedMessageId = selectedMessageData?.id;
 
+  // Fetch user info using the Api_Profile.getProfile API
+  const fetchUserInfo = async (userId) => {
+    if (!userId) {
+      console.warn("fetchUserInfo: userId is undefined or null");
+      return {
+        name: "Người dùng ẩn danh",
+        avatar: "https://picsum.photos/200",
+      };
+    }
+
+    if (userCache[userId]) {
+      return userCache[userId];
+    }
+
+    try {
+      const response = await Api_Profile.getProfile(userId);
+      let userInfo;
+
+      if (response?.data?.user) {
+        userInfo = {
+          name:
+            `${response.data.user.firstname || ""} ${
+              response.data.user.surname || ""
+            }`.trim() || `Người dùng ${userId.slice(-4)}`,
+          avatar: response.data.user.avatar || "https://picsum.photos/200",
+        };
+      } else {
+        // Fallback if API returns no user data
+        userInfo = {
+          name: `Người dùng ${userId.slice(-4)}`,
+          avatar: "https://picsum.photos/200",
+        };
+      }
+
+      setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
+      console.log(`Fetched user info for userId ${userId}:`, userInfo);
+      return userInfo;
+    } catch (error) {
+      console.error(`Failed to fetch user info for userId ${userId}:`, error);
+      const fallbackUserInfo = {
+        name: `Người dùng ${userId.slice(-4)}`,
+        avatar: "https://picsum.photos/200",
+      };
+      setUserCache((prev) => ({ ...prev, [userId]: fallbackUserInfo }));
+      return fallbackUserInfo;
+    }
+  };
+
+  // Load user info when messages change
   useEffect(() => {
-    const fetchUserId = async () => {
-      try {
-        let userId = await AsyncStorage.getItem("userId");
-        if (!userId) {
-          userId = "user123";
-          await AsyncStorage.setItem("userId", userId);
-        }
-        console.log("userId fetched from AsyncStorage:", userId);
-        setCurrentUserId(userId);
-      } catch (error) {
-        console.error("Failed to fetch userId:", error);
-        setCurrentUserId("user123");
+    const loadUserInfos = async () => {
+      const userIds = [
+        ...new Set(
+          messages
+            .map((msg) => msg.userId)
+            .filter((id) => id !== currentUserId && id)
+        ),
+      ];
+      for (const userId of userIds) {
+        await fetchUserInfo(userId);
       }
     };
-    fetchUserId();
-  }, []);
 
+    if (messages.length > 0) {
+      loadUserInfos();
+    }
+  }, [messages, currentUserId]);
+
+  // Log currentUserId after state update
+  useEffect(() => {
+    console.log("Current userId set in state (after update):", currentUserId);
+  }, [currentUserId]);
+
+  // Socket.IO setup for regular chat
   useEffect(() => {
     if (!socket || !selectedMessageId || !currentUserId) return;
 
@@ -195,14 +269,57 @@ const MessageScreen = ({ route, navigation }) => {
     setShowOptions(false);
   };
 
-  const renderItem = ({ item }) => (
-    <MessageItem
-      msg={item}
-      currentUserId={currentUserId}
-      messages={messages}
-      onLongPress={handleLongPress}
-    />
-  );
+  const formatTime = (createdAt) => {
+    return new Date(createdAt).toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatDateSeparator = (dateString) => {
+    return new Date(dateString).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const renderItem = ({ item, index }) => {
+    const currentDate = formatDateSeparator(item.createdAt);
+    const prevMessage = index > 0 ? messages[index - 1] : null;
+    const prevDate = prevMessage
+      ? formatDateSeparator(prevMessage.createdAt)
+      : null;
+    const showDateSeparator = index === 0 || currentDate !== prevDate;
+
+    return (
+      <>
+        {showDateSeparator && (
+          <View style={styles.dateSeparatorContainer}>
+            <Text style={styles.dateSeparatorText}>{currentDate}</Text>
+          </View>
+        )}
+        <MessageItem
+          key={item._id}
+          msg={{
+            ...item,
+            sender:
+              item.userId === currentUserId
+                ? "Bạn"
+                : userCache[item.userId]?.name || "Người dùng ẩn danh",
+            time: formatTime(item.createdAt),
+            messageType: item.messageType || "text",
+            content: item.content || "",
+            linkURL: item.linkURL || "",
+            userId: item.userId,
+          }}
+          currentUserId={currentUserId}
+          messages={messages}
+          onLongPress={handleLongPress}
+        />
+      </>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -231,7 +348,23 @@ const MessageScreen = ({ route, navigation }) => {
             <Ionicons name="videocam-outline" size={28} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => console.log("Menu")}
+            onPress={() => {
+              console.log("Navigating to ChatInfo with:", {
+                userId,
+                conversationId,
+              });
+              if (!userId || !conversationId) {
+                console.warn(
+                  "Cannot navigate to ChatInfo: missing userId or conversationId"
+                );
+                Alert.alert(
+                  "Lỗi",
+                  "Không thể mở thông tin chat do thiếu userId hoặc conversationId."
+                );
+                return;
+              }
+              navigation.push("ChatInfo", { userId, conversationId });
+            }}
             style={{ marginLeft: 15 }}
           >
             <Ionicons name="menu-outline" size={28} color="#fff" />
@@ -307,6 +440,19 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginLeft: 12,
     color: "#fff",
+  },
+  dateSeparatorContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginVertical: 16,
+  },
+  dateSeparatorText: {
+    backgroundColor: "#e5e7eb",
+    color: "#6b7280",
+    fontSize: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
   },
   modalOverlay: {
     flex: 1,

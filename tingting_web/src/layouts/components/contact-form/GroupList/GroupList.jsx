@@ -11,6 +11,8 @@ import ContactItem from "../ContactItem";
 import GroupItem from "../GroupItem";
 import Search from "../Search";
 
+import { Api_Conversation } from "../../../../../apis/Api_Conversation";
+
 const GroupList = () => {
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -18,6 +20,46 @@ const GroupList = () => {
   const [filteredFriends, setFilteredFriends] = useState([]);
   const [groupedFriends, setGroupedFriends] = useState({});
   const [menuOpenId, setMenuOpenId] = useState(null); // Quản lý menu đang mở
+
+  const [groupList, setGroupList] = useState([]); 
+  const [filteredGroups, setFilteredGroups] = useState([]);
+  const [groupedGroups, setGroupedGroups] = useState({});
+  const userId = localStorage.getItem("userId");
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const res = await Api_Conversation.getUserJoinGroup(userId);
+        setGroupList(res.data); // Cập nhật danh sách nhóm
+      } catch (error) {
+        console.error("Lỗi khi lấy nhóm người dùng tham gia:", error);
+      }
+    };
+
+    if (userId) fetchGroups();
+  }, [userId]);
+
+   // 🎯 Lọc và nhóm nhóm theo tên
+   useEffect(() => {
+    const filtered = searchQuery
+      ? groupList.filter((group) =>
+          group.groupName?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : groupList;
+
+    setFilteredGroups(filtered);
+
+    const grouped = filtered.reduce((acc, group) => {
+      const firstLetter = group.groupName?.charAt(0).toUpperCase() || "#";
+      if (!acc[firstLetter]) acc[firstLetter] = [];
+      acc[firstLetter].push(group);
+      return acc;
+    }, {});
+
+    setGroupedGroups(grouped);
+  }, [searchQuery, groupList]);
+
+
 
   // Sample friends data
   const allFriends = [
@@ -33,79 +75,31 @@ const GroupList = () => {
       avatar: "/placeholder.svg?height=40&width=40",
       memberCount: 1,
     },
-    {
-      id: 3,
-      name: "An Quốc Việt",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 1,
-    },
-    {
-      id: 4,
-      name: "Anh Khoa",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 5,
-      name: "Anh Thư",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 6,
-      name: "Ba",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 7,
-      name: "Bảo Châu",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 8,
-      name: "Bảo Trân",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 2,
-    },
-    {
-      id: 9,
-      name: "Bảoo Ngocc",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 1,
-    },
-    {
-      id: 10,
-      name: "Bích Phương",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 1,
-    },
   ];
 
-  // Filter and group friends when search query changes
-  useEffect(() => {
-    // Filter friends based on search query
-    const filtered = searchQuery
-      ? allFriends.filter((friend) =>
-          friend.name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : allFriends;
+  // // Filter and group friends when search query changes
+  // useEffect(() => {
+  //   // Filter friends based on search query
+  //   const filtered = searchQuery
+  //     ? allFriends.filter((friend) =>
+  //         friend.name.toLowerCase().includes(searchQuery.toLowerCase())
+  //       )
+  //     : allFriends;
 
-    setFilteredFriends(filtered);
+  //   setFilteredFriends(filtered);
 
-    // Group friends by first letter
-    const grouped = filtered.reduce((acc, friend) => {
-      const firstLetter = friend.name.charAt(0).toUpperCase();
-      if (!acc[firstLetter]) {
-        acc[firstLetter] = [];
-      }
-      acc[firstLetter].push(friend);
-      return acc;
-    }, {});
+  //   // Group friends by first letter
+  //   const grouped = filtered.reduce((acc, friend) => {
+  //     const firstLetter = friend.name.charAt(0).toUpperCase();
+  //     if (!acc[firstLetter]) {
+  //       acc[firstLetter] = [];
+  //     }
+  //     acc[firstLetter].push(friend);
+  //     return acc;
+  //   }, {});
 
-    setGroupedFriends(grouped);
-  }, [searchQuery]);
+  //   setGroupedFriends(grouped);
+  // }, [searchQuery]);
 
   // Clear search
   const clearSearch = () => {
@@ -151,7 +145,7 @@ const GroupList = () => {
       />
 
       <div className="bg-gray-200 w-full flex-1 p-4 overflow-y-auto">
-        <h2 className="pb-4 text-black font-medium">Nhóm và cộng đồng (10)</h2>
+        <h2 className="pb-4 text-black font-medium">Nhóm và cộng đồng</h2>
         <div className="w-full bg-white rounded-xs">
           <div className="w-full rounded-xs p-4 flex justify-between">
             <Search />
@@ -213,7 +207,7 @@ const GroupList = () => {
           </div>
           <div className="w-full h-full rounded-xs p-4">
             <div className="overflow-auto">
-              {filteredFriends.length === 0 ? (
+              {filteredGroups.length === 0 ? (
                 <div className="flex flex-col h-full p-4 text-center">
                   <p className="text-gray-600 font-medium">
                     Không tìm thấy kết quả nào
@@ -223,22 +217,22 @@ const GroupList = () => {
                   </p>
                 </div>
               ) : (
-                Object.keys(groupedFriends)
+                Object.keys(groupedGroups)
                   .sort()
                   .map((letter) => (
                     <div key={letter}>
-                      {groupedFriends[letter].map((friend, index, array) => (
+                      {groupedGroups[letter].map((group, index, array) => (
                         <GroupItem
-                          memberCount={friend.memberCount} // Truyền số lượng thành viên vào props
-                          key={friend.id}
-                          label={friend.name}
+                          //memberCount={friend.memberCount} // Truyền số lượng thành viên vào props
+                          key={group._id}
+                          label={group.name}
                           image="https://hoanghamobile.com/tin-tuc/wp-content/uploads/2023/08/hinh-nen-lap-top-cute-74.jpg"
                           showBorder={index !== array.length - 1}
                           showMenuIcon={true}
-                          menuOpen={menuOpenId === friend.id}
+                          menuOpen={menuOpenId === group.id}
                           onMenuToggle={() =>
                             setMenuOpenId(
-                              menuOpenId === friend.id ? null : friend.id
+                              menuOpenId === group.id ? null : group.id
                             )
                           }
                         />

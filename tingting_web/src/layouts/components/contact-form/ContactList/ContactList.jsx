@@ -3,11 +3,11 @@
 import { faUser } from "@fortawesome/free-solid-svg-icons";
 import { ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
-
 import ContactItem from "../ContactItem";
 // import ContactItem from "@/components/ContactItem";
 
 import Search from "../Search";
+import { Api_FriendRequest } from "../../../../../apis/api_friendRequest.js";
 
 const ContactList = () => {
   const [sortOpen, setSortOpen] = useState(false);
@@ -17,41 +17,27 @@ const ContactList = () => {
   const [groupedFriends, setGroupedFriends] = useState({});
   const [menuOpenId, setMenuOpenId] = useState(null); // Quản lý menu đang mở
 
-  // Sample friends data
-  const allFriends = [
-    { id: 1, name: "A2", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 2, name: "An", avatar: "/placeholder.svg?height=40&width=40" },
-    {
-      id: 3,
-      name: "An Quốc Việt",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    { id: 4, name: "Anh Khoa", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 5, name: "Anh Thư", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 6, name: "Ba", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 7, name: "Bảo Châu", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 8, name: "Bảo Trân", avatar: "/placeholder.svg?height=40&width=40" },
-    {
-      id: 9,
-      name: "Bảoo Ngocc",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    {
-      id: 10,
-      name: "Bích Phương",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    { id: 11, name: "Anh Khoa", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 12, name: "Anh Thư", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 13, name: "Ba", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 14, name: "Bảo Châu", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 15, name: "Hảo Trân", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 16, name: "Fnh Khoa", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 17, name: "Nnh Thư", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 18, name: "Va", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 19, name: "Xảo Châu", avatar: "/placeholder.svg?height=40&width=40" },
-    { id: 20, name: "Dảo Trân", avatar: "/placeholder.svg?height=40&width=40" },
-  ];
+  const [allFriends, setAllFriends] = useState([]);
+
+
+    const fetchFriends = async () => {
+      try {
+        const userId = localStorage.getItem("userId"); // thay bằng userId thật
+        const response = await Api_FriendRequest.getFriendsList(userId);
+        console.log("====Danh sach ban be====", response);
+        if (response?.data) {
+          setAllFriends(response.data); // giả sử response.data là mảng friend
+        }
+      } catch (error) {
+        console.error("Error fetching friends:", error);
+      }
+    };
+    useEffect(() => {
+    fetchFriends();
+  }, []);
+
+  console.log("filtered", allFriends);
+
 
   // Filter and group friends when search query changes
   useEffect(() => {
@@ -75,7 +61,7 @@ const ContactList = () => {
     }, {});
 
     setGroupedFriends(grouped);
-  }, [searchQuery]);
+  }, [searchQuery, allFriends]);
 
   // Clear search
   const clearSearch = () => {
@@ -112,6 +98,23 @@ const ContactList = () => {
     };
   }, []);
 
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleDeleteFriend = async (friendId) => {
+    const confirmDelete = window.confirm("Bạn có chắc muốn huỷ kết bạn với người này không?");
+    if (!confirmDelete) return;
+    try{
+      const currentUserId = localStorage.getItem("userId");
+      const response = await Api_FriendRequest.unfriend(currentUserId, friendId);
+      console.log("====Xoa ban be====", response.data);
+      await fetchFriends();
+    }catch (error) {
+      console.error("Error deleting friend:", error);
+    }
+  }
+
   return (
     <div className="w-full h-full bg-white text-black flex flex-col ">
       <ContactItem
@@ -121,7 +124,7 @@ const ContactList = () => {
       />
 
       <div className="bg-gray-200 w-full flex-1 p-4 overflow-y-auto">
-        <h2 className="pb-4 text-black font-medium">Bạn bè (100) </h2>
+        <h2 className="pb-4 text-black font-medium">Bạn bè {allFriends.length}</h2>
         <div className="w-full bg-white rounded-xs">
           <div className="w-full rounded-xs p-4 flex justify-between">
             <Search />
@@ -203,17 +206,18 @@ const ContactList = () => {
                       <div className="bg-white rounded-md">
                         {groupedFriends[letter].map((friend, index, array) => (
                           <ContactItem
-                            key={friend.id}
+                            key={friend._id}
                             label={friend.name}
                             image="https://www.bigfootdigital.co.uk/wp-content/uploads/2020/07/image-optimisation-scaled.jpg"
                             showBorder={index !== array.length - 1}
                             showMenuIcon={true}
                             menuOpen={menuOpenId === friend.id}
-                            onMenuToggle={() =>
-                              setMenuOpenId(
-                                menuOpenId === friend.id ? null : friend.id
-                              )
-                            }
+                            onDeleteFriend={() => handleDeleteFriend(friend._id)}
+                            // onMenuToggle={() =>
+                            //   setMenuOpenId(
+                            //     menuOpenId === friend.id ? null : friend.id
+                            //   )
+                            // }
                           />
                         ))}
                       </div>

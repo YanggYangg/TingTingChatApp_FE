@@ -11,19 +11,18 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import ChatHeaderCloud from "./ChatWindow/ChatHeaderCloud";
 import ChatFooterCloud from "./ChatWindow/ChatFooterCloud";
-
 import { useSocket } from "../../contexts/SocketContext";
 import { useCloudSocket } from "../../contexts/CloudSocketContext";
 import ShareModal from "../../components/chat/ShareModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_Profile } from "../../../apis/api_profile";
+import ConfirmModal from "../../components/ConfirmModal";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
   const [messages, setMessages] = useState([]);
   const [replyingTo, setReplyingTo] = useState(null);
-  const socket = useSocket();
-  const currentUserId = socket?.io?.opts?.query?.userId;
+  const { socket, userId: currentUserId } = useSocket();
   const messagesEndRef = useRef(null);
   const [cloudMessages, setCloudMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -36,9 +35,9 @@ function ChatPage() {
     fileIndex: null,
   });
   const cloudChatContainerRef = useRef(null);
-
-  const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
-  const [messageToForward, setMessageToForward] = useState(null); // State để lưu tin nhắn cần chuyển tiếp
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false);
+  const [messageToForward, setMessageToForward] = useState(null);
+  const [userCache, setUserCache] = useState({}); // Cache lưu thông tin người dùng
 
   const [chatDetails, setChatDetails] = useState({
     name: "Unknown",
@@ -47,11 +46,9 @@ function ChatPage() {
     lastActive: 6,
   });
 
-  const dispatch = useDispatch();
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
-
-  const socketCloud = useCloudSocket(); // Sử dụng socket cloud (port 3000)
+  const socketCloud = useCloudSocket();
   const currUserId = localStorage.getItem("userId");
 
   const receiverId = selectedMessage?.participants?.find(
@@ -69,6 +66,47 @@ function ChatPage() {
 
   const conversationId = selectedMessageId;
 
+  // Hàm lấy thông tin người dùng từ API và lưu vào cache
+  const fetchUserInfo = async (userId) => {
+    if (userCache[userId]) {
+      return userCache[userId];
+    }
+
+    try {
+      const response = await Api_Profile.getProfile(userId);
+      if (response?.data?.user) {
+        const userInfo = {
+          name: `${response.data.user.firstname} ${response.data.user.surname}`.trim(),
+          avatar: response.data.user.avatar || "https://picsum.photos/200",
+        };
+        setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
+        return userInfo;
+      }
+    } catch (error) {
+      console.error(`Lỗi khi lấy thông tin người dùng ${userId}:`, error);
+      return { name: "Unknown", avatar: "https://picsum.photos/200" };
+    }
+  };
+
+  // Tải thông tin người dùng khi messages thay đổi
+  useEffect(() => {
+    const loadUserInfos = async () => {
+      const userIds = [
+        ...new Set(
+          messages.map((msg) => msg.userId).filter((id) => id !== currentUserId)
+        ),
+      ];
+      for (const userId of userIds) {
+        await fetchUserInfo(userId);
+      }
+    };
+
+    if (messages.length > 0) {
+      loadUserInfos();
+    }
+  }, [messages, currentUserId]);
+
+  // Lấy thông tin chi tiết cuộc trò chuyện
   useEffect(() => {
     const fetchChatDetails = async () => {
       if (!selectedMessage || !currentUserId) return;
@@ -76,32 +114,20 @@ function ChatPage() {
       let name = "Unknown";
       let avatar = "https://picsum.photos/200";
       let members = 0;
-      let lastActive = 6; // Giá trị mặc định
+      let lastActive = 6;
 
       if (selectedMessage.isGroup && selectedMessage.name) {
         name = selectedMessage.name;
         avatar = selectedMessage.imageGroup || avatar;
         members = selectedMessage.participants?.length || 0;
-        console.log("Group details:", { name, avatar, members });
       } else if (selectedMessage.participants) {
         const otherParticipant = selectedMessage.participants.find(
           (p) => p.userId !== currentUserId
         );
         if (otherParticipant?.userId) {
-          try {
-            const response = await Api_Profile.getProfile(
-              otherParticipant.userId
-            );
-            if (response?.data?.user) {
-              name =
-                `${response.data.user.firstname} ${response.data.user.surname}`.trim();
-              avatar = response.data.user.avatar || avatar;
-              // lastActive có thể được lấy từ API Profile nếu có thông tin lastActive
-              console.log("Personal details:", { name, avatar });
-            }
-          } catch (error) {
-            console.error("Lỗi khi lấy thông tin người dùng:", error);
-          }
+          const userInfo = await fetchUserInfo(otherParticipant.userId);
+          name = userInfo.name;
+          avatar = userInfo.avatar;
         }
       }
 
@@ -144,13 +170,6 @@ function ChatPage() {
             console.log("Message already exists:", newMessage.messageId);
             return prevMessages;
           });
-        } else {
-          console.log(
-            "Message ignored, userId mismatch:",
-            newMessage.userId,
-            "vs",
-            currentUserId
-          );
         }
       });
 
@@ -198,13 +217,11 @@ function ChatPage() {
     if (socket && selectedMessageId && selectedMessageId !== "my-cloud") {
       socket.emit("joinConversation", { conversationId: selectedMessageId });
 
-      // Tải tin nhắn
       socket.on("loadMessages", (data) => {
         setMessages(data);
         console.log("Loaded messages:", data);
       });
 
-      // Nhận tin nhắn mới
       socket.on("receiveMessage", (newMessage) => {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
@@ -276,7 +293,6 @@ function ChatPage() {
         console.error("Socket error:", error);
       });
 
-      // Dọn dẹp khi component unmount
       return () => {
         socket.off("loadMessages");
         socket.off("receiveMessage");
@@ -292,12 +308,8 @@ function ChatPage() {
   const selectedChat = selectedMessage
     ? {
         id: selectedMessageId,
-        name:
-          selectedMessage.participants?.find((p) => p.userId !== currentUserId)
-            ?.userId === currentUserId
-            ? "Bạn"
-            : "Unknown",
-        avatar: "https://picsum.photos/200",
+        name: chatDetails.name,
+        avatar: chatDetails.avatar,
         type: selectedMessage.type || "personal",
       }
     : null;
@@ -329,7 +341,10 @@ function ChatPage() {
     }
   };
 
-  const handleReply = (msg) => setReplyingTo(msg);
+  const handleReply = (msg) => {
+    setReplyingTo(msg);
+  };
+
   const handleForward = (msg) => {
     setMessageToForward(msg);
     setIsShareModalVisible(true);
@@ -343,7 +358,6 @@ function ChatPage() {
   };
 
   const handleShare = (selectedConversations, messageContent) => {
-    // ... logic chia sẻ thực tế ...
     console.log(
       "Thực hiện chia sẻ đến:",
       selectedConversations,
@@ -352,28 +366,26 @@ function ChatPage() {
       "tin nhắn:",
       messageToForward
     );
-    handleCloseShareModal(); // Đóng modal sau khi chia sẻ (hoặc hủy)
+    handleCloseShareModal();
   };
 
   const handleDelete = (msg) => {
     if (
       window.confirm(
-        "Bạn có chắc muốn xóa tin nhắn này?Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi"
+        "Bạn có chắc muốn xóa tin nhắn này? Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi"
       )
     ) {
-      // Lắng nghe tin nhắn bị xóa
       socket.emit("messageDeleted", { messageId: msg._id });
-      // Xóa tin nhắn khỏi danh sách
       setMessages((prevMessages) =>
         prevMessages.filter((message) => message._id !== msg._id)
       );
       console.log("Deleted message:", msg._id);
     }
   };
+
   const handleRevoke = (msg) => {
     if (window.confirm("Bạn có chắc muốn thu hồi tin nhắn này?")) {
       socket.emit("messageRevoked", { messageId: msg._id });
-
       setMessages((prevMessages) =>
         prevMessages.map((message) =>
           message._id === msg._id ? { ...message, isRevoked: true } : message
@@ -412,7 +424,6 @@ function ChatPage() {
     }
   };
 
-  // Kiểm tra cuộn
   useLayoutEffect(() => {
     if (shouldScrollToBottom && cloudChatContainerRef.current) {
       console.log(
@@ -466,7 +477,6 @@ function ChatPage() {
         await axios.delete(
           `http://localhost:3000/api/messages/${message.messageId}`
         );
-        // Không cần cập nhật state ở đây vì sự kiện messageDeleted sẽ xử lý
       } catch (error) {
         console.error("Lỗi khi xóa tin nhắn:", error);
       }
@@ -651,115 +661,6 @@ function ChatPage() {
     <div className="min-h-screen bg-gray-100 flex">
       {selectedChat ? (
         <div className={`flex w-full transition-all duration-300`}>
-          {/* <div
-            className={`flex-1 transition-all duration-300 ${
-              isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
-            }`}
-          >
-            {selectedChat.type === "cloud" ? (
-              <ChatHeaderCloud
-                name={cloudChat.name}
-                avatar={cloudChat.avatar}
-                isChatInfoVisible={isChatInfoVisible}
-                setIsChatInfoVisible={setIsChatInfoVisible}
-              />
-            ) : (
-              <ChatHeader
-                type={selectedChat.type}
-                name={selectedChat.name}
-                lastActive={6}
-                avatar={selectedChat.avatar}
-                isChatInfoVisible={isChatInfoVisible}
-                setIsChatInfoVisible={setIsChatInfoVisible}
-              />
-            )}
-
-            {selectedChat.type === "cloud" ? (
-              <>
-                <div
-                  ref={cloudChatContainerRef}
-                  className="p-4 h-[calc(100vh-200px)] overflow-y-auto"
-                >
-                  {loading ? (
-                    <div className="flex items-center justify-center h-full">
-                      <p>Đang tải tin nhắn từ Cloud...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {cloudMessages.map((message, index) => {
-                        const currentDate = formatDateSeparator(
-                          message.timestamp
-                        );
-                        const prevMessage =
-                          index > 0 ? cloudMessages[index - 1] : null;
-                        const prevDate = prevMessage
-                          ? formatDateSeparator(prevMessage.timestamp)
-                          : null;
-                        const showDateSeparator =
-                          index === 0 || currentDate !== prevDate;
-
-                        return (
-                          <React.Fragment key={message.messageId || index}>
-                            {showDateSeparator && (
-                              <div className="flex justify-center my-4">
-                                <span className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
-                                  {currentDate}
-                                </span>
-                              </div>
-                            )}
-                            {renderCloudMessage(message)}
-                          </React.Fragment>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                <ChatFooterCloud
-                  onReload={fetchCloudMessages}
-                  className="fixed bottom-0 left-0 w-full bg-white shadow-md"
-                />
-              </>
-            ) : (
-              <>
-                <div className="p-4 w-full h-[calc(100vh-200px)] overflow-y-auto">
-                  {messages
-                    .filter((msg) => msg.conversationId === selectedMessageId)
-                    .map((msg) => (
-                      <MessageItem
-                        key={msg._id}
-                        msg={{
-                          ...msg,
-                          sender:
-                            msg.userId === currentUserId
-                              ? "Bạn"
-                              : selectedMessage.participants?.find(
-                                  (p) => p.userId === msg.userId
-                                )
-                              ? ""
-                              : "Unknown",
-                          time: formatTime(msg.createdAt),
-                          messageType: msg.messageType || "text",
-                          content: msg.content || "",
-                          linkURL: msg.linkURL || "",
-                          userId: msg.userId,
-                        }}
-                        currentUserId={currentUserId}
-                        onReply={handleReply}
-                        onForward={handleForward}
-                        onRevoke={handleRevoke}
-                      />
-                    ))}
-                  <div ref={messagesEndRef} />
-                </div>
-                <ChatFooter
-                  className="fixed bottom-0 left-0 w-full bg-white shadow-md"
-                  sendMessage={sendMessage}
-                  replyingTo={replyingTo}
-                  setReplyingTo={setReplyingTo}
-                />
-              </>
-            )}
-          > */}
           <div
             className={`flex flex-col h-screen transition-all duration-300 ${
               isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
@@ -838,7 +739,7 @@ function ChatPage() {
                     .filter(
                       (msg) =>
                         msg.conversationId === selectedMessageId &&
-                        !msg.deletedBy?.includes(currentUserId) // 👈 bỏ tin nhắn đã bị xóa bởi currentUser
+                        !msg.deletedBy?.includes(currentUserId)
                     )
                     .map((msg) => (
                       <MessageItem
@@ -848,11 +749,7 @@ function ChatPage() {
                           sender:
                             msg.userId === currentUserId
                               ? "Bạn"
-                              : selectedMessage.participants?.find(
-                                  (p) => p.userId === msg.userId
-                                )
-                              ? ""
-                              : "Unknown",
+                              : userCache[msg.userId]?.name || "Unknown",
                           time: formatTime(msg.createdAt),
                           messageType: msg.messageType || "text",
                           content: msg.content || "",
@@ -914,14 +811,13 @@ function ChatPage() {
           }
         />
       )}
-      {/* Hiển thị ShareModal có điều kiện */}
       <ShareModal
         isOpen={isShareModalVisible}
-        onClose={handleCloseShareModal} // Hàm đóng modal
-        onShare={handleShare} // Hàm xử lý logic chia sẻ
+        onClose={handleCloseShareModal}
+        onShare={handleShare}
         messageToForward={messageToForward}
-        userId={currentUserId} // Truyền userId vào ShareModal
-        messageId={messageToForward?._id} // Truyền messageId vào ShareModal
+        userId={currentUserId}
+        messageId={messageToForward?._id}
       />
     </div>
   );
