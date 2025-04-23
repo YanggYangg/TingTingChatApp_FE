@@ -39,24 +39,34 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     try {
       const response = await Api_Auth.login({ phone, password });
-
-      if (response.status === "success") {
-        const { token, user } = response.data;
-
-        console.log("Token:", token);
-        console.log("User info:", user);
-
-        // TODO: Lưu token vào AsyncStorage hoặc Redux nếu cần
-
-        // Chuyển sang màn hình chính (hoặc màn nào bạn muốn)
-        navigation.navigate("Chat");
-      } else {
-        Alert.alert("Lỗi 1", response.message || "Đăng nhập thất bại");
-      }
+      // if (response.success === true) {
+        navigation.navigate("VerificationCode", { phoneNumber: phone });
+      // } else {
+      //   Alert.alert("Lỗi 1", response.message || "Đăng nhập thất bại");
+      // }
     } catch (error: any) {
       Alert.alert("Lỗi", error.response?.data?.message || "Đã có lỗi xảy ra");
     }
   };
+  // const handleValidateToken = async () => {
+  //   try {
+  //     const token = await AsyncStorage.getItem("token");
+  //     if (!token) return;
+  //     const res = await axios.post(
+  //       "http://192.168.1.17:3002/api/v1/auth/validate-token",
+  //       { phone },
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     );
+
+  //     navigation.replace("Main");
+  //   } catch (error: any) {
+  //     navigation.navigate("VerificationCode", { phoneNumber: phone });
+  //   }
+  // };
 
   return (
     <View style={styles.container}>
