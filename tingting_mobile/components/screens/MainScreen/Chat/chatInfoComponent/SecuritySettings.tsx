@@ -50,25 +50,12 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
 
   const navigation = useNavigation();
 
-  // Retry logic for API calls to handle socket timeouts
-  const withRetry = async (fn: () => Promise<any>, retries = 3, delay = 1000) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        return await fn();
-      } catch (error) {
-        console.warn(`API call failed (attempt ${i + 1}/${retries}):`, error);
-        if (i === retries - 1) throw error;
-        await new Promise((resolve) => setTimeout(resolve, delay * 2 ** i));
-      }
-    }
-  };
-
   // Fetch chat information
   const fetchChatInfo = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await withRetry(() => Api_chatInfo.getChatInfo(conversationId));
+      const response = await Api_chatInfo.getChatInfo(conversationId);
       if (!response || !response._id) {
         throw new Error('Không tìm thấy thông tin cuộc trò chuyện');
       }
@@ -94,7 +81,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
     const details: ProfileDetails = {};
     const fetchPromises = members.map(async (member) => {
       try {
-        const response = await withRetry(() => Api_Profile.getProfile(member.userId));
+        const response = await Api_Profile.getProfile(member.userId);
         if (response?.data?.user) {
           details[member.userId] = {
             name: `${response.data.user.firstname} ${response.data.user.surname}`.trim(),
@@ -136,9 +123,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
   const handleHideChat = useCallback(
     async (hide: boolean, currentPin: string | null) => {
       try {
-        await withRetry(() =>
-          Api_chatInfo.hideChat(conversationId, { userId, isHidden: hide, pin: currentPin })
-        );
+        await Api_chatInfo.hideChat(conversationId, { userId, isHidden: hide, pin: currentPin });
         setIsHidden(hide);
         setShowPinInput(false);
         setPin('');
@@ -184,7 +169,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
           style: 'destructive',
           onPress: async () => {
             try {
-              await withRetry(() => Api_chatInfo.deleteHistory(conversationId, { userId }));
+              await Api_chatInfo.deleteHistory(conversationId, { userId });
               Alert.alert('Thành công', 'Lịch sử trò chuyện đã được xóa!');
             } catch (err: any) {
               console.error('Error deleting chat history:', err);
@@ -210,7 +195,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
           style: 'destructive',
           onPress: async () => {
             try {
-              await withRetry(() => Api_chatInfo.removeParticipant(conversationId, { userId }));
+              await Api_chatInfo.removeParticipant(conversationId, { userId });
               setChatInfo(null); // Clear chat info to prevent further interactions
               Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
               navigation.navigate('Main', { screen: 'ChatScreen' }); // Navigate to ChatScreen tab
@@ -239,7 +224,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
           onPress: async () => {
             try {
               console.log('Disbanding group with conversationId:', conversationId);
-              await withRetry(() => Api_chatInfo.disbandGroup(conversationId, { userId }));
+              await Api_chatInfo.disbandGroup(conversationId, { userId });
               setChatInfo(null); // Clear chat info
               Alert.alert('Thành công', 'Nhóm đã được giải tán!');
               navigation.navigate('Main', { screen: 'ChatScreen' }); // Navigate to ChatScreen tab
@@ -272,12 +257,10 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
       return;
     }
     try {
-      const updatedConversation = await withRetry(() =>
-        Api_chatInfo.transferGroupAdmin(conversationId, {
-          requesterUserId: userId,
-          newAdminUserId,
-        })
-      );
+      const updatedConversation = await Api_chatInfo.transferGroupAdmin(conversationId, {
+        requesterUserId: userId,
+        newAdminUserId,
+      });
       setChatInfo(updatedConversation);
       setIsAdmin(false);
       setGroupMembers(updatedConversation.participants.filter((p) => p.userId !== userId));
