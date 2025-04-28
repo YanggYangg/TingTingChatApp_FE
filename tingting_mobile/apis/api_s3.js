@@ -1,8 +1,8 @@
 /*
  try {
-        console.log(`Attempt ${attempt}: Uploading to http://192.168.1.5:5000`);
+        console.log(`Attempt ${attempt}: Uploading to http://172.20.10.10:5000`);
         const res = await fetch(
-          "http://192.168.1.5:5000/messages/sendMessageWithMedia",
+          "http://172.20.10.10:5000/messages/sendMessageWithMedia",
           {
             method: "POST",
             body: formData,

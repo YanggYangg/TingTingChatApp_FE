@@ -25,23 +25,31 @@ const ChatScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const [currentUserId, setCurrentUserId] = useState(userId);
   useEffect(() => {
-    if (!socket) {
-      console.log("Socket is not available.", socket);
-      // console.log("Socket or currentUserId is not available.");
-      return;
-    }
+    if (!socket || !currentUserId) return;
+
     const handleConversations = async (conversations) => {
-      console.log("Received conversations from socket:", conversations);
-      // lấy tra toàn bộ userId khác với currentUserId
-      const otherParticipant = conversations.map((conversation) => {
-        const otherParticipant = conversation.participants.find(
-          (p) => p.userId !== currentUserId
-        );
-        return otherParticipant.userId;
-      });
-      // lấy ra profile của người còn lại trong cuộc trò chuyện cá nhân Api_Profile.getProfile
+      console.log("Conversations sfdfds:", conversations);
+
+      // Lấy ra userId của người còn lại trong các cuộc trò chuyện cá nhân
+      const otherParticipantIds = conversations
+        .map((conversation) => {
+          const other = conversation.participants.find(
+            (p) => p.userId !== currentUserId
+          );
+          return other?.userId; // chỉ lấy nếu có
+        })
+        .filter(Boolean); // loại bỏ undefined
+
+      // Lấy profile của các user còn lại
       const profiles = await Promise.all(
-        otherParticipant.map((userId) => Api_Profile.getProfile(userId))
+        otherParticipantIds.map(async (userId) => {
+          try {
+            return await Api_Profile.getProfile(userId);
+          } catch (error) {
+            console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
+            return null; // fallback nếu lỗi
+          }
+        })
       );
 
       const transformedMessages = transformConversationsToMessages(
@@ -65,10 +73,7 @@ const ChatScreen = ({ navigation }) => {
                 updatedConversation.lastMessage?.userId || null,
               time: new Date(updatedConversation.updatedAt).toLocaleTimeString(
                 [],
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }
+                { hour: "2-digit", minute: "2-digit" }
               ),
               updateAt: updatedConversation.updatedAt,
             };
@@ -81,12 +86,11 @@ const ChatScreen = ({ navigation }) => {
         );
 
         if (isNew) {
-          const newMsg = transformConversationsToMessages(
+          const newMessage = transformConversationsToMessages(
             [updatedConversation],
             currentUserId
           )[0];
-          fetchOtherUserProfiles([updatedConversation]); // fetch người mới
-          return [newMsg, ...updatedMessages];
+          return [newMessage, ...updatedMessages];
         }
 
         return updatedMessages;

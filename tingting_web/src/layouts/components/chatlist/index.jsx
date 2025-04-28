@@ -61,16 +61,28 @@ function ChatList({ activeTab }) {
     if (!socket || !currentUserId) return;
 
     const handleConversations = async (conversations) => {
-      // lấy tra toàn bộ userId khác với currentUserId
-      const otherParticipant = conversations.map((conversation) => {
-        const otherParticipant = conversation.participants.find(
-          (p) => p.userId !== currentUserId
-        );
-        return otherParticipant.userId;
-      });
-      // lấy ra profile của người còn lại trong cuộc trò chuyện cá nhân Api_Profile.getProfile
+      console.log("Conversations sfdfds:", conversations);
+
+      // Lấy ra userId của người còn lại trong các cuộc trò chuyện cá nhân
+      const otherParticipantIds = conversations
+        .map((conversation) => {
+          const other = conversation.participants.find(
+            (p) => p.userId !== currentUserId
+          );
+          return other?.userId; // chỉ lấy nếu có
+        })
+        .filter(Boolean); // loại bỏ undefined
+
+      // Lấy profile của các user còn lại
       const profiles = await Promise.all(
-        otherParticipant.map((userId) => Api_Profile.getProfile(userId))
+        otherParticipantIds.map(async (userId) => {
+          try {
+            return await Api_Profile.getProfile(userId);
+          } catch (error) {
+            console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
+            return null; // fallback nếu lỗi
+          }
+        })
       );
 
       const transformedMessages = transformConversationsToMessages(
@@ -94,10 +106,7 @@ function ChatList({ activeTab }) {
                 updatedConversation.lastMessage?.userId || null,
               time: new Date(updatedConversation.updatedAt).toLocaleTimeString(
                 [],
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }
+                { hour: "2-digit", minute: "2-digit" }
               ),
               updateAt: updatedConversation.updatedAt,
             };
@@ -105,11 +114,11 @@ function ChatList({ activeTab }) {
           return msg;
         });
 
-        if (
-          !updatedMessages.some(
-            (msg) => msg.id === updatedConversation.conversationId
-          )
-        ) {
+        const isNew = !updatedMessages.some(
+          (msg) => msg.id === updatedConversation.conversationId
+        );
+
+        if (isNew) {
           const newMessage = transformConversationsToMessages(
             [updatedConversation],
             currentUserId

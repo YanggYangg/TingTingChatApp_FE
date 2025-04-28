@@ -2,7 +2,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Use environment-specific base URL
-const BASE_URL = "http://192.168.1.33:3001";
+const BASE_URL = "http://172.20.10.10:3001";
 
 // const BASE_URL = 'http://192.168.139.71:3001'
 
@@ -79,8 +79,8 @@ export const Api_FriendRequest = {
         error.response?.status === 404
           ? "Friends list endpoint not found."
           : error.message === "Network Error"
-          ? "Unable to connect to the server. Please check your network or server status."
-          : "Failed to fetch friends list. Please try again."
+            ? "Unable to connect to the server. Please check your network or server status."
+            : "Failed to fetch friends list. Please try again."
       );
     }
   },
