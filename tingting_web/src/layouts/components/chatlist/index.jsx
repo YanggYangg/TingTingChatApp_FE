@@ -13,13 +13,7 @@ import {
   joinConversation,
 } from "../../../services/sockets/events/conversation";
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
-
 import SibarContact from "../contact-form/SideBarContact/SideBarContact";
-import GroupList from "../contact-form/GroupList";
-import FriendRequests from "../contact-form/FriendRequests";
-import GroupInvites from "../contact-form/GroupInvites";
-import ContactList from "../contact-form/ContactList";
-
 import { Api_Profile } from "../../../../apis/api_profile";
 
 const cx = classNames.bind(styles);
@@ -28,13 +22,9 @@ function ChatList({ activeTab }) {
   const [messages, setMessages] = useState([]);
   const [selectedTab, setSelectedTab] = useState("priority");
   const dispatch = useDispatch();
-
   const { socket, userId: currentUserId } = useSocket();
-
-  // Lấy selectedMessage từ Redux state
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
 
-  // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
     if (message.id !== "my-cloud") {
       joinConversation(socket, message.id);
@@ -46,17 +36,16 @@ function ChatList({ activeTab }) {
     setSelectedTab(tab);
   };
 
-  // Cloud của tôi item
   const myCloudItem = {
     id: "my-cloud",
     name: "Cloud của tôi",
     avatar:
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s", // Hoặc link avatar của bạn
+      "https://encrypted-tbn0.gstatic.com/images?q=tbngcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s",
     type: "cloud",
     lastMessage: "Lưu trữ tin nhắn và file cá nhân",
     isCall: false,
     time: "",
-    isCloud: true, // Thêm flag để xác định đây là cloud item
+    isCloud: true,
   };
 
   // Load and listen for conversations
@@ -64,26 +53,22 @@ function ChatList({ activeTab }) {
     if (!socket || !currentUserId) return;
 
     const handleConversations = async (conversations) => {
-      console.log("Conversations sfdfds:", conversations);
-
-      // Lấy ra userId của người còn lại trong các cuộc trò chuyện cá nhân
       const otherParticipantIds = conversations
         .map((conversation) => {
           const other = conversation.participants.find(
             (p) => p.userId !== currentUserId
           );
-          return other?.userId; // chỉ lấy nếu có
+          return other?.userId;
         })
-        .filter(Boolean); // loại bỏ undefined
+        .filter(Boolean);
 
-      // Lấy profile của các user còn lại
       const profiles = await Promise.all(
         otherParticipantIds.map(async (userId) => {
           try {
             return await Api_Profile.getProfile(userId);
           } catch (error) {
             console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
-            return null; // fallback nếu lỗi
+            return null;
           }
         })
       );
@@ -141,6 +126,7 @@ function ChatList({ activeTab }) {
       offConversationUpdate(socket);
     };
   }, [socket, currentUserId]);
+
   // Listen for updates from ChatInfo
   useEffect(() => {
     if (!socket) return;
@@ -160,14 +146,15 @@ function ChatList({ activeTab }) {
         })
       );
 
-      // Update selected message in Redux if it's the current conversation
       if (selectedMessage?.id === updatedChatInfo.conversationId) {
-        dispatch(setSelectedMessage({
-          ...selectedMessage,
-          name: updatedChatInfo.name || selectedMessage.name,
-          imageGroup: updatedChatInfo.imageGroup || selectedMessage.imageGroup,
-          participants: updatedChatInfo.participants || selectedMessage.participants,
-        }));
+        dispatch(
+          setSelectedMessage({
+            ...selectedMessage,
+            name: updatedChatInfo.name || selectedMessage.name,
+            imageGroup: updatedChatInfo.imageGroup || selectedMessage.imageGroup,
+            participants: updatedChatInfo.participants || selectedMessage.participants,
+          })
+        );
       }
     });
 
@@ -229,7 +216,6 @@ function ChatList({ activeTab }) {
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
-      {/* Thanh tìm kiếm */}
       <div className="p-2 bg-white shadow-md">
         <SearchCompo />
       </div>
@@ -259,14 +245,13 @@ function ChatList({ activeTab }) {
         </div>
       )}
 
-      {/* Thêm cloud ở đây */}
-
       <div className="flex-grow text-gray-700 overflow-auto">
         {activeTab === "/chat" && (
           <MessageList
             messages={[myCloudItem, ...messages]}
             onMessageClick={handleMessageClick}
             userId={currentUserId}
+            selectedMessage={selectedMessage}
           />
         )}
         {activeTab === "/contact" && <SibarContact />}

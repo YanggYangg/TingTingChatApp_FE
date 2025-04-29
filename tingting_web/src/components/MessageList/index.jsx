@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Phone, MessageCircle } from "lucide-react";
-import { Api_Profile } from "../../../apis/api_profile"; // Adjust the import path as necessary
-import { useNavigate } from "react-router-dom";
+import { Phone, MessageCircle, BellOff, Pin } from "lucide-react";
+import { Api_Profile } from "../../../apis/api_profile";
+import { useSocket } from "../../contexts/SocketContext";
 
-const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
+// Component MessageItem
+const MessageItem = ({ message, userId, memberDetails, onMessageClick, isSelected }) => {
   const getConversationName = (msg, memberDetails) => {
-    if (msg?.customName) return msg.customName; // Ưu tiên nếu có custom
+    if (msg?.customName) return msg.customName;
     if (msg?.isGroup) {
       return msg.name;
     } else if (msg?.participants) {
@@ -18,7 +19,7 @@ const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
   };
 
   const getConversationAvatar = (msg, memberDetails) => {
-    if (msg?.customAvatar) return msg.customAvatar; // Ưu tiên nếu có custom
+    if (msg?.customAvatar) return msg.customAvatar;
     if (msg?.isGroup && msg.imageGroup) {
       return msg.imageGroup;
     } else if (msg?.participants) {
@@ -33,10 +34,16 @@ const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
     return "https://via.placeholder.com/150";
   };
 
+  const participant = message.participants?.find((p) => p.userId === userId);
+  const isMuted = !!participant?.mute;
+  const isPinned = !!participant?.isPinned;
+
   return (
     <div
       key={message.id}
-      className="flex items-center justify-between p-2 rounded-lg transition hover:bg-[#dbebff] hover:text-black cursor-pointer"
+      className={`flex items-center justify-between p-2 rounded-lg transition cursor-pointer ${
+        isSelected ? "bg-[#dbebff] text-black" : "hover:bg-[#dbebff] hover:text-black"
+      }`}
       onClick={() => onMessageClick(message)}
     >
       <div className="flex items-center space-x-3">
@@ -80,23 +87,59 @@ const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
           </div>
         </div>
       </div>
-      <div className="text-xs text-gray-400 whitespace-nowrap">
-        {message.time}
+      <div className="flex flex-col items-end">
+        <div className="text-xs text-gray-400 whitespace-nowrap flex items-center space-x-1">
+          <span>{message.time}</span>
+          {isMuted && <BellOff size={12} className="text-gray-400" />}
+          {isPinned && <Pin size={14} className="text-gray-400 mt-1" />}
+        </div>
       </div>
     </div>
   );
 };
 
-const MessageList = ({ messages, onMessageClick, userId }) => {
-  console.log("MessageList received messages:", messages);
+// Component MessageList
+const MessageList = ({ messages, onMessageClick, userId, selectedMessage }) => {
   const [memberDetails, setMemberDetails] = useState({});
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [errorDetails, setErrorDetails] = useState(null);
+  const [updatedMessages, setUpdatedMessages] = useState(messages);
+  const { socket } = useSocket();
 
+  // Cập nhật updatedMessages khi messages prop thay đổi
+  useEffect(() => {
+    setUpdatedMessages(messages);
+  }, [messages]);
+
+  // Lắng nghe sự kiện Socket.IO để cập nhật messages
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("chatInfoUpdated", (updatedChatInfo) => {
+      setUpdatedMessages((prevMessages) =>
+        prevMessages.map((msg) => {
+          if (msg.id === updatedChatInfo.conversationId) {
+            return {
+              ...msg,
+              name: updatedChatInfo.name || msg.name,
+              imageGroup: updatedChatInfo.imageGroup || msg.imageGroup,
+              participants: updatedChatInfo.participants || msg.participants,
+            };
+          }
+          return msg;
+        })
+      );
+    });
+
+    // Cleanup
+    return () => {
+      socket.off("chatInfoUpdated");
+    };
+  }, [socket]);
+
+  // Fetch thông tin thành viên
   useEffect(() => {
     const fetchMemberDetails = async () => {
       setLoadingDetails(true);
-      setErrorDetails(null);
       const details = {};
 
       if (messages && Array.isArray(messages)) {
@@ -121,7 +164,7 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
                 } catch (error) {
                   console.error("Lỗi khi lấy thông tin người dùng:", error);
                   participantDetails[member.userId] = {
-                    name: "Lỗi tải",
+                    name: "Không tìm thấy",
                     avatar: null,
                   };
                 }
@@ -184,27 +227,31 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
     fetchMemberDetails();
   }, [messages, userId]);
 
+  if (loadingDetails) {
+    return <div className="text-center p-4">Đang tải thông tin...</div>;
+  }
+
   return (
     <div className="w-full max-w-md mx-auto bg-white text-black p-2">
-      {messages &&
-        messages.map((msg, index) => {
-          // Gán avatar và name đặc biệt nếu là item đầu tiên
+      {updatedMessages &&
+        updatedMessages.map((msg, index) => {
           const customProps =
             index === 0
               ? {
                   customName: "Cloud của tôi",
                   customAvatar:
-                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s",
+                    "https://encrypted-tbn0.gstatic.com/images?q=tbngcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s",
                 }
               : {};
 
           return (
             <MessageItem
               key={msg.id}
-              message={{ ...msg, ...customProps }} // gán thêm prop
+              message={{ ...msg, ...customProps }}
               userId={userId}
               memberDetails={memberDetails}
               onMessageClick={onMessageClick}
+              isSelected={selectedMessage?.id === msg.id}
             />
           );
         })}

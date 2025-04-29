@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import Modal from "react-modal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import { updateChatInfo } from "../../services/sockets/events/chatInfo";
+import { useDispatch } from "react-redux";
 
 Modal.setAppElement("#root");
 
-const MuteNotificationModal = ({ isOpen, onClose, conversationId, userId, onMuteSuccess }) => {
+const MuteNotificationModal = ({ isOpen, onClose, conversationId, userId, onMuteSuccess, socket }) => {
   const [selectedMuteTime, setSelectedMuteTime] = useState("1h");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const dispatch = useDispatch();
 
   const handleConfirmMute = async () => {
     if (!conversationId || !userId) {
@@ -18,7 +21,25 @@ const MuteNotificationModal = ({ isOpen, onClose, conversationId, userId, onMute
     setLoading(true);
     setError(null);
     try {
-      await Api_chatInfo.updateNotification(conversationId, { mute: selectedMuteTime, userId });
+      const response = await Api_chatInfo.updateNotification(conversationId, { mute: selectedMuteTime, userId });
+      const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId);
+
+      if (socket) {
+        updateChatInfo(socket, {
+          conversationId,
+          participants: updatedChatInfo.participants,
+        });
+      }
+
+      // Cập nhật Redux để MessageList nhận được thay đổi
+      dispatch({
+        type: "chat/updateConversation",
+        payload: {
+          conversationId,
+          updatedData: { participants: updatedChatInfo.participants },
+        },
+      });
+
       onClose();
       if (onMuteSuccess) {
         onMuteSuccess(selectedMuteTime);
