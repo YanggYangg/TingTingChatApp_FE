@@ -4,7 +4,7 @@ import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 import { useDispatch } from "react-redux";
-import { setSelectedMessage } from "../../../redux/slices/chatSlice";
+import { setSelectedMessage, clearSelectedMessage } from "../../../redux/slices/chatSlice";
 import { useSocket } from "../../../contexts/SocketContext";
 import {
   loadAndListenConversations,
@@ -138,6 +138,91 @@ function ChatList({ activeTab }) {
       offConversationUpdate(socket);
     };
   }, [socket, currentUserId]);
+  // Listen for updates from ChatInfo
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("chatInfoUpdated", (updatedChatInfo) => {
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => {
+          if (msg.id === updatedChatInfo.conversationId) {
+            return {
+              ...msg,
+              name: updatedChatInfo.name || msg.name,
+              imageGroup: updatedChatInfo.imageGroup || msg.imageGroup,
+              participants: updatedChatInfo.participants || msg.participants,
+            };
+          }
+          return msg;
+        })
+      );
+
+      // Update selected message in Redux if it's the current conversation
+      if (selectedMessage?.id === updatedChatInfo.conversationId) {
+        dispatch(setSelectedMessage({
+          ...selectedMessage,
+          name: updatedChatInfo.name || selectedMessage.name,
+          imageGroup: updatedChatInfo.imageGroup || selectedMessage.imageGroup,
+          participants: updatedChatInfo.participants || selectedMessage.participants,
+        }));
+      }
+    });
+
+    socket.on("groupDisbanded", (data) => {
+      setMessages((prevMessages) =>
+        prevMessages.filter((msg) => msg.id !== data.conversationId)
+      );
+      if (selectedMessage?.id === data.conversationId) {
+        dispatch(clearSelectedMessage());
+      }
+    });
+
+    socket.on("userLeftGroup", (data) => {
+      if (data.userId === currentUserId) {
+        setMessages((prevMessages) =>
+          prevMessages.filter((msg) => msg.id !== data.conversationId)
+        );
+        if (selectedMessage?.id === data.conversationId) {
+          dispatch(clearSelectedMessage());
+        }
+      } else {
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) => {
+            if (msg.id === data.conversationId) {
+              return {
+                ...msg,
+                participants: msg.participants.filter((p) => p.userId !== data.userId),
+              };
+            }
+            return msg;
+          })
+        );
+      }
+    });
+
+    socket.on("messageDeleted", ({ messageId, messageType }) => {
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => {
+          if (msg.lastMessageId === messageId) {
+            return {
+              ...msg,
+              lastMessage: "Tin nhắn đã bị xóa",
+              lastMessageType: "text",
+              lastMessageSenderId: null,
+            };
+          }
+          return msg;
+        })
+      );
+    });
+
+    return () => {
+      socket.off("chatInfoUpdated");
+      socket.off("groupDisbanded");
+      socket.off("userLeftGroup");
+      socket.off("messageDeleted");
+    };
+  }, [socket, currentUserId, selectedMessage, dispatch]);
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">

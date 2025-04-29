@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import ChatInfo from "../../layouts/components/chatwindow/ChatInfo";
 import { useSelector, useDispatch } from "react-redux";
-import { clearSelectedMessage } from "../../redux/slices/chatSlice";
+import { clearSelectedMessage, setSelectedMessage } from "../../redux/slices/chatSlice.js"
 import ChatHeader from "./ChatWindow/ChatHeader";
 import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
@@ -137,6 +137,51 @@ function ChatPage() {
     fetchChatDetails();
   }, [selectedMessage, currentUserId]);
 
+    // Listen for chat info updates from ChatInfo
+    useEffect(() => {
+      if (!socket || !selectedMessageId) return;
+  
+      socket.on("chatInfoUpdated", (updatedChatInfo) => {
+        if (updatedChatInfo.conversationId === selectedMessageId) {
+          dispatch(setSelectedMessage({
+            ...selectedMessage,
+            name: updatedChatInfo.name || selectedMessage.name,
+            imageGroup: updatedChatInfo.imageGroup || selectedMessage.imageGroup,
+            participants: updatedChatInfo.participants || selectedMessage.participants,
+          }));
+          setChatDetails((prev) => ({
+            ...prev,
+            name: updatedChatInfo.name || prev.name,
+            avatar: updatedChatInfo.imageGroup || prev.avatar,
+            members: updatedChatInfo.participants?.length || prev.members,
+          }));
+        }
+      });
+  
+      socket.on("groupDisbanded", (data) => {
+        if (data.conversationId === selectedMessageId) {
+          dispatch(clearSelectedMessage());
+        }
+      });
+  
+      socket.on("userLeftGroup", (data) => {
+        if (data.conversationId === selectedMessageId && data.userId === currentUserId) {
+          dispatch(clearSelectedMessage());
+        }
+      });
+  
+      socket.on("messageDeleted", ({ messageId, messageType }) => {
+        setMessages((prevMessages) => prevMessages.filter((msg) => msg._id !== messageId));
+      });
+  
+      return () => {
+        socket.off("chatInfoUpdated");
+        socket.off("groupDisbanded");
+        socket.off("userLeftGroup");
+        socket.off("messageDeleted");
+      };
+    }, [socket, selectedMessageId, selectedMessage, dispatch, currentUserId]);
+  
   // Cuộn xuống tin nhắn mới nhất
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
