@@ -13,6 +13,7 @@ import AddMemberModal from "../../../components/chatInforComponent/AddMemberModa
 import EditNameModal from "../../../components/chatInforComponent/EditNameModal";
 import CreateGroupModal from "../../../components/chatInforComponent/CreateGroupModal";
 import { Api_Profile } from "../../../../apis/api_profile";
+import { initSocket, joinConversation, leaveConversation, onConversationUpdate, offConversationUpdate, onMessageDeleted } from "../../../../socket"; // Import các hàm Socket.IO
 
 const ChatInfo = ({ userId, conversationId }) => {
   const [chatInfo, setChatInfo] = useState(null);
@@ -25,9 +26,105 @@ const ChatInfo = ({ userId, conversationId }) => {
   const [conversations, setConversations] = useState([]);
   const [otherUser, setOtherUser] = useState(null);
   const [userRoleInGroup, setUserRoleInGroup] = useState(null);
+  const [socket, setSocket] = useState(null);
 
   console.log("userId được truyền vào ChatInfo:", userId);
   console.log("conversationId được truyền vào ChatInfo:", conversationId);
+
+  // Khởi tạo và kết nối Socket.IO
+  useEffect(() => {
+    if (!userId) return;
+
+    const newSocket = initSocket(userId);
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [userId]);
+
+  // Tham gia cuộc trò chuyện khi có conversationId
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+
+    joinConversation(socket, conversationId);
+
+    // Lắng nghe các sự kiện từ Socket.IO
+    socket.on("participantAdded", (data) => {
+      console.log("Participant added:", data);
+      setChatInfo((prevChatInfo) => ({
+        ...prevChatInfo,
+        participants: data.participants,
+      }));
+    });
+
+    socket.on("participantRemoved", (data) => {
+      console.log("Participant removed:", data);
+      setChatInfo((prevChatInfo) => ({
+        ...prevChatInfo,
+        participants: data.participants,
+      }));
+      if (data.userId === userId) {
+        alert("Bạn đã bị xóa khỏi nhóm!");
+        // Chuyển hướng hoặc cập nhật giao diện
+      }
+    });
+
+    socket.on("groupDisbanded", (data) => {
+      console.log("Group disbanded:", data);
+      alert(`Nhóm ${data.conversationId} đã bị giải tán!`);
+      setChatInfo(null); // Xóa thông tin nhóm
+      // Chuyển hướng hoặc cập nhật giao diện
+    });
+
+    socket.on("chatNameUpdated", (data) => {
+      console.log("Chat name updated:", data);
+      setChatInfo((prevChatInfo) => ({
+        ...prevChatInfo,
+        name: data.name,
+      }));
+    });
+
+    socket.on("notificationUpdated", (data) => {
+      console.log("Notification updated:", data);
+      if (data.userId === userId) {
+        setIsMuted(data.mute);
+      }
+    });
+
+    socket.on("chatPinned", (data) => {
+      console.log("Chat pinned:", data);
+      if (data.userId === userId) {
+        setChatInfo((prevChatInfo) => ({
+          ...prevChatInfo,
+          isPinned: data.isPinned,
+        }));
+      }
+    });
+
+    socket.on("groupAdminTransferred", (data) => {
+      console.log("Group admin transferred:", data);
+      setChatInfo((prevChatInfo) => ({
+        ...prevChatInfo,
+        participants: data.participants,
+      }));
+      const participant = data.participants.find((p) => p.userId === userId);
+      if (participant) {
+        setUserRoleInGroup(participant.role);
+      }
+    });
+
+    return () => {
+      leaveConversation(socket, conversationId);
+      socket.off("participantAdded");
+      socket.off("participantRemoved");
+      socket.off("groupDisbanded");
+      socket.off("chatNameUpdated");
+      socket.off("notificationUpdated");
+      socket.off("chatPinned");
+      socket.off("groupAdminTransferred");
+    };
+  }, [socket, conversationId, userId]);
 
   useEffect(() => {
     const fetchChatInfo = async () => {
@@ -152,9 +249,7 @@ const ChatInfo = ({ userId, conversationId }) => {
     setConversations((prevConversations) => [...prevConversations, newGroup]);
   };
 
-  // Chỉ lấy danh sách userId của các thành viên hiện tại, bao gồm cả userId của người dùng hiện tại
-  const currentConversationParticipants = chatInfo?.participants
-    ?.map((p) => p.userId) || [];
+  const currentConversationParticipants = chatInfo?.participants?.map((p) => p.userId) || [];
 
   const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
   const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);

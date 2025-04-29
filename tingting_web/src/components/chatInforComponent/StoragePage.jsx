@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { FaCalendarAlt, FaArrowLeft, FaDownload } from "react-icons/fa";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
+import { initSocket, onMessage, offMessage, onMessageDeleted, offMessageDeleted } from "../../../../socket";
 
-const StoragePage = ({ onClose, conversationId, onDelete }) => {
+const StoragePage = ({ onClose, conversationId, onDelete, userId }) => {
   const [activeTab, setActiveTab] = useState("images");
   const [filterSender, setFilterSender] = useState("Tất cả");
   const [startDate, setStartDate] = useState("");
@@ -17,7 +18,21 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
   const [isSelecting, setIsSelecting] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
   const videoRef = useRef(null);
+  const [socket, setSocket] = useState(null);
 
+  // Khởi tạo Socket.IO
+  useEffect(() => {
+    if (!userId) return;
+
+    const newSocket = initSocket(userId);
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [userId]);
+
+  // Lấy dữ liệu ban đầu
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -38,8 +53,51 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
         setError("Lỗi khi tải dữ liệu. Vui lòng thử lại.");
       }
     };
-    fetchData();
+    if (conversationId) {
+      fetchData();
+    }
   }, [conversationId]);
+
+  // Lắng nghe sự kiện từ Socket.IO
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+
+    socket.on("receiveMessage", (message) => {
+      if (message.conversationId !== conversationId) return;
+
+      const newItems = formatData([message], message.messageType);
+      setData((prevData) => {
+        const tab =
+          message.messageType === "link"
+            ? "links"
+            : message.messageType === "file"
+            ? "files"
+            : "images";
+        return {
+          ...prevData,
+          [tab]: [...newItems, ...prevData[tab]],
+        };
+      });
+    });
+
+    socket.on("messageDeleted", (data) => {
+      if (data.conversationId === conversationId) {
+        setData((prevData) => {
+          const newData = {
+            images: prevData.images.filter((item) => item.messageId !== data.messageId),
+            files: prevData.files.filter((item) => item.messageId !== data.messageId),
+            links: prevData.links.filter((item) => item.messageId !== data.messageId),
+          };
+          return newData;
+        });
+      }
+    });
+
+    return () => {
+      socket.off("receiveMessage");
+      socket.off("messageDeleted");
+    };
+  }, [socket, conversationId]);
 
   const formatData = (items, dataType) => {
     if (!Array.isArray(items)) {
@@ -67,7 +125,14 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
           date: createdAt ? new Date(createdAt).toISOString().split("T")[0] : "",
           sender: typeof userId === "string" ? userId : userId?._id || "Không tên",
           name: content || `Không có tên`,
-          type: messageType === "video" ? "video" : dataType === "file" ? "file" : dataType === "link" ? "link" : "image",
+          type:
+            messageType === "video"
+              ? "video"
+              : dataType === "file"
+              ? "file"
+              : dataType === "link"
+              ? "link"
+              : "image",
         }));
       })
       .filter((item) => item.url);
@@ -136,13 +201,11 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
 
   const handleDeleteSelected = async () => {
     if (selectedItems.length === 0) {
-      console.log("Không có mục nào được chọn để xóa.");
-      alert("Vui lòng chọn ít nhất một hình ảnh để xóa.");
+      alert("Vui lòng chọn ít nhất một mục để xóa.");
       return;
     }
 
     try {
-      // Tạo danh sách items: [{ messageId, urlIndex }, ...]
       const items = selectedItems
         .map((id) => {
           const item = data[activeTab].find((item) => item.id === id);
@@ -151,45 +214,33 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
         .filter(Boolean);
 
       if (items.length === 0) {
-        console.error("Không tìm thấy mục để xóa.");
         alert("Lỗi: Không tìm thấy mục để xóa.");
         return;
       }
 
       const response = await Api_chatInfo.deleteMessage({ items });
-      console.log("[DELETE] Phản hồi API (xóa mục):", response);
 
       if (response?.message) {
-        // Cập nhật data, loại bỏ các mục đã xóa
         const newData = {
-          images: data.images.filter((item) => 
-            !selectedItems.includes(item.id)
-          ),
-          files: data.files.filter((item) => 
-            !selectedItems.includes(item.id)
-          ),
-          links: data.links.filter((item) => 
-            !selectedItems.includes(item.id)
-          ),
+          images: data.images.filter((item) => !selectedItems.includes(item.id)),
+          files: data.files.filter((item) => !selectedItems.includes(item.id)),
+          links: data.links.filter((item) => !selectedItems.includes(item.id)),
         };
         setData(newData);
 
-        // Thông báo GroupMediaGallery với danh sách items đã xóa
         if (onDelete) {
           onDelete(items);
         }
 
-        // Reset trạng thái chọn
         setSelectedItems([]);
         setIsSelecting(false);
-        alert(`Đã xóa ${selectedItems.length} hình ảnh thành công.`);
+        alert(`Đã xóa ${selectedItems.length} mục thành công.`);
       } else {
-        console.error("[DELETE] Phản hồi API không mong đợi:", response);
-        alert("Lỗi: Có lỗi xảy ra khi xóa hình ảnh.");
+        alert("Lỗi: Có lỗi xảy ra khi xóa mục.");
       }
     } catch (error) {
-      console.error("Lỗi khi xóa hình ảnh:", error);
-      alert("Lỗi: Không thể xóa hình ảnh. Vui lòng thử lại.");
+      console.error("Lỗi khi xóa mục:", error);
+      alert("Lỗi: Không thể xóa mục. Vui lòng thử lại.");
     }
   };
 
@@ -251,7 +302,9 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
 
   const DateSection = ({ date, data, activeTab }) => (
     <div className="mt-4">
-      <h2 className="font-bold text-sm text-gray-800">Ngày {date.split("-").reverse().join(" Tháng ")}</h2>
+      <h2 className="font-bold text-sm text-gray-800">
+        Ngày {date.split("-").reverse().join(" Tháng ")}
+      </h2>
       <div className={`grid ${activeTab === "images" ? "grid-cols-4" : "grid-cols-1"} gap-4 mt-2`}>
         {data
           .filter((item) => item.date === date)
@@ -442,9 +495,11 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
           )}
 
           <div className="mt-4">
-            {[...new Set(filteredData.map(({ date }) => date))].map((date) => (
-              <DateSection key={date} date={date} data={filteredData} activeTab={activeTab} />
-            ))}
+            {[...new Set(filteredData.map(({ date }) => date))]
+              .sort((a, b) => new Date(b) - new Date(a))
+              .map((date) => (
+                <DateSection key={date} date={date} data={filteredData} activeTab={activeTab} />
+              ))}
           </div>
         </>
       )}
@@ -471,7 +526,7 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
                 className="absolute top-2 right-2 text-white bg-gray-800 hover:bg-gray-700 rounded-full p-2"
                 onClick={() => setFullScreenImage(null)}
               >
-                ✖
+                ✕
               </button>
               <button
                 onClick={() => downloadImage(fullScreenImage.url, fullScreenImage.name)}
@@ -481,18 +536,31 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
               </button>
             </div>
             <div className="w-40 h-[90vh] bg-gray-900 p-2 overflow-y-auto flex flex-col items-center">
-              {data.images.map((img) => (
-                <img
-                  key={img.id}
-                  src={img.url}
-                  alt={img.name}
-                  className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${
-                    fullScreenImage.url === img.url
-                      ? "opacity-100 border-2 border-blue-400"
-                      : "opacity-50 hover:opacity-100"
-                  }`}
-                  onClick={() => setFullScreenImage(img)}
-                />
+              {filteredData.map((item) => (
+                <div key={item.id}>
+                  {item.type === "image" ? (
+                    <img
+                      src={item.url}
+                      alt={item.name}
+                      className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${
+                        fullScreenImage?.url === item.url
+                          ? "opacity-100 border-2 border-blue-400"
+                          : "opacity-50 hover:opacity-100"
+                      }`}
+                      onClick={() => setFullScreenImage(item)}
+                    />
+                  ) : (
+                    <video
+                      src={item.url}
+                      className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${
+                        fullScreenImage?.url === item.url
+                          ? "opacity-100 border-2 border-blue-400"
+                          : "opacity-50 hover:opacity-100"
+                      }`}
+                      onClick={() => setFullScreenImage(item)}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -500,30 +568,26 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
       )}
 
       {previewFile && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-90 z-50">
-          <div className="relative bg-white rounded-lg shadow-lg p-4 w-full h-full flex flex-col">
-            <h2 className="font-bold text-xl text-center mb-4">{previewFile.name || "Xem nội dung"}</h2>
-            <div className="flex-grow overflow-auto">
-              <DocViewer
-                documents={[{ uri: previewFile.url }]}
-                pluginRenderers={DocViewerRenderers}
-                style={{ height: "100%" }}
-              />
-            </div>
-            <div className="flex justify-between mt-4">
-              <button
-                className="absolute top-2 right-2 text-gray-500 hover:text-red-500"
-                onClick={() => setPreviewFile(null)}
-              >
-                ✖
-              </button>
-              <button
-                className="bg-blue-500 text-white px-4 py-2 rounded"
-                onClick={() => handleDownloadFile(previewFile)}
-              >
-                Tải xuống
-              </button>
-            </div>
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
+          <div className="relative bg-white rounded-lg shadow-lg p-4 max-w-3xl max-h-[90vh] overflow-auto">
+            <button
+              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 rounded-full p-2"
+              onClick={() => setPreviewFile(null)}
+            >
+              ✕
+            </button>
+            <h2 className="text-lg font-semibold mb-4">{previewFile.name}</h2>
+            <DocViewer
+              documents={[{ uri: previewFile.url, fileName: previewFile.name }]}
+              pluginRenderers={DocViewerRenderers}
+              style={{ height: "70vh" }}
+            />
+            <button
+              onClick={() => downloadImage(previewFile.url, previewFile.name)}
+              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            >
+              Tải xuống
+            </button>
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import { FaTrash, FaDoorOpen, FaSignOutAlt, FaUserShield } from "react-icons/fa"
 import axios from "axios";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_Profile } from "../../../apis/api_profile";
+import { initSocket, onConversationUpdate, offConversationUpdate } from "../../../../socket";
 
 const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup, chatInfo }) => {
   const [isHidden, setIsHidden] = useState(false);
@@ -15,6 +16,51 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
   const [groupMembers, setGroupMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const isAdmin = userRoleInGroup === "admin";
+  const [socket, setSocket] = useState(null);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const newSocket = initSocket(userId);
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+
+    socket.on("participantRemoved", (data) => {
+      if (data.userId === userId) {
+        alert("Bạn đã bị xóa khỏi nhóm!");
+        setChatInfo(null);
+      }
+    });
+
+    socket.on("groupDisbanded", (data) => {
+      alert("Nhóm đã bị giải tán!");
+      setChatInfo(null);
+    });
+
+    socket.on("groupAdminTransferred", (data) => {
+      setChatInfo((prevChatInfo) => ({
+        ...prevChatInfo,
+        participants: data.participants,
+      }));
+      const participant = data.participants.find((p) => p.userId === userId);
+      if (participant) {
+        setUserRoleInGroup(participant.role);
+      }
+    });
+
+    return () => {
+      socket.off("participantRemoved");
+      socket.off("groupDisbanded");
+      socket.off("groupAdminTransferred");
+    };
+  }, [socket, conversationId, userId, setChatInfo]);
 
   const fetchChatInfo = useCallback(async () => {
     try {
@@ -24,7 +70,6 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
       const participant = response.data.participants.find((p) => p.userId === userId);
       setIsHidden(participant ? participant.isHidden : false);
 
-      // Lấy thông tin chi tiết của các thành viên khác
       const members = response.data.participants.filter((p) => p.userId !== userId);
       const detailedMembers = await Promise.all(
         members.map(async (p) => {
@@ -33,7 +78,7 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
             const userData = userResponse?.data?.user || {};
             return {
               userId: p.userId,
-              name: `${userData.firstname || ''} ${userData.surname || ''}`.trim() || p.userId,
+              name: `${userData.firstname || ""} ${userData.surname || ""}`.trim() || p.userId,
             };
           } catch (error) {
             console.error(`Lỗi khi lấy thông tin người dùng ${p.userId}:`, error);
@@ -47,8 +92,6 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
 
       setGroupMembers(detailedMembers);
       setLoadingMembers(false);
-
-      // Cập nhật chatInfo để đảm bảo vai trò người dùng được làm mới
       setChatInfo(response.data);
     } catch (error) {
       console.error("Lỗi khi lấy thông tin cuộc trò chuyện:", error);
@@ -159,14 +202,12 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
         requesterUserId: userId,
         newAdminUserId,
       });
-      // Làm mới toàn bộ dữ liệu
-      await fetchChatInfo();
       alert("Quyền trưởng nhóm đã được chuyển!");
       handleCloseTransferAdminModal();
     } catch (err) {
       console.error("Lỗi khi chuyển quyền trưởng nhóm:", err);
       alert("Chuyển quyền trưởng nhóm không thành công. Vui lòng thử lại.");
-      await fetchChatInfo(); // Làm mới dữ liệu ngay cả khi có lỗi
+      await fetchChatInfo();
     }
   }, [conversationId, userId, newAdminUserId, handleCloseTransferAdminModal, fetchChatInfo]);
 
@@ -247,8 +288,7 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
       )}
 
       {showTransferAdminModal && (
-        <div className="fixed inset-0  flex justify-center items-center"
-        overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]">
+        <div className="fixed inset-0 flex justify-center items-center backdrop-filter backdrop-blur-[1px] z-50">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Chuyển quyền trưởng nhóm</h2>
             {loadingMembers ? (

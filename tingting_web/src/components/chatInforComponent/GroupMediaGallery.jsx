@@ -4,6 +4,7 @@ import { IoArrowRedoOutline, IoTrashOutline } from "react-icons/io5";
 import StoragePage from "./StoragePage";
 import ShareModal from "../../components/chat/ShareModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import { onMessage, offMessage, onMessageDeleted, offMessageDeleted } from "../../../../socket";
 
 const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
   const [media, setMedia] = useState([]);
@@ -37,7 +38,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
             src: url,
             name: item?.content || `Media_${urlIndex + 1}`,
             type: item?.messageType || "image",
-            urlIndex, // Thêm urlIndex để so sánh khi xóa
+            urlIndex,
           }));
         })
         .filter((mediaItem) => mediaItem.src);
@@ -55,11 +56,42 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
     fetchMedia();
   }, [conversationId]);
 
-  // Xử lý onDelete từ StoragePage
+  // Lắng nghe sự kiện từ Socket.IO
+  useEffect(() => {
+    const socket = initSocket(userId);
+
+    socket.on("receiveMessage", (message) => {
+      if (
+        message.conversationId === conversationId &&
+        ["image", "video"].includes(message.messageType)
+      ) {
+        const newMediaItems = (message.linkURL || []).map((url, urlIndex) => ({
+          id: `${message._id}_${urlIndex}`,
+          messageId: message._id,
+          src: url,
+          name: message.content || `Media_${urlIndex + 1}`,
+          type: message.messageType,
+          urlIndex,
+        }));
+        setMedia((prevMedia) => [...newMediaItems, ...prevMedia]);
+      }
+    });
+
+    socket.on("messageDeleted", (data) => {
+      if (data.conversationId === conversationId) {
+        setMedia((prevMedia) =>
+          prevMedia.filter((item) => item.messageId !== data.messageId)
+        );
+      }
+    });
+
+    return () => {
+      socket.off("receiveMessage");
+      socket.off("messageDeleted");
+    };
+  }, [conversationId, userId]);
+
   const handleDeleteFromStorage = (deletedItems) => {
-    console.log("Cập nhật media sau khi xóa:", deletedItems);
-    
-    // Cập nhật media cục bộ
     const newMedia = media.filter((mediaItem) => {
       const isDeleted = deletedItems.some(
         (item) =>
@@ -78,7 +110,6 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
     }
   };
 
-  // Xử lý hover
   const handleMouseEnter = (index) => {
     setHoveredIndex(index);
   };
@@ -87,7 +118,6 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
     setHoveredIndex(null);
   };
 
-  // Xử lý chuyển tiếp
   const handleForwardClick = (item, event) => {
     event.stopPropagation();
     setMediaToForward(item);
@@ -95,21 +125,17 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
     setIsShareModalOpen(true);
   };
 
-  // Xử lý chia sẻ từ ShareModal
   const handleMediaShared = () => {
     setIsShareModalOpen(false);
     setMediaToForward(null);
     setMessageIdToForward(null);
   };
 
-  // Xử lý đóng ShareModal
   const handleShareModalClose = () => {
     setIsShareModalOpen(false);
     setMediaToForward(null);
     setMessageIdToForward(null);
   };
-
-  // Tải xuống media
 
   const downloadImage = async (url, filename) => {
     try {
@@ -134,7 +160,6 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
     }
   };
 
-  // Xử lý video trong fullScreenMedia
   useEffect(() => {
     if (fullScreenMedia && fullScreenMedia.type === "video" && videoRef.current) {
       videoRef.current.play().catch((error) => console.error("Lỗi khi phát video:", error));
