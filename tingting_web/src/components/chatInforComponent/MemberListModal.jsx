@@ -1,175 +1,60 @@
-import React, { useEffect, useState, useMemo } from "react";
-import Modal from "react-modal";
-import { Api_Profile } from "../../../apis/api_profile";
-import { Api_chatInfo } from "../../../apis/Api_chatInfo";
-import { FaTrash } from "react-icons/fa";
-import { initSocket, onMemberRemoved } from "../../../../socket";
+import React, { useState, useEffect } from "react";
+import { useSocket } from "../../contexts/SocketContext";
+import { removeMember, onMemberRemoved } from "../../services/sockets/events/chatInfo";
 
-Modal.setAppElement("#root");
+const MemberListModal = ({ isOpen, onClose, conversationId, members, onMemberRemovedCallback }) => {
+  const { socket } = useSocket();
+  const [memberList, setMemberList] = useState(members);
 
-const MemberListModal = ({ isOpen, onClose, chatInfo, currentUserId, onMemberRemoved }) => {
-  const [memberDetails, setMemberDetails] = useState({});
-  const [loadingDetails, setLoadingDetails] = useState(true);
-  const [errorDetails, setErrorDetails] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [socket, setSocket] = useState(null);
-
+  // Lắng nghe sự kiện xóa thành viên
   useEffect(() => {
-    if (!currentUserId) return;
-    const newSocket = initSocket(currentUserId);
-    setSocket(newSocket);
-    return () => {
-      newSocket.disconnect();
-    };
-  }, [currentUserId]);
+    if (!socket || !isOpen) return;
 
-  useEffect(() => {
-    if (!socket || !chatInfo?._id) return;
-
-    socket.on("memberRemoved", (data) => {
-      if (data.conversationId === chatInfo._id) {
-        setMemberDetails((prev) => {
-          const newDetails = { ...prev };
-          delete newDetails[data.userId];
-          return newDetails;
-        });
-        if (onMemberRemoved) {
-          onMemberRemoved(data.userId);
-        }
+    const cleanup = onMemberRemoved(socket, (data) => {
+      if (data.conversationId === conversationId) {
+        setMemberList((prev) => prev.filter((member) => member.userId !== data.userId));
+        onMemberRemovedCallback(data.userId);
       }
     });
 
     return () => {
-      socket.off("memberRemoved");
+      cleanup();
     };
-  }, [socket, chatInfo, onMemberRemoved]);
+  }, [socket, conversationId, isOpen, onMemberRemovedCallback]);
 
-  useEffect(() => {
-    const checkAdminStatus = () => {
-      const adminMember = chatInfo?.participants?.find(
-        (member) => member.userId === currentUserId && member.role === "admin"
-      );
-      setIsAdmin(!!adminMember);
-    };
-    checkAdminStatus();
-  }, [chatInfo, currentUserId]);
-
-  useEffect(() => {
-    const fetchMemberDetails = async () => {
-      if (!chatInfo?.participants) return;
-
-      setLoadingDetails(true);
-      setErrorDetails(null);
-      const details = {};
-      const abortController = new AbortController();
-
-      try {
-        const fetchPromises = chatInfo.participants.map(async (member) => {
-          const response = await Api_Profile.getProfile(member.userId, {
-            signal: abortController.signal,
-          });
-          details[member.userId] = {
-            name: response?.data?.user
-              ? `${response.data.user.firstname} ${response.data.user.surname}`.trim()
-              : "Không tìm thấy",
-            avatar: response?.data?.user?.avatar || null,
-            role: member.role,
-          };
-        });
-
-        await Promise.all(fetchPromises);
-        setMemberDetails(details);
-      } catch (error) {
-        if (error.name !== "AbortError") {
-          setErrorDetails("Không thể tải thông tin thành viên. Vui lòng thử lại.");
-        }
-      } finally {
-        setLoadingDetails(false);
-      }
-
-      return () => abortController.abort();
-    };
-
-    if (isOpen && chatInfo) {
-      fetchMemberDetails();
-    }
-  }, [isOpen, chatInfo]);
-
-  const handleRemoveMember = async (memberIdToRemove) => {
-    if (!isAdmin || currentUserId === memberIdToRemove) return;
-
-    const confirmRemove = window.confirm("Bạn có chắc chắn muốn xóa thành viên này?");
-    if (!confirmRemove) return;
-
-    try {
-      await Api_chatInfo.removeParticipant(chatInfo._id, { userId: memberIdToRemove });
-      socket.emit("removeMember", { conversationId: chatInfo._id, userId: memberIdToRemove });
-    } catch (error) {
-      console.error("Lỗi khi xóa thành viên:", error);
-      alert("Không thể xóa thành viên. Vui lòng thử lại.");
+  const handleRemoveMember = (userId) => {
+    if (window.confirm("Bạn có chắc muốn xóa thành viên này khỏi nhóm?")) {
+      removeMember(socket, { conversationId, userId });
     }
   };
 
-  const sortedMembers = useMemo(
-    () =>
-      chatInfo?.participants
-        ?.map((member) => ({
-          userId: member.userId,
-          role: member.role,
-          name: memberDetails[member.userId]?.name || "Không tên",
-          avatar: memberDetails[member.userId]?.avatar,
-        }))
-        .sort((a, b) => (a.role === "admin" ? -1 : b.role === "admin" ? 1 : 0)),
-    [chatInfo, memberDetails]
-  );
+  if (!isOpen) return null;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onRequestClose={onClose}
-      className="bg-white w-96 p-5 rounded-lg shadow-lg mx-auto mt-20 outline-none"
-      overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]"
-    >
-      <h2 className="text-lg font-bold mb-3">Thành viên ({chatInfo?.participants?.length || 0})</h2>
-      {loadingDetails ? (
-        <p className="text-gray-500">Đang tải...</p>
-      ) : errorDetails ? (
-        <p className="text-red-500">{errorDetails}</p>
-      ) : (
-        <ul className="max-h-80 overflow-y-auto">
-          {sortedMembers?.map((member) => (
-            <li
-              key={member.userId}
-              className="py-2 border-b last:border-none flex items-center justify-between"
-            >
-              <div className="flex items-center">
-                <img
-                  src={member.avatar || "https://via.placeholder.com/40"}
-                  alt={member.name}
-                  className="w-10 h-10 rounded-full mr-3 object-cover"
-                />
-                <span className="text-gray-800">{member.name}</span>
-                {member.role === "admin" && <span className="ml-1 text-xs text-blue-500">(Admin)</span>}
-              </div>
-              {isAdmin && currentUserId !== member.userId && (
-                <button
-                  onClick={() => handleRemoveMember(member.userId)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <FaTrash size={16} />
-                </button>
-              )}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="bg-white p-4 rounded-lg w-96">
+        <h2 className="text-lg font-semibold mb-4">Danh sách thành viên</h2>
+        <ul className="space-y-2">
+          {memberList.map((member) => (
+            <li key={member.userId} className="flex justify-between items-center">
+              <span>{member.name}</span>
+              <button
+                onClick={() => handleRemoveMember(member.userId)}
+                className="text-red-500 hover:text-red-700"
+              >
+                Xóa
+              </button>
             </li>
           ))}
         </ul>
-      )}
-      <button
-        onClick={onClose}
-        className="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg"
-      >
-        Đóng
-      </button>
-    </Modal>
+        <button
+          onClick={onClose}
+          className="mt-4 px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+        >
+          Đóng
+        </button>
+      </div>
+    </div>
   );
 };
 

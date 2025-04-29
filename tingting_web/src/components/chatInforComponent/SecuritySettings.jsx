@@ -4,7 +4,8 @@ import { FaTrash, FaDoorOpen, FaSignOutAlt, FaUserShield } from "react-icons/fa"
 import axios from "axios";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_Profile } from "../../../apis/api_profile";
-import { initSocket, onConversationUpdate, offConversationUpdate } from "../../../../socket";
+import { initSocket } from "../../services/sockets/index";
+import {  onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
 
 const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup, chatInfo }) => {
   const [isHidden, setIsHidden] = useState(false);

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import MemberListModal from "./MemberListModal";
 import CommonGroupsModal from "./CommonGroupsModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
-import { initSocket } from "../../../../socket";
+import { initSocket } from "../../services/sockets/index";
 
 const GroupMemberList = ({ chatInfo, userId, onMemberRemoved }) => {
   const [isMemberModalOpen, setMemberModalOpen] = useState(false);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Modal from "react-modal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_FriendRequest } from "../../../apis/api_friendRequest";
-import { initSocket } from "../../../../socket";
+import { initSocket } from "../../services/sockets/index";
 
 Modal.setAppElement("#root");
 

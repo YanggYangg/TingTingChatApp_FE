@@ -4,7 +4,7 @@ import { FaTrash, FaShare } from "react-icons/fa";
 import StoragePage from "./StoragePage";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import ShareModal from "../chat/ShareModal";
-import { initSocket } from "../../../../socket";
+import { initSocket } from "../../services/sockets/index";
 
 const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId }) => {
   const [isOpen, setIsOpen] = useState(false);

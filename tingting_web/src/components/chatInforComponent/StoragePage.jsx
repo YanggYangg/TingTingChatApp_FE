@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { FaCalendarAlt, FaArrowLeft, FaDownload } from "react-icons/fa";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
-import { initSocket, onMessage, offMessage, onMessageDeleted, offMessageDeleted } from "../../../../socket";
+import { initSocket} from "../../services/sockets/index";
+import {  onMessage, offMessage, onMessageDeleted, offMessageDeleted  }  from "../../services/sockets/events/messaging";
 
 const StoragePage = ({ onClose, conversationId, onDelete, userId }) => {
   const [activeTab, setActiveTab] = useState("images");

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { FaTimes, FaSearch, FaUsers, FaUser, FaCheck, FaTrash } from "react-icons/fa";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_Profile } from "../../../apis/api_profile";
-import { initSocket } from "../../../../socket";
+import { initSocket } from "../../services/sockets/index.js";
 
 const ShareModal = ({ isOpen, onClose, onShare, messageToForward, userId, messageId }) => {
   const [conversations, setConversations] = useState([]);

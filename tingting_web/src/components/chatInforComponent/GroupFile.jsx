@@ -4,7 +4,7 @@ import StoragePage from "./StoragePage";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
 import ShareModal from "../chat/ShareModal";
-import { initSocket } from "../../../../socket";
+import { initSocket } from "../../services/sockets/index";
 
 const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
   const [isOpen, setIsOpen] = useState(false);

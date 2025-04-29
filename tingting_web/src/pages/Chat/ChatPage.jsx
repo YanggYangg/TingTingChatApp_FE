@@ -17,6 +17,17 @@ import ShareModal from "../../components/chat/ShareModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_Profile } from "../../../apis/api_profile";
 import ConfirmModal from "../../components/ConfirmModal";
+// Import các phương thức từ chatInfoSocket.js
+import {
+  onChatInfoUpdated,
+  offChatInfoUpdated,
+  onGroupDisbanded,
+  offGroupDisbanded,
+  onUserLeftGroup,
+  offUserLeftGroup,
+  onMessageDeleted,
+  offMessageDeleted
+} from "../../services/sockets/events/chatInfo.js";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -38,6 +49,9 @@ function ChatPage() {
   const [isShareModalVisible, setIsShareModalVisible] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
   const [userCache, setUserCache] = useState({}); // Cache lưu thông tin người dùng
+
+  // Khởi tạo dispatch
+  const dispatch = useDispatch();
 
   const [chatDetails, setChatDetails] = useState({
     name: "Unknown",

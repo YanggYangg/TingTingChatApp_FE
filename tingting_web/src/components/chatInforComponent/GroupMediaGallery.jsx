@@ -4,7 +4,8 @@ import { IoArrowRedoOutline, IoTrashOutline } from "react-icons/io5";
 import StoragePage from "./StoragePage";
 import ShareModal from "../../components/chat/ShareModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
-import { onMessage, offMessage, onMessageDeleted, offMessageDeleted } from "../../../../socket";
+import { initSocket } from "../../services/sockets/index";
+import { onMessage, offMessage, onMessageDeleted, offMessageDeleted } from "../../services/sockets/events/messaging";
 
 const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
   const [media, setMedia] = useState([]);

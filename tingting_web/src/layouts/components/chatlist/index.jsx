@@ -3,7 +3,7 @@ import classNames from "classnames/bind";
 import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setSelectedMessage, clearSelectedMessage } from "../../../redux/slices/chatSlice";
 import { useSocket } from "../../../contexts/SocketContext";
 import {
@@ -30,6 +30,9 @@ function ChatList({ activeTab }) {
   const dispatch = useDispatch();
 
   const { socket, userId: currentUserId } = useSocket();
+
+  // Lấy selectedMessage từ Redux state
+  const selectedMessage = useSelector((state) => state.chat.selectedMessage);
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
