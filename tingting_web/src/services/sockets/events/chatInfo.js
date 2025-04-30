@@ -226,3 +226,8 @@ export const offError = (socket) => {
 export const disbandGroup = (socket, data, callback) => {
   socket.emit("disbandGroup", data, callback);
 };
+
+// rời nhóm
+export const leaveGroup = (socket, data, callback) => {
+  socket.emit("leaveGroup", data, callback);
+};
