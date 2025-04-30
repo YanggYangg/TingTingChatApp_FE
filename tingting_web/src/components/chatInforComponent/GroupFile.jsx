@@ -66,15 +66,32 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
   useEffect(() => {
     if (!socket || !conversationId) return;
 
+    // Cập nhật state trực tiếp từ dữ liệu nhận được
     onChatFiles(socket, (updatedFiles) => {
       console.log("[Socket.IO] Cập nhật danh sách file:", updatedFiles);
-      fetchFiles(); // Tải lại danh sách file khi có cập nhật
+      if (Array.isArray(updatedFiles)) {
+        const sortedFiles = updatedFiles.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt) || 0
+        );
+        setFiles(
+          sortedFiles.slice(0, 3).map((file) => ({
+            ...file,
+            id: file?._id || file?.id,
+          }))
+        );
+        setData({ files: sortedFiles });
+      } else {
+        setFiles([]);
+        setData({ files: [] });
+        console.warn("Dữ liệu cập nhật không hợp lệ:", updatedFiles);
+      }
     });
 
     onError(socket, (error) => {
       console.error("[Socket.IO] Lỗi:", error.message);
     });
 
+    // Gọi fetch lần đầu tiên khi component mount
     fetchFiles();
 
     return () => {
@@ -118,7 +135,6 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
     setMessageIdToForward(null);
   };
 
-  // Hàm xử lý chuyển tiếp file bằng Socket.IO
   const handleFileShared = (targetConversations, shareContent) => {
     if (!fileToForward?._id) {
       console.error("Không có ID tin nhắn để chuyển tiếp.");

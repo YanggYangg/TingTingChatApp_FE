@@ -34,6 +34,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
     getChatMedia(socket, { conversationId }, (response) => {
       if (response && response.success) {
         const mediaData = Array.isArray(response.data) ? response.data : [];
+        console.log("[Socket.IO] Phản hồi (lấy media):", mediaData);
         const filteredMedia = mediaData
           .flatMap((item) => {
             const urls = Array.isArray(item?.linkURL)
@@ -70,7 +71,35 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
 
     onChatMedia(socket, (updatedMedia) => {
       console.log("[Socket.IO] Cập nhật danh sách media:", updatedMedia);
-      fetchMedia();
+      if (Array.isArray(updatedMedia)) {
+        const filteredMedia = updatedMedia
+          .flatMap((item) => {
+            const urls = Array.isArray(item?.linkURL)
+              ? item.linkURL.filter((url) => url && typeof url === "string")
+              : typeof item?.linkURL === "string"
+              ? [item.linkURL]
+              : [];
+            if (urls.length === 0) {
+              console.warn(`Tin nhắn ${item._id} thiếu linkURL:`, item);
+              return [];
+            }
+            return urls.map((url, urlIndex) => ({
+              id: `${item?._id}_${urlIndex}`,
+              messageId: item?._id,
+              src: url,
+              name: item?.content || `Media_${urlIndex + 1}`,
+              type: item?.messageType || "image",
+              urlIndex,
+            }));
+          })
+          .filter((mediaItem) => mediaItem.src);
+        setMedia(filteredMedia.length ? filteredMedia : []);
+        setError(filteredMedia.length ? null : "Không có ảnh nào.");
+      } else {
+        setMedia([]);
+        setError("Dữ liệu cập nhật không hợp lệ.");
+        console.warn("Dữ liệu cập nhật không hợp lệ:", updatedMedia);
+      }
     });
 
     onError(socket, (error) => {
@@ -98,7 +127,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
 
     if (newMedia.length !== media.length) {
       setMedia(newMedia);
-      setError(newMedia.length ? null : "Không có media hợp lệ để hiển thị.");
+      setError(newMedia.length ? null : "Không có media hợpIPLE để hiển thị.");
     } else {
       console.warn("Không thể cập nhật cục bộ, tải lại media...");
       fetchMedia();

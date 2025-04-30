@@ -69,7 +69,31 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
 
     onChatLinks(socket, (updatedLinks) => {
       console.log("[Socket.IO] Cập nhật danh sách link:", updatedLinks);
-      fetchLinks();
+      if (Array.isArray(updatedLinks)) {
+        const filteredLinks = updatedLinks
+          .filter((item) => item?.messageType === "link")
+          .map((item) => ({
+            id: item?._id || item?.id,
+            title: item?.content || "Không có tiêu đề",
+            url: item?.linkURL || "#",
+            date: item?.createdAt?.split("T")[0] || "Không có ngày",
+            sender: item?.userId || "Không rõ người gửi",
+            messageId: item?._id,
+          }));
+
+        const sortedLinks = filteredLinks.sort((a, b) => {
+          if (a.date && b.date) {
+            return new Date(b.date) - new Date(a.date);
+          } else {
+            return 0;
+          }
+        });
+
+        setLinks(sortedLinks.slice(0, 3));
+      } else {
+        setLinks([]);
+        console.warn("Dữ liệu cập nhật không hợp lệ:", updatedLinks);
+      }
     });
 
     onError(socket, (error) => {
@@ -92,7 +116,6 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
     setHoveredIndex(-1);
   };
 
-  // Xóa link bằng Socket.IO
   const handleDeleteClick = (linkItem, event) => {
     event.stopPropagation();
     if (!linkItem?.id) {
@@ -127,7 +150,6 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
     setMessageIdToForward(null);
   };
 
-  // Chuyển tiếp link bằng Socket.IO
   const handleLinkShared = (targetConversations, shareContent) => {
     if (!linkToForward?.messageId) {
       console.error("Không có ID tin nhắn để chuyển tiếp link.");
