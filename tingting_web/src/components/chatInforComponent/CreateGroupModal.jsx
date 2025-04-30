@@ -4,9 +4,7 @@ import { Api_FriendRequest } from "../../../apis/api_friendRequest";
 import {
   onError,
   offError,
-} from "../../services/sockets/events/chatInfo";
-import { createConversation } from "../../services/sockets/events/chatInfo"; // Import các hàm Socket.IO
-
+} from "../../services/sockets/events/chatInfo"; // Import các hàm Socket.IO
 
 const CreateGroupModal = ({ isOpen, onClose, onGroupCreated, userId, socket }) => {
   const [groupName, setGroupName] = useState("");
@@ -244,10 +242,11 @@ const CreateGroupModal = ({ isOpen, onClose, onGroupCreated, userId, socket }) =
           </button>
           <button
             onClick={handleCreateGroup}
-            className={`px-4 py-2 rounded-md focus:outline-none ml-2 ${createLoading || selectedContacts.length < 2
+            className={`px-4 py-2 rounded-md focus:outline-none ml-2 ${
+              createLoading || selectedContacts.length < 2
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-blue-500 hover:bg-blue-600 text-white"
-              }`}
+            }`}
             disabled={createLoading || selectedContacts.length < 2}
           >
             {createLoading ? "Đang tạo..." : "Tạo nhóm"}
