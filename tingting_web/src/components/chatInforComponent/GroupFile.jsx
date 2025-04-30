@@ -238,7 +238,6 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
           onClose={() => setIsOpen(false)}
           onDelete={fetchFiles}
           onForwardFile={onForwardFile}
-          socket={socket}
         />
       )}
 

@@ -1,3 +1,4 @@
+// Path: src/components/chatInforComponent/StoragePage.js
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FaCalendarAlt, FaArrowLeft, FaDownload } from "react-icons/fa";
 import {
@@ -32,8 +33,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
   const [isSelecting, setIsSelecting] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
   const videoRef = useRef(null);
-console.log("StoragePage component mounted conversationId:", conversationId);
-console.log("StoragePage component mounted socket:", socket);
+
   useEffect(() => {
     if (!socket || !conversationId) return;
 
@@ -46,7 +46,6 @@ console.log("StoragePage component mounted socket:", socket);
               ...prev,
               images: formatData(response.data, "media"),
             }));
-            console.log("Dữ liệu media:", formatData(response.data, "media"));
           } else {
             setError("Lỗi khi tải media: " + response.message);
           }
@@ -58,7 +57,6 @@ console.log("StoragePage component mounted socket:", socket);
               ...prev,
               files: formatData(response.data, "file"),
             }));
-            console.log("Dữ liệu files:", formatData(response.data, "file"));
           } else {
             setError("Lỗi khi tải files: " + response.message);
           }
@@ -70,7 +68,6 @@ console.log("StoragePage component mounted socket:", socket);
               ...prev,
               links: formatData(response.data, "link"),
             }));
-            console.log("Dữ liệu links:", formatData(response.data, "link"));
           } else {
             setError("Lỗi khi tải links: " + response.message);
           }

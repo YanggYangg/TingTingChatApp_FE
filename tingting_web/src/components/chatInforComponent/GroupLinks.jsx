@@ -254,7 +254,6 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
           links={links}
           onClose={() => setIsOpen(false)}
           onDelete={fetchLinks}
-          socket={socket}
         />
       )}
 
