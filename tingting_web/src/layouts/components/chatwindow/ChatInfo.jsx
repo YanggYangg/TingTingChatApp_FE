@@ -44,42 +44,23 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const [conversations, setConversations] = useState([]);
   const [otherUser, setOtherUser] = useState(null);
   const [userRoleInGroup, setUserRoleInGroup] = useState(null);
+  const [hasMounted, setHasMounted] = useState(false);
   const [commonGroups, setCommonGroups] = useState([]);
 
-  // Reset trạng thái khi conversationId thay đổi
   useEffect(() => {
-    console.log(`Reset trạng thái cho conversationId: ${conversationId}`);
-    setChatInfo(null);
-    setIsMuted(false);
-    setIsPinned(false);
-    setOtherUser(null);
-    setUserRoleInGroup(null);
-    setCommonGroups([]);
-    setLoading(true);
-  }, [conversationId]);
-
-  useEffect(() => {
-    if (!socket || !conversationId || !userId) {
-      console.warn("Thiếu socket, conversationId hoặc userId");
+    setHasMounted(true);
+    if (!socket || !conversationId) {
       setLoading(false);
       return;
     }
 
-    // Lấy thông tin chat
-    console.log(`Yêu cầu getChatInfo cho conversationId: ${conversationId}`);
     getChatInfo(socket, { conversationId });
 
-    // Xử lý thông tin chat ban đầu
     const handleOnChatInfo = (newChatInfo) => {
-      if (newChatInfo._id !== conversationId) {
-        console.warn(
-          `Dữ liệu chat không khớp. Nhận: ${newChatInfo._id}, Mong đợi: ${conversationId}`
-        );
-        return;
-      }
-
-      console.log("Nhận chatInfo:", newChatInfo);
       setChatInfo(newChatInfo);
+      if (hasMounted) {
+        console.log("Thông tin chat nhận được:", newChatInfo);
+      }
 
       const participant = newChatInfo.participants?.find((p) => p.userId === userId);
       if (participant) {
@@ -89,16 +70,20 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       }
 
       if (!newChatInfo.isGroup) {
-        const otherParticipant = newChatInfo.participants?.find((p) => p.userId !== userId);
+        const otherParticipant = newChatInfo.participants?.find(
+          (p) => p.userId !== userId
+        );
         if (otherParticipant?.userId) {
-          console.log(`Lấy profile cho userId: ${otherParticipant.userId}`);
           Api_Profile.getProfile(otherParticipant.userId)
             .then((response) => {
               setOtherUser(response?.data?.user);
             })
             .catch((error) => {
-              console.error("Lỗi khi lấy thông tin người dùng:", error);
-              setOtherUser({ firstname: "Không tìm thấy", surname: "" });
+              console.error("Lỗi khi lấy thông tin người dùng khác:", error);
+              setOtherUser({
+                firstname: "Không tìm thấy",
+                surname: "",
+              });
             })
             .finally(() => setLoading(false));
         } else {
@@ -109,34 +94,15 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       }
     };
 
-    // Xử lý cập nhật chat
+    onChatInfo(socket, handleOnChatInfo);
+
     const handleOnChatInfoUpdated = (updatedInfo) => {
-      if (updatedInfo._id !== conversationId) {
-        console.warn(
-          `Dữ liệu cập nhật không khớp. Nhận: ${updatedInfo._id}, Mong đợi: ${conversationId}`
-        );
-        return;
-      }
-      if (chatInfo?.isGroup && !updatedInfo.isGroup) {
-        console.warn(
-          `Dữ liệu cập nhật không phải nhóm nhưng chatInfo hiện tại là nhóm:`,
-          updatedInfo
-        );
-        return;
-      }
-
-      console.log("Nhận cập nhật chatInfo:", updatedInfo);
-      setChatInfo((prev) => {
-        if (!prev) return updatedInfo;
-        return {
-          ...prev,
-          ...updatedInfo,
-          participants: updatedInfo.participants || prev.participants,
-          name: updatedInfo.name || prev.name,
-          isGroup: updatedInfo.isGroup ?? prev.isGroup,
-        };
-      });
-
+      setChatInfo((prev) => ({
+        ...prev,
+        ...updatedInfo,
+        participants: updatedInfo.participants || prev.participants,
+        name: updatedInfo.name || prev.name,
+      }));
       const participant = updatedInfo.participants?.find((p) => p.userId === userId);
       if (participant) {
         setIsMuted(!!participant.mute);
@@ -144,25 +110,20 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         setUserRoleInGroup(participant.role || null);
       }
     };
+    onChatInfoUpdated(socket, handleOnChatInfoUpdated);
 
     const handleError = (error) => {
       console.error("Lỗi từ server:", error);
       setLoading(false);
     };
-
-    // Đăng ký sự kiện socket
-    onChatInfo(socket, handleOnChatInfo);
-    onChatInfoUpdated(socket, handleOnChatInfoUpdated);
     onError(socket, handleError);
 
-    // Cleanup sự kiện socket
     return () => {
-      console.log(`Gỡ sự kiện socket cho conversationId: ${conversationId}`);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
     };
-  }, [socket, conversationId, userId]);
+  }, [socket, conversationId, userId, hasMounted]);
 
   useEffect(() => {
     if (!socket || !userId) return;
@@ -217,19 +178,19 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   }, [chatInfo, conversations, userId]);
 
   const handleMemberAdded = () => {
-    console.log(`Yêu cầu cập nhật thành viên cho conversationId: ${conversationId}`);
     getChatInfo(socket, { conversationId });
   };
 
   const handleMemberRemoved = (removedUserId) => {
     setChatInfo((prevChatInfo) => ({
       ...prevChatInfo,
-      participants: prevChatInfo.participants.filter((p) => p.userId !== removedUserId),
+      participants: prevChatInfo.participants.filter(
+        (p) => p.userId !== removedUserId
+      ),
     }));
   };
 
   const handleMuteNotification = () => {
-    console.log(`Thay đổi trạng thái thông báo cho conversationId: ${conversationId}`);
     if (isMuted) {
       updateNotification(socket, { conversationId, mute: null });
       setIsMuted(false);
@@ -245,7 +206,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const handlePinChat = () => {
     if (!chatInfo) return;
 
-    console.log(`Thay đổi trạng thái ghim cho conversationId: ${conversationId}`);
     const newIsPinned = !isPinned;
     pinChat(socket, { conversationId, isPinned: newIsPinned });
     setIsPinned(newIsPinned);
@@ -280,7 +240,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const handleSaveChatName = (newName) => {
     if (!chatInfo || !newName.trim()) return;
 
-    console.log(`Cập nhật tên chat cho conversationId: ${conversationId}`);
     updateChatName(socket, { conversationId, name: newName.trim() });
     setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
     handleCloseEditNameModal();
@@ -298,7 +257,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const chatImage = chatInfo?.isGroup
     ? chatInfo.imageGroup?.trim()
       ? chatInfo.imageGroup
-      : "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA="
+      : "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A1o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA="
     : otherUser?.avatar ||
       "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
   const displayName = chatInfo?.isGroup
@@ -306,13 +265,25 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     : `${otherUser?.firstname} ${otherUser?.surname}`.trim() || "Đang tải...";
 
   return (
-    <div className="w-full bg-white p-2 rounded-lga-lg h-screen flex flex-col">
-      <div className="flex-shrink-0">
-        <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
+    <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
+      {/* Phần cố định: Tiêu đề và ảnh đại diện */}
+      <div
+        className="bg-white z-10"
+        style={{
+          position: "sticky",
+          top: 0,
+          paddingBottom: "10px",
+          borderBottom: "1px solid #e5e7eb",
+        }}
+      >
+        <div className="flex-shrink-0">
+          <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
+        </div>
+        
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="text-center my-4">
+      {/* Phần cuộn: Nội dung còn lại */}
+      <div className="flex-1 overflow-y-auto"><div className="text-center my-4">
           <img
             src={chatImage}
             className="w-20 h-20 rounded-full mx-auto object-cover"
@@ -381,11 +352,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
           userId={userId}
           socket={socket}
         />
-        <GroupLinks
-          conversationId={conversationId}
-          userId={userId}
-          socket={socket}
-        />
+        <GroupLinks conversationId={conversationId} userId={userId} socket={socket} />
         <SecuritySettings
           conversationId={conversationId}
           userId={userId}
@@ -396,6 +363,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         />
       </div>
 
+      {/* Các modal giữ nguyên */}
       <MuteNotificationModal
         isOpen={isMuteModalOpen}
         onClose={() => setIsMuteModalOpen(false)}
