@@ -10,7 +10,6 @@ const MuteNotificationModal = ({ isOpen, onClose, conversationId, userId, onMute
   const handleConfirmMute = () => {
     if (!socket || !conversationId || !userId) return;
 
-    console.log("Gửi updateNotification với mute:", selectedMuteTime); // Thêm log để debug
     updateNotification(socket, { conversationId, mute: selectedMuteTime });
     onClose();
     if (onMuteSuccess) {
