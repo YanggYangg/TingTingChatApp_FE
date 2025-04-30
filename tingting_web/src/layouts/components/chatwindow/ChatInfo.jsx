@@ -266,24 +266,13 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
   return (
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
-      {/* Phần cố định: Tiêu đề và ảnh đại diện */}
-      <div
-        className="bg-white z-10"
-        style={{
-          position: "sticky",
-          top: 0,
-          paddingBottom: "10px",
-          borderBottom: "1px solid #e5e7eb",
-        }}
-      >
-        <div className="flex-shrink-0">
-          <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
-        </div>
-        
-      </div>
+    <div className="flex-shrink-0">
+      <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
+    </div>
 
       {/* Phần cuộn: Nội dung còn lại */}
-      <div className="flex-1 overflow-y-auto"><div className="text-center my-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="text-center my-4">
           <img
             src={chatImage}
             className="w-20 h-20 rounded-full mx-auto object-cover"
