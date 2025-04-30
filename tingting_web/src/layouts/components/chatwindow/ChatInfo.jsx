@@ -22,13 +22,14 @@ import {
   updateNotification,
   onError,
   offError,
- 
 } from "../../../services/sockets/events/chatInfo";
-import { onConversations,
+import {
+  onConversations,
   offConversations,
   onConversationUpdate,
-  offConversationUpdate, loadAndListenConversations } from "../../../services/sockets/events/conversation";
-
+  offConversationUpdate,
+  loadAndListenConversations,
+} from "../../../services/sockets/events/conversation";
 import { Api_Profile } from "../../../../apis/api_profile";
 
 const ChatInfo = ({ userId, conversationId, socket }) => {
@@ -44,7 +45,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const [otherUser, setOtherUser] = useState(null);
   const [userRoleInGroup, setUserRoleInGroup] = useState(null);
   const [hasMounted, setHasMounted] = useState(false);
-  const [commonGroups, setCommonGroups] = useState([]); // Thêm state cho commonGroups
+  const [commonGroups, setCommonGroups] = useState([]);
 
   useEffect(() => {
     setHasMounted(true);
@@ -53,10 +54,8 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       return;
     }
 
-    // Lấy thông tin chat ban đầu
     getChatInfo(socket, { conversationId });
 
-    // Lắng nghe thông tin chat
     const handleOnChatInfo = (newChatInfo) => {
       setChatInfo(newChatInfo);
       if (hasMounted) {
@@ -80,10 +79,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
               setOtherUser(response?.data?.user);
             })
             .catch((error) => {
-              console.error(
-                "Lỗi khi lấy thông tin người dùng khác:",
-                error
-              );
+              console.error("Lỗi khi lấy thông tin người dùng khác:", error);
               setOtherUser({
                 firstname: "Không tìm thấy",
                 surname: "",
@@ -100,7 +96,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     onChatInfo(socket, handleOnChatInfo);
 
-    // Lắng nghe cập nhật chat info (thời gian thực)
     const handleOnChatInfoUpdated = (updatedInfo) => {
       setChatInfo((prev) => ({
         ...prev,
@@ -117,14 +112,12 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     };
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
 
-    // Lắng nghe lỗi
     const handleError = (error) => {
       console.error("Lỗi từ server:", error);
       setLoading(false);
     };
     onError(socket, handleError);
 
-    // Cleanup khi component unmount
     return () => {
       offChatInfo(socket);
       offChatInfoUpdated(socket);
@@ -132,21 +125,17 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     };
   }, [socket, conversationId, userId, hasMounted]);
 
-  // Lấy tất cả các cuộc trò chuyện của userId bằng Socket.IO
   useEffect(() => {
     if (!socket || !userId) return;
 
-    // Sử dụng loadAndListenConversations để lấy danh sách ban đầu
     const cleanupLoadConversations = loadAndListenConversations(socket, (conversationsData) => {
       setConversations(conversationsData || []);
     });
 
-    // Lắng nghe cập nhật conversations (nếu BE emit lại qua 'conversations')
     onConversations(socket, (conversationsData) => {
       setConversations(conversationsData || []);
     });
 
-    // Lắng nghe cập nhật từng conversation (nếu BE emit qua 'conversationUpdated')
     onConversationUpdate(socket, (updatedConversation) => {
       setConversations((prevConversations) =>
         prevConversations.map((conv) =>
@@ -156,20 +145,18 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     });
 
     return () => {
-      cleanupLoadConversations(); // Cleanup loadAndListenConversations
+      cleanupLoadConversations();
       offConversations(socket);
       offConversationUpdate(socket);
     };
   }, [socket, userId]);
 
-  // Tìm nhóm chung khi chatInfo hoặc conversations thay đổi
   useEffect(() => {
     if (!chatInfo || !conversations.length) {
       setCommonGroups([]);
       return;
     }
 
-    // Lấy otherUserId từ chatInfo
     const otherParticipant = chatInfo.participants?.find((p) => p.userId !== userId);
     const otherUserId = otherParticipant?.userId;
 
@@ -178,13 +165,12 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       return;
     }
 
-    // Lọc các nhóm chung
     const commonGroups = conversations.filter((conversation) => {
       return (
-        conversation.isGroup && // Chỉ lấy các cuộc trò chuyện là nhóm
-        conversation._id !== chatInfo._id && // Loại bỏ cuộc trò chuyện hiện tại
-        conversation.participants.some((p) => p.userId === userId) && // Có bạn
-        conversation.participants.some((p) => p.userId === otherUserId) // Có otherUserId
+        conversation.isGroup &&
+        conversation._id !== chatInfo._id &&
+        conversation.participants.some((p) => p.userId === userId) &&
+        conversation.participants.some((p) => p.userId === otherUserId)
       );
     });
 
@@ -280,12 +266,24 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
   return (
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
-      <div className="flex-shrink-0">
-        <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
+      {/* Phần cố định: Tiêu đề và ảnh đại diện */}
+      <div
+        className="bg-white z-10"
+        style={{
+          position: "sticky",
+          top: 0,
+          paddingBottom: "10px",
+          borderBottom: "1px solid #e5e7eb",
+        }}
+      >
+        <div className="flex-shrink-0">
+          <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
+        </div>
+        
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="text-center my-4">
+      {/* Phần cuộn: Nội dung còn lại */}
+      <div className="flex-1 overflow-y-auto"><div className="text-center my-4">
           <img
             src={chatImage}
             className="w-20 h-20 rounded-full mx-auto object-cover"
@@ -303,68 +301,69 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="flex flex-nowrap justify-center gap-4 my-4">
-        <GroupActionButton
-          icon="mute"
-          text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
-          onClick={handleMuteNotification}
-        />
-        <GroupActionButton
-          icon="pin"
-          text={isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
-          onClick={handlePinChat}
-        />
-        <GroupActionButton
-          icon="add"
-          text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
-          onClick={chatInfo?.isGroup ? handleAddMember : handleCreateGroupChat}
-        />
-      </div>
-
-      <GroupMemberList
-        chatInfo={chatInfo}
-        userId={userId}
-        onMemberRemoved={handleMemberRemoved}
-        socket={socket}
-        commonGroups={commonGroups} // Truyền commonGroups xuống
-      />
-
-      {chatInfo?.linkGroup && (
-        <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
-          <p className="text-sm font-semibold">Link tham gia nhóm</p>
-          <a href={chatInfo.linkGroup} className="text-blue-500 text-sm">
-            {chatInfo.linkGroup}
-          </a>
-          <button
-            onClick={copyToClipboard}
-            className="text-gray-500 hover:text-blue-500"
-          >
-            <AiOutlineCopy size={20} />
-          </button>
+        <div className="flex flex-nowrap justify-center gap-4 my-4">
+          <GroupActionButton
+            icon="mute"
+            text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
+            onClick={handleMuteNotification}
+          />
+          <GroupActionButton
+            icon="pin"
+            text={isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
+            onClick={handlePinChat}
+          />
+          <GroupActionButton
+            icon="add"
+            text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
+            onClick={chatInfo?.isGroup ? handleAddMember : handleCreateGroupChat}
+          />
         </div>
-      )}
 
-      <GroupMediaGallery
-        conversationId={conversationId}
-        userId={userId}
-        socket={socket}
-      />
-      <GroupFile
-        conversationId={conversationId}
-        userId={userId}
-        socket={socket}
-      />
-      <GroupLinks conversationId={conversationId} userId={userId} socket={socket} />
-      <SecuritySettings
-        conversationId={conversationId}
-        userId={userId}
-        setChatInfo={setChatInfo}
-        userRoleInGroup={userRoleInGroup}
-        chatInfo={chatInfo}
-        socket={socket}
-      />
+        <GroupMemberList
+          chatInfo={chatInfo}
+          userId={userId}
+          onMemberRemoved={handleMemberRemoved}
+          socket={socket}
+          commonGroups={commonGroups}
+        />
+
+        {chatInfo?.linkGroup && (
+          <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
+            <p className="text-sm font-semibold">Link tham gia nhóm</p>
+            <a href={chatInfo.linkGroup} className="text-blue-500 text-sm">
+              {chatInfo.linkGroup}
+            </a>
+            <button
+              onClick={copyToClipboard}
+              className="text-gray-500 hover:text-blue-500"
+            >
+              <AiOutlineCopy size={20} />
+            </button>
+          </div>
+        )}
+
+        <GroupMediaGallery
+          conversationId={conversationId}
+          userId={userId}
+          socket={socket}
+        />
+        <GroupFile
+          conversationId={conversationId}
+          userId={userId}
+          socket={socket}
+        />
+        <GroupLinks conversationId={conversationId} userId={userId} socket={socket} />
+        <SecuritySettings
+          conversationId={conversationId}
+          userId={userId}
+          setChatInfo={setChatInfo}
+          userRoleInGroup={userRoleInGroup}
+          chatInfo={chatInfo}
+          socket={socket}
+        />
+      </div>
+
+      {/* Các modal giữ nguyên */}
       <MuteNotificationModal
         isOpen={isMuteModalOpen}
         onClose={() => setIsMuteModalOpen(false)}
