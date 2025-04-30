@@ -1,12 +1,11 @@
-// Path: src/components/chatInforComponent/SecuritySettings.js
 import React, { useState, useEffect, useCallback } from "react";
 import Switch from "react-switch";
 import { FaTrash, FaDoorOpen, FaSignOutAlt, FaUserShield } from "react-icons/fa";
 import { Api_Profile } from "../../../apis/api_profile";
 import {
   getChatInfo,
-  onChatInfo,
-  offChatInfo,
+  onChatInfoUpdated, // Thay onChatInfo bằng onChatInfoUpdated
+  offChatInfoUpdated,
   hideChat,
   deleteChatHistoryForMe,
   leaveGroup,
@@ -24,6 +23,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
   const [newAdminUserId, setNewAdminUserId] = useState("");
   const [groupMembers, setGroupMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false); // Thêm trạng thái xử lý
   const isAdmin = userRoleInGroup === "admin";
 
   const fetchChatInfo = useCallback(async () => {
@@ -45,7 +45,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
                 const userData = userResponse?.data?.user || {};
                 return {
                   userId: p.userId,
-                  name: `${userData.firstname || ''} ${userData.surname || ''}`.trim() || p.userId,
+                  name: `${userData.firstname || ""} ${userData.surname || ""}`.trim() || p.userId,
                 };
               } catch (error) {
                 console.error(`Lỗi khi lấy thông tin người dùng ${p.userId}:`, error);
@@ -60,26 +60,11 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
             setLoadingMembers(false);
           });
 
-          // Cập nhật chatInfo
           setChatInfo(data);
         } else {
           console.error("Lỗi khi lấy thông tin cuộc trò chuyện:", response.message);
           setLoadingMembers(false);
         }
-      });
-
-      // Lắng nghe thông tin chat
-      onChatInfo(socket, (data) => {
-        setIsGroup(data.isGroup);
-        const participant = data.participants.find((p) => p.userId === userId);
-        setIsHidden(participant ? participant.isHidden : false);
-        setChatInfo(data);
-      });
-
-      // Lắng nghe lỗi
-      onError(socket, (error) => {
-        console.error("Lỗi từ server:", error.message);
-        setLoadingMembers(false);
       });
     } catch (error) {
       console.error("Lỗi khi lấy thông tin cuộc trò chuyện:", error);
@@ -90,11 +75,30 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
   useEffect(() => {
     fetchChatInfo();
 
+    // Lắng nghe sự kiện chatInfoUpdated
+    onChatInfoUpdated(socket, (data) => {
+      console.log("Nhận chatInfoUpdated:", data); // Log để gỡ lỗi
+      if (data.conversationId === conversationId) {
+        setIsGroup(data.isGroup || false);
+        const participant = data.participants.find((p) => p.userId === userId);
+        setIsHidden(participant ? participant.isHidden : false);
+        setChatInfo(data);
+      }
+    });
+
+    // Lắng nghe lỗi
+    onError(socket, (error) => {
+      console.error("Lỗi từ server:", error.message);
+      setLoadingMembers(false);
+      setIsProcessing(false);
+    });
+
     return () => {
-      offChatInfo(socket);
+      offChatInfoUpdated(socket);
       socket.off("error");
+      offConversationUpdate(socket);
     };
-  }, [fetchChatInfo, socket]);
+  }, [fetchChatInfo, socket, conversationId]);
 
   const handleToggle = async (checked) => {
     if (checked && !isHidden) {
@@ -105,6 +109,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
   };
 
   const handleHideChat = async (hide, pin) => {
+    setIsProcessing(true);
     try {
       hideChat(socket, { conversationId, isHidden: hide, pin }, (response) => {
         if (response.success) {
@@ -114,22 +119,26 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
         } else {
           alert("Lỗi khi ẩn/hiện trò chuyện: " + response.message);
         }
+        setIsProcessing(false);
       });
     } catch (error) {
       console.error("Lỗi khi ẩn/hiện trò chuyện:", error);
       alert("Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.");
+      setIsProcessing(false);
     }
   };
 
   const handleSubmitPin = () => {
-    if (pin.length === 4) {
+    if (pin.length === 4 && /^\d{4}$/.test(pin)) {
       handleHideChat(true, pin);
     } else {
-      alert("Mã PIN phải có 4 chữ số!");
+      alert("Mã PIN phải là 4 chữ số!");
+      setIsProcessing(false);
     }
   };
 
   const handleDeleteHistory = async () => {
+    setIsProcessing(true);
     try {
       deleteChatHistoryForMe(socket, { conversationId }, (response) => {
         if (response.success) {
@@ -137,10 +146,12 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
         } else {
           alert("Lỗi khi xóa lịch sử trò chuyện: " + response.message);
         }
+        setIsProcessing(false);
       });
     } catch (error) {
       console.error("Lỗi khi xóa lịch sử trò chuyện:", error);
       alert("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
+      setIsProcessing(false);
     }
   };
 
@@ -149,11 +160,13 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
 
     if (!userId) {
       console.error("userId không tồn tại!");
+      setIsProcessing(false);
       return;
     }
 
     const confirmLeave = window.confirm("Bạn có chắc chắn muốn rời khỏi nhóm này không?");
     if (confirmLeave) {
+      setIsProcessing(true);
       try {
         leaveGroup(socket, { conversationId, userId }, (response) => {
           if (response.success) {
@@ -165,18 +178,12 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
           } else {
             alert("Lỗi khi rời nhóm: " + response.message);
           }
-        });
-
-        onConversationUpdate(socket, (data) => {
-          if (data.conversationId === conversationId) {
-            setChatInfo((prevChatInfo) => ({
-              ...prevChatInfo,
-              participants: prevChatInfo?.participants?.filter((p) => p.userId !== userId) || [],
-            }));
-          }
+          setIsProcessing(false);
         });
       } catch (error) {
         console.error("Lỗi khi rời nhóm:", error);
+        alert("Lỗi khi rời nhóm. Vui lòng thử lại.");
+        setIsProcessing(false);
       }
     }
   };
@@ -190,12 +197,16 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
       "Bạn có chắc chắn muốn giải tán nhóm này không? Tất cả thành viên sẽ bị xóa và lịch sử trò chuyện sẽ bị mất."
     );
     if (confirmDisband) {
+      setIsProcessing(true);
       try {
-        // Giải tán nhóm không có API trực tiếp qua socket, bạn có thể cần thêm handler trong chatInfoSocket.js
+        // Giả sử bạn có hàm disbandGroup trong chatInfo
+        // Thay thế bằng API hoặc socket phù hợp
         alert("Chức năng giải tán nhóm chưa được triển khai qua socket!");
+        setIsProcessing(false);
       } catch (error) {
         console.error("Lỗi khi giải tán nhóm:", error);
         alert("Lỗi khi giải tán nhóm. Vui lòng thử lại.");
+        setIsProcessing(false);
       }
     }
   };
@@ -214,6 +225,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
       alert("Vui lòng chọn một thành viên để chuyển quyền trưởng nhóm.");
       return;
     }
+    setIsProcessing(true);
     try {
       transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
         if (response.success) {
@@ -224,11 +236,13 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
           alert("Chuyển quyền trưởng nhóm không thành công: " + response.message);
           fetchChatInfo();
         }
+        setIsProcessing(false);
       });
     } catch (err) {
       console.error("Lỗi khi chuyển quyền trưởng nhóm:", err);
       alert("Chuyển quyền trưởng nhóm không thành công. Vui lòng thử lại.");
       fetchChatInfo();
+      setIsProcessing(false);
     }
   }, [socket, conversationId, newAdminUserId, handleCloseTransferAdminModal, fetchChatInfo]);
 
@@ -248,6 +262,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
           height={22}
           width={44}
           handleDiameter={18}
+          disabled={isProcessing}
         />
       </div>
 
@@ -261,12 +276,14 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
             placeholder="****"
+            disabled={isProcessing}
           />
           <button
             onClick={handleSubmitPin}
-            className="w-full mt-2 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition"
+            className="w-full mt-2 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition disabled:bg-blue-300"
+            disabled={isProcessing}
           >
-            Xác nhận
+            {isProcessing ? "Đang xử lý..." : "Xác nhận"}
           </button>
         </div>
       )}
@@ -274,6 +291,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
       <button
         className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
         onClick={handleDeleteHistory}
+        disabled={isProcessing}
       >
         <FaTrash size={16} />
         Xóa lịch sử trò chuyện
@@ -283,6 +301,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
           <button
             className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
             onClick={handleLeaveGroup}
+            disabled={isProcessing}
           >
             <FaDoorOpen size={16} />
             Rời nhóm
@@ -292,6 +311,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
               <button
                 className="w-full text-blue-500 text-left flex items-center gap-2 mt-2"
                 onClick={handleOpenTransferAdminModal}
+                disabled={isProcessing}
               >
                 <FaUserShield size={16} />
                 Chuyển quyền trưởng nhóm
@@ -299,6 +319,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
               <button
                 className="w-full text-red-600 text-left flex items-center gap-2 mt-2"
                 onClick={handleDisbandGroup}
+                disabled={isProcessing}
               >
                 <FaSignOutAlt size={16} />
                 Giải tán nhóm
@@ -309,8 +330,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
       )}
 
       {showTransferAdminModal && (
-        <div className="fixed inset-0 flex justify-center items-center"
-        overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]">
+        <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Chuyển quyền trưởng nhóm</h2>
             {loadingMembers ? (
@@ -330,6 +350,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   value={newAdminUserId}
                   onChange={(e) => setNewAdminUserId(e.target.value)}
+                  disabled={isProcessing}
                 >
                   <option value="">Chọn một thành viên</option>
                   {groupMembers.map((member) => (
@@ -342,15 +363,16 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
                   <button
                     onClick={handleCloseTransferAdminModal}
                     className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded focus:outline-none focus:shadow-outline mr-2"
+                    disabled={isProcessing}
                   >
                     Hủy
                   </button>
                   <button
                     onClick={handleTransferAdmin}
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                    disabled={!newAdminUserId}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:bg-blue-300"
+                    disabled={!newAdminUserId || isProcessing}
                   >
-                    Chuyển quyền
+                    {isProcessing ? "Đang xử lý..." : "Chuyển quyền"}
                   </button>
                 </div>
               </>
