@@ -12,15 +12,13 @@ import {
   offConversationUpdate,
   joinConversation,
 } from "../../../services/sockets/events/conversation";
+import {
+  onChatInfoUpdated,
+  offChatInfoUpdated,
+} from "../../../services/sockets/events/chatInfo";
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
-
-import SibarContact from "../contact-form/SideBarContact/SideBarContact";
-import GroupList from "../contact-form/GroupList";
-import FriendRequests from "../contact-form/FriendRequests";
-import GroupInvites from "../contact-form/GroupInvites";
-import ContactList from "../contact-form/ContactList";
-
 import { Api_Profile } from "../../../../apis/api_profile";
+import SibarContact from "../contact-form/SideBarContact/SideBarContact";
 
 const cx = classNames.bind(styles);
 
@@ -28,11 +26,24 @@ function ChatList({ activeTab }) {
   const [messages, setMessages] = useState([]);
   const [selectedTab, setSelectedTab] = useState("priority");
   const dispatch = useDispatch();
-
   const { socket, userId: currentUserId } = useSocket();
+
+  // Cloud của tôi item
+  const myCloudItem = {
+    id: "my-cloud",
+    name: "Cloud của tôi",
+    avatar:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s",
+    type: "cloud",
+    lastMessage: "Lưu trữ tin nhắn và file cá nhân",
+    isCall: false,
+    time: "",
+    isCloud: true,
+  };
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
+    console.log(`Chọn conversation: ${message.id}`);
     if (message.id !== "my-cloud") {
       joinConversation(socket, message.id);
     }
@@ -40,47 +51,38 @@ function ChatList({ activeTab }) {
   };
 
   const handleTabClick = (tab) => {
+    console.log(`Chuyển tab: ${tab}`);
     setSelectedTab(tab);
   };
 
-  // Cloud của tôi item
-  const myCloudItem = {
-    id: "my-cloud",
-    name: "Cloud của tôi",
-    avatar:
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s", // Hoặc link avatar của bạn
-    type: "cloud",
-    lastMessage: "Lưu trữ tin nhắn và file cá nhân",
-    isCall: false,
-    time: "",
-    isCloud: true, // Thêm flag để xác định đây là cloud item
-  };
-
-  // Load and listen for conversations
+  // Load và cập nhật conversations
   useEffect(() => {
-    if (!socket || !currentUserId) return;
+    if (!socket || !currentUserId) {
+      console.warn("Thiếu socket hoặc userId");
+      return;
+    }
 
     const handleConversations = async (conversations) => {
-      console.log("Conversations sfdfds:", conversations);
+      console.log("Nhận conversations:", conversations);
 
-      // Lấy ra userId của người còn lại trong các cuộc trò chuyện cá nhân
+      // Lấy profile của các user còn lại
       const otherParticipantIds = conversations
         .map((conversation) => {
           const other = conversation.participants.find(
             (p) => p.userId !== currentUserId
           );
-          return other?.userId; // chỉ lấy nếu có
+          return other?.userId;
         })
-        .filter(Boolean); // loại bỏ undefined
+        .filter(Boolean);
 
-      // Lấy profile của các user còn lại
       const profiles = await Promise.all(
         otherParticipantIds.map(async (userId) => {
           try {
-            return await Api_Profile.getProfile(userId);
+            const response = await Api_Profile.getProfile(userId);
+            return response?.data?.user || null;
           } catch (error) {
             console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
-            return null; // fallback nếu lỗi
+            return null;
           }
         })
       );
@@ -94,6 +96,7 @@ function ChatList({ activeTab }) {
     };
 
     const handleConversationUpdate = (updatedConversation) => {
+      console.log("Cập nhật conversation:", updatedConversation);
       setMessages((prevMessages) => {
         const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === updatedConversation.conversationId) {
@@ -130,12 +133,38 @@ function ChatList({ activeTab }) {
       });
     };
 
+    // Cập nhật trạng thái pin và mute từ chatInfo
+    const handleChatInfoUpdated = (updatedInfo) => {
+      console.log("Nhận cập nhật chatInfo:", updatedInfo);
+      setMessages((prevMessages) => {
+        return prevMessages.map((msg) => {
+          if (msg.id === updatedInfo._id) {
+            const participant = updatedInfo.participants?.find(
+              (p) => p.userId === currentUserId
+            );
+            return {
+              ...msg,
+              participants: updatedInfo.participants || msg.participants,
+              name: updatedInfo.name || msg.name,
+              isGroup: updatedInfo.isGroup ?? msg.isGroup,
+              isPinned: participant?.isPinned || false,
+              mute: participant?.mute || false,
+            };
+          }
+          return msg;
+        });
+      });
+    };
+
     const cleanupLoad = loadAndListenConversations(socket, handleConversations);
     onConversationUpdate(socket, handleConversationUpdate);
+    onChatInfoUpdated(socket, handleChatInfoUpdated);
 
     return () => {
+      console.log("Gỡ sự kiện socket");
       cleanupLoad();
       offConversationUpdate(socket);
+      offChatInfoUpdated(socket);
     };
   }, [socket, currentUserId]);
 
@@ -170,8 +199,6 @@ function ChatList({ activeTab }) {
           </button>
         </div>
       )}
-
-      {/* Thêm cloud ở đây */}
 
       <div className="flex-grow text-gray-700 overflow-auto">
         {activeTab === "/chat" && (
