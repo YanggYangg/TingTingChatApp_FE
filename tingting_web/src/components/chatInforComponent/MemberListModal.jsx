@@ -1,13 +1,13 @@
-// Path: src/components/chatInforComponent/MemberListModal.js
 import React, { useEffect, useState } from "react";
 import Modal from "react-modal";
 import { Api_Profile } from "../../../apis/api_profile";
-import { removeParticipant, onError } from "../../services/sockets/events/chatInfo";
+import { removeParticipant, onError, onChatInfoUpdated, offChatInfoUpdated } from "../../services/sockets/events/chatInfo";
 import { onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
 import { FaTrash } from "react-icons/fa";
 
 const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onMemberRemoved }) => {
   const [memberDetails, setMemberDetails] = useState({});
+  const [participants, setParticipants] = useState([]); // State để lưu danh sách thành viên
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [errorDetails, setErrorDetails] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -18,27 +18,52 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
     }
   }, []);
 
+  // Khởi tạo participants từ chatInfo và kiểm tra vai trò admin
   useEffect(() => {
-    const checkAdminStatus = () => {
-      if (chatInfo?.participants && currentUserId) {
-        const adminMember = chatInfo.participants.find(
+    if (chatInfo?.participants) {
+      setParticipants(chatInfo.participants); // Khởi tạo danh sách thành viên từ props
+
+      // Kiểm tra vai trò admin
+      const adminMember = chatInfo.participants.find(
+        (member) => member.userId === currentUserId && member.role === "admin"
+      );
+      setIsAdmin(!!adminMember);
+    } else {
+      setParticipants([]);
+      setIsAdmin(false);
+    }
+  }, [chatInfo, currentUserId]);
+
+  // Lắng nghe sự kiện chatInfoUpdated để cập nhật danh sách thành viên
+  useEffect(() => {
+    if (!socket || !isOpen) return;
+
+    const handleChatInfoUpdated = (updatedInfo) => {
+      if (updatedInfo.conversationId === chatInfo?._id) {
+        setParticipants(updatedInfo.participants || []); // Cập nhật danh sách thành viên
+        // Kiểm tra lại vai trò admin sau khi danh sách thay đổi
+        const adminMember = updatedInfo.participants?.find(
           (member) => member.userId === currentUserId && member.role === "admin"
         );
         setIsAdmin(!!adminMember);
-      } else {
-        setIsAdmin(false);
       }
     };
-    checkAdminStatus();
-  }, [chatInfo, currentUserId]);
 
+    onChatInfoUpdated(socket, handleChatInfoUpdated);
+
+    return () => {
+      offChatInfoUpdated(socket);
+    };
+  }, [socket, isOpen, chatInfo?._id, currentUserId]);
+
+  // Lấy thông tin chi tiết của thành viên
   useEffect(() => {
     const fetchMemberDetails = async () => {
-      if (chatInfo?.participants) {
+      if (participants.length > 0) {
         setLoadingDetails(true);
         setErrorDetails(null);
         const details = {};
-        const fetchPromises = chatInfo.participants.map(async (member) => {
+        const fetchPromises = participants.map(async (member) => {
           try {
             const response = await Api_Profile.getProfile(member.userId);
             if (response?.data?.user) {
@@ -62,12 +87,12 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
       }
     };
 
-    if (isOpen && chatInfo) {
+    if (isOpen && participants.length > 0) {
       fetchMemberDetails();
     } else {
       setMemberDetails({});
     }
-  }, [isOpen, chatInfo]);
+  }, [isOpen, participants]);
 
   const handleRemoveMember = async (memberIdToRemove) => {
     if (isAdmin && currentUserId !== memberIdToRemove) {
@@ -116,8 +141,6 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
     };
   }, [socket]);
 
-  if (!chatInfo?.participants) return null;
-
   return (
     <Modal
       isOpen={isOpen}
@@ -126,7 +149,7 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
       overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]"
     >
       <h2 className="text-lg font-bold mb-3">
-        Thành viên ({chatInfo.participants.length || 0})
+        Thành viên ({participants.length || 0})
       </h2>
 
       {loadingDetails ? (
@@ -135,7 +158,7 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
         <p className="text-red-500">{errorDetails}</p>
       ) : (
         <ul className="max-h-80 overflow-y-auto">
-          {chatInfo.participants.map((member) => (
+          {participants.map((member) => (
             <li key={member.userId} className="py-2 border-b last:border-none flex items-center justify-between">
               <div className="flex items-center">
                 <img
