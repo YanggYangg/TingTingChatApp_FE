@@ -8,7 +8,7 @@ import {
   offChatInfoUpdated,
   hideChat,
   deleteChatHistoryForMe,
-  leaveGroup,
+  removeParticipant,
   transferGroupAdmin,
   onError,
 } from "../../services/sockets/events/chatInfo";
@@ -168,7 +168,7 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
     if (confirmLeave) {
       setIsProcessing(true);
       try {
-        leaveGroup(socket, { conversationId, userId }, (response) => {
+        removeParticipant(socket, { conversationId, userId }, (response) => {
           if (response.success) {
             alert("Bạn đã rời khỏi nhóm!");
             setChatInfo((prevChatInfo) => ({
