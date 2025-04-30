@@ -2,10 +2,11 @@
 import React, { useEffect, useState } from "react";
 import Modal from "react-modal";
 import { Api_Profile } from "../../../apis/api_profile";
-import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import { removeParticipant, onError } from "../../services/sockets/events/chatInfo";
+import { onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
 import { FaTrash } from "react-icons/fa";
 
-const MemberListModal = ({ isOpen, onClose, chatInfo, currentUserId, onMemberRemoved }) => {
+const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onMemberRemoved }) => {
   const [memberDetails, setMemberDetails] = useState({});
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [errorDetails, setErrorDetails] = useState(null);
@@ -21,7 +22,7 @@ const MemberListModal = ({ isOpen, onClose, chatInfo, currentUserId, onMemberRem
     const checkAdminStatus = () => {
       if (chatInfo?.participants && currentUserId) {
         const adminMember = chatInfo.participants.find(
-          (member) => member.userId === currentUserId && member.role === 'admin'
+          (member) => member.userId === currentUserId && member.role === "admin"
         );
         setIsAdmin(!!adminMember);
       } else {
@@ -73,10 +74,29 @@ const MemberListModal = ({ isOpen, onClose, chatInfo, currentUserId, onMemberRem
       const confirmRemove = window.confirm(`Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?`);
       if (confirmRemove) {
         try {
-          await Api_chatInfo.removeParticipant(chatInfo._id, { userId: memberIdToRemove });
-          if (onMemberRemoved) {
-            onMemberRemoved(memberIdToRemove);
-          }
+          removeParticipant(socket, { conversationId: chatInfo._id, userId: memberIdToRemove }, (response) => {
+            if (response.success) {
+              if (onMemberRemoved) {
+                onMemberRemoved(memberIdToRemove);
+              }
+            } else {
+              alert("Lỗi khi xóa thành viên: " + response.message);
+            }
+          });
+
+          // Lắng nghe cập nhật cuộc trò chuyện
+          onConversationUpdate(socket, (data) => {
+            if (data.conversationId === chatInfo._id) {
+              if (onMemberRemoved) {
+                onMemberRemoved(memberIdToRemove);
+              }
+            }
+          });
+
+          // Lắng nghe lỗi
+          onError(socket, (error) => {
+            alert("Lỗi khi xóa thành viên: " + error.message);
+          });
         } catch (error) {
           console.error("Lỗi khi xóa thành viên:", error);
           alert("Lỗi khi xóa thành viên. Vui lòng thử lại.");
@@ -88,6 +108,13 @@ const MemberListModal = ({ isOpen, onClose, chatInfo, currentUserId, onMemberRem
       alert("Bạn không có quyền xóa thành viên khỏi nhóm này.");
     }
   };
+
+  useEffect(() => {
+    return () => {
+      offConversationUpdate(socket);
+      socket.off("error");
+    };
+  }, [socket]);
 
   if (!chatInfo?.participants) return null;
 

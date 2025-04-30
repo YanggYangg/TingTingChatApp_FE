@@ -1,11 +1,21 @@
+// Path: src/components/chatInforComponent/SecuritySettings.js
 import React, { useState, useEffect, useCallback } from "react";
 import Switch from "react-switch";
 import { FaTrash, FaDoorOpen, FaSignOutAlt, FaUserShield } from "react-icons/fa";
-import axios from "axios";
-import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_Profile } from "../../../apis/api_profile";
+import {
+  getChatInfo,
+  onChatInfo,
+  offChatInfo,
+  hideChat,
+  deleteChatHistoryForMe,
+  removeParticipant,
+  transferGroupAdmin,
+  onError,
+} from "../../services/sockets/events/chatInfo";
+import { onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
 
-const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup, chatInfo }) => {
+const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRoleInGroup, chatInfo }) => {
   const [isHidden, setIsHidden] = useState(false);
   const [pin, setPin] = useState("");
   const [showPinInput, setShowPinInput] = useState(false);
@@ -19,46 +29,72 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
   const fetchChatInfo = useCallback(async () => {
     try {
       setLoadingMembers(true);
-      const response = await axios.get(`http://localhost:5000/conversations/${conversationId}`);
-      setIsGroup(response.data.isGroup);
-      const participant = response.data.participants.find((p) => p.userId === userId);
-      setIsHidden(participant ? participant.isHidden : false);
+      getChatInfo(socket, { conversationId }, (response) => {
+        if (response.success) {
+          const data = response.data;
+          setIsGroup(data.isGroup);
+          const participant = data.participants.find((p) => p.userId === userId);
+          setIsHidden(participant ? participant.isHidden : false);
 
-      // Lấy thông tin chi tiết của các thành viên khác
-      const members = response.data.participants.filter((p) => p.userId !== userId);
-      const detailedMembers = await Promise.all(
-        members.map(async (p) => {
-          try {
-            const userResponse = await Api_Profile.getProfile(p.userId);
-            const userData = userResponse?.data?.user || {};
-            return {
-              userId: p.userId,
-              name: `${userData.firstname || ''} ${userData.surname || ''}`.trim() || p.userId,
-            };
-          } catch (error) {
-            console.error(`Lỗi khi lấy thông tin người dùng ${p.userId}:`, error);
-            return {
-              userId: p.userId,
-              name: p.userId,
-            };
-          }
-        })
-      );
+          // Lấy thông tin chi tiết của các thành viên khác
+          const members = data.participants.filter((p) => p.userId !== userId);
+          Promise.all(
+            members.map(async (p) => {
+              try {
+                const userResponse = await Api_Profile.getProfile(p.userId);
+                const userData = userResponse?.data?.user || {};
+                return {
+                  userId: p.userId,
+                  name: `${userData.firstname || ''} ${userData.surname || ''}`.trim() || p.userId,
+                };
+              } catch (error) {
+                console.error(`Lỗi khi lấy thông tin người dùng ${p.userId}:`, error);
+                return {
+                  userId: p.userId,
+                  name: p.userId,
+                };
+              }
+            })
+          ).then((detailedMembers) => {
+            setGroupMembers(detailedMembers);
+            setLoadingMembers(false);
+          });
 
-      setGroupMembers(detailedMembers);
-      setLoadingMembers(false);
+          // Cập nhật chatInfo
+          setChatInfo(data);
+        } else {
+          console.error("Lỗi khi lấy thông tin cuộc trò chuyện:", response.message);
+          setLoadingMembers(false);
+        }
+      });
 
-      // Cập nhật chatInfo để đảm bảo vai trò người dùng được làm mới
-      setChatInfo(response.data);
+      // Lắng nghe thông tin chat
+      onChatInfo(socket, (data) => {
+        setIsGroup(data.isGroup);
+        const participant = data.participants.find((p) => p.userId === userId);
+        setIsHidden(participant ? participant.isHidden : false);
+        setChatInfo(data);
+      });
+
+      // Lắng nghe lỗi
+      onError(socket, (error) => {
+        console.error("Lỗi từ server:", error.message);
+        setLoadingMembers(false);
+      });
     } catch (error) {
       console.error("Lỗi khi lấy thông tin cuộc trò chuyện:", error);
       setLoadingMembers(false);
     }
-  }, [conversationId, userId, setChatInfo]);
+  }, [socket, conversationId, userId, setChatInfo]);
 
   useEffect(() => {
     fetchChatInfo();
-  }, [fetchChatInfo]);
+
+    return () => {
+      offChatInfo(socket);
+      socket.off("error");
+    };
+  }, [fetchChatInfo, socket]);
 
   const handleToggle = async (checked) => {
     if (checked && !isHidden) {
@@ -70,10 +106,15 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
 
   const handleHideChat = async (hide, pin) => {
     try {
-      await Api_chatInfo.hideChat(conversationId, { userId, isHidden: hide, pin });
-      setIsHidden(hide);
-      setShowPinInput(false);
-      setPin("");
+      hideChat(socket, { conversationId, isHidden: hide, pin }, (response) => {
+        if (response.success) {
+          setIsHidden(hide);
+          setShowPinInput(false);
+          setPin("");
+        } else {
+          alert("Lỗi khi ẩn/hiện trò chuyện: " + response.message);
+        }
+      });
     } catch (error) {
       console.error("Lỗi khi ẩn/hiện trò chuyện:", error);
       alert("Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.");
@@ -90,8 +131,13 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
 
   const handleDeleteHistory = async () => {
     try {
-      await Api_chatInfo.deleteConversationHistory(conversationId);
-      alert("Đã xóa lịch sử trò chuyện!");
+      deleteChatHistoryForMe(socket, { conversationId }, (response) => {
+        if (response.success) {
+          alert("Đã xóa lịch sử trò chuyện!");
+        } else {
+          alert("Lỗi khi xóa lịch sử trò chuyện: " + response.message);
+        }
+      });
     } catch (error) {
       console.error("Lỗi khi xóa lịch sử trò chuyện:", error);
       alert("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
@@ -109,12 +155,26 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
     const confirmLeave = window.confirm("Bạn có chắc chắn muốn rời khỏi nhóm này không?");
     if (confirmLeave) {
       try {
-        await Api_chatInfo.removeParticipant(conversationId, { userId });
-        alert("Bạn đã rời khỏi nhóm!");
-        setChatInfo((prevChatInfo) => ({
-          ...prevChatInfo,
-          participants: prevChatInfo?.participants?.filter((p) => p.userId !== userId) || [],
-        }));
+        removeParticipant(socket, { conversationId, userId }, (response) => {
+          if (response.success) {
+            alert("Bạn đã rời khỏi nhóm!");
+            setChatInfo((prevChatInfo) => ({
+              ...prevChatInfo,
+              participants: prevChatInfo?.participants?.filter((p) => p.userId !== userId) || [],
+            }));
+          } else {
+            alert("Lỗi khi rời nhóm: " + response.message);
+          }
+        });
+
+        onConversationUpdate(socket, (data) => {
+          if (data.conversationId === conversationId) {
+            setChatInfo((prevChatInfo) => ({
+              ...prevChatInfo,
+              participants: prevChatInfo?.participants?.filter((p) => p.userId !== userId) || [],
+            }));
+          }
+        });
       } catch (error) {
         console.error("Lỗi khi rời nhóm:", error);
       }
@@ -131,8 +191,8 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
     );
     if (confirmDisband) {
       try {
-        await Api_chatInfo.disbandGroup(conversationId, { userId });
-        alert("Nhóm đã được giải tán!");
+        // Giải tán nhóm không có API trực tiếp qua socket, bạn có thể cần thêm handler trong chatInfoSocket.js
+        alert("Chức năng giải tán nhóm chưa được triển khai qua socket!");
       } catch (error) {
         console.error("Lỗi khi giải tán nhóm:", error);
         alert("Lỗi khi giải tán nhóm. Vui lòng thử lại.");
@@ -155,20 +215,22 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
       return;
     }
     try {
-      await Api_chatInfo.transferGroupAdmin(conversationId, {
-        requesterUserId: userId,
-        newAdminUserId,
+      transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
+        if (response.success) {
+          fetchChatInfo();
+          alert("Quyền trưởng nhóm đã được chuyển!");
+          handleCloseTransferAdminModal();
+        } else {
+          alert("Chuyển quyền trưởng nhóm không thành công: " + response.message);
+          fetchChatInfo();
+        }
       });
-      // Làm mới toàn bộ dữ liệu
-      await fetchChatInfo();
-      alert("Quyền trưởng nhóm đã được chuyển!");
-      handleCloseTransferAdminModal();
     } catch (err) {
       console.error("Lỗi khi chuyển quyền trưởng nhóm:", err);
       alert("Chuyển quyền trưởng nhóm không thành công. Vui lòng thử lại.");
-      await fetchChatInfo(); // Làm mới dữ liệu ngay cả khi có lỗi
+      fetchChatInfo();
     }
-  }, [conversationId, userId, newAdminUserId, handleCloseTransferAdminModal, fetchChatInfo]);
+  }, [socket, conversationId, newAdminUserId, handleCloseTransferAdminModal, fetchChatInfo]);
 
   return (
     <div className="mb-4">
@@ -247,7 +309,7 @@ const SecuritySettings = ({ conversationId, userId, setChatInfo, userRoleInGroup
       )}
 
       {showTransferAdminModal && (
-        <div className="fixed inset-0  flex justify-center items-center"
+        <div className="fixed inset-0 flex justify-center items-center"
         overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Chuyển quyền trưởng nhóm</h2>

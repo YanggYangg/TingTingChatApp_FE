@@ -2,28 +2,49 @@
 import React, { useState, useEffect } from "react";
 import MemberListModal from "./MemberListModal";
 import CommonGroupsModal from "./CommonGroupsModal";
-import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import { getCommonGroups, onCommonGroups, offCommonGroups, onError } from "../../services/sockets/events/chatInfo";
 
-const GroupMemberList = ({ chatInfo, userId, onMemberRemoved }) => {
+const GroupMemberList = ({ socket, chatInfo, userId, onMemberRemoved }) => {
   const [isMemberModalOpen, setMemberModalOpen] = useState(false);
   const [isGroupModalOpen, setGroupModalOpen] = useState(false);
   const [commonGroups, setCommonGroups] = useState([]);
 
   useEffect(() => {
-    const fetchCommonGroups = async () => {
+    if (!socket || !chatInfo?._id) return;
+
+    const fetchCommonGroups = () => {
       if (!chatInfo?.isGroup && chatInfo?._id) {
-        try {
-          const res = await Api_chatInfo.getCommonGroups(chatInfo._id);
-          setCommonGroups(res?.commonGroups || []);
-        } catch (err) {
-          console.error("Lỗi khi lấy nhóm chung", err);
-          setCommonGroups([]);
-        }
+        // Gửi yêu cầu lấy nhóm chung qua socket
+        getCommonGroups(socket, { conversationId: chatInfo._id }, (response) => {
+          if (response.success) {
+            setCommonGroups(response.data.commonGroups || []);
+          } else {
+            console.error("Lỗi khi lấy nhóm chung:", response.message);
+            setCommonGroups([]);
+          }
+        });
       }
     };
 
+    // Lắng nghe danh sách nhóm chung
+    onCommonGroups(socket, (data) => {
+      setCommonGroups(data.commonGroups || []);
+    });
+
+    // Lắng nghe lỗi từ server
+    onError(socket, (error) => {
+      console.error("Lỗi từ server:", error.message);
+      setCommonGroups([]);
+    });
+
     fetchCommonGroups();
-  }, [chatInfo]);
+
+    // Cleanup khi component unmount
+    return () => {
+      offCommonGroups(socket);
+      socket.off("error");
+    };
+  }, [socket, chatInfo]);
 
   const handleOpenMemberModal = () => {
     setMemberModalOpen(true);
@@ -56,6 +77,7 @@ const GroupMemberList = ({ chatInfo, userId, onMemberRemoved }) => {
       )}
 
       <MemberListModal
+        socket={socket}
         isOpen={isMemberModalOpen}
         onClose={handleCloseMemberModal}
         chatInfo={chatInfo}

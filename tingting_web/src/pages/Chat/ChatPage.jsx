@@ -51,6 +51,8 @@ function ChatPage() {
   const socketCloud = useCloudSocket();
   const currUserId = localStorage.getItem("userId");
 
+  console.log("Current socket:", socket);
+
   const receiverId = selectedMessage?.participants?.find(
     (p) => p.userId !== currentUserId
   )?.userId;
@@ -307,11 +309,11 @@ function ChatPage() {
 
   const selectedChat = selectedMessage
     ? {
-        id: selectedMessageId,
-        name: chatDetails.name,
-        avatar: chatDetails.avatar,
-        type: selectedMessage.type || "personal",
-      }
+      id: selectedMessageId,
+      name: chatDetails.name,
+      avatar: chatDetails.avatar,
+      type: selectedMessage.type || "personal",
+    }
     : null;
 
   const formatTime = (createdAt) => {
@@ -662,9 +664,8 @@ function ChatPage() {
       {selectedChat ? (
         <div className={`flex w-full transition-all duration-300`}>
           <div
-            className={`flex flex-col h-screen transition-all duration-300 ${
-              isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
-            }`}
+            className={`flex flex-col h-screen transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
+              }`}
           >
             {selectedChat.type === "cloud" ? (
               <ChatHeaderCloud
@@ -781,6 +782,7 @@ function ChatPage() {
               <ChatInfo
                 userId={currentUserId}
                 conversationId={conversationId}
+                socket={socket}
               />
             </div>
           )}

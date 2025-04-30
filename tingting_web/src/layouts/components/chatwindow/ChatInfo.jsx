@@ -8,18 +8,29 @@ import GroupFile from "../../../components/chatInforComponent/GroupFile";
 import GroupLinks from "../../../components/chatInforComponent/GroupLinks";
 import SecuritySettings from "../../../components/chatInforComponent/SecuritySettings";
 import MuteNotificationModal from "../../../components/chatInforComponent/MuteNotificationModal";
-import { Api_chatInfo } from "../../../../apis/Api_chatInfo";
 import AddMemberModal from "../../../components/chatInforComponent/AddMemberModal";
 import EditNameModal from "../../../components/chatInforComponent/EditNameModal";
 import CreateGroupModal from "../../../components/chatInforComponent/CreateGroupModal";
-import { Api_Profile } from "../../../../apis/api_profile";
+import {
+  getChatInfo,
+  onChatInfo,
+  offChatInfo,
+  onChatInfoUpdated,
+  offChatInfoUpdated,
+  updateChatName,
+  pinChat,
+  updateNotification,
+  onError,
+  offError,
+} from "../../../services/sockets/events/chatInfo"; // Import các hàm Socket.IO
 
-const ChatInfo = ({ userId, conversationId }) => {
+const ChatInfo = ({ userId, conversationId, socket }) => {
   const [chatInfo, setChatInfo] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
@@ -28,58 +39,63 @@ const ChatInfo = ({ userId, conversationId }) => {
 
   console.log("userId được truyền vào ChatInfo:", userId);
   console.log("conversationId được truyền vào ChatInfo:", conversationId);
+  console.log("socket trong ChatInfo:", socket);
 
   useEffect(() => {
-    const fetchChatInfo = async () => {
-      try {
-        const response = await Api_chatInfo.getChatInfo(conversationId);
-        setChatInfo(response);
-
-        const participant = response.participants.find((p) => p.userId === userId);
-        if (participant) {
-          setIsMuted(!!participant.mute);
-          setUserRoleInGroup(participant.role);
-        } else {
-          setIsMuted(false);
-          setUserRoleInGroup(null);
-        }
-
-        if (!response.isGroup) {
-          const otherParticipant = response.participants.find((p) => p.userId !== userId);
-          if (otherParticipant?.userId) {
-            try {
-              const userResponse = await Api_Profile.getProfile(otherParticipant.userId);
-              setOtherUser(userResponse?.data?.user);
-            } catch (error) {
-              console.error("Lỗi khi lấy thông tin người dùng khác:", error);
-              setOtherUser({ firstname: "Không tìm thấy", surname: "" });
-            }
-          }
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Lỗi khi lấy thông tin chat:", error);
-        setLoading(false);
-      }
-    };
-
-    if (conversationId) {
-      fetchChatInfo();
+    if (!socket || !conversationId) {
+      setLoading(false);
+      return;
     }
-  }, [conversationId, userId]);
 
-  const handleMemberAdded = async () => {
-    try {
-      const updatedChatInfo = await Api_chatInfo.getChatInfo(conversationId);
-      setChatInfo(updatedChatInfo);
-      const participant = updatedChatInfo.participants.find((p) => p.userId === userId);
+    // Lấy thông tin chat ban đầu
+    getChatInfo(socket, { conversationId });
+
+    // Lắng nghe thông tin chat
+    onChatInfo(socket, (chatInfo) => {
+      setChatInfo(chatInfo);
+      const participant = chatInfo.participants?.find((p) => p.userId === userId);
+      console.log("Thông tin người dùng:", participant);
       if (participant) {
-        setUserRoleInGroup(participant.role);
+        setIsMuted(!!participant.mute);
+        setIsPinned(!!participant.isPinned);
+        setUserRoleInGroup(participant.role || null);
       }
-    } catch (error) {
-      console.error("Lỗi khi cập nhật chatInfo sau khi thêm thành viên:", error);
-    }
+      setLoading(false);
+    });
+
+    // Lắng nghe cập nhật chat info (thời gian thực)
+    onChatInfoUpdated(socket, (updatedInfo) => {
+      setChatInfo((prev) => ({
+        ...prev,
+        ...updatedInfo,
+        participants: updatedInfo.participants || prev.participants,
+        name: updatedInfo.name || prev.name,
+      }));
+      const participant = updatedInfo.participants?.find((p) => p.userId === userId);
+      if (participant) {
+        setIsMuted(!!participant.mute);
+        setIsPinned(!!participant.isPinned);
+        setUserRoleInGroup(participant.role || null);
+      }
+    });
+
+    // Lắng nghe lỗi
+    onError(socket, (error) => {
+      console.error("Lỗi từ server:", error);
+      setLoading(false);
+    });
+
+    // Cleanup khi component unmount
+    return () => {
+      offChatInfo(socket);
+      offChatInfoUpdated(socket);
+      offError(socket);
+    };
+  }, [socket, conversationId, userId]);
+
+  const handleMemberAdded = () => {
+    // Cập nhật lại thông tin chat sau khi thêm thành viên
+    getChatInfo(socket, { conversationId });
   };
 
   const handleMemberRemoved = (removedUserId) => {
@@ -89,20 +105,10 @@ const ChatInfo = ({ userId, conversationId }) => {
     }));
   };
 
-  if (loading) {
-    return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
-  }
-
-  if (!chatInfo) {
-    return <p className="text-center text-red-500">Không thể tải thông tin chat.</p>;
-  }
-
   const handleMuteNotification = () => {
     if (isMuted) {
-      Api_chatInfo
-        .updateNotification(conversationId, { userId, mute: null })
-        .then(() => setIsMuted(false))
-        .catch((error) => console.error("Lỗi khi bật thông báo:", error));
+      updateNotification(socket, { conversationId, mute: null });
+      setIsMuted(false);
     } else {
       setIsMuteModalOpen(true);
     }
@@ -112,21 +118,12 @@ const ChatInfo = ({ userId, conversationId }) => {
     setIsMuted(muted);
   };
 
-  const handlePinChat = async () => {
+  const handlePinChat = () => {
     if (!chatInfo) return;
 
-    try {
-      const newIsPinned = !chatInfo.isPinned;
-      await Api_chatInfo.pinChat(conversationId, { isPinned: newIsPinned, userId });
-      setChatInfo({ ...chatInfo, isPinned: newIsPinned });
-    } catch (error) {
-      console.error("Lỗi khi ghim/bỏ ghim cuộc trò chuyện:", error);
-      alert(
-        `Lỗi: ${
-          error.response?.data?.message || "Lỗi khi ghim/bỏ ghim cuộc trò chuyện."
-        }`
-      );
-    }
+    const newIsPinned = !isPinned;
+    pinChat(socket, { conversationId, isPinned: newIsPinned });
+    setIsPinned(newIsPinned);
   };
 
   const copyToClipboard = () => {
@@ -152,26 +149,24 @@ const ChatInfo = ({ userId, conversationId }) => {
     setConversations((prevConversations) => [...prevConversations, newGroup]);
   };
 
-  // Chỉ lấy danh sách userId của các thành viên hiện tại, bao gồm cả userId của người dùng hiện tại
-  const currentConversationParticipants = chatInfo?.participants
-    ?.map((p) => p.userId) || [];
-
   const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
   const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);
 
-  const handleSaveChatName = async (newName) => {
+  const handleSaveChatName = (newName) => {
     if (!chatInfo || !newName.trim()) return;
 
-    try {
-      await Api_chatInfo.updateChatName(conversationId, newName.trim());
-      setChatInfo({ ...chatInfo, name: newName.trim() });
-    } catch (error) {
-      console.error("Lỗi khi cập nhật tên:", error);
-      alert("Cập nhật tên thất bại, vui lòng thử lại.");
-    } finally {
-      handleCloseEditNameModal();
-    }
+    updateChatName(socket, { conversationId, name: newName.trim() });
+    setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
+    handleCloseEditNameModal();
   };
+
+  if (loading) {
+    return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
+  }
+
+  if (!chatInfo) {
+    return <p className="text-center text-red-500">Không thể tải thông tin chat.</p>;
+  }
 
   const chatTitle = chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại";
   const chatImage = chatInfo?.isGroup
@@ -208,29 +203,31 @@ const ChatInfo = ({ userId, conversationId }) => {
             )}
           </div>
         </div>
+      </div>
 
-        <div className="flex flex-nowrap justify-center gap-4 my-4">
-          <GroupActionButton
-            icon="mute"
-            text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
-            onClick={handleMuteNotification}
-          />
-          <GroupActionButton
-            icon="pin"
-            text={chatInfo?.isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
-            onClick={handlePinChat}
-          />
-          <GroupActionButton
-            icon="add"
-            text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
-            onClick={chatInfo?.isGroup ? handleAddMember : handleCreateGroupChat}
-          />
-        </div>
-
+      <div className="flex flex-nowrap justify-center gap-4 my-4">
+        <GroupActionButton
+          icon="mute"
+          text={isMuted ? "Bật thông báo" : "Tắt thông báo"}
+          onClick={handleMuteNotification}
+        />
+        <GroupActionButton
+          icon="pin"
+          text={isPinned ? "Bỏ ghim trò chuyện" : "Ghim cuộc trò chuyện"}
+          onClick={handlePinChat}
+        />
+        <GroupActionButton
+          icon="add"
+          text={chatInfo?.isGroup ? "Thêm thành viên" : "Tạo nhóm trò chuyện"}
+          onClick={chatInfo?.isGroup ? handleAddMember : handleCreateGroupChat}
+        />
+      </div>
+      {/*
         <GroupMemberList
           chatInfo={chatInfo}
           userId={userId}
           onMemberRemoved={handleMemberRemoved}
+          socket={socket} // Truyền socket xuống để xử lý xóa thành viên
         />
 
         {chatInfo?.linkGroup && (
@@ -248,24 +245,26 @@ const ChatInfo = ({ userId, conversationId }) => {
           </div>
         )}
 
-        <GroupMediaGallery conversationId={conversationId} userId={userId} />
-        <GroupFile conversationId={conversationId} userId={userId} />
-        <GroupLinks conversationId={conversationId} userId={userId} />
+        <GroupMediaGallery conversationId={conversationId} userId={userId} socket={socket} />
+        <GroupFile conversationId={conversationId} userId={userId} socket={socket} />
+        <GroupLinks conversationId={conversationId} userId={userId} socket={socket} />
         <SecuritySettings
           conversationId={conversationId}
           userId={userId}
           setChatInfo={setChatInfo}
           userRoleInGroup={userRoleInGroup}
           chatInfo={chatInfo}
+          socket={socket} // Truyền socket xuống để xử lý các hành động
         />
       </div>
-
+*/}
       <MuteNotificationModal
         isOpen={isMuteModalOpen}
         onClose={() => setIsMuteModalOpen(false)}
         conversationId={conversationId}
         userId={userId}
         onMuteSuccess={handleMuteSuccess}
+        socket={socket} // Truyền socket xuống để xử lý tắt thông báo
       />
       <EditNameModal
         isOpen={isEditNameModalOpen}
@@ -279,14 +278,16 @@ const ChatInfo = ({ userId, conversationId }) => {
         onClose={() => setIsAddModalOpen(false)}
         onMemberAdded={handleMemberAdded}
         userId={userId}
-        currentMembers={currentConversationParticipants}
+        currentMembers={chatInfo?.participants?.map((p) => p.userId) || []}
+        socket={socket} // Truyền socket xuống để xử lý thêm thành viên
       />
       <CreateGroupModal
         isOpen={isCreateGroupModalOpen}
         onClose={handleCloseCreateGroupModal}
         userId={userId}
         onGroupCreated={handleCreateGroupSuccess}
-        currentConversationParticipants={currentConversationParticipants}
+        currentConversationParticipants={chatInfo?.participants?.map((p) => p.userId) || []}
+        socket={socket} // Truyền socket xuống để xử lý tạo nhóm
       />
     </div>
   );
