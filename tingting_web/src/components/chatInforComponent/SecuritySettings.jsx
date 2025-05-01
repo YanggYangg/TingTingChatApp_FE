@@ -5,8 +5,8 @@ import { toast } from "react-toastify";
 import { Api_Profile } from "../../../apis/api_profile";
 import {
   getChatInfo,
-  onChatInfo,
-  offChatInfo,
+  onChatInfoUpdated, 
+  offChatInfoUpdated,
   hideChat,
   deleteChatHistoryForMe,
   removeParticipant,
@@ -35,6 +35,7 @@ const SecuritySettings = ({
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [showDisbandConfirm, setShowDisbandConfirm] = useState(false);
   const [isDisbanding, setIsDisbanding] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // Thêm trạng thái xử lý
   const isAdmin = userRoleInGroup === "admin";
 
   // Lấy thông tin chat
@@ -94,57 +95,77 @@ const SecuritySettings = ({
 
     fetchChatInfo();
 
-    onChatInfo(socket, (data) => {
-      setIsGroup(data.isGroup);
-      const participant = data.participants.find((p) => p.userId === userId);
-      setIsHidden(participant?.isHidden || false);
-      setChatInfo(data);
+  //   onChatInfo(socket, (data) => {
+  //     setIsGroup(data.isGroup);
+  //     const participant = data.participants.find((p) => p.userId === userId);
+  //     setIsHidden(participant?.isHidden || false);
+  //     setChatInfo(data);
+  //   });
+
+  //   onError(socket, (error) => {
+  //     console.error("Lỗi từ server:", error.message);
+  //     toast.error(error.message || "Lỗi hệ thống.");
+  //   });
+
+  //   return () => {
+  //     offChatInfo(socket);
+  //     offError(socket);
+  //   };
+  // }, [socket, conversationId, userId, fetchChatInfo, setChatInfo]);
+
+
+  
+    // Lắng nghe sự kiện chatInfoUpdated
+    onChatInfoUpdated(socket, (data) => {
+      console.log("Nhận chatInfoUpdated:", data); // Log để gỡ lỗi
+      if (data.conversationId === conversationId) {
+        setIsGroup(data.isGroup || false);
+        const participant = data.participants.find((p) => p.userId === userId);
+        setIsHidden(participant ? participant.isHidden : false);
+        setChatInfo(data);
+      }
     });
 
+    // Lắng nghe lỗi
     onError(socket, (error) => {
       console.error("Lỗi từ server:", error.message);
-      toast.error(error.message || "Lỗi hệ thống.");
+      setLoadingMembers(false);
+      setIsProcessing(false);
     });
 
     return () => {
-      offChatInfo(socket);
-      offError(socket);
+      offChatInfoUpdated(socket);
+      socket.off("error");
+      offConversationUpdate(socket);
     };
-  }, [socket, conversationId, userId, fetchChatInfo, setChatInfo]);
+  }, [fetchChatInfo, socket, conversationId]);
+  const handleToggle = async (checked) => {
+    if (checked && !isHidden) {
+      setShowPinInput(true);
+    } else {
+      await handleHideChat(checked, null);
+    }
+  };
 
-  // Xử lý ẩn/hiện trò chuyện
-  const handleToggleHideChat = useCallback(
-    async (checked) => {
-      if (checked && !isHidden) {
-        setShowPinInput(true);
-      } else {
-        await handleHideChat(checked, null);
-      }
-    },
-    [isHidden]
-  );
-
-  const handleHideChat = useCallback(
-    async (hide, pin) => {
-      try {
-        hideChat(socket, { conversationId, isHidden: hide, pin }, (response) => {
-          if (response.success) {
-            setIsHidden(hide);
-            setShowPinInput(false);
-            setPin("");
-            toast.success(hide ? "Đã ẩn trò chuyện!" : "Đã hiện trò chuyện!");
-          } else {
-            toast.error("Lỗi khi ẩn/hiện trò chuyện: " + response.message);
-          }
-        });
-      } catch (error) {
-        console.error("Lỗi khi ẩn/hiện trò chuyện:", error);
-        toast.error("Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.");
-      }
-    },
-    [socket, conversationId]
-  );
-
+  const handleHideChat = async (hide, pin) => {
+    setIsProcessing(true);
+    try {
+      hideChat(socket, { conversationId, isHidden: hide, pin }, (response) => {
+        if (response.success) {
+          setIsHidden(hide);
+          setShowPinInput(false);
+          setPin("");
+        } else {
+          alert("Lỗi khi ẩn/hiện trò chuyện: " + response.message);
+        }
+        setIsProcessing(false);
+      });
+    } catch (error) {
+      console.error("Lỗi khi ẩn/hiện trò chuyện:", error);
+      alert("Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.");
+      setIsProcessing(false);
+    }
+  };
   const handleSubmitPin = useCallback(() => {
     if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
       toast.error("Mã PIN phải là 4 chữ số!");
@@ -265,7 +286,7 @@ const SecuritySettings = ({
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm">Ẩn trò chuyện</span>
         <Switch
-          onChange={handleToggleHideChat}
+          onChange={handleToggle}
           checked={isHidden}
           offColor="#ccc"
           onColor="#3b82f6"
@@ -274,6 +295,7 @@ const SecuritySettings = ({
           height={22}
           width={44}
           handleDiameter={18}
+          disabled={isProcessing}
         />
       </div>
 
@@ -287,16 +309,17 @@ const SecuritySettings = ({
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
             placeholder="****"
+            disabled={isProcessing}
           />
           <button
             onClick={handleSubmitPin}
-            className="w-full mt-2 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition"
+            className="w-full mt-2 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition disabled:bg-blue-300"
+            disabled={isProcessing}
           >
-            Xác nhận
+            {isProcessing ? "Đang xử lý..." : "Xác nhận"}
           </button>
         </div>
       )}
-
       <button
         className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
         onClick={handleDeleteHistory}
