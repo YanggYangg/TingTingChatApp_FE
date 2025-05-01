@@ -54,43 +54,52 @@ function ChatList({ activeTab, onGroupCreated }) {
     console.log(`Chuyển tab: ${tab}`);
     setSelectedTab(tab);
   };
-  // Hàm thêm nhóm mới vào messages
-  const addNewGroup = async (newConversation) => {
-    console.log("Thêm nhóm mới:", newConversation);
+ // Hàm thêm nhóm mới vào messages
+ const addNewGroup = async (newConversation) => {
+  console.log("Thêm nhóm mới:", newConversation);
 
-    // Kiểm tra xem nhóm đã tồn tại chưa
-    if (messages.some((msg) => msg.id === newConversation._id)) {
-      console.log("Nhóm đã tồn tại, bỏ qua:", newConversation._id);
-      return;
-    }
+  // Kiểm tra xem nhóm đã tồn tại chưa
+  if (messages.some((msg) => msg.id === newConversation._id)) {
+    console.log("Nhóm đã tồn tại, bỏ qua:", newConversation._id);
+    return;
+  }
 
-    // Lấy profile của các thành viên trong nhóm
-    const participantIds = newConversation.participants
-      .map((p) => p.userId)
-      .filter((id) => id !== currentUserId);
+  // Lấy profile của các thành viên trong nhóm
+  const participantIds = newConversation.participants
+    .map((p) => p.userId)
+    .filter((id) => id !== currentUserId);
 
-    const profiles = await Promise.all(
-      participantIds.map(async (userId) => {
-        try {
-          const response = await Api_Profile.getProfile(userId);
-          return response?.data?.user || null;
-        } catch (error) {
-          console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
-          return null;
-        }
-      })
+  const profiles = await Promise.all(
+    participantIds.map(async (userId) => {
+      try {
+        const response = await Api_Profile.getProfile(userId);
+        return response?.data?.user || null;
+      } catch (error) {
+        console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
+        return null;
+      }
+    })
+  );
+
+  // Chuyển đổi nhóm mới thành định dạng message
+  const newMessage = transformConversationsToMessages(
+    [newConversation],
+    currentUserId,
+    profiles
+  )[0];
+
+  // Thêm nhóm mới vào đầu danh sách messages
+  setMessages((prevMessages) => {
+    const updatedMessages = [newMessage, ...prevMessages];
+    // Lọc trùng lặp dựa trên id
+    const uniqueMessages = Array.from(
+      new Map(updatedMessages.map((msg) => [msg.id, msg])).values()
     );
+    console.log("Updated unique messages:", uniqueMessages);
+    return uniqueMessages;
+  });
+};
 
-    // Chuyển đổi nhóm mới thành định dạng message
-    const newMessage = transformConversationsToMessages(
-      [newConversation],
-      currentUserId,
-      profiles
-    )[0];
-
-    // Thêm nhóm mới vào đầu danh sách messages
-    setMessages((prevMessages) => [newMessage, ...prevMessages]);
-  };
 
   // Load và cập nhật conversations
   useEffect(() => {
@@ -129,8 +138,14 @@ function ChatList({ activeTab, onGroupCreated }) {
         currentUserId,
         profiles
       );
-      setMessages(transformedMessages);
+      // Lọc trùng lặp khi load conversations
+      const uniqueMessages = Array.from(
+        new Map(transformedMessages.map((msg) => [msg.id, msg])).values()
+      );
+      console.log("Transformed unique messages:", uniqueMessages);
+      setMessages(uniqueMessages);
     };
+
 
     const handleConversationUpdate = (updatedConversation) => {
       console.log("Cập nhật conversation:", updatedConversation);
