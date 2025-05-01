@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Phone, MessageCircle } from "lucide-react";
-import { Api_Profile } from "../../../apis/api_profile"; // Adjust the import path as necessary
-import { useNavigate } from "react-router-dom";
+import { Phone, MessageCircle, Pin, BellOff } from "lucide-react";
+import { Api_Profile } from "../../../apis/api_profile";
 
-const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
+const MessageList = ({ messages, onMessageClick, userId }) => {
+  const [memberDetails, setMemberDetails] = useState({});
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [errorDetails, setErrorDetails] = useState(null);
+
+  // Hàm lấy tên conversation
   const getConversationName = (msg, memberDetails) => {
-    if (msg?.customName) return msg.customName; // Ưu tiên nếu có custom
+    if (msg?.customName) return msg.customName;
     if (msg?.isGroup) {
       return msg.name;
     } else if (msg?.participants) {
@@ -17,8 +21,9 @@ const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
     return "Unknown Conversation";
   };
 
+  // Hàm lấy avatar conversation
   const getConversationAvatar = (msg, memberDetails) => {
-    if (msg?.customAvatar) return msg.customAvatar; // Ưu tiên nếu có custom
+    if (msg?.customAvatar) return msg.customAvatar;
     if (msg?.isGroup && msg.imageGroup) {
       return msg.imageGroup;
     } else if (msg?.participants) {
@@ -33,66 +38,7 @@ const MessageItem = ({ message, userId, memberDetails, onMessageClick }) => {
     return "https://via.placeholder.com/150";
   };
 
-  return (
-    <div
-      key={message.id}
-      className="flex items-center justify-between p-2 rounded-lg transition hover:bg-[#dbebff] hover:text-black cursor-pointer"
-      onClick={() => onMessageClick(message)}
-    >
-      <div className="flex items-center space-x-3">
-        <div className="relative">
-          <img
-            src={getConversationAvatar(
-              message,
-              memberDetails?.[message.id]?.memberDetails
-            )}
-            alt={getConversationName(
-              message,
-              memberDetails?.[message.id]?.memberDetails
-            )}
-            className="w-12 h-12 rounded-full object-cover"
-          />
-          {message.isGroup && message.participants?.length > 2 && (
-            <span className="absolute -bottom-1 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-              {message.participants.length}
-            </span>
-          )}
-        </div>
-        <div className="w-40">
-          <div className="font-semibold truncate">
-            {getConversationName(
-              message,
-              memberDetails?.[message.id]?.memberDetails
-            )}
-          </div>
-          <div className="text-sm text-gray-400 flex items-center space-x-1">
-            {message.isCall ? (
-              <>
-                <Phone size={14} className="text-green-500" />
-                <span>Cuộc gọi thoại {message.missed ? "bỏ lỡ" : "đến"}</span>
-              </>
-            ) : (
-              <>
-                <MessageCircle size={14} className="text-blue-500" />
-                <span className="truncate">{message.lastMessage}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="text-xs text-gray-400 whitespace-nowrap">
-        {message.time}
-      </div>
-    </div>
-  );
-};
-
-const MessageList = ({ messages, onMessageClick, userId }) => {
-  console.log("MessageList received messages:", messages);
-  const [memberDetails, setMemberDetails] = useState({});
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [errorDetails, setErrorDetails] = useState(null);
-
+  // Lấy thông tin thành viên
   useEffect(() => {
     const fetchMemberDetails = async () => {
       setLoadingDetails(true);
@@ -186,9 +132,15 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
 
   return (
     <div className="w-full max-w-md mx-auto bg-white text-black p-2">
+      {loadingDetails && (
+        <p className="text-center text-gray-500">Đang tải thông tin...</p>
+      )}
+      {errorDetails && (
+        <p className="text-center text-red-500">{errorDetails}</p>
+      )}
       {messages &&
         messages.map((msg, index) => {
-          // Gán avatar và name đặc biệt nếu là item đầu tiên
+          // Gán custom props cho "Cloud của tôi"
           const customProps =
             index === 0
               ? {
@@ -198,14 +150,71 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
                 }
               : {};
 
+          // Kiểm tra trạng thái pin và mute
+          const isPinned = msg.participants?.find(
+            (p) => p.userId === userId
+          )?.isPinned;
+          const isMuted = msg.participants?.find(
+            (p) => p.userId === userId
+          )?.mute;
+
           return (
-            <MessageItem
+            <div
               key={msg.id}
-              message={{ ...msg, ...customProps }} // gán thêm prop
-              userId={userId}
-              memberDetails={memberDetails}
-              onMessageClick={onMessageClick}
-            />
+              className="flex items-center justify-between p-2 rounded-lg transition hover:bg-[#dbebff] hover:text-black cursor-pointer"
+              onClick={() => onMessageClick(msg)}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <img
+                    src={getConversationAvatar(
+                      { ...msg, ...customProps },
+                      memberDetails?.[msg.id]?.memberDetails
+                    )}
+                    alt={getConversationName(
+                      { ...msg, ...customProps },
+                      memberDetails?.[msg.id]?.memberDetails
+                    )}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                  {msg.isGroup && msg.participants?.length > 2 && (
+                    <span className="absolute -bottom-1 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                      {msg.participants.length}
+                    </span>
+                  )}
+                </div>
+                <div className="w-40">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-semibold truncate">
+                      {getConversationName(
+                        { ...msg, ...customProps },
+                        memberDetails?.[msg.id]?.memberDetails
+                      )}
+                    </span>
+                    {isPinned && <Pin size={14} className="text-yellow-500" />}
+                    {isMuted && <BellOff size={14} className="text-gray-500" />}
+                  </div>
+                  <div className="text-sm text-gray-400 flex items-center space-x-1">
+                    {msg.isCall ? (
+                      <>
+                        <Phone size={14} className="text-green-500" />
+                        <span>
+                          Cuộc gọi thoại {msg.missed ? "bỏ lỡ" : "đến"}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle size={14} className="text-blue-500" />
+                        <span className="truncate">{msg.lastMessage}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-gray-400 whitespace-nowrap">
+                {msg.time}
+              </div>
+            </div>
           );
         })}
     </div>
