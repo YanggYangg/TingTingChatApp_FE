@@ -97,6 +97,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     onChatInfo(socket, handleOnChatInfo);
 
     const handleOnChatInfoUpdated = (updatedInfo) => {
+      console.log("Nhận sự kiện chatInfoUpdated trong ChatInfo:", updatedInfo);
       setChatInfo((prev) => ({
         ...prev,
         ...updatedInfo,
@@ -240,11 +241,13 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const handleSaveChatName = (newName) => {
     if (!chatInfo || !newName.trim()) return;
 
+    // Gửi sự kiện socket để cập nhật tên nhóm
     updateChatName(socket, { conversationId, name: newName.trim() });
+    
+    // Cập nhật local state ngay lập tức để giao diện phản ánh thay đổi
     setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
     handleCloseEditNameModal();
   };
-
   if (loading) {
     return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
   }

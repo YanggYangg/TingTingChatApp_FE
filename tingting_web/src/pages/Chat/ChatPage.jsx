@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import ChatInfo from "../../layouts/components/chatwindow/ChatInfo";
 import { useSelector, useDispatch } from "react-redux";
 import { clearSelectedMessage } from "../../redux/slices/chatSlice";
@@ -17,6 +17,7 @@ import ShareModal from "../../components/chat/ShareModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_Profile } from "../../../apis/api_profile";
 import ConfirmModal from "../../components/ConfirmModal";
+import { onChatInfoUpdated, offChatInfoUpdated } from "../../services/sockets/events/chatInfo";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -68,8 +69,6 @@ function ChatPage() {
 
   const conversationId = selectedMessageId;
 
-
-  
   // Hàm lấy thông tin người dùng từ API và lưu vào cache
   const fetchUserInfo = async (userId) => {
     if (userCache[userId]) {
@@ -216,138 +215,174 @@ function ChatPage() {
     }
   }, [socketCloud, selectedMessageId, currUserId]);
 
-  // Xử lý socket events
+  // Xử lý socket events cho tin nhắn và cập nhật tên nhóm
   useEffect(() => {
-    if (socket && selectedMessageId && selectedMessageId !== "my-cloud") {
-      socket.emit("joinConversation", { conversationId: selectedMessageId });
-
-      socket.on("loadMessages", (data) => {
-        setMessages(data);
-        console.log("Loaded messages:", data);
+    if (!socket || !selectedMessageId || selectedMessageId === "my-cloud") {
+      console.warn("Không xử lý socket events: thiếu socket hoặc selectedMessageId:", {
+        socket: !!socket,
+        selectedMessageId,
       });
+      return;
+    }
 
-      socket.on("receiveMessage", (newMessage) => {
-        setMessages((prevMessages) => {
-          if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
-            return [...prevMessages, newMessage];
-          }
-          return prevMessages;
-        });
-      });
+    console.log("Tham gia phòng trong ChatPage:", selectedMessageId);
+    socket.emit("joinConversation", { conversationId: selectedMessageId });
 
-      // Nhận tin nhắn từ cuộc gọi (newMessage từ callHandler.js)
-      socket.on("newMessage", (newMessage) => {
-        console.log("Received newMessage:", newMessage);
-        // Xử lý conversationId có thể là object hoặc string
-        const messageConversationId = newMessage.conversationId?._id
-          ? newMessage.conversationId._id.toString()
-          : newMessage.conversationId.toString();
-        console.log("Comparing conversationId:", {
-          messageConversationId,
-          selectedMessageId,
-        });
+    socket.on("loadMessages", (data) => {
+      setMessages(data);
+      console.log("Loaded messages:", data);
+    });
 
-        if (messageConversationId === selectedMessageId) {
-          setMessages((prevMessages) => {
-            if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
-              console.log("Adding newMessage to messages:", newMessage);
-              return [...prevMessages, newMessage];
-            }
-            console.log("Message already exists:", newMessage._id);
-            return prevMessages;
-          });
-        } else {
-          console.log(
-            "New message for different conversation:",
-            messageConversationId,
-            "Current selected:",
-            selectedMessageId
-          );
-          // (Tùy chọn) Cập nhật selectedMessageId nếu cần
-          // dispatch(selectConversation(messageConversationId));
+    socket.on("receiveMessage", (newMessage) => {
+      setMessages((prevMessages) => {
+        if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
+          return [...prevMessages, newMessage];
         }
+        return prevMessages;
+      });
+    });
+
+    socket.on("newMessage", (newMessage) => {
+      console.log("Received newMessage:", newMessage);
+      const messageConversationId = newMessage.conversationId?._id
+        ? newMessage.conversationId._id.toString()
+        : newMessage.conversationId.toString();
+      console.log("Comparing conversationId:", {
+        messageConversationId,
+        selectedMessageId,
       });
 
-      // Xác nhận tin nhắn đã gửi
-      socket.on("messageSent", (newMessage) => {
+      if (messageConversationId === selectedMessageId) {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
+            console.log("Adding newMessage to messages:", newMessage);
             return [...prevMessages, newMessage];
           }
+          console.log("Message already exists:", newMessage._id);
           return prevMessages;
         });
-      });
+      }
+    });
 
-      socket.on("messageDeleted", ({ messageId }) => {
-        setMessages((prevMessages) =>
-          prevMessages.filter((msg) => msg._id !== messageId)
-        );
+    socket.on("messageSent", (newMessage) => {
+      setMessages((prevMessages) => {
+        if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
+          return [...prevMessages, newMessage];
+        }
+        return prevMessages;
       });
+    });
 
-      socket.on("messageRevoked", ({ messageId }) => {
+    socket.on("messageDeleted", ({ messageId }) => {
+      setMessages((prevMessages) =>
+        prevMessages.filter((msg) => msg._id !== messageId)
+      );
+    });
+
+    socket.on("messageRevoked", ({ messageId }) => {
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === messageId ? { ...msg, isRevoked: true } : msg
+        )
+      );
+    });
+
+    socket.on("chatHistoryDeleted", ({ conversationId }) => {
+      if (conversationId === selectedMessageId) {
         setMessages((prevMessages) =>
-          prevMessages.map((msg) =>
-            msg._id === messageId ? { ...msg, isRevoked: true } : msg
+          prevMessages.filter(
+            (msg) => !msg.deletedBy?.includes(currentUserId)
           )
         );
-      });
+      }
+    });
 
-
-       // Lắng nghe sự kiện chatHistoryDeleted
-       socket.on("chatHistoryDeleted", ({ conversationId }) => {
-        if (conversationId === selectedMessageId) {
-          setMessages((prevMessages) =>
-            prevMessages.filter(
-              (msg) => !msg.deletedBy?.includes(currentUserId)
-            )
+    socket.on("conversationUpdated", ({ conversationId, lastMessage }) => {
+      if (conversationId === selectedMessageId) {
+        setMessages((prevMessages) => {
+          const updatedMessages = prevMessages.filter(
+            (msg) => !msg.deletedBy?.includes(currentUserId)
           );
-        }
-      });
+          if (lastMessage && !updatedMessages.some((msg) => msg._id === lastMessage._id)) {
+            return [...updatedMessages, lastMessage];
+          }
+          return updatedMessages;
+        });
+      }
+    });
 
-      // Lắng nghe sự kiện conversationUpdated
-      socket.on("conversationUpdated", ({ conversationId, lastMessage }) => {
-        if (conversationId === selectedMessageId) {
-          setMessages((prevMessages) => {
-            const updatedMessages = prevMessages.filter(
-              (msg) => !msg.deletedBy?.includes(currentUserId)
-            );
-            if (lastMessage && !updatedMessages.some((msg) => msg._id === lastMessage._id)) {
-              return [...updatedMessages, lastMessage];
-            }
-            return updatedMessages;
-          });
-        }
-      });
+    socket.on("error", (error) => {
+      console.error("Socket error:", error);
+    });
 
-      // Xử lý lỗi
-      socket.on("error", (error) => {
-        console.error("Socket error:", error);
-      });
-
-      return () => {
-        socket.off("loadMessages");
-        socket.off("receiveMessage");
-        socket.off("messageSent");
-        socket.off("newMessage");
-        socket.off("messageDeleted");
-        socket.off("messageRevoked");
-        socket.off("chatHistoryDeleted");
-        socket.off("conversationUpdated");
-        socket.off("error");
-      };
-    }
+    return () => {
+      console.log("Gỡ socket events trong ChatPage");
+      socket.off("loadMessages");
+      socket.off("receiveMessage");
+      socket.off("messageSent");
+      socket.off("newMessage");
+      socket.off("messageDeleted");
+      socket.off("messageRevoked");
+      socket.off("chatHistoryDeleted");
+      socket.off("conversationUpdated");
+      socket.off("error");
+    };
   }, [socket, selectedMessageId, currentUserId]);
 
-
-
-  const selectedChat = selectedMessage
-    ? {
-      id: selectedMessageId,
-      name: chatDetails.name,
-      avatar: chatDetails.avatar,
-      type: selectedMessage.type || "personal",
+  // Xử lý sự kiện chatInfoUpdated
+  useEffect(() => {
+    if (!socket || !selectedMessageId || selectedMessageId === "my-cloud") {
+      console.warn("Không xử lý chatInfoUpdated: thiếu socket hoặc selectedMessageId:", {
+        socket: !!socket,
+        selectedMessageId,
+      });
+      return;
     }
-    : null;
+
+    console.log("Tham gia phòng cho chatInfoUpdated:", selectedMessageId);
+    socket.emit("joinConversation", { conversationId: selectedMessageId });
+
+    const handleChatInfoUpdated = (updatedInfo) => {
+      console.log("Nhận sự kiện chatInfoUpdated trong ChatPage:", updatedInfo);
+      const infoId = updatedInfo._id || updatedInfo.conversationId;
+      console.log("So sánh selectedMessageId:", selectedMessageId, "với infoId:", infoId);
+      if (infoId === selectedMessageId) {
+        setChatDetails((prev) => {
+          const newDetails = {
+            ...prev,
+            name: updatedInfo.name || prev.name,
+            avatar: updatedInfo.imageGroup || prev.avatar,
+            members: updatedInfo.participants?.length || prev.members,
+          };
+          console.log("Cập nhật chatDetails:", newDetails);
+          return newDetails;
+        });
+      } else {
+        console.log("Sự kiện chatInfoUpdated không khớp với selectedMessageId");
+      }
+    };
+
+    onChatInfoUpdated(socket, handleChatInfoUpdated);
+
+    return () => {
+      console.log("Gỡ sự kiện chatInfoUpdated trong ChatPage");
+      offChatInfoUpdated(socket);
+    };
+}, [socket, selectedMessageId]);
+
+  // Tối ưu selectedChat với useMemo
+  const selectedChat = useMemo(
+    () =>
+      selectedMessage
+        ? {
+            id: selectedMessageId,
+            name: chatDetails.name,
+            avatar: chatDetails.avatar,
+            type: selectedMessage.type || "personal",
+          }
+        : null,
+    [selectedMessage, selectedMessageId, chatDetails.name, chatDetails.avatar]
+  );
 
   const formatTime = (createdAt) => {
     return new Date(createdAt).toLocaleTimeString([], {
@@ -697,8 +732,9 @@ function ChatPage() {
       {selectedChat ? (
         <div className={`flex w-full transition-all duration-300`}>
           <div
-            className={`flex flex-col h-screen transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
-              }`}
+            className={`flex flex-col h-screen transition-all duration-300 ${
+              isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
+            }`}
           >
             {selectedChat.type === "cloud" ? (
               <ChatHeaderCloud
