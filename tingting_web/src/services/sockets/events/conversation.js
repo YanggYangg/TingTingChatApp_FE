@@ -35,3 +35,12 @@ export const onConversationUpdate = (socket, callback) => {
 export const offConversationUpdate = (socket) => {
     socket.off('conversationUpdated');
 };
+
+export const onConversationRemoved = (socket, callback) => {
+    socket.on('conversationRemoved', callback);
+}
+
+export const offConversationRemoved = (socket) => {
+    socket.off('conversationRemoved');
+}
+

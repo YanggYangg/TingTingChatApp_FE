@@ -223,6 +223,17 @@ export const offError = (socket) => {
   socket.off("error");
 };
 
+// Gửi yêu cầu giải tán nhóm (đã có trong mã của bạn)
 export const disbandGroup = (socket, data, callback) => {
   socket.emit("disbandGroup", data, callback);
+};
+
+// Lắng nghe sự kiện nhóm bị giải tán
+export const onGroupDisbanded = (socket, callback) => {
+  socket.on("groupDisbanded", callback);
+};
+
+// Ngừng lắng nghe sự kiện nhóm bị giải tán
+export const offGroupDisbanded = (socket) => {
+  socket.off("groupDisbanded");
 };
