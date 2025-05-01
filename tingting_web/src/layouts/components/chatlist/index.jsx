@@ -54,43 +54,43 @@ function ChatList({ activeTab, onGroupCreated }) {
     console.log(`Chuyển tab: ${tab}`);
     setSelectedTab(tab);
   };
-    // Hàm thêm nhóm mới vào messages
-    const addNewGroup = async (newConversation) => {
-      console.log("Thêm nhóm mới:", newConversation);
-  
-      // Kiểm tra xem nhóm đã tồn tại chưa
-      if (messages.some((msg) => msg.id === newConversation._id)) {
-        console.log("Nhóm đã tồn tại, bỏ qua:", newConversation._id);
-        return;
-      }
-  
-      // Lấy profile của các thành viên trong nhóm
-      const participantIds = newConversation.participants
-        .map((p) => p.userId)
-        .filter((id) => id !== currentUserId);
-  
-      const profiles = await Promise.all(
-        participantIds.map(async (userId) => {
-          try {
-            const response = await Api_Profile.getProfile(userId);
-            return response?.data?.user || null;
-          } catch (error) {
-            console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
-            return null;
-          }
-        })
-      );
-  
-      // Chuyển đổi nhóm mới thành định dạng message
-      const newMessage = transformConversationsToMessages(
-        [newConversation],
-        currentUserId,
-        profiles
-      )[0];
-  
-      // Thêm nhóm mới vào đầu danh sách messages
-      setMessages((prevMessages) => [newMessage, ...prevMessages]);
-    };
+  // Hàm thêm nhóm mới vào messages
+  const addNewGroup = async (newConversation) => {
+    console.log("Thêm nhóm mới:", newConversation);
+
+    // Kiểm tra xem nhóm đã tồn tại chưa
+    if (messages.some((msg) => msg.id === newConversation._id)) {
+      console.log("Nhóm đã tồn tại, bỏ qua:", newConversation._id);
+      return;
+    }
+
+    // Lấy profile của các thành viên trong nhóm
+    const participantIds = newConversation.participants
+      .map((p) => p.userId)
+      .filter((id) => id !== currentUserId);
+
+    const profiles = await Promise.all(
+      participantIds.map(async (userId) => {
+        try {
+          const response = await Api_Profile.getProfile(userId);
+          return response?.data?.user || null;
+        } catch (error) {
+          console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Chuyển đổi nhóm mới thành định dạng message
+    const newMessage = transformConversationsToMessages(
+      [newConversation],
+      currentUserId,
+      profiles
+    )[0];
+
+    // Thêm nhóm mới vào đầu danh sách messages
+    setMessages((prevMessages) => [newMessage, ...prevMessages]);
+  };
 
   // Load và cập nhật conversations
   useEffect(() => {
@@ -181,6 +181,7 @@ function ChatList({ activeTab, onGroupCreated }) {
       onGroupCreated(addNewGroup); // Đăng ký hàm addNewGroup để Search gọi
     }
     // Cập nhật trạng thái pin và mute từ chatInfo
+
     const handleChatInfoUpdated = (updatedInfo) => {
       console.log("Nhận cập nhật chatInfo:", updatedInfo);
       setMessages((prevMessages) => {
@@ -207,40 +208,40 @@ function ChatList({ activeTab, onGroupCreated }) {
     const cleanupLoad = loadAndListenConversations(socket, handleConversations);
     onConversationUpdate(socket, handleConversationUpdate);
     onChatInfoUpdated(socket, handleChatInfoUpdated);
+    socket.on("newGroupConversation", handleNewGroupConversation);
 
     return () => {
       console.log("Gỡ sự kiện socket");
       cleanupLoad();
       offConversationUpdate(socket);
       offChatInfoUpdated(socket);
+      socket.off("newGroupConversation", handleNewGroupConversation);
     };
-  }, [socket, currentUserId]);
+  }, [socket, currentUserId, onGroupCreated]);
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
       {/* Thanh tìm kiếm */}
       <div className="p-2 bg-white shadow-md">
-      <SearchCompo onGroupCreated={(groupData) => addNewGroup(groupData)} />
+        <SearchCompo onGroupCreated={(groupData) => addNewGroup(groupData)} />
       </div>
 
       {activeTab === "/chat" && (
         <div className="flex justify-start space-x-4 px-4 py-2 border-b">
           <button
-            className={`font-semibold px-2 ${
-              selectedTab === "priority"
+            className={`font-semibold px-2 ${selectedTab === "priority"
                 ? "text-blue-600 border-b-2 border-blue-600"
                 : "text-gray-600"
-            }`}
+              }`}
             onClick={() => handleTabClick("priority")}
           >
             Ưu tiên
           </button>
           <button
-            className={`font-semibold px-2 ${
-              selectedTab === "others"
+            className={`font-semibold px-2 ${selectedTab === "others"
                 ? "text-blue-600 border-b-2 border-blue-600"
                 : "text-gray-600"
-            }`}
+              }`}
             onClick={() => handleTabClick("others")}
           >
             Khác
