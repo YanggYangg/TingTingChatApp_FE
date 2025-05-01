@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaSearch, FaUserFriends, FaUsers, FaCamera } from "react-icons/fa";
 import { Api_Profile } from "../../../apis/api_profile";
 import { Api_FriendRequest } from "../../../apis/api_friendRequest";
+import CreateGroup from "./CreateGroup";
+import { useSocket } from "../../contexts/SocketContext"; // Import socket from context or wherever it's defined
+
 
 function Search() {
   const [isModalFriendsOpen, setIsModalFriendsOpen] = useState(false);
-  // const [isModalGroupsOpen, setIsModalGroupsOpen] = useState(false);
-
+  const [isModalCreateGroupOpen, setIsModalCreateGroupOpen] = useState(false);
   const [phone, setPhone] = useState("");
   const [searchValue, setSearchValue] = useState("");
   const [allUsers, setAllUsers] = useState([]);
@@ -20,6 +22,7 @@ function Search() {
   const [friendList, setFriendList] = useState([]);
   const inputRef = useRef(null);
 
+  const { socket } = useSocket(); // Get socket from context
   const toggleFriendsModal = () => {
     setIsModalFriendsOpen(!isModalFriendsOpen);
     setSearchValue("");
@@ -32,10 +35,16 @@ function Search() {
     setSelectedUser(user);
   };
 
-  const toggleGroupsModal = () => {
-    setIsModalGroupsOpen(!isModalGroupsOpen);
-  };
 
+  // Toggle CreateGroup modal
+  const toggleCreateGroupModal = () => {
+    setIsModalCreateGroupOpen(!isModalCreateGroupOpen);
+  };
+  // Callback for when a group is created (optional)
+  const handleGroupCreated = (groupData) => {
+    console.log("Group created:", groupData);
+    // Add logic to update UI if needed (e.g., add group to a list)
+  };
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -183,7 +192,7 @@ function Search() {
 
   //     console.log("Số điện thoại người dùng hiện tại:", currentUserPhone);
 
-     
+
   //     await Api_FriendRequest.sendFriendRequest({
   //       requesterPhone: currentUserPhone,
   //       recipientPhone: selectedUser?.phone || "",
@@ -213,20 +222,20 @@ function Search() {
   const handleFriendRequest = async () => {
     const userId = localStorage.getItem("userId");
     if (!userId || !selectedUser || !selectedUser._id) return;
-  
+
     const existingRequest = friendRequests[selectedUser._id];
-  
+
     try {
       const userPhoneRes = await Api_Profile.getUserPhone(userId);
       const currentUserPhone = userPhoneRes.phone;
-  
+
       if (existingRequest && existingRequest.status === "pending" && existingRequest.isRequester) {
         // Nếu đã gửi lời mời => thu hồi
         await Api_FriendRequest.cancelFriendRequest({
           requesterId: userId,
           recipientId: selectedUser._id,
         });
-  
+
         // Xóa trạng thái lời mời khỏi state
         setFriendRequests((prev) => {
           const updated = { ...prev };
@@ -239,7 +248,7 @@ function Search() {
           requesterPhone: currentUserPhone,
           recipientPhone: selectedUser.phone,
         });
-  
+
         setFriendRequests((prev) => ({
           ...prev,
           [selectedUser._id]: {
@@ -249,7 +258,7 @@ function Search() {
           },
         }));
       }
-  
+
       // Refresh dữ liệu
       setRefreshTrigger((prev) => prev + 1);
     } catch (err) {
@@ -257,7 +266,7 @@ function Search() {
     }
   };
 
-  
+
   const handleRespondRequest = async (requestId, action) => {
     try {
       const userId = localStorage.getItem("userId");
@@ -321,11 +330,11 @@ function Search() {
         size={20}
         onClick={toggleFriendsModal}
       />
-      {/* <FaUsers
+      <FaUsers
         className="text-gray-500 mx-2 cursor-pointer"
         size={20}
-        onClick={toggleGroupsModal}
-      /> */}
+        onClick={toggleCreateGroupModal} // Trigger CreateGroup modal
+      />
 
       {/* Modal tìm kiếm bạn bè */}
       {isModalFriendsOpen && (
@@ -483,111 +492,71 @@ function Search() {
             }
             </div> */}
 
-{selectedUser && (
-  <div className="flex justify-end space-x-2 mt-4">
-    {friendRequests[selectedUser._id] ? (
-      friendRequests[selectedUser._id].status === "pending" ? (
-        friendRequests[selectedUser._id].isRequester ? (
-          <button
-            onClick={handleFriendRequest}
-            className="px-4 py-2 bg-red-500 text-white rounded"
-          >
-            Thu hồi lời mời
-          </button>
-        ) : (
-          <>
-            <button
-              className="bg-green-500 text-white px-4 py-2 rounded"
-              onClick={() =>
-                handleRespondRequest(
-                  friendRequests[selectedUser._id].requestId,
-                  "accepted"
-                )
-              }
-            >
-              Chấp nhận
-            </button>
-            <button
-              className="bg-red-500 text-white px-4 py-2 rounded"
-              onClick={() =>
-                handleRespondRequest(
-                  friendRequests[selectedUser._id].requestId,
-                  "rejected"
-                )
-              }
-            >
-              Từ chối
-            </button>
-          </>
-        )
-      ) : friendRequests[selectedUser._id].status === "accepted" ? (
-        <button className="bg-green-500 text-white px-4 py-2 rounded">
-          Đã là bạn bè
-        </button>
-      ) : null
-    ) : (
-      <button
-        onClick={handleFriendRequest}
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-      >
-        Kết bạn
-      </button>
-    )}
-  </div>
-)}
+            {selectedUser && (
+              <div className="flex justify-end space-x-2 mt-4">
+                {friendRequests[selectedUser._id] ? (
+                  friendRequests[selectedUser._id].status === "pending" ? (
+                    friendRequests[selectedUser._id].isRequester ? (
+                      <button
+                        onClick={handleFriendRequest}
+                        className="px-4 py-2 bg-red-500 text-white rounded"
+                      >
+                        Thu hồi lời mời
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="bg-green-500 text-white px-4 py-2 rounded"
+                          onClick={() =>
+                            handleRespondRequest(
+                              friendRequests[selectedUser._id].requestId,
+                              "accepted"
+                            )
+                          }
+                        >
+                          Chấp nhận
+                        </button>
+                        <button
+                          className="bg-red-500 text-white px-4 py-2 rounded"
+                          onClick={() =>
+                            handleRespondRequest(
+                              friendRequests[selectedUser._id].requestId,
+                              "rejected"
+                            )
+                          }
+                        >
+                          Từ chối
+                        </button>
+                      </>
+                    )
+                  ) : friendRequests[selectedUser._id].status === "accepted" ? (
+                    <button className="bg-green-500 text-white px-4 py-2 rounded">
+                      Đã là bạn bè
+                    </button>
+                  ) : null
+                ) : (
+                  <button
+                    onClick={handleFriendRequest}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Kết bạn
+                  </button>
+                )}
+              </div>
+            )}
 
           </div>
         </div>
       )}
 
-      {/* Modal tạo nhóm
-      {isModalGroupsOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
-            <h2 className="text-xl font-semibold mb-4 text-black">Tạo nhóm</h2>
-
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="relative w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center cursor-pointer">
-                <FaCamera className="text-gray-500" size={18} />
-              </div>
-              <input
-                type="text"
-                placeholder="Nhập tên nhóm..."
-                className="flex-grow border-b border-gray-300 focus:outline-none py-1 text-gray-700"
-              />
-            </div>
-
-            <div className="relative mb-3">
-              <FaSearch
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                size={16}
-              />
-              <input
-                type="text"
-                placeholder="Nhập tên, số điện thoại..."
-                className="w-full pl-10 p-2 border border-gray-300 rounded-full text-gray-600 focus:outline-none"
-              />
-            </div>
-
-            <div className="text-gray-500 space-y-2">
-              <h3>Nguyen Thi Quynh Giang</h3>
-              <h3>Nguyen Thi Quynh Giang</h3>
-            </div>
-
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                className="bg-gray-300 px-4 py-2 rounded"
-                onClick={toggleGroupsModal}
-              >
-                Hủy
-              </button>
-              <button className="bg-blue-500 text-white px-4 py-2 rounded">
-                Tạo nhóm
-              </button>
-            </div>
-          </div>
-        </div>
-      )} */}
+     {/* Modal tạo nhóm */}
+     <CreateGroup
+        isOpen={isModalCreateGroupOpen}
+        onClose={toggleCreateGroupModal}
+        onGroupCreated={handleGroupCreated}
+        userId={localStorage.getItem("userId")}
+        socket={socket}
+      />
     </div>
   );
 }
