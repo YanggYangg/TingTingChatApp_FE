@@ -18,6 +18,10 @@ const MessageItem = ({
   onRevoke,
   messages,
 }) => {
+  // Kiểm tra nếu tin nhắn đã bị xóa bởi người dùng hiện tại
+  if (msg.deletedBy?.includes(currentUserId)) {
+    return null;
+  }
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
 
@@ -47,7 +51,9 @@ const MessageItem = ({
   const isImage = msg.messageType === "image";
   const isVideo = msg.messageType === "video";
   const isFile = msg.messageType === "file";
-  const isText = msg.messageType === "text";
+  const isCall = msg.messageType === "call";
+  const isReply = msg.messageType === "reply";
+  const isText = msg.messageType === "text" && !msg.replyMessageId;
 
   const handleMediaClick = () => {
     if (isImage || isVideo) {

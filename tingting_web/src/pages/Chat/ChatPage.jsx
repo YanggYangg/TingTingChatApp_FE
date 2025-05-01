@@ -68,6 +68,8 @@ function ChatPage() {
 
   const conversationId = selectedMessageId;
 
+
+  
   // Hàm lấy thông tin người dùng từ API và lưu vào cache
   const fetchUserInfo = async (userId) => {
     if (userCache[userId]) {
@@ -290,6 +292,33 @@ function ChatPage() {
         );
       });
 
+
+       // Lắng nghe sự kiện chatHistoryDeleted
+       socket.on("chatHistoryDeleted", ({ conversationId }) => {
+        if (conversationId === selectedMessageId) {
+          setMessages((prevMessages) =>
+            prevMessages.filter(
+              (msg) => !msg.deletedBy?.includes(currentUserId)
+            )
+          );
+        }
+      });
+
+      // Lắng nghe sự kiện conversationUpdated
+      socket.on("conversationUpdated", ({ conversationId, lastMessage }) => {
+        if (conversationId === selectedMessageId) {
+          setMessages((prevMessages) => {
+            const updatedMessages = prevMessages.filter(
+              (msg) => !msg.deletedBy?.includes(currentUserId)
+            );
+            if (lastMessage && !updatedMessages.some((msg) => msg._id === lastMessage._id)) {
+              return [...updatedMessages, lastMessage];
+            }
+            return updatedMessages;
+          });
+        }
+      });
+
       // Xử lý lỗi
       socket.on("error", (error) => {
         console.error("Socket error:", error);
@@ -302,10 +331,14 @@ function ChatPage() {
         socket.off("newMessage");
         socket.off("messageDeleted");
         socket.off("messageRevoked");
+        socket.off("chatHistoryDeleted");
+        socket.off("conversationUpdated");
         socket.off("error");
       };
     }
-  }, [socket, selectedMessageId]);
+  }, [socket, selectedMessageId, currentUserId]);
+
+
 
   const selectedChat = selectedMessage
     ? {

@@ -257,7 +257,7 @@ function ChatList({ activeTab, onGroupCreated }) {
       socket.off("newGroupConversation", handleNewGroupConversation);
       offConversationRemoved(socket); 
     };
-  }, [socket, currentUserId, onGroupCreated]);
+  }, [socket, currentUserId, onGroupCreated, dispatch]);
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">

@@ -158,6 +158,7 @@ const SecuritySettings = ({
     try {
       deleteChatHistoryForMe(socket, { conversationId }, (response) => {
         if (response.success) {
+          alert("Xóa thành công!");
           toast.success("Đã xóa lịch sử trò chuyện!");
         } else {
           toast.error("Lỗi khi xóa lịch sử: " + response.message);
@@ -176,7 +177,7 @@ const SecuritySettings = ({
       return;
     }
 
-    setShowDisbandConfirm(false); // Đảm bảo đóng modal giải tán nếu mở
+    setShowDisbandConfirm(false);
     const confirm = window.confirm("Bạn có chắc chắn muốn rời khỏi nhóm này không?");
     if (!confirm) return;
 
@@ -190,15 +191,6 @@ const SecuritySettings = ({
           }));
         } else {
           toast.error("Lỗi khi rời nhóm: " + response.message);
-        }
-      });
-
-      onConversationUpdate(socket, (data) => {
-        if (data.conversationId === conversationId) {
-          setChatInfo((prev) => ({
-            ...prev,
-            participants: prev.participants.filter((p) => p.userId !== userId),
-          }));
         }
       });
     } catch (error) {
@@ -270,7 +262,6 @@ const SecuritySettings = ({
     <div className="mb-4">
       <h3 className="text-md font-semibold mb-2">Thiết lập bảo mật</h3>
 
-      {/* Ẩn trò chuyện */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm">Ẩn trò chuyện</span>
         <Switch
@@ -306,7 +297,6 @@ const SecuritySettings = ({
         </div>
       )}
 
-      {/* Xóa lịch sử */}
       <button
         className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
         onClick={handleDeleteHistory}
@@ -317,7 +307,6 @@ const SecuritySettings = ({
 
       {isGroup && (
         <>
-          {/* Rời nhóm */}
           <button
             className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
             onClick={handleLeaveGroup}
@@ -328,7 +317,6 @@ const SecuritySettings = ({
 
           {isAdmin && (
             <>
-              {/* Chuyển quyền trưởng nhóm */}
               <button
                 className="w-full text-blue-500 text-left flex items-center gap-2 mt-2"
                 onClick={handleOpenTransferAdminModal}
@@ -337,7 +325,6 @@ const SecuritySettings = ({
                 Chuyển quyền trưởng nhóm
               </button>
 
-              {/* Giải tán nhóm */}
               <button
                 className="w-full text-red-600 text-left flex items-center gap-2 mt-2"
                 onClick={handleDisbandGroup}
@@ -351,7 +338,6 @@ const SecuritySettings = ({
         </>
       )}
 
-      {/* Modal chuyển quyền trưởng nhóm */}
       {showTransferAdminModal && (
         <div className="fixed inset-0 flex items-center justify-center">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
@@ -402,10 +388,8 @@ const SecuritySettings = ({
         </div>
       )}
 
-      {/* Modal xác nhận giải tán nhóm */}
       {showDisbandConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center "
-        overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]">
+        <div className="fixed inset-0 flex items-center justify-center">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận giải tán nhóm</h2>
             <p className="mb-4">
