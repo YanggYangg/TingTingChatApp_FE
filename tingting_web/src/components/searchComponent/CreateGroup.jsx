@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaSearch, FaTimes, FaCamera } from "react-icons/fa";
 import { Api_FriendRequest } from "../../../apis/api_friendRequest";
-import {
-  onError,
-  offError,
-} from "../../services/sockets/events/chatInfo"; // Adjust path as needed
+import { onError, offError } from "../../services/sockets/events/chatInfo";
+import { toast } from "react-toastify";
 
 const CreateGroup = ({ isOpen, onClose, onGroupCreated, userId, socket }) => {
   const [groupName, setGroupName] = useState("");
@@ -100,7 +98,7 @@ const CreateGroup = ({ isOpen, onClose, onGroupCreated, userId, socket }) => {
         })),
       ],
       isGroup: true,
-      imageGroup: "https://via.placeholder.com/40?text=Group", // Default group image
+      imageGroup: "https://via.placeholder.com/40?text=Group",
       mute: null,
       isHidden: false,
       isPinned: false,
@@ -109,7 +107,18 @@ const CreateGroup = ({ isOpen, onClose, onGroupCreated, userId, socket }) => {
 
     socket.emit("createConversation", groupData, (response) => {
       if (response && response.success) {
-        alert("Tạo nhóm thành công!");
+        // Thay alert bằng toast
+        toast.success("Tạo nhóm thành công!", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+        });
+
         if (onGroupCreated) {
           onGroupCreated(response.data);
         }
@@ -214,6 +223,7 @@ const CreateGroup = ({ isOpen, onClose, onGroupCreated, userId, socket }) => {
               )}
               {selectedFriends.map((friend) => (
                 <div
+                  onClick={() => handleSelectFriend(friend)}
                   key={friend.id}
                   className="flex items-center justify-between bg-gray-100 rounded-full px-3 py-1"
                 >
@@ -250,11 +260,10 @@ const CreateGroup = ({ isOpen, onClose, onGroupCreated, userId, socket }) => {
           </button>
           <button
             onClick={handleCreateGroup}
-            className={`px-4 py-2 rounded text-white ${
-              createLoading || selectedFriends.length < 2
+            className={`px-4 py-2 rounded text-white ${createLoading || selectedFriends.length < 2
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-blue-500 hover:bg-blue-600"
-            }`}
+              }`}
             disabled={createLoading || selectedFriends.length < 2}
           >
             {createLoading ? "Đang tạo..." : "Tạo nhóm"}

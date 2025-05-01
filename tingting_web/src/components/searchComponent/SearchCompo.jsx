@@ -6,7 +6,7 @@ import CreateGroup from "./CreateGroup";
 import { useSocket } from "../../contexts/SocketContext"; // Import socket from context or wherever it's defined
 
 
-function Search() {
+function Search({ onGroupCreated }) {
   const [isModalFriendsOpen, setIsModalFriendsOpen] = useState(false);
   const [isModalCreateGroupOpen, setIsModalCreateGroupOpen] = useState(false);
   const [phone, setPhone] = useState("");
@@ -43,8 +43,9 @@ function Search() {
   // Callback for when a group is created (optional)
   const handleGroupCreated = (groupData) => {
     console.log("Group created:", groupData);
-    // Add logic to update UI if needed (e.g., add group to a list)
+    onGroupCreated(groupData); // Gọi prop để truyền nhóm mới lên ChatList
   };
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
