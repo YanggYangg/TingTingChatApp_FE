@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import classNames from "classnames/bind";
 import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
@@ -32,8 +32,8 @@ function ChatList({ activeTab, onGroupCreated }) {
   const [userCache, setUserCache] = useState({});
   const dispatch = useDispatch();
   const { socket, userId: currentUserId } = useSocket();
+  const joinedRoomsRef = useRef(new Set()); // Lưu trữ các phòng đã tham gia
 
-  // Cloud của tôi item
   const myCloudItem = {
     id: "my-cloud",
     name: "Cloud của tôi",
@@ -46,11 +46,11 @@ function ChatList({ activeTab, onGroupCreated }) {
     isCloud: true,
   };
 
-  // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
     console.log(`ChatList: Chọn conversation: ${message.id}`);
     if (message.id !== "my-cloud") {
       joinConversation(socket, message.id);
+      joinedRoomsRef.current.add(message.id);
     }
     dispatch(setSelectedMessage(message));
   };
@@ -64,13 +64,11 @@ function ChatList({ activeTab, onGroupCreated }) {
   const addNewGroup = async (newConversation) => {
     console.log("ChatList: Thêm nhóm mới:", newConversation);
 
-    // Kiểm tra xem nhóm đã tồn tại chưa
     if (messages.some((msg) => msg.id === newConversation._id)) {
       console.log("ChatList: Nhóm đã tồn tại, bỏ qua:", newConversation._id);
       return;
     }
 
-    // Lấy profile của các thành viên trong nhóm
     const participantIds = newConversation.participants
       .map((p) => p.userId)
       .filter((id) => id !== currentUserId);
@@ -93,14 +91,14 @@ function ChatList({ activeTab, onGroupCreated }) {
       })
     );
 
-    // Chuyển đổi nhóm mới thành định dạng message
     const newMessage = transformConversationsToMessages(
       [newConversation],
       currentUserId,
       profiles
     )[0];
 
-    // Thêm nhóm mới vào đầu danh sách messages
+    console.log("ChatList: Chuyển đổi nhóm mới thành message", newMessage);
+
     setMessages((prevMessages) => {
       const updatedMessages = [newMessage, ...prevMessages];
       const uniqueMessages = Array.from(
@@ -115,13 +113,24 @@ function ChatList({ activeTab, onGroupCreated }) {
   useEffect(() => {
     if (!socket || !currentUserId) {
       console.warn("ChatList: Thiếu socket hoặc userId", { socket, currentUserId });
+      console.warn("ChatList: Thiếu socket hoặc userId", { socket, currentUserId });
       return;
     }
+
+    console.log("ChatList: Đăng ký lắng nghe socket events", { socketId: socket.id });
 
     const handleConversations = async (conversations) => {
       console.log("ChatList: Nhận conversations:", conversations);
 
-      // Lấy profile của các user còn lại
+      // Tham gia các phòng chưa tham gia
+      conversations.forEach((conversation) => {
+        if (!joinedRoomsRef.current.has(conversation._id)) {
+          console.log("ChatList: Tham gia phòng", conversation._id);
+          joinConversation(socket, conversation._id);
+          joinedRoomsRef.current.add(conversation._id);
+        }
+      });
+
       const otherParticipantIds = conversations
         .map((conversation) => {
           const other = conversation.participants.find(
@@ -166,19 +175,19 @@ function ChatList({ activeTab, onGroupCreated }) {
       setMessages((prevMessages) => {
         const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === updatedConversation.conversationId) {
-            return {
+            const updatedMsg = {
               ...msg,
               lastMessage: updatedConversation.lastMessage?.content || "",
-              lastMessageType:
-                updatedConversation.lastMessage?.messageType || "text",
-              lastMessageSenderId:
-                updatedConversation.lastMessage?.userId || null,
+              lastMessageType: updatedConversation.lastMessage?.messageType || "text",
+              lastMessageSenderId: updatedConversation.lastMessage?.userId || null,
               time: new Date(updatedConversation.updatedAt).toLocaleTimeString(
                 [],
                 { hour: "2-digit", minute: "2-digit" }
               ),
               updateAt: updatedConversation.updatedAt,
             };
+            console.log("ChatList: Cập nhật message", updatedMsg);
+            return updatedMsg;
           }
           return msg;
         });
@@ -192,9 +201,11 @@ function ChatList({ activeTab, onGroupCreated }) {
             [updatedConversation],
             currentUserId
           )[0];
+          console.log("ChatList: Thêm message mới", newMessage);
           return [newMessage, ...updatedMessages];
         }
 
+        console.log("ChatList: Messages sau khi cập nhật conversation", updatedMessages);
         return updatedMessages;
       });
     };
@@ -223,22 +234,27 @@ function ChatList({ activeTab, onGroupCreated }) {
     const handleChatInfoUpdated = (updatedInfo) => {
       console.log("ChatList: Nhận cập nhật chatInfo:", updatedInfo);
       setMessages((prevMessages) => {
-        return prevMessages.map((msg) => {
+        const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === updatedInfo._id) {
             const participant = updatedInfo.participants?.find(
               (p) => p.userId === currentUserId
             );
-            return {
+            const updatedMsg = {
               ...msg,
               participants: updatedInfo.participants || msg.participants,
               name: updatedInfo.name || msg.name,
               isGroup: updatedInfo.isGroup ?? msg.isGroup,
+              imageGroup: updatedInfo.imageGroup || msg.imageGroup,
               isPinned: participant?.isPinned || false,
               mute: participant?.mute || false,
             };
+            console.log("ChatList: Cập nhật message với tên mới", updatedMsg);
+            return updatedMsg;
           }
           return msg;
         });
+        console.log("ChatList: Danh sách messages sau khi cập nhật", updatedMessages);
+        return [...updatedMessages];
       });
     };
 
@@ -251,6 +267,7 @@ function ChatList({ activeTab, onGroupCreated }) {
 
     return () => {
       console.log("ChatList: Gỡ sự kiện socket");
+      console.log("ChatList: Gỡ sự kiện socket");
       cleanupLoad();
       offConversationUpdate(socket);
       offChatInfoUpdated(socket);
@@ -258,7 +275,9 @@ function ChatList({ activeTab, onGroupCreated }) {
       offConversationRemoved(socket);
       offGroupLeft(socket);
     };
-  }, [socket, currentUserId, onGroupCreated, dispatch]);
+  }, [socket, currentUserId, onGroupCreated, dispatch]); // Loại bỏ messages khỏi dependencies
+
+  console.log("ChatList: Render với messages", messages);
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">

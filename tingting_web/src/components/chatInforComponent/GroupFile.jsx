@@ -4,7 +4,7 @@ import StoragePage from "./StoragePage";
 import {
   getChatFiles,
   forwardMessage,
-  deleteMessage,
+  deleteMessageChatInfo,
   onChatFiles,
   offChatFiles,
   onError,
@@ -39,15 +39,13 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
         const fileData = Array.isArray(response.data) ? response.data : [];
         console.log("[Socket.IO] Phản hồi (lấy file):", fileData);
         if (Array.isArray(fileData)) {
-          const sortedFiles = fileData.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt) || 0
-          );
-          setFiles(
-            sortedFiles.slice(0, 3).map((file) => ({
+          const sortedFiles = fileData
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Đảm bảo sắp xếp mới nhất trước
+            .map((file) => ({
               ...file,
               id: file?._id || file?.id,
-            }))
-          );
+            }));
+          setFiles(sortedFiles.slice(0, 3));
           setData({ files: sortedFiles });
         } else {
           setFiles([]);
@@ -70,15 +68,13 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
     onChatFiles(socket, (updatedFiles) => {
       console.log("[Socket.IO] Cập nhật danh sách file:", updatedFiles);
       if (Array.isArray(updatedFiles)) {
-        const sortedFiles = updatedFiles.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt) || 0
-        );
-        setFiles(
-          sortedFiles.slice(0, 3).map((file) => ({
+        const sortedFiles = updatedFiles
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Sắp xếp mới nhất trước
+          .map((file) => ({
             ...file,
             id: file?._id || file?.id,
-          }))
-        );
+          }));
+        setFiles(sortedFiles.slice(0, 3));
         setData({ files: sortedFiles });
       } else {
         setFiles([]);

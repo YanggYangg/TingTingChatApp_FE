@@ -37,7 +37,7 @@ export const transformConversationsToMessages = (conversations, currentUserId, p
       : "";
 
         return {
-            id: conversation._id,
+            id: conversation._id || conversation.conversationId,  
             participants: conversation.participants,
             isGroup: conversation.isGroup,
             imageGroup: conversation.imageGroup || 'https://picsum.photos/200',

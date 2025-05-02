@@ -179,8 +179,9 @@ export const offMessageForwarded = (socket) => {
 };
 
 // Gửi yêu cầu xóa tin nhắn
-export const deleteMessage = (socket, data, callback) => {
-  socket.emit("deleteMessage", data, callback);
+// services/sockets/events/chatInfo.js
+export const deleteMessageChatInfo = (socket, data, callback) => {
+  socket.emit("deleteMessageChatInfo", data, callback);
 };
 
 // Lắng nghe sự kiện xóa tin nhắn
@@ -192,6 +193,8 @@ export const onMessageDeleted = (socket, callback) => {
 export const offMessageDeleted = (socket) => {
   socket.off("messageDeleted");
 };
+
+
 
 // Lắng nghe sự kiện nhóm được tạo
 export const onConversationCreated = (socket, callback) => {

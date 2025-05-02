@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from "react-icons/fa";
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
@@ -50,20 +50,25 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   useEffect(() => {
     setHasMounted(true);
     if (!socket || !conversationId) {
+      console.warn("ChatInfo: Thiếu socket hoặc conversationId", { socket, conversationId });
       setLoading(false);
       return;
     }
 
+    console.log("ChatInfo: Gửi yêu cầu getChatInfo", { conversationId });
     getChatInfo(socket, { conversationId });
 
     const handleOnChatInfo = (newChatInfo) => {
+      console.log("ChatInfo: Nhận thông tin chat", newChatInfo);
       setChatInfo(newChatInfo);
-      if (hasMounted) {
-        console.log("Thông tin chat nhận được:", newChatInfo);
-      }
 
       const participant = newChatInfo.participants?.find((p) => p.userId === userId);
       if (participant) {
+        console.log("ChatInfo: Cập nhật trạng thái participant", {
+          isMuted: !!participant.mute,
+          isPinned: !!participant.isPinned,
+          role: participant.role || null,
+        });
         setIsMuted(!!participant.mute);
         setIsPinned(!!participant.isPinned);
         setUserRoleInGroup(participant.role || null);
@@ -74,51 +79,70 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
           (p) => p.userId !== userId
         );
         if (otherParticipant?.userId) {
+          console.log("ChatInfo: Lấy thông tin người dùng khác", { userId: otherParticipant.userId });
           Api_Profile.getProfile(otherParticipant.userId)
             .then((response) => {
+              console.log("ChatInfo: Nhận thông tin người dùng", response?.data?.user);
               setOtherUser(response?.data?.user);
             })
             .catch((error) => {
-              console.error("Lỗi khi lấy thông tin người dùng khác:", error);
+              console.error("ChatInfo: Lỗi khi lấy thông tin người dùng khác", error);
               setOtherUser({
                 firstname: "Không tìm thấy",
                 surname: "",
               });
             })
-            .finally(() => setLoading(false));
+            .finally(() => {
+              console.log("ChatInfo: Hoàn tất tải thông tin người dùng");
+              setLoading(false);
+            });
         } else {
+          console.log("ChatInfo: Không tìm thấy otherParticipant");
           setLoading(false);
         }
       } else {
+        console.log("ChatInfo: Đây là nhóm, không cần lấy thông tin người dùng");
         setLoading(false);
       }
     };
 
-    onChatInfo(socket, handleOnChatInfo);
-
     const handleOnChatInfoUpdated = (updatedInfo) => {
-      setChatInfo((prev) => ({
-        ...prev,
-        ...updatedInfo,
-        participants: updatedInfo.participants || prev.participants,
-        name: updatedInfo.name || prev.name,
-      }));
+      console.log("ChatInfo: Nhận sự kiện chatInfoUpdated", updatedInfo);
+      setChatInfo((prev) => {
+        const newChatInfo = {
+          ...prev,
+          ...updatedInfo,
+          participants: updatedInfo.participants || prev.participants,
+          name: updatedInfo.name || prev.name,
+        };
+        console.log("ChatInfo: Cập nhật chatInfo", newChatInfo);
+        return newChatInfo;
+      });
       const participant = updatedInfo.participants?.find((p) => p.userId === userId);
       if (participant) {
+        console.log("ChatInfo: Cập nhật trạng thái isMuted/isPinned/role", {
+          isMuted: !!participant.mute,
+          isPinned: !!participant.isPinned,
+          role: participant.role || null,
+        });
         setIsMuted(!!participant.mute);
         setIsPinned(!!participant.isPinned);
         setUserRoleInGroup(participant.role || null);
       }
     };
-    onChatInfoUpdated(socket, handleOnChatInfoUpdated);
 
     const handleError = (error) => {
-      console.error("Lỗi từ server:", error);
+      console.error("ChatInfo: Lỗi từ server", error);
       setLoading(false);
     };
+
+    console.log("ChatInfo: Đăng ký socket listeners");
+    onChatInfo(socket, handleOnChatInfo);
+    onChatInfoUpdated(socket, handleOnChatInfoUpdated);
     onError(socket, handleError);
 
     return () => {
+      console.log("ChatInfo: Gỡ socket listeners");
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
@@ -126,17 +150,24 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   }, [socket, conversationId, userId, hasMounted]);
 
   useEffect(() => {
-    if (!socket || !userId) return;
+    if (!socket || !userId) {
+      console.warn("ChatInfo: Thiếu socket hoặc userId cho conversations");
+      return;
+    }
 
+    console.log("ChatInfo: Đăng ký loadAndListenConversations");
     const cleanupLoadConversations = loadAndListenConversations(socket, (conversationsData) => {
+      console.log("ChatInfo: Nhận conversations", conversationsData);
       setConversations(conversationsData || []);
     });
 
     onConversations(socket, (conversationsData) => {
+      console.log("ChatInfo: Nhận sự kiện conversations", conversationsData);
       setConversations(conversationsData || []);
     });
 
     onConversationUpdate(socket, (updatedConversation) => {
+      console.log("ChatInfo: Nhận sự kiện conversationUpdate", updatedConversation);
       setConversations((prevConversations) =>
         prevConversations.map((conv) =>
           conv._id === updatedConversation._id ? updatedConversation : conv
@@ -145,6 +176,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     });
 
     return () => {
+      console.log("ChatInfo: Gỡ listeners conversations");
       cleanupLoadConversations();
       offConversations(socket);
       offConversationUpdate(socket);
@@ -153,6 +185,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
   useEffect(() => {
     if (!chatInfo || !conversations.length) {
+      console.log("ChatInfo: Thiếu chatInfo hoặc conversations để tính commonGroups");
       setCommonGroups([]);
       return;
     }
@@ -161,6 +194,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     const otherUserId = otherParticipant?.userId;
 
     if (!otherUserId || chatInfo.isGroup) {
+      console.log("ChatInfo: Không có otherUserId hoặc là nhóm, đặt commonGroups rỗng");
       setCommonGroups([]);
       return;
     }
@@ -174,14 +208,17 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       );
     });
 
+    console.log("ChatInfo: Tính commonGroups", commonGroups);
     setCommonGroups(commonGroups);
   }, [chatInfo, conversations, userId]);
 
   const handleMemberAdded = () => {
+    console.log("ChatInfo: Gửi yêu cầu getChatInfo sau khi thêm thành viên", { conversationId });
     getChatInfo(socket, { conversationId });
   };
 
   const handleMemberRemoved = (removedUserId) => {
+    console.log("ChatInfo: Xóa thành viên", { removedUserId });
     setChatInfo((prevChatInfo) => ({
       ...prevChatInfo,
       participants: prevChatInfo.participants.filter(
@@ -192,64 +229,101 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
   const handleMuteNotification = () => {
     if (isMuted) {
+      console.log("ChatInfo: Bật thông báo", { conversationId });
       updateNotification(socket, { conversationId, mute: null });
       setIsMuted(false);
     } else {
+      console.log("ChatInfo: Mở modal tắt thông báo");
       setIsMuteModalOpen(true);
     }
   };
 
   const handleMuteSuccess = (muted) => {
+    console.log("ChatInfo: Cập nhật trạng thái mute", { muted });
     setIsMuted(muted);
   };
 
   const handlePinChat = () => {
-    if (!chatInfo) return;
+    if (!chatInfo) {
+      console.warn("ChatInfo: Không thể pin chat, thiếu chatInfo");
+      return;
+    }
 
     const newIsPinned = !isPinned;
+    console.log("ChatInfo: Thay đổi trạng thái pin", { conversationId, newIsPinned });
     pinChat(socket, { conversationId, isPinned: newIsPinned });
     setIsPinned(newIsPinned);
   };
 
   const copyToClipboard = () => {
+    console.log("ChatInfo: Sao chép link nhóm", { link: chatInfo?.linkGroup });
     navigator.clipboard.writeText(chatInfo?.linkGroup || "");
     alert("Đã sao chép link nhóm!");
   };
 
   const handleAddMember = () => {
+    console.log("ChatInfo: Mở modal thêm thành viên");
     setIsAddModalOpen(true);
     setIsCreateGroupModalOpen(false);
   };
 
   const handleCreateGroupChat = () => {
+    console.log("ChatInfo: Mở modal tạo nhóm");
     setIsCreateGroupModalOpen(true);
     setIsAddModalOpen(false);
   };
 
   const handleCloseCreateGroupModal = () => {
+    console.log("ChatInfo: Đóng modal tạo nhóm");
     setIsCreateGroupModalOpen(false);
   };
 
   const handleCreateGroupSuccess = (newGroup) => {
+    console.log("ChatInfo: Tạo nhóm thành công", newGroup);
     setConversations((prevConversations) => [...prevConversations, newGroup]);
   };
 
-  const handleOpenEditNameModal = () => setIsEditNameModalOpen(true);
-  const handleCloseEditNameModal = () => setIsEditNameModalOpen(false);
+  const handleOpenEditNameModal = () => {
+    console.log("ChatInfo: Mở modal chỉnh sửa tên");
+    setIsEditNameModalOpen(true);
+  };
+
+  const handleCloseEditNameModal = () => {
+    console.log("ChatInfo: Đóng modal chỉnh sửa tên");
+    setIsEditNameModalOpen(false);
+  };
 
   const handleSaveChatName = (newName) => {
-    if (!chatInfo || !newName.trim()) return;
+    if (!chatInfo || !newName.trim()) {
+      console.warn("ChatInfo: Không thể lưu tên nhóm", {
+        chatInfo,
+        newName,
+      });
+      return;
+    }
 
+    console.log("ChatInfo: Gửi yêu cầu cập nhật tên nhóm", {
+      conversationId,
+      newName: newName.trim(),
+    });
+
+    // Gửi sự kiện socket để cập nhật tên nhóm
     updateChatName(socket, { conversationId, name: newName.trim() });
+
+    // Cập nhật local state ngay lập tức để giao diện phản ánh thay đổi
+    console.log("ChatInfo: Cập nhật local chatInfo với tên mới", newName.trim());
     setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
+
     handleCloseEditNameModal();
   };
 
   if (loading) {
+    console.log("ChatInfo: Đang tải thông tin chat...");
     return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
   }
 
   if (!chatInfo) {
+    console.warn("ChatInfo: Không thể tải thông tin chat");
     return <p className="text-center text-red-500">Không thể tải thông tin chat.</p>;
   }
 
@@ -257,33 +331,24 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const chatImage = chatInfo?.isGroup
     ? chatInfo.imageGroup?.trim()
       ? chatInfo.imageGroup
-      : "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A1o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA="
+      : "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA="
     : otherUser?.avatar ||
       "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
   const displayName = chatInfo?.isGroup
     ? chatInfo.name
     : `${otherUser?.firstname} ${otherUser?.surname}`.trim() || "Đang tải...";
 
+  console.log("ChatInfo: Render với", { chatTitle, displayName, chatImage });
+
   return (
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
-      {/* Phần cố định: Tiêu đề và ảnh đại diện */}
-      <div
-        className="bg-white z-10"
-        style={{
-          position: "sticky",
-          top: 0,
-          paddingBottom: "10px",
-          borderBottom: "1px solid #e5e7eb",
-        }}
-      >
-        <div className="flex-shrink-0">
-          <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
-        </div>
-        
-      </div>
+    <div className="flex-shrink-0">
+      <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
+    </div>
 
-      {/* Phần cuộn: Nội dung còn lại */}
-      <div className="flex-1 overflow-y-auto"><div className="text-center my-4">
+
+      <div className="flex-1 overflow-y-auto">
+        <div className="text-center my-4">
           <img
             src={chatImage}
             className="w-20 h-20 rounded-full mx-auto object-cover"
@@ -352,7 +417,11 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
           userId={userId}
           socket={socket}
         />
-        <GroupLinks conversationId={conversationId} userId={userId} socket={socket} />
+        <GroupLinks
+          conversationId={conversationId}
+          userId={userId}
+          socket={socket}
+        />
         <SecuritySettings
           conversationId={conversationId}
           userId={userId}
@@ -363,7 +432,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         />
       </div>
 
-      {/* Các modal giữ nguyên */}
       <MuteNotificationModal
         isOpen={isMuteModalOpen}
         onClose={() => setIsMuteModalOpen(false)}
