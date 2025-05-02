@@ -11,12 +11,14 @@ import {
   onConversationUpdate,
   offConversationUpdate,
   joinConversation,
-  offConversationRemoved,
   onConversationRemoved,
+  offConversationRemoved,
 } from "../../../services/sockets/events/conversation";
 import {
   onChatInfoUpdated,
   offChatInfoUpdated,
+  onGroupLeft,
+  offGroupLeft,
 } from "../../../services/sockets/events/chatInfo";
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 import { Api_Profile } from "../../../../apis/api_profile";
@@ -27,6 +29,7 @@ const cx = classNames.bind(styles);
 function ChatList({ activeTab, onGroupCreated }) {
   const [messages, setMessages] = useState([]);
   const [selectedTab, setSelectedTab] = useState("priority");
+  const [userCache, setUserCache] = useState({});
   const dispatch = useDispatch();
   const { socket, userId: currentUserId } = useSocket();
 
@@ -45,7 +48,7 @@ function ChatList({ activeTab, onGroupCreated }) {
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
-    console.log(`Chọn conversation: ${message.id}`);
+    console.log(`ChatList: Chọn conversation: ${message.id}`);
     if (message.id !== "my-cloud") {
       joinConversation(socket, message.id);
     }
@@ -53,16 +56,17 @@ function ChatList({ activeTab, onGroupCreated }) {
   };
 
   const handleTabClick = (tab) => {
-    console.log(`Chuyển tab: ${tab}`);
+    console.log(`ChatList: Chuyển tab: ${tab}`);
     setSelectedTab(tab);
   };
+
   // Hàm thêm nhóm mới vào messages
   const addNewGroup = async (newConversation) => {
-    console.log("Thêm nhóm mới:", newConversation);
+    console.log("ChatList: Thêm nhóm mới:", newConversation);
 
     // Kiểm tra xem nhóm đã tồn tại chưa
     if (messages.some((msg) => msg.id === newConversation._id)) {
-      console.log("Nhóm đã tồn tại, bỏ qua:", newConversation._id);
+      console.log("ChatList: Nhóm đã tồn tại, bỏ qua:", newConversation._id);
       return;
     }
 
@@ -75,9 +79,15 @@ function ChatList({ activeTab, onGroupCreated }) {
       participantIds.map(async (userId) => {
         try {
           const response = await Api_Profile.getProfile(userId);
-          return response?.data?.user || null;
+          const userData = response?.data?.user || {};
+          const profile = {
+            name: `${userData.firstname || ""} ${userData.surname || ""}`.trim() || userId,
+            avatar: userData.avatar || "https://via.placeholder.com/150",
+          };
+          setUserCache((prev) => ({ ...prev, [userId]: profile }));
+          return profile;
         } catch (error) {
-          console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
+          console.error(`ChatList: Lỗi khi lấy profile cho userId ${userId}:`, error);
           return null;
         }
       })
@@ -93,25 +103,23 @@ function ChatList({ activeTab, onGroupCreated }) {
     // Thêm nhóm mới vào đầu danh sách messages
     setMessages((prevMessages) => {
       const updatedMessages = [newMessage, ...prevMessages];
-      // Lọc trùng lặp dựa trên id
       const uniqueMessages = Array.from(
         new Map(updatedMessages.map((msg) => [msg.id, msg])).values()
       );
-      console.log("Updated unique messages:", uniqueMessages);
+      console.log("ChatList: Updated unique messages:", uniqueMessages);
       return uniqueMessages;
     });
   };
 
-
   // Load và cập nhật conversations
   useEffect(() => {
     if (!socket || !currentUserId) {
-      console.warn("Thiếu socket hoặc userId");
+      console.warn("ChatList: Thiếu socket hoặc userId", { socket, currentUserId });
       return;
     }
 
     const handleConversations = async (conversations) => {
-      console.log("Nhận conversations:", conversations);
+      console.log("ChatList: Nhận conversations:", conversations);
 
       // Lấy profile của các user còn lại
       const otherParticipantIds = conversations
@@ -127,9 +135,15 @@ function ChatList({ activeTab, onGroupCreated }) {
         otherParticipantIds.map(async (userId) => {
           try {
             const response = await Api_Profile.getProfile(userId);
-            return response?.data?.user || null;
+            const userData = response?.data?.user || {};
+            const profile = {
+              name: `${userData.firstname || ""} ${userData.surname || ""}`.trim() || userId,
+              avatar: userData.avatar || "https://via.placeholder.com/150",
+            };
+            setUserCache((prev) => ({ ...prev, [userId]: profile }));
+            return profile;
           } catch (error) {
-            console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
+            console.error(`ChatList: Lỗi khi lấy profile cho userId ${userId}:`, error);
             return null;
           }
         })
@@ -140,17 +154,15 @@ function ChatList({ activeTab, onGroupCreated }) {
         currentUserId,
         profiles
       );
-      // Lọc trùng lặp khi load conversations
       const uniqueMessages = Array.from(
         new Map(transformedMessages.map((msg) => [msg.id, msg])).values()
       );
-      console.log("Transformed unique messages:", uniqueMessages);
+      console.log("ChatList: Transformed unique messages:", uniqueMessages);
       setMessages(uniqueMessages);
     };
 
-
     const handleConversationUpdate = (updatedConversation) => {
-      console.log("Cập nhật conversation:", updatedConversation);
+      console.log("ChatList: Cập nhật conversation:", updatedConversation);
       setMessages((prevMessages) => {
         const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === updatedConversation.conversationId) {
@@ -187,40 +199,29 @@ function ChatList({ activeTab, onGroupCreated }) {
       });
     };
 
-    // Xử lý nhóm mới được tạo từ socket
     const handleNewGroupConversation = (newConversation) => {
-      console.log("Nhóm mới từ socket:", newConversation);
+      console.log("ChatList: Nhóm mới từ socket:", newConversation);
       addNewGroup(newConversation);
     };
 
-    // Xử lý nhóm mới từ prop (callback từ Search)
-    if (onGroupCreated) {
-      onGroupCreated(addNewGroup); // Đăng ký hàm addNewGroup để Search gọi
-    }
+    const handleGroupLeft = (data) => {
+      console.log("ChatList: Nhận groupLeft:", data);
+      setMessages((prevMessages) =>
+        prevMessages.filter((msg) => msg.id !== data.conversationId)
+      );
+      dispatch(setSelectedMessage(null));
+    };
 
-
-
-
-    // const handleGroupDisbanded = (data) => {
-    //   console.log("Nhóm đã bị giải tán:", data);
-    //   setMessages((prevMessages) =>
-    //     prevMessages.filter((msg) => msg.id !== data.conversationId)
-    //   );
-    //   dispatch(setSelectedMessage(null)); // Bỏ chọn nhóm nếu đang được chọn
-    // };
-
-    // Xử lý cuộc trò chuyện bị xóa
     const handleConversationRemoved = (data) => {
-      console.log("Cuộc trò chuyện đã bị xóa:", data);
+      console.log("ChatList: Cuộc trò chuyện đã bị xóa:", data);
       setMessages((prev) =>
         prev.filter((msg) => msg.id !== data.conversationId)
       );
       dispatch(setSelectedMessage(null));
     };
 
-    // Cập nhật trạng thái pin và mute từ chatInfo
     const handleChatInfoUpdated = (updatedInfo) => {
-      console.log("Nhận cập nhật chatInfo:", updatedInfo);
+      console.log("ChatList: Nhận cập nhật chatInfo:", updatedInfo);
       setMessages((prevMessages) => {
         return prevMessages.map((msg) => {
           if (msg.id === updatedInfo._id) {
@@ -241,27 +242,26 @@ function ChatList({ activeTab, onGroupCreated }) {
       });
     };
 
-
     const cleanupLoad = loadAndListenConversations(socket, handleConversations);
     onConversationUpdate(socket, handleConversationUpdate);
     onChatInfoUpdated(socket, handleChatInfoUpdated);
     socket.on("newGroupConversation", handleNewGroupConversation);
     onConversationRemoved(socket, handleConversationRemoved);
-   
-   
+    onGroupLeft(socket, handleGroupLeft);
+
     return () => {
-      console.log("Gỡ sự kiện socket");
+      console.log("ChatList: Gỡ sự kiện socket");
       cleanupLoad();
       offConversationUpdate(socket);
       offChatInfoUpdated(socket);
       socket.off("newGroupConversation", handleNewGroupConversation);
-      offConversationRemoved(socket); 
+      offConversationRemoved(socket);
+      offGroupLeft(socket);
     };
   }, [socket, currentUserId, onGroupCreated, dispatch]);
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
-      {/* Thanh tìm kiếm */}
       <div className="p-2 bg-white shadow-md">
         <SearchCompo onGroupCreated={(groupData) => addNewGroup(groupData)} />
       </div>
@@ -269,19 +269,21 @@ function ChatList({ activeTab, onGroupCreated }) {
       {activeTab === "/chat" && (
         <div className="flex justify-start space-x-4 px-4 py-2 border-b">
           <button
-            className={`font-semibold px-2 ${selectedTab === "priority"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-600"
-              }`}
+            className={`font-semibold px-2 ${
+              selectedTab === "priority"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-600"
+            }`}
             onClick={() => handleTabClick("priority")}
           >
             Ưu tiên
           </button>
           <button
-            className={`font-semibold px-2 ${selectedTab === "others"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-600"
-              }`}
+            className={`font-semibold px-2 ${
+              selectedTab === "others"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-600"
+            }`}
             onClick={() => handleTabClick("others")}
           >
             Khác
@@ -295,6 +297,7 @@ function ChatList({ activeTab, onGroupCreated }) {
             messages={[myCloudItem, ...messages]}
             onMessageClick={handleMessageClick}
             userId={currentUserId}
+            userCache={userCache}
           />
         )}
         {activeTab === "/contact" && <SibarContact />}

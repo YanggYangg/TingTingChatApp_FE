@@ -237,3 +237,18 @@ export const onGroupDisbanded = (socket, callback) => {
 export const offGroupDisbanded = (socket) => {
   socket.off("groupDisbanded");
 };
+
+// Thêm hàm leaveGroup
+export const leaveGroup = (socket, data, callback) => {
+  socket.emit("leaveGroup", data, callback);
+};
+
+// Thêm sự kiện onGroupLeft
+export const onGroupLeft = (socket, callback) => {
+  socket.on("groupLeft", callback);
+};
+
+// Thêm sự kiện offGroupLeft
+export const offGroupLeft = (socket) => {
+  socket.off("groupLeft");
+};
