@@ -15,9 +15,9 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [errorFriends, setErrorFriends] = useState("");
 
-  console.log("userId trong AddMemberModal:", userId);
-  console.log("conversationId trong AddMemberModal:", conversationId);
-  console.log("currentMembers trong AddMemberModal:", currentMembers);
+  // console.log("userId trong AddMemberModal:", userId);
+  // console.log("conversationId trong AddMemberModal:", conversationId);
+  // console.log("currentMembers trong AddMemberModal:", currentMembers);
 
   useEffect(() => {
     const fetchFriends = async () => {

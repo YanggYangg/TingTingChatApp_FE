@@ -1,6 +1,7 @@
-// Path: src/components/chatInforComponent/StoragePage.js
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FaCalendarAlt, FaArrowLeft, FaDownload } from "react-icons/fa";
+import { toast } from "react-toastify";
+import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
 import {
   getChatMedia,
   onChatMedia,
@@ -11,15 +12,13 @@ import {
   getChatLinks,
   onChatLinks,
   offChatLinks,
-  deleteMessage,
+  deleteMessageChatInfo,
   onMessageDeleted,
   offMessageDeleted,
   onError,
 } from "../../services/sockets/events/chatInfo";
-import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
-import { onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
 
-const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
+const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
   const [activeTab, setActiveTab] = useState("images");
   const [filterSender, setFilterSender] = useState("Tất cả");
   const [startDate, setStartDate] = useState("");
@@ -27,53 +26,65 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [showDateSuggestions, setShowDateSuggestions] = useState(false);
   const [data, setData] = useState({ images: [], files: [], links: [] });
-  const [error, setError] = useState(null);
   const [fullScreenImage, setFullScreenImage] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const [isSelecting, setIsSelecting] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
   const videoRef = useRef(null);
 
+  console.log("StoragePage mounted - conversationId:", conversationId);
+  console.log("StoragePage mounted - socket:", socket);
+  console.log("StoragePage mounted - userId:", userId);
+
+  // Fetch and listen to media, files, links data
   useEffect(() => {
-    if (!socket || !conversationId) return;
+    if (!socket || !conversationId || !userId) {
+      toast.error("Thiếu socket, conversationId hoặc userId");
+      return;
+    }
 
     const fetchData = async () => {
       try {
-        // Lấy dữ liệu media, files, links qua socket
+        // Get media
         getChatMedia(socket, { conversationId }, (response) => {
           if (response.success) {
             setData((prev) => ({
               ...prev,
               images: formatData(response.data, "media"),
             }));
+            console.log("Media data:", formatData(response.data, "media"));
           } else {
-            setError("Lỗi khi tải media: " + response.message);
+            toast.error("Lỗi khi tải media: " + response.message);
           }
         });
 
+        // Get files
         getChatFiles(socket, { conversationId }, (response) => {
           if (response.success) {
             setData((prev) => ({
               ...prev,
               files: formatData(response.data, "file"),
             }));
+            console.log("Files data:", formatData(response.data, "file"));
           } else {
-            setError("Lỗi khi tải files: " + response.message);
+            toast.error("Lỗi khi tải files: " + response.message);
           }
         });
 
+        // Get links
         getChatLinks(socket, { conversationId }, (response) => {
           if (response.success) {
             setData((prev) => ({
               ...prev,
               links: formatData(response.data, "link"),
             }));
+            console.log("Links data:", formatData(response.data, "link"));
           } else {
-            setError("Lỗi khi tải links: " + response.message);
+            toast.error("Lỗi khi tải links: " + response.message);
           }
         });
 
-        // Lắng nghe cập nhật thời gian thực
+        // Listen for real-time updates
         onChatMedia(socket, (media) => {
           setData((prev) => ({
             ...prev,
@@ -95,27 +106,30 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
           }));
         });
 
-        onMessageDeleted(socket, (data) => {
+        // Listen for message deletion events
+        onMessageDeleted(socket, ({ messageId }) => {
+          console.log("Message deleted:", messageId);
           setData((prev) => ({
-            images: prev.images.filter((item) => item.messageId !== data.messageId),
-            files: prev.files.filter((item) => item.messageId !== data.messageId),
-            links: prev.links.filter((item) => item.messageId !== data.messageId),
+            images: prev.images.filter((item) => item.messageId !== messageId),
+            files: prev.files.filter((item) => item.messageId !== messageId),
+            links: prev.links.filter((item) => item.messageId !== messageId),
           }));
         });
 
+        // Handle server errors
         onError(socket, (error) => {
-          setError("Lỗi từ server: " + error.message);
+          console.error("Server error:", error);
+          toast.error("Lỗi từ server: " + error.message);
         });
-
-        setError(null);
       } catch (error) {
         console.error("Lỗi khi lấy dữ liệu:", error);
-        setError("Lỗi khi tải dữ liệu. Vui lòng thử lại.");
+        toast.error("Lỗi khi tải dữ liệu. Vui lòng thử lại.");
       }
     };
 
     fetchData();
 
+    // Cleanup listeners
     return () => {
       offChatMedia(socket);
       offChatFiles(socket);
@@ -123,8 +137,9 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
       offMessageDeleted(socket);
       socket.off("error");
     };
-  }, [socket, conversationId]);
+  }, [socket, conversationId, userId]);
 
+  // Format data from server
   const formatData = (items, dataType) => {
     if (!Array.isArray(items)) {
       console.warn(`Dữ liệu ${dataType} không phải mảng:`, items);
@@ -157,6 +172,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
       .filter((item) => item.url);
   };
 
+  // Filter data by tab, sender, and date range
   const filteredData = useMemo(
     () =>
       (data[activeTab] || []).filter(
@@ -168,8 +184,10 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
     [data, activeTab, filterSender, startDate, endDate]
   );
 
+  // Get unique senders
   const getUniqueSenders = () => ["Tất cả", ...new Set(data[activeTab].map((item) => item.sender))];
 
+  // Quick date filter
   const handleDateFilter = (days) => {
     const today = new Date();
     const pastDate = new Date();
@@ -179,7 +197,8 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
     setShowDateSuggestions(false);
   };
 
-  const downloadImage = async (url, filename) => {
+  // Download file
+  const downloadFile = async (url, filename) => {
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Network response was not ok");
@@ -192,7 +211,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
       document.body.removeChild(link);
     } catch (error) {
       console.error("Lỗi khi tải file:", error);
-      alert("Không thể tải file. Thử tải trực tiếp!");
+      toast.error("Không thể tải file. Thử tải trực tiếp!");
       const fallbackLink = document.createElement("a");
       fallbackLink.href = url;
       fallbackLink.download = filename;
@@ -202,69 +221,85 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
     }
   };
 
-  const handleDownloadFile = (file) => {
-    if (!file?.url) {
-      console.error("Không có link file để tải.");
-      return;
-    }
-    downloadImage(file.url, file.name);
-  };
-
+  // Preview file
   const handlePreviewFile = (file) => {
     if (!file?.url) {
-      console.error("Không có link file để xem trước.");
+      toast.error("Không có link file để xem trước.");
       return;
     }
     setPreviewFile(file);
   };
 
+  // Delete selected messages
   const handleDeleteSelected = async () => {
+    console.log("handleDeleteSelected called with selectedItems:", selectedItems);
+    console.log("StoragePage - userId:", userId);
+    console.log("StoragePage - conversationId:", conversationId);
+    console.log("StoragePage - socket:", socket);
+
     if (selectedItems.length === 0) {
-      console.log("Không có mục nào được chọn để xóa.");
-      alert("Vui lòng chọn ít nhất một hình ảnh để xóa.");
+      toast.warn("Vui lòng chọn ít nhất một mục để xóa.");
       return;
     }
 
+    if (!userId) {
+      toast.error("Không thể xác định người dùng. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedItems.length} mục?`)) return;
+
     try {
-      const items = selectedItems
+      const itemsToDelete = selectedItems
         .map((id) => {
           const item = data[activeTab].find((item) => item.id === id);
-          return item ? { messageId: item.messageId } : null;
+          return item ? { messageId: item.messageId, urlIndex: item.urlIndex } : null;
         })
         .filter(Boolean);
 
-      if (items.length === 0) {
-        console.error("Không tìm thấy mục để xóa.");
-        alert("Lỗi: Không tìm thấy mục để xóa.");
+      if (itemsToDelete.length === 0) {
+        toast.error("Không tìm thấy mục để xóa.");
         return;
       }
 
-      deleteMessage(socket, { messageId: items[0].messageId }, (response) => {
-        if (response.success) {
-          const newData = {
-            images: data.images.filter((item) => !selectedItems.includes(item.id)),
-            files: data.files.filter((item) => !selectedItems.includes(item.id)),
-            links: data.links.filter((item) => !selectedItems.includes(item.id)),
-          };
-          setData(newData);
+      // Delete each message
+      const deletePromises = itemsToDelete.map(({ messageId, urlIndex }) =>
+        new Promise((resolve) => {
+          deleteMessageChatInfo(socket, { messageId, urlIndex }, userId, (response) => {
+            if (response.success) {
+              resolve({
+                messageId,
+                urlIndex,
+                success: true,
+                isMessageDeleted: response.data.isMessageDeleted,
+              });
+            } else {
+              resolve({ messageId, urlIndex, success: false, error: response.message });
+            }
+          });
+        })
+      );
 
-          if (onDelete) {
-            onDelete(items);
-          }
+      const results = await Promise.all(deletePromises);
+      const failedDeletes = results.filter((result) => !result.success);
 
-          setSelectedItems([]);
-          setIsSelecting(false);
-          alert(`Đã xóa ${selectedItems.length} mục thành công.`);
-        } else {
-          alert("Lỗi: Có lỗi xảy ra khi xóa: " + response.message);
+      if (failedDeletes.length > 0) {
+        toast.error(`Lỗi khi xóa ${failedDeletes.length} mục: ${failedDeletes[0].error}`);
+      } else {
+        toast.success(`Đã xóa ${itemsToDelete.length} mục thành công.`);
+        setSelectedItems([]);
+        setIsSelecting(false);
+        if (onDelete) {
+          onDelete(itemsToDelete);
         }
-      });
+      }
     } catch (error) {
-      console.error("Lỗi khi xóa hình ảnh:", error);
-      alert("Lỗi: Không thể xóa hình ảnh. Vui lòng thử lại.");
+      console.error("Lỗi khi xóa mục:", error);
+      toast.error("Lỗi khi xóa mục. Vui lòng thử lại.");
     }
   };
 
+  // Handle video playback in full-screen modal
   useEffect(() => {
     if (fullScreenImage && fullScreenImage.type === "video" && videoRef.current) {
       videoRef.current.play().catch((error) => console.error("Lỗi khi phát video:", error));
@@ -276,6 +311,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
     };
   }, [fullScreenImage]);
 
+  // Date filter component
   const DateFilter = ({
     showDateSuggestions,
     setShowDateSuggestions,
@@ -321,6 +357,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
     </div>
   );
 
+  // Date section component
   const DateSection = ({ date, data, activeTab }) => (
     <div className="mt-4">
       <h2 className="font-bold text-sm text-gray-800">Ngày {date.split("-").reverse().join(" Tháng ")}</h2>
@@ -392,7 +429,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
                   </a>
                   <button
                     className="text-gray-500 hover:text-blue-500"
-                    onClick={() => handleDownloadFile(item)}
+                    onClick={() => downloadFile(item.url, item.name)}
                   >
                     <FaDownload size={18} />
                   </button>
@@ -475,9 +512,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
         ))}
       </div>
 
-      {error ? (
-        <p className="text-red-500 text-sm mt-4">{error}</p>
-      ) : filteredData.length === 0 ? (
+      {filteredData.length === 0 ? (
         <p className="text-gray-500 text-sm mt-4">Không có dữ liệu</p>
       ) : (
         <>
@@ -546,7 +581,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
                 ✖
               </button>
               <button
-                onClick={() => downloadImage(fullScreenImage.url, fullScreenImage.name)}
+                onClick={() => downloadFile(fullScreenImage.url, fullScreenImage.name)}
                 className="absolute bottom-2 right-2 bg-white px-4 py-2 rounded text-sm text-gray-800 hover:bg-gray-200"
               >
                 ⬇ Tải xuống
@@ -591,7 +626,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
               </button>
               <button
                 className="bg-blue-500 text-white px-4 py-2 rounded"
-                onClick={() => handleDownloadFile(previewFile)}
+                onClick={() => downloadFile(previewFile.url, previewFile.name)}
               >
                 Tải xuống
               </button>

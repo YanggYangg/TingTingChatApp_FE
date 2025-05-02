@@ -4,7 +4,7 @@ import { FaTrash, FaShare } from "react-icons/fa";
 import StoragePage from "./StoragePage";
 import {
   getChatLinks,
-  deleteMessage,
+  deleteMessageChatInfo,
   forwardMessage,
   onChatLinks,
   offChatLinks,
@@ -42,17 +42,10 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
               date: item?.createdAt?.split("T")[0] || "Không có ngày",
               sender: item?.userId || "Không rõ người gửi",
               messageId: item?._id,
-            }));
-
-          const sortedLinks = filteredLinks.sort((a, b) => {
-            if (a.date && b.date) {
-              return new Date(b.date) - new Date(a.date);
-            } else {
-              return 0;
-            }
-          });
-
-          setLinks(sortedLinks.slice(0, 3));
+              createdAt: item?.createdAt, // Lưu createdAt để sắp xếp
+            }))
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sắp xếp mới nhất trước
+          setLinks(filteredLinks.slice(0, 3));
         } else {
           setLinks([]);
           console.error("Dữ liệu không hợp lệ:", response);
@@ -79,17 +72,10 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
             date: item?.createdAt?.split("T")[0] || "Không có ngày",
             sender: item?.userId || "Không rõ người gửi",
             messageId: item?._id,
-          }));
-
-        const sortedLinks = filteredLinks.sort((a, b) => {
-          if (a.date && b.date) {
-            return new Date(b.date) - new Date(a.date);
-          } else {
-            return 0;
-          }
-        });
-
-        setLinks(sortedLinks.slice(0, 3));
+            createdAt: item?.createdAt,
+          }))
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sắp xếp mới nhất trước
+        setLinks(filteredLinks.slice(0, 3));
       } else {
         setLinks([]);
         console.warn("Dữ liệu cập nhật không hợp lệ:", updatedLinks);
@@ -254,6 +240,8 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
           links={links}
           onClose={() => setIsOpen(false)}
           onDelete={fetchLinks}
+          socket={socket}
+          userId={userId}
         />
       )}
 
