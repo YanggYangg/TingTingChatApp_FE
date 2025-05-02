@@ -13,13 +13,13 @@ function Search() {
   const [filteredResults, setFilteredResults] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [friendRequests, setFriendRequests] = useState({});
+  const [targetUserId, setTargetUserId] = useState("id_user_being_viewed");
   const [friendStatus, setFriendStatus] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [currentUserPhone, setCurrentUserPhone] = useState("");
-  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  const [friendList, setFriendList] = useState([]);
-  const inputRef = useRef(null);
 
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+
+  //Modal bb
   const toggleFriendsModal = () => {
     setIsModalFriendsOpen(!isModalFriendsOpen);
     setSearchValue("");
@@ -27,15 +27,47 @@ function Search() {
     setSelectedUser(null);
   };
 
-  const handleSelectUser = (user) => {
-    console.log("User selected:", user); // Kiểm tra xem người dùng đã được chọn chưa
+  //select user
+  const handleSelectUser = async (user) => {
+    console.log("User selected:", user); 
     setSelectedUser(user);
+    setTargetUserId(user._id); //cập nhật target
+
+    const currentUserId = localStorage.getItem("userId");
+    console.log("Current user ID (ID người dùng hiện tại):", currentUserId);
+
+    if(!currentUserId){
+      console.error("Không tìm thấy ID người dùng hiện tại trong localStorage.");
+      return;
+    }
+
+
+    try{
+      const res = await Api_FriendRequest.checkFriendStatus({
+        userIdA: currentUserId,
+        userIdB: user._id
+      });
+      console.log("UserIdB:", user._id);
+      console.log("Kết quả từ API: ", res);
+      if (res && res.status) {
+        console.log("Trạng thái bạn bè:", res.status);
+        setFriendStatus(res.status);
+      } else {
+        console.warn("Không tìm thấy trạng thái bạn bè.");
+        setFriendStatus("not_friends");
+      }
+    }catch (error) {
+      console.error("Lỗi khi kiểm tra trạng thái bạn bè:", error);
+    }
   };
 
+  //Modal groups
   const toggleGroupsModal = () => {
     setIsModalGroupsOpen(!isModalGroupsOpen);
   };
 
+
+  //Lay ds ng dung
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -66,14 +98,6 @@ function Search() {
 
         const newRequestStatus = {};
 
-        // Ng gui di
-        // sentRes.data.forEach((req) => {
-        //   newRequestStatus[req.recipient._id] = {
-        //     status: req.status, // pending / accepted
-        //     requestId: req._id,
-        //     isRequester: true, //Minh la nguoi gui
-        //   };
-        // });
         sentRes.data.forEach((req) => {
           if (req.recipient && req.recipient._id) {
             newRequestStatus[req.recipient._id] = {
@@ -85,15 +109,6 @@ function Search() {
             console.warn("Dữ liệu recipient bị thiếu:", req);
           }
         });
-
-        //Ng nhan
-        // receivedRes.data.forEach((req) => {
-        //   newRequestStatus[req.requester._id] = {
-        //     status: req.status,
-        //     requestId: req._id,
-        //     isRequester: false, //Minh la nguoi nhan
-        //   };
-        // });
         receivedRes.data.forEach((req) => {
           if (req.requester && req.requester._id) {
             newRequestStatus[req.requester._id] = {
@@ -107,7 +122,7 @@ function Search() {
         });
 
         setFriendRequests(newRequestStatus);
-        // console.log("Dữ liệu trạng thái kết bạn:", newRequestStatus);
+        console.log("Dữ liệu trạng thái kết bạn:", newRequestStatus);
       } catch (error) {
         console.error("Lỗi khi lấy danh sách lời mời:", error);
       }
@@ -116,100 +131,16 @@ function Search() {
     fetchFriendRequests();
   }, [refreshTrigger]);
 
-  // useEffect(() => {
-  //   const fetchReceivedRequests = async () => {
-  //     try{
-  //       //Lay userID tu localstorage
-  //       const userId = localStorage.getItem("userId");
-  //       if (!userId) {
-  //         console.error("Không tìm thấy userId trong localStorage");
-  //         return;
-  //       }
-  //       const response = await Api_FriendRequest.getReceivedRequests(userId);
-  //       const requests = response.data;
-
-  //       const newRequestStatus = {};
-  //       requests.forEach((req) => {
-  //         if (req.status === "pending") {
-  //           newRequestStatus[req.requester._id] = "pending";
-  //         } else if (req.status === "accepted") {
-  //           newRequestStatus[req.requester._id] = "accepted";
-  //         }
-  //       }
-  //       );
-  //       setFriendRequests(prev => ({ ...prev, ...newRequestStatus }));
-  //     } catch (error) {
-  //       console.error("Lỗi khi lấy danh sách lời mời:", error);
-  //     }
-  //   };
-  //   fetchReceivedRequests();
-  // }, []);
 
   const handleSearch = () => {
     const cleanedInput = searchValue.replace(/\D/g, "");
     const filtered = allUsers.filter((user) =>
-      user.phone.includes(cleanedInput)
+      user.phone.includes(cleanedInput) 
     );
     setFilteredResults(filtered);
     console.log(filtered);
   };
-
-  // const handleFriendRequest = async () => {
-  //   console.log("Nút Kết bạn đã được nhấn");
-  //   console.log("selectedUser at the time of request:", selectedUser);
-  //   console.log(
-  //     "selectedUser phone:",
-  //     selectedUser ? selectedUser.phone : "No phone available"
-  //   );
-
-  //   if (!selectedUser || !selectedUser.phone) {
-  //     console.error(
-  //       "Thông tin người dùng không đầy đủ hoặc chưa chọn người dùng."
-  //     );
-  //     return;
-  //   }
-
-  //   try {
-  //     const userId = localStorage.getItem("userId");
-  //     if (!userId) {
-  //       console.error("Không tìm thấy userId trong localStorage");
-  //       return;
-  //     }
-
-  //     const response = await Api_Profile.getUserPhone(userId);
-  //     console.log("API responseeeeee:", response);
-  //     console.log("response.data:", response.data);
-  //     const currentUserPhone = response.phone;
-
-  //     console.log("Số điện thoại người dùng hiện tại:", currentUserPhone);
-
-     
-  //     await Api_FriendRequest.sendFriendRequest({
-  //       requesterPhone: currentUserPhone,
-  //       recipientPhone: selectedUser?.phone || "",
-  //     });
-
-  //     setFriendRequests((prev) => {
-  //       const updatedRequests = {
-  //         ...prev,
-  //         [selectedUser._id]: {
-  //           status: "pending",
-  //           requestId: "temp-id-local", // bạn có thể để rỗng hoặc gán sau từ backend
-  //           isRequester: true, // <- Quan trọng nhất
-  //         },
-  //       };
-  //       console.log("Updated friend requests:", updatedRequests);
-  //       return updatedRequests;
-  //     });
-  //     setRefreshTrigger((prev) => prev + 1);
-  //     setTimeout(() => {
-  //       setRefreshTrigger((prev) => prev + 1);
-  //     }, 100); // 100ms sau tăng thêm lần nữa
-  //   } catch (err) {
-  //     console.error("Gửi lời mời kết bạn thất bại:", err);
-  //   }
-  // };
-
+ 
   const handleFriendRequest = async () => {
     const userId = localStorage.getItem("userId");
     if (!userId || !selectedUser || !selectedUser._id) return;
@@ -266,16 +197,7 @@ function Search() {
         action,
         userId,
       });
-      // if (response.message.includes("accepted")) {
-      //   // Update UI neu accept
-      //   setFriendRequests((prev) => ({
-      //     ...prev,
-      //     [selectedUser._id]: {
-      //       status: "accepted",
-      //       requestId,
-      //     },
-      //   }));
-      // }
+   
       if (response.message.includes("rejected")) {
         setFriendRequests((prev) => {
           const updated = { ...prev };
@@ -376,14 +298,14 @@ function Search() {
                 Tìm kiếm
               </button>
             </div>
-
+{/* 
             <div className="space-y-2 mt-4 max-h-64 overflow-y-auto">
               {searchValue && filteredResults.length > 0 ? (
                 filteredResults.map((user) => (
                   <div
                     key={user._id}
                     className="flex items-center p-2 hover:bg-gray-100 cursor-pointer rounded"
-                    onClick={() => setSelectedUser(user)}
+                    onClick={() => handleSelectUser(user)}
                   >
                     <img
                       src={user.avatar}
@@ -399,7 +321,42 @@ function Search() {
               ) : (
                 <p className="text-gray-500">Không có kết quả tìm kiếm.</p>
               )}
-            </div>
+            </div> */}
+            <div className="space-y-2 mt-4 max-h-64 overflow-y-auto">
+  {searchValue && filteredResults.length > 0 ? (
+    filteredResults.map((user) => {
+      const currentUserId = localStorage.getItem("userId");
+      const isMe = user._id === currentUserId;
+
+      return (
+        <div
+          key={user._id}
+          className={`flex items-center p-2 ${!isMe ? "hover:bg-gray-100 cursor-pointer" : ""} rounded`}
+          onClick={() => {
+            if (!isMe) handleSelectUser(user);
+          }}
+        >
+          <img
+            src={user.avatar}
+            alt={user.firstname}
+            className="w-10 h-10 rounded-full mr-3"
+          />
+          <div>
+            <p className="font-semibold text-gray-800">
+              {`${user.firstname} ${user.surname}`}{" "}
+              {isMe && <span className="text-xs text-blue-500">(me)</span>}
+            </p>
+            <p className="text-sm text-gray-600">{user.phone}</p>
+          </div>
+        </div>
+      );
+    })
+  ) : (
+    <p className="text-gray-500">Không có kết quả tìm kiếm.</p>
+  )}
+</div>
+
+
           </div>
         </div>
       )}
@@ -428,60 +385,7 @@ function Search() {
               </div>
             </div>
 
-            {/* Modal thông tin ng dùng */}
-            {/* <div className="flex justify-end space-x-2 mt-4">
-              {friendRequests[selectedUser._id]?.status === "pending" ? (
-                friendRequests[selectedUser._id].isRequester ? (
-                  <button
-                    className="bg-yellow-400 text-white px-4 py-2 rounded"
-                    disabled
-                  >
-                    Đang chờ
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      className="bg-green-500 text-white px-4 py-2 rounded"
-                      onClick={() =>
-                        handleRespondRequest(
-                          friendRequests[selectedUser._id].requestId,
-                          "accepted"
-                        )
-                      }
-                    >
-                      Chấp nhận
-                    </button>
-                    <button
-                      className="bg-red-500 text-white px-4 py-2 rounded"
-                      onClick={() =>
-                        handleRespondRequest(
-                          friendRequests[selectedUser._id].requestId,
-                          "rejected"
-                        )
-                      }
-                    >
-                      Từ chối
-                    </button>
-                  </>
-                )
-              ) : friendRequests[selectedUser._id]?.status === "accepted" ? (
-                <>
-                  <button className="bg-green-500 text-white px-4 py-2 rounded">
-                    Đã là bạn bè
-                  </button>
-                </>
-              ) : (
-
-              //   // Không có yêu cầu nào → hiện "Kết bạn"
-                <button
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                  onClick={() => handleFriendRequest()}
-                >
-                  Kết bạn
-                </button>
-              )
-            }
-            </div> */}
+          
 
 {selectedUser && (
   <div className="flex justify-end space-x-2 mt-4">

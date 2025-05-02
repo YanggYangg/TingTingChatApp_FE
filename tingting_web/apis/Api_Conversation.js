@@ -10,4 +10,10 @@ export const Api_Conversation = {
     getUserJoinGroup: async (userId) => {
         return ApiManager.get('chatService', `/conversations/userGroups/${userId}`);
     },
+    getOrCreateConversation: async (user1Id, user2Id)  => {
+        return ApiManager.post('chatService', '/conversations/getOrCreateConversation', {
+            user1Id,
+            user2Id,
+        });
+    },
 };

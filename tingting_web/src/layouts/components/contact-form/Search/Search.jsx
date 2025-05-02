@@ -15,11 +15,12 @@ import styles from "./Search.module.scss";
 
 const cx = classNames.bind(styles);
 
-function Search({ className }) {
+function Search({ className, value, onChange, }) {
   const [searchValue, setSearchValue] = useState("");
   const [searchResult, setSearchResult] = useState([]);
   const [showResult, setShowResult] = useState(true);
   const [loading, setLoading] = useState(false);
+  
 
   // Debounce search value
   const debounced = useDebounce(searchValue, 500);
@@ -53,7 +54,8 @@ function Search({ className }) {
   // }, []);
 
   const handleClear = () => {
-    setSearchValue("");
+    // setSearchValue("");
+    onChange(""); //clear
     inputRef.current.focus();
   };
 
@@ -64,7 +66,8 @@ function Search({ className }) {
   const handleChange = (e) => {
     const value = e.target.value;
     if (!value.startsWith(" ")) {
-      setSearchValue(e.target.value);
+      //setSearchValue(e.target.value);
+      onSearchChange(value); // <- gọi hàm cha truyền xuống
     }
   };
 
@@ -87,24 +90,19 @@ function Search({ className }) {
       <input
         className="outline-none"
         ref={inputRef}
-        value={searchValue}
+        value={value}
         type="text"
         placeholder="Tìm bạn"
         spellCheck={false}
-        onChange={handleChange}
+        onChange={(e) => onChange(e.target.value)}
         onFocus={() => setShowResult(true)}
       />
-      {!!searchValue && !loading && (
-        <button className={cx("clear")} onClick={handleClear}>
-          {/* clear */}
+       {value && (
+        <button className="clear-btn" onClick={handleClear}>
           <FontAwesomeIcon icon={faCircleXmark} />
         </button>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <FontAwesomeIcon className={cx("loading")} icon={faSpinner} />
-      )}
     </div>
   );
 }

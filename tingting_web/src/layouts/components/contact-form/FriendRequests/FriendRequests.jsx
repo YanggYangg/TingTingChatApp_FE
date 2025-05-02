@@ -194,58 +194,36 @@ const FriendRequests = () => {
   return (
     <div className="w-full h-full bg-white text-black flex flex-col">
       <ContactItem
-        label="Danh sách bạn bè"
+        label="Lời mời kết bạn"
         icon={faUser}
         className="hover:bg-white cursor-default"
       />
-      <div className="bg-gray-200 w-full flex-1 p-4 overflow-y-auto">
-        {pendingRequests.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-black font-medium mb-4">
-              Lời mời kết bạn ({pendingRequests.length})
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pendingRequests.map((request) => (
-                <FriendSuggestionCard
-                  key={request._id}
-                  id={request._id}
-                  name={`${request.requester.firstname} ${request.requester.surname}`}
-                  avatar={request.requester.avatar}
-                  type="request"
-                  onAccept={() =>
-                    handleRespondToRequest(request._id, "accepted")
-                  }
-                  onReject={() =>
-                    handleRespondToRequest(request._id, "rejected")
-                  }
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="mt-8">
-          <div className="flex items-center mb-4">
-            <h2 className="text-black font-medium">
-              Gợi ý kết bạn ({suggestions.length})
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {suggestions.map((suggestion) => (
-              <FriendSuggestionCard
-                key={suggestion._id}
-                id={suggestion._id}
-                name={suggestion.name}
-                mutualFriends={suggestion.mutualFriends}
-                avatar={suggestion.avatar}
-                onIgnore={handleIgnore}
-                onAddFriend={handleAddFriend}
-              />
-            ))}
-          </div>
-        </div>
+     <div className="bg-gray-200 w-full flex-1 p-4 overflow-y-auto">
+  {pendingRequests.length > 0 ? (
+    <div className="mb-8">
+      <h2 className="text-black font-medium mb-4">
+        Lời mời kết bạn ({pendingRequests.length})
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {pendingRequests.map((request) => (
+          <FriendSuggestionCard
+            key={request._id}
+            id={request._id}
+            name={`${request.requester.firstname} ${request.requester.surname}`}
+            avatar={request.requester.avatar}
+            type="request"
+            onAccept={() => handleRespondToRequest(request._id, "accepted")}
+            onReject={() => handleRespondToRequest(request._id, "rejected")}
+          />
+        ))}
       </div>
+    </div>
+  ) : (
+    <div className="text-center text-gray-600 italic">
+      Chưa có lời mời kết bạn nào.
+    </div>
+  )}
+</div>
     </div>
   );
 };

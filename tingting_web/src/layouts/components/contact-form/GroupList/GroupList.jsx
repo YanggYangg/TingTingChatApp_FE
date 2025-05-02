@@ -24,15 +24,30 @@ const GroupList = () => {
   const [groupList, setGroupList] = useState([]); 
   const [filteredGroups, setFilteredGroups] = useState([]);
   const [groupedGroups, setGroupedGroups] = useState({});
+  const [sortOrder, setSortOrder] = useState("asc"); // "asc" = A-Z, "desc" = Z-A
+
+
   const userId = localStorage.getItem("userId");
+
+  const sortGroupsByName = (groups, order = "asc") => {
+    return [...groups].sort((a, b) => {
+      const nameA = a.name?.toLowerCase() || "";
+      const nameB = b.name?.toLowerCase() || "";
+      if (order === "asc") return nameA.localeCompare(nameB);
+      else return nameB.localeCompare(nameA);
+    });
+  };
 
   useEffect(() => {
     const fetchGroups = async () => {
       try {
         const res = await Api_Conversation.getUserJoinGroup(userId);
-        setGroupList(res.data); // Cập nhật danh sách nhóm
+        console.log("Full response:", res);
+        setGroupList(res); 
+        
       } catch (error) {
         console.error("Lỗi khi lấy nhóm người dùng tham gia:", error);
+        setGroupList([]); // Tránh undefined gây lỗi reduce
       }
     };
 
@@ -43,63 +58,28 @@ const GroupList = () => {
    useEffect(() => {
     const filtered = searchQuery
       ? groupList.filter((group) =>
-          group.groupName?.toLowerCase().includes(searchQuery.toLowerCase())
+          group.name?.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : groupList;
 
-    setFilteredGroups(filtered);
+    //setFilteredGroups(filtered);
+    const sorted = sortGroupsByName(filtered, sortOrder);
+    setFilteredGroups(sorted);
 
-    const grouped = filtered.reduce((acc, group) => {
-      const firstLetter = group.groupName?.charAt(0).toUpperCase() || "#";
+    const grouped = sorted.reduce((acc, group) => {
+      const firstLetter = group.name?.charAt(0).toUpperCase() || "#";
       if (!acc[firstLetter]) acc[firstLetter] = [];
       acc[firstLetter].push(group);
       return acc;
     }, {});
 
     setGroupedGroups(grouped);
-  }, [searchQuery, groupList]);
+  }, [searchQuery, groupList, sortOrder]);
 
 
+  console.log("groupList", groupList);
 
-  // Sample friends data
-  const allFriends = [
-    {
-      id: 1,
-      name: "A2",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 1,
-    },
-    {
-      id: 2,
-      name: "An",
-      avatar: "/placeholder.svg?height=40&width=40",
-      memberCount: 1,
-    },
-  ];
 
-  // // Filter and group friends when search query changes
-  // useEffect(() => {
-  //   // Filter friends based on search query
-  //   const filtered = searchQuery
-  //     ? allFriends.filter((friend) =>
-  //         friend.name.toLowerCase().includes(searchQuery.toLowerCase())
-  //       )
-  //     : allFriends;
-
-  //   setFilteredFriends(filtered);
-
-  //   // Group friends by first letter
-  //   const grouped = filtered.reduce((acc, friend) => {
-  //     const firstLetter = friend.name.charAt(0).toUpperCase();
-  //     if (!acc[firstLetter]) {
-  //       acc[firstLetter] = [];
-  //     }
-  //     acc[firstLetter].push(friend);
-  //     return acc;
-  //   }, {});
-
-  //   setGroupedFriends(grouped);
-  // }, [searchQuery]);
 
   // Clear search
   const clearSearch = () => {
@@ -145,10 +125,11 @@ const GroupList = () => {
       />
 
       <div className="bg-gray-200 w-full flex-1 p-4 overflow-y-auto">
-        <h2 className="pb-4 text-black font-medium">Nhóm và cộng đồng</h2>
+        <h2 className="pb-4 text-black font-medium">Nhóm và cộng đồng ({groupList.length})</h2>
         <div className="w-full bg-white rounded-xs">
           <div className="w-full rounded-xs p-4 flex justify-between">
-            <Search />
+            <Search  value={searchQuery} onChange={setSearchQuery}
+            />
             <div className="relative flex justify">
               <button
                 onClick={(e) => {
@@ -166,10 +147,20 @@ const GroupList = () => {
                   className="absolute right-0 top-12 bg-white rounded-md shadow-lg z-10 w-[95%]"
                   onClick={handleDropdownClick}
                 >
-                  <button className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                  <button 
+                   onClick={() => {
+                    setSortOrder("asc");
+                    setSortOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
                     Tên (A-Z)
                   </button>
-                  <button className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                  <button 
+                   onClick={() => {
+                    setSortOrder("desc");
+                    setSortOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
                     Tên (Z-A)
                   </button>
                 </div>
@@ -218,21 +209,20 @@ const GroupList = () => {
                 </div>
               ) : (
                 Object.keys(groupedGroups)
-                  .sort()
                   .map((letter) => (
                     <div key={letter}>
                       {groupedGroups[letter].map((group, index, array) => (
                         <GroupItem
-                          //memberCount={friend.memberCount} // Truyền số lượng thành viên vào props
+                          memberCount={group.participants.length} 
                           key={group._id}
                           label={group.name}
                           image="https://hoanghamobile.com/tin-tuc/wp-content/uploads/2023/08/hinh-nen-lap-top-cute-74.jpg"
                           showBorder={index !== array.length - 1}
                           showMenuIcon={true}
-                          menuOpen={menuOpenId === group.id}
+                          menuOpen={menuOpenId === group._id}
                           onMenuToggle={() =>
                             setMenuOpenId(
-                              menuOpenId === group.id ? null : group.id
+                              menuOpenId === group._id ? null : group._id
                             )
                           }
                         />
