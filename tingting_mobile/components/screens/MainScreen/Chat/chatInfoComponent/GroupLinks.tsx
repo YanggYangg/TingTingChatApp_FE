@@ -231,7 +231,7 @@ const GroupLinks: React.FC<Props> = ({ conversationId, userId, socket, onDeleteL
             </View>
           ))
         ) : (
-          <Text style={styles.placeholder}>No links available.</Text>
+          <Text style={styles.placeholder}>Không có links.</Text>
         )}
       </View>
 

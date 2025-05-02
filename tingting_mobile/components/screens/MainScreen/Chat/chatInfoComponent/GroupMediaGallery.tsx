@@ -286,16 +286,16 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, socket, ot
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading images and videos...</Text>
+        <Text style={styles.loadingText}>Loading Hình ảnh/Video...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Images/Videos</Text>
+      <Text style={styles.title}>Hình ảnh/Video</Text>
       {media.length === 0 ? (
-        <Text style={styles.noDataText}>No images or videos available.</Text>
+        <Text style={styles.noDataText}>Không có hình ảnh/video.</Text>
       ) : (
         <>
           <View style={styles.grid}>

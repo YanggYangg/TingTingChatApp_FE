@@ -253,7 +253,7 @@ const GroupFile: React.FC<Props> = ({ conversationId, userId, socket, onDeleteFi
             </View>
           ))
         ) : (
-          <Text style={styles.placeholder}>No files available.</Text>
+          <Text style={styles.placeholder}>Không có file.</Text>
         )}
       </View>
       <TouchableOpacity style={styles.viewAllButton} onPress={() => setIsOpen(true)}>
