@@ -385,8 +385,9 @@ const ChatScreen = ({ route, navigation }) => {
               console.log("Navigating to ChatInfo with:", {
                 userId,
                 conversationId,
+                socket
               });
-              if (!userId || !conversationId) {
+              if (!userId || !conversationId || !socket) {
                 console.warn(
                   "Cannot navigate to ChatInfo: missing userId or conversationId"
                 );
@@ -396,7 +397,7 @@ const ChatScreen = ({ route, navigation }) => {
                 );
                 return;
               }
-              navigation.push("ChatInfo", { userId, conversationId });
+              navigation.push("ChatInfo", { userId, conversationId , socket});
             }}
             style={{ marginLeft: 15 }}
           >
