@@ -5,8 +5,8 @@ import { toast } from "react-toastify";
 import { Api_Profile } from "../../../apis/api_profile";
 import {
   getChatInfo,
-  onChatInfoUpdated, 
-  offChatInfoUpdated,
+  onChatInfo,
+  offChatInfo,
   hideChat,
   deleteChatHistoryForMe,
   transferGroupAdmin,
@@ -110,7 +110,6 @@ const SecuritySettings = ({
       setChatInfo(data);
     });
 
-    // Lắng nghe lỗi
     onError(socket, (error) => {
       console.error("SecuritySettings: Lỗi từ server:", error.message);
       toast.error(error.message || "Lỗi hệ thống.");
@@ -121,14 +120,19 @@ const SecuritySettings = ({
       offChatInfo(socket);
       offError(socket);
     };
-  }, [fetchChatInfo, socket, conversationId]);
-  const handleToggle = async (checked) => {
-    if (checked && !isHidden) {
-      setShowPinInput(true);
-    } else {
-      await handleHideChat(checked, null);
-    }
-  };
+  }, [socket, conversationId, userId, fetchChatInfo, setChatInfo]);
+
+  // Xử lý ẩn/hiện trò chuyện
+  const handleToggleHideChat = useCallback(
+    async (checked) => {
+      if (checked && !isHidden) {
+        setShowPinInput(true);
+      } else {
+        await handleHideChat(checked, null);
+      }
+    },
+    [isHidden]
+  );
 
   const handleHideChat = useCallback(
     async (hide, pin) => {
@@ -345,7 +349,7 @@ const SecuritySettings = ({
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm">Ẩn trò chuyện</span>
         <Switch
-          onChange={handleToggle}
+          onChange={handleToggleHideChat}
           checked={isHidden}
           offColor="#ccc"
           onColor="#3b82f6"
@@ -354,7 +358,6 @@ const SecuritySettings = ({
           height={22}
           width={44}
           handleDiameter={18}
-          disabled={isProcessing}
         />
       </div>
 
@@ -368,17 +371,16 @@ const SecuritySettings = ({
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
             placeholder="****"
-            disabled={isProcessing}
           />
           <button
             onClick={handleSubmitPin}
-            className="w-full mt-2 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition disabled:bg-blue-300"
-            disabled={isProcessing}
+            className="w-full mt-2 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition"
           >
-            {isProcessing ? "Đang xử lý..." : "Xác nhận"}
+            Xác nhận
           </button>
         </div>
       )}
+
       <button
         className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
         onClick={handleDeleteHistory}

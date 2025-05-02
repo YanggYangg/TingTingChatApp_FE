@@ -53,11 +53,9 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
               name: item?.content || `Media_${urlIndex + 1}`,
               type: item?.messageType || "image",
               urlIndex,
-              createdAt: item?.createdAt, // Lưu createdAt để sắp xếp
             }));
           })
-          .filter((mediaItem) => mediaItem.src)
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sắp xếp mới nhất trước
+          .filter((mediaItem) => mediaItem.src);
         setMedia(filteredMedia.length ? filteredMedia : []);
         setError(filteredMedia.length ? null : "Không có ảnh nào.");
       } else {
@@ -94,8 +92,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
               urlIndex,
             }));
           })
-          .filter((mediaItem) => mediaItem.src)
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sắp xếp mới nhất trước
+          .filter((mediaItem) => mediaItem.src);
         setMedia(filteredMedia.length ? filteredMedia : []);
         setError(filteredMedia.length ? null : "Không có ảnh nào.");
       } else {
