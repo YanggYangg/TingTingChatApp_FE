@@ -436,7 +436,7 @@ console.log("StoragePage component mounted socket:", socket);
   );
 
   return (
-    <div className="absolute right-0 top-0 h-full w-[410px] bg-white shadow-lg p-4 overflow-y-auto">
+    <div className="fixed top-0 right-0 h-full w-[410px] bg-white shadow-lg p-4 overflow-y-auto z-50">
       <div className="flex justify-between mb-4">
         <button onClick={onClose} className="text-blue-500 text-sm">
           <FaArrowLeft />

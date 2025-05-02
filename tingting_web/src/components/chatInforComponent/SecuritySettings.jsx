@@ -34,9 +34,10 @@ const SecuritySettings = ({
   const [groupMembers, setGroupMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [showDisbandConfirm, setShowDisbandConfirm] = useState(false);
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false); // Thêm state showLeaveConfirm
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isDisbanding, setIsDisbanding] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const isAdmin = userRoleInGroup === "admin";
 
   // Lấy thông tin chat
@@ -60,9 +61,7 @@ const SecuritySettings = ({
                 const userData = userResponse?.data?.user || {};
                 return {
                   userId: p.userId,
-                  name: `${userData.firstname || ""} ${
-                    userData.surname || ""
-                  }`.trim() || p.userId,
+                  name: `${userData.firstname || ""} ${userData.surname || ""}`.trim() || p.userId,
                 };
               } catch (error) {
                 console.error(`SecuritySettings: Lỗi khi lấy thông tin user ${p.userId}:`, error);
@@ -123,7 +122,7 @@ const SecuritySettings = ({
   }, [socket, conversationId, userId, fetchChatInfo, setChatInfo]);
 
   // Xử lý ẩn/hiện trò chuyện
-  const handleToggleHideChat = useCallback(
+  const handleToggle = useCallback(
     async (checked) => {
       if (checked && !isHidden) {
         setShowPinInput(true);
@@ -136,6 +135,11 @@ const SecuritySettings = ({
 
   const handleHideChat = useCallback(
     async (hide, pin) => {
+      if (isProcessing) {
+        console.log("SecuritySettings: Đang xử lý, bỏ qua hideChat");
+        return;
+      }
+      setIsProcessing(true);
       try {
         console.log("SecuritySettings: Gửi yêu cầu hideChat", { conversationId, isHidden: hide, pin });
         hideChat(socket, { conversationId, isHidden: hide, pin }, (response) => {
@@ -146,15 +150,17 @@ const SecuritySettings = ({
             setPin("");
             toast.success(hide ? "Đã ẩn trò chuyện!" : "Đã hiện trò chuyện!");
           } else {
-            toast.error("Lỗi khi ẩn/hiện trò chuyện: " + response.message);
+            toast.error(`Lỗi khi ${hide ? "ẩn" : "hiện"} trò chuyện: ${response.message}`);
           }
+          setIsProcessing(false);
         });
       } catch (error) {
         console.error("SecuritySettings: Lỗi khi ẩn/hiện trò chuyện:", error);
         toast.error("Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.");
+        setIsProcessing(false);
       }
     },
-    [socket, conversationId]
+    [socket, conversationId, isProcessing]
   );
 
   const handleSubmitPin = useCallback(() => {
@@ -167,6 +173,11 @@ const SecuritySettings = ({
 
   // Xóa lịch sử trò chuyện
   const handleDeleteHistory = useCallback(async () => {
+    if (isProcessing) {
+      console.log("SecuritySettings: Đang xử lý, bỏ qua deleteChatHistoryForMe");
+      return;
+    }
+    setIsProcessing(true);
     try {
       console.log("SecuritySettings: Gửi yêu cầu deleteChatHistoryForMe", { conversationId });
       deleteChatHistoryForMe(socket, { conversationId }, (response) => {
@@ -176,12 +187,14 @@ const SecuritySettings = ({
         } else {
           toast.error("Lỗi khi xóa lịch sử: " + response.message);
         }
+        setIsProcessing(false);
       });
     } catch (error) {
       console.error("SecuritySettings: Lỗi khi xóa lịch sử:", error);
       toast.error("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
+      setIsProcessing(false);
     }
-  }, [socket, conversationId]);
+  }, [socket, conversationId, isProcessing]);
 
   // Rời nhóm
   const handleLeaveGroup = useCallback(() => {
@@ -191,17 +204,25 @@ const SecuritySettings = ({
       return;
     }
 
+    if (isAdmin && groupMembers.length === 0) {
+      toast.error("Không thể rời nhóm: Bạn là thành viên duy nhất. Vui lòng giải tán nhóm.");
+      return;
+    }
+
     if (isAdmin) {
-      // Hiển thị form chuyển quyền admin
       setShowTransferAdminModal(true);
     } else {
-      // Hiển thị xác nhận rời nhóm
       setShowLeaveConfirm(true);
     }
-  }, [isGroup, userId, isAdmin]);
+  }, [isGroup, userId, isAdmin, groupMembers]);
 
   const confirmLeaveGroup = useCallback(async () => {
+    if (isProcessing) {
+      console.log("SecuritySettings: Đang xử lý, bỏ qua confirmLeaveGroup");
+      return;
+    }
     setIsLeaving(true);
+    setIsProcessing(true);
     try {
       console.log("SecuritySettings: Gửi yêu cầu leaveGroup", { conversationId, userId });
       leaveGroup(socket, { conversationId, userId }, (response) => {
@@ -217,14 +238,16 @@ const SecuritySettings = ({
         }
         setIsLeaving(false);
         setShowLeaveConfirm(false);
+        setIsProcessing(false);
       });
     } catch (error) {
       console.error("SecuritySettings: Lỗi khi rời nhóm:", error);
       toast.error("Lỗi khi rời nhóm. Vui lòng thử lại.");
       setIsLeaving(false);
       setShowLeaveConfirm(false);
+      setIsProcessing(false);
     }
-  }, [socket, conversationId, userId, setChatInfo]);
+  }, [socket, conversationId, userId, setChatInfo, isProcessing]);
 
   // Chuyển quyền admin và tự động rời nhóm
   const handleTransferAdminAndLeave = useCallback(async () => {
@@ -232,10 +255,13 @@ const SecuritySettings = ({
       toast.error("Vui lòng chọn một thành viên để chuyển quyền.");
       return;
     }
-
+    if (isProcessing) {
+      console.log("SecuritySettings: Đang xử lý, bỏ qua handleTransferAdminAndLeave");
+      return;
+    }
     setIsLeaving(true);
+    setIsProcessing(true);
     try {
-      // Chuyển quyền admin
       console.log("SecuritySettings: Gửi yêu cầu transferGroupAdmin", {
         conversationId,
         userId: newAdminUserId,
@@ -253,7 +279,6 @@ const SecuritySettings = ({
         });
       });
 
-      // Tự động rời nhóm
       console.log("SecuritySettings: Gửi yêu cầu leaveGroup", { conversationId, userId });
       leaveGroup(socket, { conversationId, userId }, (response) => {
         console.log("SecuritySettings: Phản hồi từ leaveGroup", response);
@@ -269,14 +294,16 @@ const SecuritySettings = ({
         setIsLeaving(false);
         setShowTransferAdminModal(false);
         setNewAdminUserId("");
+        setIsProcessing(false);
       });
     } catch (error) {
       console.error("SecuritySettings: Lỗi khi chuyển quyền và rời nhóm:", error);
       toast.error("Lỗi khi chuyển quyền hoặc rời nhóm. Vui lòng thử lại.");
       setIsLeaving(false);
       setShowTransferAdminModal(false);
+      setIsProcessing(false);
     }
-  }, [socket, conversationId, userId, newAdminUserId, setChatInfo]);
+  }, [socket, conversationId, userId, newAdminUserId, setChatInfo, isProcessing]);
 
   // Giải tán nhóm
   const handleDisbandGroup = useCallback(() => {
@@ -285,7 +312,12 @@ const SecuritySettings = ({
   }, [isGroup, isAdmin]);
 
   const confirmDisbandGroup = useCallback(async () => {
+    if (isProcessing) {
+      console.log("SecuritySettings: Đang xử lý, bỏ qua confirmDisbandGroup");
+      return;
+    }
     setIsDisbanding(true);
+    setIsProcessing(true);
     try {
       console.log("SecuritySettings: Gửi yêu cầu disbandGroup", { conversationId });
       disbandGroup(socket, { conversationId }, (response) => {
@@ -297,14 +329,16 @@ const SecuritySettings = ({
         }
         setIsDisbanding(false);
         setShowDisbandConfirm(false);
+        setIsProcessing(false);
       });
     } catch (error) {
       console.error("SecuritySettings: Lỗi khi giải tán nhóm:", error);
       toast.error("Lỗi khi giải tán nhóm. Vui lòng thử lại.");
       setIsDisbanding(false);
       setShowDisbandConfirm(false);
+      setIsProcessing(false);
     }
-  }, [socket, conversationId]);
+  }, [socket, conversationId, isProcessing]);
 
   // Chuyển quyền trưởng nhóm (không rời nhóm)
   const handleTransferAdmin = useCallback(async () => {
@@ -312,6 +346,11 @@ const SecuritySettings = ({
       toast.error("Vui lòng chọn một thành viên để chuyển quyền.");
       return;
     }
+    if (isProcessing) {
+      console.log("SecuritySettings: Đang xử lý, bỏ qua handleTransferAdmin");
+      return;
+    }
+    setIsProcessing(true);
     try {
       console.log("SecuritySettings: Gửi yêu cầu transferGroupAdmin", {
         conversationId,
@@ -328,13 +367,15 @@ const SecuritySettings = ({
           toast.error("Lỗi khi chuyển quyền: " + response.message);
           fetchChatInfo();
         }
+        setIsProcessing(false);
       });
     } catch (error) {
       console.error("SecuritySettings: Lỗi khi chuyển quyền:", error);
       toast.error("Lỗi khi chuyển quyền. Vui lòng thử lại.");
       fetchChatInfo();
+      setIsProcessing(false);
     }
-  }, [socket, conversationId, newAdminUserId, fetchChatInfo]);
+  }, [socket, conversationId, newAdminUserId, fetchChatInfo, isProcessing]);
 
   // Đóng modal chuyển quyền
   const handleCloseTransferAdminModal = useCallback(() => {
@@ -349,7 +390,7 @@ const SecuritySettings = ({
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm">Ẩn trò chuyện</span>
         <Switch
-          onChange={handleToggleHideChat}
+          onChange={handleToggle}
           checked={isHidden}
           offColor="#ccc"
           onColor="#3b82f6"
@@ -358,6 +399,7 @@ const SecuritySettings = ({
           height={22}
           width={44}
           handleDiameter={18}
+          disabled={isProcessing}
         />
       </div>
 
@@ -371,12 +413,14 @@ const SecuritySettings = ({
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
             placeholder="****"
+            disabled={isProcessing}
           />
           <button
             onClick={handleSubmitPin}
-            className="w-full mt-2 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition"
+            className="w-full mt-2 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition disabled:bg-blue-300"
+            disabled={isProcessing}
           >
-            Xác nhận
+            {isProcessing ? "Đang xử lý..." : "Xác nhận"}
           </button>
         </div>
       )}
@@ -384,6 +428,7 @@ const SecuritySettings = ({
       <button
         className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
         onClick={handleDeleteHistory}
+        disabled={isProcessing}
       >
         <FaTrash size={16} />
         Xóa lịch sử trò chuyện
@@ -394,7 +439,7 @@ const SecuritySettings = ({
           <button
             className="w-full text-red-500 text-left flex items-center gap-2 mt-2"
             onClick={handleLeaveGroup}
-            disabled={isLeaving}
+            disabled={isLeaving || isProcessing}
           >
             <FaDoorOpen size={16} />
             {isLeaving ? "Đang rời nhóm..." : "Rời nhóm"}
@@ -405,6 +450,7 @@ const SecuritySettings = ({
               <button
                 className="w-full text-blue-500 text-left flex items-center gap-2 mt-2"
                 onClick={() => setShowTransferAdminModal(true)}
+                disabled={isProcessing}
               >
                 <FaUserShield size={16} />
                 Chuyển quyền trưởng nhóm
@@ -413,7 +459,7 @@ const SecuritySettings = ({
               <button
                 className="w-full text-red-600 text-left flex items-center gap-2 mt-2"
                 onClick={handleDisbandGroup}
-                disabled={isDisbanding}
+                disabled={isDisbanding || isProcessing}
               >
                 <FaSignOutAlt size={16} />
                 {isDisbanding ? "Đang giải tán..." : "Giải tán nhóm"}
@@ -424,7 +470,7 @@ const SecuritySettings = ({
       )}
 
       {showTransferAdminModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 flex items-center justify-center"  overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">
               {isLeaving ? "Chuyển quyền trước khi rời nhóm" : "Chuyển quyền trưởng nhóm"}
@@ -446,6 +492,7 @@ const SecuritySettings = ({
                   className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   value={newAdminUserId}
                   onChange={(e) => setNewAdminUserId(e.target.value)}
+                  disabled={isProcessing}
                 >
                   <option value="">Chọn một thành viên</option>
                   {groupMembers.map((member) => (
@@ -458,14 +505,14 @@ const SecuritySettings = ({
                   <button
                     onClick={handleCloseTransferAdminModal}
                     className="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded mr-2"
-                    disabled={isLeaving}
+                    disabled={isLeaving || isProcessing}
                   >
                     Hủy
                   </button>
                   <button
                     onClick={isLeaving ? handleTransferAdminAndLeave : handleTransferAdmin}
-                    className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded"
-                    disabled={!newAdminUserId || isLeaving}
+                    className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded disabled:bg-blue-300"
+                    disabled={!newAdminUserId || isLeaving || isProcessing}
                   >
                     {isLeaving ? "Chuyển quyền và rời nhóm" : "Chuyển quyền"}
                   </button>
@@ -477,7 +524,7 @@ const SecuritySettings = ({
       )}
 
       {showDisbandConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 flex items-center justify-center"  overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận giải tán nhóm</h2>
             <p className="mb-4">
@@ -487,13 +534,14 @@ const SecuritySettings = ({
               <button
                 onClick={() => setShowDisbandConfirm(false)}
                 className="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded mr-2"
+                disabled={isProcessing}
               >
                 Hủy
               </button>
               <button
                 onClick={confirmDisbandGroup}
-                className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded"
-                disabled={isDisbanding}
+                className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded disabled:bg-red-300"
+                disabled={isDisbanding || isProcessing}
               >
                 {isDisbanding ? "Đang giải tán..." : "Giải tán"}
               </button>
@@ -503,7 +551,7 @@ const SecuritySettings = ({
       )}
 
       {showLeaveConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 flex items-center justify-center"  overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận rời nhóm</h2>
             <p className="mb-4">
@@ -513,13 +561,14 @@ const SecuritySettings = ({
               <button
                 onClick={() => setShowLeaveConfirm(false)}
                 className="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded mr-2"
+                disabled={isProcessing}
               >
                 Hủy
               </button>
               <button
                 onClick={confirmLeaveGroup}
-                className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded"
-                disabled={isLeaving}
+                className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded disabled:bg-red-300"
+                disabled={isLeaving || isProcessing}
               >
                 {isLeaving ? "Đang rời..." : "Rời nhóm"}
               </button>
