@@ -1,10 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Switch, TextInput, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 import { Api_Profile } from '../../../../../apis/api_profile';
 import Modal from 'react-native-modal';
 import { useNavigation } from '@react-navigation/native';
+import {
+  getChatInfo,
+  onChatInfo,
+  offChatInfo,
+  hideChat,
+  deleteChatHistoryForMe,
+  transferGroupAdmin,
+  disbandGroup,
+  leaveGroup,
+  onError,
+  offError,
+} from '../../../../../services/sockets/events/chatInfo';
 
 interface Participant {
   userId: string;
@@ -31,48 +42,70 @@ interface Props {
   conversationId: string;
   userId: string;
   setChatInfo: React.Dispatch<React.SetStateAction<ChatInfoData | null>>;
+  userRoleInGroup: string | null;
+  chatInfo: ChatInfoData | null;
+  socket: any;
 }
 
-const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo }) => {
+const SecuritySettings: React.FC<Props> = ({
+  conversationId,
+  userId,
+  setChatInfo,
+  userRoleInGroup,
+  chatInfo,
+  socket,
+}) => {
   const [isHidden, setIsHidden] = useState(false);
   const [pin, setPin] = useState('');
   const [showPinInput, setShowPinInput] = useState(false);
   const [isGroup, setIsGroup] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(userRoleInGroup === 'admin');
   const [showTransferAdminModal, setShowTransferAdminModal] = useState(false);
   const [newAdminUserId, setNewAdminUserId] = useState('');
   const [groupMembers, setGroupMembers] = useState<Participant[]>([]);
   const [profileDetails, setProfileDetails] = useState<ProfileDetails>({});
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showDisbandConfirm, setShowDisbandConfirm] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [isDisbanding, setIsDisbanding] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const navigation = useNavigation();
 
   // Fetch chat information
-  const fetchChatInfo = useCallback(async () => {
+  const fetchChatInfo = useCallback(() => {
+    if (!socket || !conversationId) {
+      setError('Thiếu kết nối hoặc thông tin cuộc trò chuyện.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    try {
-      const response = await Api_chatInfo.getChatInfo(conversationId);
-      if (!response || !response._id) {
-        throw new Error('Không tìm thấy thông tin cuộc trò chuyện');
+
+    console.log('SecuritySettings: Gửi yêu cầu getChatInfo', { conversationId });
+    getChatInfo(socket, { conversationId }, (response) => {
+      console.log('SecuritySettings: Phản hồi từ getChatInfo', response);
+      if (response.success && response.data) {
+        const data = response.data;
+        setIsGroup(data.isGroup);
+        setGroupMembers(data.participants.filter((p) => p.userId !== userId));
+        const participant = data.participants.find((p: Participant) => p.userId === userId);
+        setIsHidden(participant?.isHidden || false);
+        setIsAdmin(participant?.role === 'admin');
+        setChatInfo(data);
+        setLoading(false);
+      } else {
+        setError(response.message || 'Không thể lấy thông tin cuộc trò chuyện.');
+        Alert.alert('Lỗi', response.message || 'Không thể lấy thông tin cuộc trò chuyện.');
+        setLoading(false);
       }
-      setIsGroup(response.isGroup);
-      setGroupMembers(response.participants.filter((p) => p.userId !== userId));
-      const participant = response.participants.find((p: Participant) => p.userId === userId);
-      setIsHidden(participant?.isHidden || false);
-      setIsAdmin(participant?.role === 'admin');
-      setChatInfo(response);
-    } catch (err: any) {
-      console.error('Error fetching chat information:', err);
-      setError('Không thể tải cài đặt bảo mật. Vui lòng thử lại.');
-      Alert.alert('Lỗi', 'Không thể tải cài đặt bảo mật. Vui lòng thử lại.');
-    } finally {
-      setLoading(false);
-    }
-  }, [conversationId, userId, setChatInfo]);
+    });
+  }, [socket, conversationId, userId, setChatInfo]);
 
   // Fetch profile details for group members
   const fetchProfileDetails = useCallback(async (members: Participant[]) => {
@@ -107,11 +140,42 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
     }
   }, []);
 
+  // Initialize socket listeners and fetch chat info
   useEffect(() => {
-    if (conversationId && userId) {
-      fetchChatInfo();
+    if (!socket || !conversationId || !userId) {
+      console.warn('SecuritySettings: Thiếu socket, conversationId hoặc userId', {
+        socket,
+        conversationId,
+        userId,
+      });
+      setError('Thiếu kết nối hoặc thông tin cuộc trò chuyện.');
+      setLoading(false);
+      return;
     }
-  }, [conversationId, userId, fetchChatInfo]);
+
+    fetchChatInfo();
+
+    onChatInfo(socket, (data) => {
+      console.log('SecuritySettings: Nhận onChatInfo', data);
+      setIsGroup(data.isGroup);
+      setGroupMembers(data.participants.filter((p) => p.userId !== userId));
+      const participant = data.participants.find((p) => p.userId === userId);
+      setIsHidden(participant?.isHidden || false);
+      setIsAdmin(participant?.role === 'admin');
+      setChatInfo(data);
+    });
+
+    onError(socket, (error) => {
+      console.error('SecuritySettings: Lỗi từ server:', error);
+      Alert.alert('Lỗi', error.message || 'Lỗi hệ thống.');
+    });
+
+    return () => {
+      console.log('SecuritySettings: Gỡ sự kiện socket');
+      offChatInfo(socket);
+      offError(socket);
+    };
+  }, [socket, conversationId, userId, fetchChatInfo, setChatInfo]);
 
   useEffect(() => {
     if (groupMembers.length > 0) {
@@ -122,18 +186,32 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
   // Handle hiding/unhiding chat
   const handleHideChat = useCallback(
     async (hide: boolean, currentPin: string | null) => {
+      if (isProcessing) {
+        console.log('SecuritySettings: Đang xử lý, bỏ qua hideChat');
+        return;
+      }
+      setIsProcessing(true);
       try {
-        await Api_chatInfo.hideChat(conversationId, { userId, isHidden: hide, pin: currentPin });
-        setIsHidden(hide);
-        setShowPinInput(false);
-        setPin('');
-        Alert.alert('Thành công', `Cuộc trò chuyện đã ${hide ? 'được ẩn' : 'được hiện'}!`);
-      } catch (err: any) {
-        console.error('Error toggling hide chat:', err);
-        Alert.alert('Lỗi', `Cuộc trò chuyện ${hide ? 'ẩn' : 'hiện'} thất bại. Vui lòng thử lại.`);
+        console.log('SecuritySettings: Gửi yêu cầu hideChat', { conversationId, isHidden: hide, pin: currentPin });
+        hideChat(socket, { conversationId, isHidden: hide, pin: currentPin }, (response) => {
+          console.log('SecuritySettings: Phản hồi từ hideChat', response);
+          if (response.success) {
+            setIsHidden(hide);
+            setShowPinInput(false);
+            setPin('');
+            Alert.alert('Thành công', `Cuộc trò chuyện đã ${hide ? 'được ẩn' : 'được hiện'}!`);
+          } else {
+            Alert.alert('Lỗi', `Cuộc trò chuyện ${hide ? 'ẩn' : 'hiện'} thất bại: ${response.message}`);
+          }
+          setIsProcessing(false);
+        });
+      } catch (error) {
+        console.error('SecuritySettings: Lỗi khi ẩn/hiện trò chuyện:', error);
+        Alert.alert('Lỗi', 'Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.');
+        setIsProcessing(false);
       }
     },
-    [conversationId, userId]
+    [socket, conversationId, isProcessing]
   );
 
   // Handle toggle switch change
@@ -158,7 +236,11 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
   }, [pin, handleHideChat]);
 
   // Delete chat history
-  const handleDeleteHistory = useCallback(async () => {
+  const handleDeleteHistory = useCallback(() => {
+    if (isProcessing) {
+      console.log('SecuritySettings: Đang xử lý, bỏ qua deleteChatHistoryForMe');
+      return;
+    }
     Alert.alert(
       'Xác nhận',
       'Bạn có chắc chắn muốn xóa lịch sử trò chuyện này?',
@@ -167,111 +249,166 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
         {
           text: 'Xóa',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await Api_chatInfo.deleteHistory(conversationId, { userId });
-              Alert.alert('Thành công', 'Lịch sử trò chuyện đã được xóa!');
-            } catch (err: any) {
-              console.error('Error deleting chat history:', err);
-              Alert.alert('Lỗi', 'Xóa lịch sử trò chuyện không thành công. Vui lòng thử lại.');
-            }
+          onPress: () => {
+            setIsProcessing(true);
+            console.log('SecuritySettings: Gửi yêu cầu deleteChatHistoryForMe', { conversationId });
+            deleteChatHistoryForMe(socket, { conversationId }, (response) => {
+              console.log('SecuritySettings: Phản hồi từ deleteChatHistoryForMe', response);
+              if (response.success) {
+                Alert.alert('Thành công', 'Lịch sử trò chuyện đã được xóa!');
+              } else {
+                Alert.alert('Lỗi', `Xóa lịch sử thất bại: ${response.message}`);
+              }
+              setIsProcessing(false);
+            });
           },
         },
       ],
       { cancelable: false }
     );
-  }, [conversationId, userId]);
+  }, [socket, conversationId, isProcessing]);
 
   // Leave group functionality
-  const handleLeaveGroup = useCallback(async () => {
+  const handleLeaveGroup = useCallback(() => {
     if (!isGroup) return;
-    Alert.alert(
-      'Xác nhận',
-      'Bạn có chắc chắn muốn rời khỏi nhóm này?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Rời',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await Api_chatInfo.removeParticipant(conversationId, { userId });
-              setChatInfo(null); // Clear chat info to prevent further interactions
-              Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
-              navigation.navigate('Main', { screen: 'ChatScreen' }); // Navigate to ChatScreen tab
-            } catch (err: any) {
-              console.error('Error leaving group:', err);
-              Alert.alert('Lỗi', 'Rời nhóm không thành công. Vui lòng thử lại.');
-            }
-          },
-        },
-      ],
-      { cancelable: false }
-    );
-  }, [isGroup, conversationId, userId, setChatInfo, navigation]);
+    if (isAdmin && groupMembers.length === 0) {
+      Alert.alert('Lỗi', 'Bạn là thành viên duy nhất. Vui lòng giải tán nhóm.');
+      return;
+    }
+    if (isAdmin) {
+      setShowTransferAdminModal(true);
+    } else {
+      setShowLeaveConfirm(true);
+    }
+  }, [isGroup, isAdmin, groupMembers]);
+
+  const confirmLeaveGroup = useCallback(() => {
+    if (isProcessing) {
+      console.log('SecuritySettings: Đang xử lý, bỏ qua confirmLeaveGroup');
+      return;
+    }
+    setIsLeaving(true);
+    setIsProcessing(true);
+    console.log('SecuritySettings: Gửi yêu cầu leaveGroup', { conversationId, userId });
+    leaveGroup(socket, { conversationId, userId }, (response) => {
+      console.log('SecuritySettings: Phản hồi từ leaveGroup', response);
+      if (response.success) {
+        setChatInfo(null);
+        Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
+        navigation.navigate('Main', { screen: 'ChatScreen' });
+      } else {
+        Alert.alert('Lỗi', `Rời nhóm thất bại: ${response.message}`);
+      }
+      setIsLeaving(false);
+      setShowLeaveConfirm(false);
+      setIsProcessing(false);
+    });
+  }, [socket, conversationId, userId, setChatInfo, navigation, isProcessing]);
+
+  // Transfer admin and leave group
+  const handleTransferAdminAndLeave = useCallback(() => {
+    if (!newAdminUserId) {
+      Alert.alert('Lỗi', 'Vui lòng chọn một thành viên để chuyển quyền.');
+      return;
+    }
+    if (isProcessing) {
+      console.log('SecuritySettings: Đang xử lý, bỏ qua handleTransferAdminAndLeave');
+      return;
+    }
+    setIsLeaving(true);
+    setIsProcessing(true);
+    console.log('SecuritySettings: Gửi yêu cầu transferGroupAdmin', { conversationId, userId: newAdminUserId });
+    transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
+      console.log('SecuritySettings: Phản hồi từ transferGroupAdmin', response);
+      if (response.success) {
+        Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
+        console.log('SecuritySettings: Gửi yêu cầu leaveGroup', { conversationId, userId });
+        leaveGroup(socket, { conversationId, userId }, (leaveResponse) => {
+          console.log('SecuritySettings: Phản hồi từ leaveGroup', leaveResponse);
+          if (leaveResponse.success) {
+            setChatInfo(null);
+            Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
+            navigation.navigate('Main', { screen: 'ChatScreen' });
+          } else {
+            Alert.alert('Lỗi', `Rời nhóm thất bại: ${leaveResponse.message}`);
+          }
+          setIsLeaving(false);
+          setShowTransferAdminModal(false);
+          setNewAdminUserId('');
+          setIsProcessing(false);
+        });
+      } else {
+        Alert.alert('Lỗi', `Chuyển quyền thất bại: ${response.message}`);
+        setIsLeaving(false);
+        setShowTransferAdminModal(false);
+        setNewAdminUserId('');
+        setIsProcessing(false);
+      }
+    });
+  }, [socket, conversationId, userId, newAdminUserId, setChatInfo, navigation, isProcessing]);
 
   // Disband group functionality
-  const handleDisbandGroup = useCallback(async () => {
+  const handleDisbandGroup = useCallback(() => {
     if (!isGroup || !isAdmin) return;
-    Alert.alert(
-      'Xác nhận',
-      'Bạn có chắc chắn muốn giải tán nhóm này? Tất cả thành viên sẽ bị xóa và lịch sử trò chuyện sẽ bị mất.',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Giải tán',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('Disbanding group with conversationId:', conversationId);
-              await Api_chatInfo.disbandGroup(conversationId, { userId });
-              setChatInfo(null); // Clear chat info
-              Alert.alert('Thành công', 'Nhóm đã được giải tán!');
-              navigation.navigate('Main', { screen: 'ChatScreen' }); // Navigate to ChatScreen tab
-            } catch (error) {
-              console.error('Lỗi khi giải tán nhóm:', error);
-              Alert.alert('Lỗi', 'Giải tán nhóm không thành công. Vui lòng thử lại.');
-            }
-          },
-        },
-      ],
-      { cancelable: false }
-    );
-  }, [isGroup, isAdmin, conversationId, userId, setChatInfo, navigation]);
+    setShowDisbandConfirm(true);
+  }, [isGroup, isAdmin]);
 
-  // Handle opening the transfer admin modal
-  const handleOpenTransferAdminModal = useCallback(() => {
-    setShowTransferAdminModal(true);
-  }, []);
+  const confirmDisbandGroup = useCallback(() => {
+    if (isProcessing) {
+      console.log('SecuritySettings: Đang xử lý, bỏ qua confirmDisbandGroup');
+      return;
+    }
+    setIsDisbanding(true);
+    setIsProcessing(true);
+    console.log('SecuritySettings: Gửi yêu cầu disbandGroup', { conversationId });
+    disbandGroup(socket, { conversationId }, (response) => {
+      console.log('SecuritySettings: Phản hồi từ disbandGroup', response);
+      if (response.success) {
+        setChatInfo(null);
+        Alert.alert('Thành công', 'Nhóm đã được giải tán!');
+        navigation.navigate('Main', { screen: 'ChatScreen' });
+      } else {
+        Alert.alert('Lỗi', `Giải tán nhóm thất bại: ${response.message}`);
+      }
+      setIsDisbanding(false);
+      setShowDisbandConfirm(false);
+      setIsProcessing(false);
+    });
+  }, [socket, conversationId, setChatInfo, navigation, isProcessing]);
+
+  // Handle transferring group admin
+  const handleTransferAdmin = useCallback(() => {
+    if (!newAdminUserId) {
+      Alert.alert('Lỗi', 'Vui lòng chọn một thành viên để chuyển quyền.');
+      return;
+    }
+    if (isProcessing) {
+      console.log('SecuritySettings: Đang xử lý, bỏ qua handleTransferAdmin');
+      return;
+    }
+    setIsProcessing(true);
+    console.log('SecuritySettings: Gửi yêu cầu transferGroupAdmin', { conversationId, userId: newAdminUserId });
+    transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
+      console.log('SecuritySettings: Phản hồi từ transferGroupAdmin', response);
+      if (response.success) {
+        setIsAdmin(false);
+        Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
+        fetchChatInfo();
+      } else {
+        Alert.alert('Lỗi', `Chuyển quyền thất bại: ${response.message}`);
+        fetchChatInfo();
+      }
+      setShowTransferAdminModal(false);
+      setNewAdminUserId('');
+      setIsProcessing(false);
+    });
+  }, [socket, conversationId, newAdminUserId, fetchChatInfo, isProcessing]);
 
   // Handle closing the transfer admin modal
   const handleCloseTransferAdminModal = useCallback(() => {
     setShowTransferAdminModal(false);
     setNewAdminUserId('');
   }, []);
-
-  // Handle transferring group admin
-  const handleTransferAdmin = useCallback(async () => {
-    if (!newAdminUserId) {
-      Alert.alert('Lỗi', 'Vui lòng chọn một thành viên để chuyển quyền trưởng nhóm.');
-      return;
-    }
-    try {
-      const updatedConversation = await Api_chatInfo.transferGroupAdmin(conversationId, {
-        requesterUserId: userId,
-        newAdminUserId,
-      });
-      setChatInfo(updatedConversation);
-      setIsAdmin(false);
-      setGroupMembers(updatedConversation.participants.filter((p) => p.userId !== userId));
-      handleCloseTransferAdminModal();
-      Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
-    } catch (err: any) {
-      console.error('Lỗi khi chuyển quyền trưởng nhóm:', err);
-      Alert.alert('Lỗi', 'Chuyển quyền trưởng nhóm không thành công. Vui lòng thử lại.');
-      fetchChatInfo();
-    }
-  }, [conversationId, userId, newAdminUserId, setChatInfo, handleCloseTransferAdminModal, fetchChatInfo]);
 
   if (loading) {
     return (
@@ -305,6 +442,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
           onValueChange={handleToggle}
           trackColor={{ false: '#ccc', true: '#1e90ff' }}
           thumbColor={'#fff'}
+          disabled={isProcessing}
         />
       </View>
 
@@ -320,35 +458,56 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
             placeholder="****"
             textAlign="center"
             keyboardType="numeric"
+            editable={!isProcessing}
           />
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmitPin}>
-            <Text style={styles.submitButtonText}>Xác nhận</Text>
+          <TouchableOpacity
+            style={[styles.submitButton, isProcessing && styles.submitButtonDisabled]}
+            onPress={handleSubmitPin}
+            disabled={isProcessing}
+          >
+            <Text style={styles.submitButtonText}>{isProcessing ? 'Đang xử lý...' : 'Xác nhận'}</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      <TouchableOpacity style={styles.actionButton} onPress={handleDeleteHistory}>
+      <TouchableOpacity
+        style={styles.actionButton}
+        onPress={handleDeleteHistory}
+        disabled={isProcessing}
+      >
         <Ionicons name="trash" size={16} color="#ff0000" style={styles.actionIcon} />
         <Text style={styles.actionText}>Xóa lịch sử trò chuyện</Text>
       </TouchableOpacity>
 
       {isGroup && (
-        <TouchableOpacity style={styles.actionButton} onPress={handleLeaveGroup}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleLeaveGroup}
+          disabled={isLeaving || isProcessing}
+        >
           <Ionicons name="exit-outline" size={16} color="#ff0000" style={styles.actionIcon} />
-          <Text style={styles.actionText}>Rời khỏi nhóm</Text>
+          <Text style={styles.actionText}>{isLeaving ? 'Đang rời nhóm...' : 'Rời khỏi nhóm'}</Text>
         </TouchableOpacity>
       )}
 
       {isGroup && isAdmin && (
         <>
-          <TouchableOpacity style={styles.actionButton} onPress={handleOpenTransferAdminModal}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => setShowTransferAdminModal(true)}
+            disabled={isProcessing}
+          >
             <Ionicons name="swap-horizontal-outline" size={16} color="#007bff" style={styles.actionIcon} />
             <Text style={[styles.actionText, { color: '#007bff' }]}>Chuyển quyền trưởng nhóm</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton} onPress={handleDisbandGroup}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleDisbandGroup}
+            disabled={isDisbanding || isProcessing}
+          >
             <Ionicons name="close-circle-outline" size={16} color="#ff0000" style={styles.actionIcon} />
-            <Text style={styles.actionText}>Giải tán nhóm</Text>
+            <Text style={styles.actionText}>{isDisbanding ? 'Đang giải tán...' : 'Giải tán nhóm'}</Text>
           </TouchableOpacity>
         </>
       )}
@@ -360,7 +519,9 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
         style={styles.modalOverlay}
       >
         <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Chuyển quyền trưởng nhóm</Text>
+          <Text style={styles.modalTitle}>
+            {isLeaving ? 'Chuyển quyền trước khi rời nhóm' : 'Chuyển quyền trưởng nhóm'}
+          </Text>
           {loadingDetails ? (
             <Text style={styles.loadingText}>Đang tải thông tin thành viên...</Text>
           ) : errorDetails ? (
@@ -378,6 +539,7 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
                       newAdminUserId === member.userId && styles.modalOptionSelected,
                     ]}
                     onPress={() => setNewAdminUserId(member.userId)}
+                    disabled={isProcessing}
                   >
                     <View style={styles.memberInfo}>
                       {profileDetails[member.userId]?.avatar ? (
@@ -407,15 +569,85 @@ const SecuritySettings: React.FC<Props> = ({ conversationId, userId, setChatInfo
             <Text style={styles.noMembersText}>Không có thành viên nào để chuyển quyền.</Text>
           )}
           <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.modalCancelButton} onPress={handleCloseTransferAdminModal}>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={handleCloseTransferAdminModal}
+              disabled={isProcessing}
+            >
               <Text style={styles.modalCancelButtonText}>Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalActionButton, !newAdminUserId && styles.modalActionButtonDisabled]}
-              onPress={handleTransferAdmin}
-              disabled={!newAdminUserId}
+              onPress={isLeaving ? handleTransferAdminAndLeave : handleTransferAdmin}
+              disabled={!newAdminUserId || isProcessing}
             >
-              <Text style={styles.modalActionButtonText}>Chuyển quyền</Text>
+              <Text style={styles.modalActionButtonText}>
+                {isLeaving ? 'Chuyển quyền và rời nhóm' : 'Chuyển quyền'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        isVisible={showDisbandConfirm}
+        onBackdropPress={() => setShowDisbandConfirm(false)}
+        onBackButtonPress={() => setShowDisbandConfirm(false)}
+        style={styles.modalOverlay}
+      >
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>Xác nhận giải tán nhóm</Text>
+          <Text style={styles.modalText}>
+            Bạn có chắc chắn muốn giải tán nhóm này không? Tất cả thành viên sẽ bị xóa và lịch sử trò chuyện sẽ bị mất.
+          </Text>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowDisbandConfirm(false)}
+              disabled={isProcessing}
+            >
+              <Text style={styles.modalCancelButtonText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalActionButton, isDisbanding && styles.modalActionButtonDisabled]}
+              onPress={confirmDisbandGroup}
+              disabled={isDisbanding || isProcessing}
+            >
+              <Text style={styles.modalActionButtonText}>
+                {isDisbanding ? 'Đang giải tán...' : 'Giải tán'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        isVisible={showLeaveConfirm}
+        onBackdropPress={() => setShowLeaveConfirm(false)}
+        onBackButtonPress={() => setShowLeaveConfirm(false)}
+        style={styles.modalOverlay}
+      >
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>Xác nhận rời nhóm</Text>
+          <Text style={styles.modalText}>
+            Bạn có chắc chắn muốn rời khỏi nhóm này không? Bạn sẽ không thể truy cập nhóm sau khi rời.
+          </Text>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowLeaveConfirm(false)}
+              disabled={isProcessing}
+            >
+              <Text style={styles.modalCancelButtonText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalActionButton, isLeaving && styles.modalActionButtonDisabled]}
+              onPress={confirmLeaveGroup}
+              disabled={isLeaving || isProcessing}
+            >
+              <Text style={styles.modalActionButtonText}>
+                {isLeaving ? 'Đang rời...' : 'Rời nhóm'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -468,6 +700,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
   },
+  submitButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
   submitButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -516,6 +751,11 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 14,
     marginBottom: 15,
     textAlign: 'center',
   },

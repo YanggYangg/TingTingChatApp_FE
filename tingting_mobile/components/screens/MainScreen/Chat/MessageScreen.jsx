@@ -20,6 +20,20 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios"; // Add axios for API calls
 import { Api_Profile } from "../../../../apis/api_profile"; // Import the API module
 import ShareModal from "../Chat/chatInfoComponent/ShareModal"; // Import ShareModal component
+import {
+  onConversationUpdate,
+  offConversationUpdate,
+  joinConversation,
+  onConversationRemoved,
+  offConversationRemoved,
+} from "../../../../services/sockets/events/conversation";
+import {
+  onChatInfoUpdated,
+  offChatInfoUpdated,
+  onGroupLeft,
+  offGroupLeft,
+} from "../../../../services/sockets/events/chatInfo";
+import { transformConversationsToMessages } from "../../../../utils/conversationTransformer";
 
 const ChatScreen = ({ route, navigation }) => {
   const { socket, userId: currentUserId } = useSocket();
@@ -32,6 +46,15 @@ const ChatScreen = ({ route, navigation }) => {
   const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
   const [messageToForward, setMessageToForward] = useState(null); // Tin nhắn cần chuyển tiếp
 
+
+  const [conversationInfo, setConversationInfo] = useState({
+    name: "",
+    isGroup: false,
+    participants: [],
+    imageGroup: null,
+  });
+
+  
   const { message, user } = route?.params || {};
   const conversationId = message?.id || null;
   const userId = currentUserId || null;
@@ -171,7 +194,51 @@ const ChatScreen = ({ route, navigation }) => {
       console.error("Delete message error:", error);
       Alert.alert("Lỗi", error.message || "Không thể xóa tin nhắn");
     });
+// Conversation update
+socket.on("conversationUpdate", (updatedConversation) => {
+  console.log("ChatScreen: Received conversationUpdate:", updatedConversation);
+  setConversationInfo((prev) => ({
+    ...prev,
+    name: updatedConversation.name || prev.name,
+    lastMessage: updatedConversation.lastMessage?.content || "",
+    lastMessageType: updatedConversation.lastMessage?.messageType || "text",
+    lastMessageSenderId: updatedConversation.lastMessage?.userId || null,
+    time: new Date(updatedConversation.updatedAt).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  }));
+});
 
+// Chat info updated
+socket.on("chatInfoUpdated", (updatedInfo) => {
+  console.log("ChatScreen: Received chatInfoUpdated:", updatedInfo);
+  setConversationInfo((prev) => ({
+    ...prev,
+    name: updatedInfo.name || prev.name,
+    isGroup: updatedInfo.isGroup ?? prev.isGroup,
+    participants: updatedInfo.participants || prev.participants,
+    imageGroup: updatedInfo.imageGroup || prev.imageGroup,
+  }));
+});
+
+// Group left
+socket.on("groupLeft", (data) => {
+  console.log("ChatScreen: Received groupLeft:", data);
+  if (data.conversationId === selectedMessageId) {
+    Alert.alert("Thông báo", "Bạn đã rời khỏi nhóm.");
+    navigation.goBack();
+  }
+});
+
+// Conversation removed
+socket.on("conversationRemoved", (data) => {
+  console.log("ChatScreen: Received conversationRemoved:", data);
+  if (data.conversationId === selectedMessageId) {
+    Alert.alert("Thông báo", "Cuộc trò chuyện đã bị xóa.");
+    navigation.goBack();
+  }
+});
     return () => {
       socket.off("loadMessages");
       socket.off("receiveMessage");
@@ -179,9 +246,25 @@ const ChatScreen = ({ route, navigation }) => {
       socket.off("messageRevoked");
       socket.off("messageDeleted");
       socket.off("deleteMessageError");
+      offConversationUpdate(socket);
+      offChatInfoUpdated(socket);
+      offGroupLeft(socket);
+      offConversationRemoved(socket);
     };
-  }, [socket, selectedMessageId, currentUserId]);
+  }, [socket, selectedMessageId, currentUserId, navigation]);
 
+  // Initialize conversation info
+  useEffect(() => {
+    if (message) {
+      setConversationInfo({
+        name: message.name || "",
+        isGroup: message.isGroup || false,
+        participants: message.participants || [],
+        imageGroup: message.imageGroup || null,
+      });
+    }
+  }, [message]);
+  
   const sendMessage = (payload) => {
     if (!payload.content && !payload.linkURL) return;
 
