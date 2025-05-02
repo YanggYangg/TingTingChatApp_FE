@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, FlatList, StyleSheet } from "react-native";
 import ChatItems from "@/components/chatitems/ChatItems";
 import ChatSupportItems from "@/components/chatitems/ChatSupportItems";
@@ -11,72 +11,194 @@ import {
   onConversationUpdate,
   offConversationUpdate,
   joinConversation,
+  onConversationRemoved,
+  offConversationRemoved,
 } from "../../../services/sockets/events/conversation";
+import {
+  onChatInfoUpdated,
+  offChatInfoUpdated,
+  onGroupLeft,
+  offGroupLeft,
+} from "../../../services/sockets/events/chatInfo";
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
-import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { Api_Profile } from "../../../apis/api_profile";
+
+// Assuming a SearchCompo equivalent for React Native
+// import SearchCompo from "@/components/searchComponent/SearchCompo"; // Adjust path as needed
 
 const ChatScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([]);
-  const [userProfiles, setUserProfiles] = useState({});
-  const { socket, userId } = useSocket();
+  const [userCache, setUserCache] = useState({});
+  const { socket, userId: currentUserId } = useSocket();
   const dispatch = useDispatch();
-  const [currentUserId, setCurrentUserId] = useState(userId);
+  const joinedRoomsRef = useRef(new Set()); // Track joined rooms
+
+  // My Cloud item
+  const myCloudItem = {
+    id: "my-cloud",
+    name: "Cloud của tôi",
+    avatar:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTis1SYXE25_el_qQD8Prx-_pFRfsYoqc2Dmw&s",
+    type: "cloud",
+    lastMessage: "Lưu trữ tin nhắn và file cá nhân",
+    isCall: false,
+    time: "",
+    isCloud: true,
+  };
+
+  // Validate conversation data
+  const validateConversation = (conversation) => {
+    if (!conversation._id) {
+      console.warn("ChatScreen: Conversation missing _id:", conversation);
+      return false;
+    }
+    if (!Array.isArray(conversation.participants)) {
+      console.warn("ChatScreen: Conversation missing or invalid participants:", conversation);
+      return false;
+    }
+    return true;
+  };
+
+  // Handle adding a new group
+  const addNewGroup = async (newConversation) => {
+    console.log("ChatScreen: Thêm nhóm mới:", newConversation);
+
+    if (!validateConversation(newConversation)) {
+      console.error("ChatScreen: Invalid new conversation, skipping");
+      return;
+    }
+
+    if (messages.some((msg) => msg.id === newConversation._id)) {
+      console.log("ChatScreen: Nhóm đã tồn tại, bỏ qua:", newConversation._id);
+      return;
+    }
+
+    const participantIds = newConversation.participants
+      .map((p) => p.userId)
+      .filter((id) => id !== currentUserId);
+
+    const profiles = await Promise.all(
+      participantIds.map(async (userId) => {
+        try {
+          const response = await Api_Profile.getProfile(userId);
+          const userData = response?.data?.user || {};
+          const profile = {
+            name: `${userData.firstname || ""} ${userData.surname || ""}`.trim() || userId,
+            avatar: userData.avatar || "https://via.placeholder.com/150",
+          };
+          setUserCache((prev) => ({ ...prev, [userId]: profile }));
+          return profile;
+        } catch (error) {
+          console.error(`ChatScreen: Lỗi khi lấy profile cho userId ${userId}:`, error);
+          return null;
+        }
+      })
+    );
+
+    const newMessage = transformConversationsToMessages(
+      [newConversation],
+      currentUserId,
+      profiles
+    )[0];
+
+    console.log("ChatScreen: Chuyển đổi nhóm mới thành message", newMessage);
+
+    setMessages((prevMessages) => {
+      const updatedMessages = [newMessage, ...prevMessages];
+      const uniqueMessages = Array.from(
+        new Map(updatedMessages.map((msg) => [msg.id, msg])).values()
+      );
+      console.log("ChatScreen: Updated unique messages:", uniqueMessages);
+      return uniqueMessages;
+    });
+  };
+
+  // Load and update conversations
   useEffect(() => {
-    if (!socket || !currentUserId) return;
+    if (!socket || !currentUserId) {
+      console.warn("ChatScreen: Thiếu socket hoặc userId", { socket, currentUserId });
+      return;
+    }
+
+    console.log("ChatScreen: Đăng ký lắng nghe socket events", { socketId: socket.id });
 
     const handleConversations = async (conversations) => {
-      console.log("Conversations sfdfds:", conversations);
+      console.log("ChatScreen: Nhận conversations:", conversations);
 
-      // Lấy ra userId của người còn lại trong các cuộc trò chuyện cá nhân
-      const otherParticipantIds = conversations
+      // Filter valid conversations
+      const validConversations = conversations.filter(validateConversation);
+
+      // Join rooms that haven't been joined
+      validConversations.forEach((conversation) => {
+        if (!joinedRoomsRef.current.has(conversation._id)) {
+          console.log("ChatScreen: Tham gia phòng", conversation._id);
+          joinConversation(socket, conversation._id);
+          joinedRoomsRef.current.add(conversation._id);
+        }
+      });
+
+      const otherParticipantIds = validConversations
         .map((conversation) => {
           const other = conversation.participants.find(
             (p) => p.userId !== currentUserId
           );
-          return other?.userId; // chỉ lấy nếu có
+          return other?.userId;
         })
-        .filter(Boolean); // loại bỏ undefined
+        .filter(Boolean);
 
-      // Lấy profile của các user còn lại
       const profiles = await Promise.all(
         otherParticipantIds.map(async (userId) => {
           try {
-            return await Api_Profile.getProfile(userId);
+            const response = await Api_Profile.getProfile(userId);
+            const userData = response?.data?.user || {};
+            const profile = {
+              name: `${userData.firstname || ""} ${userData.surname || ""}`.trim() || userId,
+              avatar: userData.avatar || "https://via.placeholder.com/150",
+            };
+            setUserCache((prev) => ({ ...prev, [userId]: profile }));
+            return profile;
           } catch (error) {
-            console.error(`Lỗi khi lấy profile cho userId ${userId}:`, error);
-            return null; // fallback nếu lỗi
+            console.error(`ChatScreen: Lỗi khi lấy profile cho userId ${userId}:`, error);
+            return null;
           }
         })
       );
 
       const transformedMessages = transformConversationsToMessages(
-        conversations,
+        validConversations,
         currentUserId,
         profiles
       );
-      setMessages(transformedMessages);
+      const uniqueMessages = Array.from(
+        new Map(transformedMessages.map((msg) => [msg.id, msg])).values()
+      );
+      console.log("ChatScreen: Transformed unique messages:", uniqueMessages);
+      setMessages(uniqueMessages);
     };
 
     const handleConversationUpdate = (updatedConversation) => {
+      console.log("ChatScreen: Cập nhật conversation:", updatedConversation);
+      if (!validateConversation(updatedConversation)) {
+        console.error("ChatScreen: Invalid updated conversation, skipping");
+        return;
+      }
+
       setMessages((prevMessages) => {
         const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === updatedConversation.conversationId) {
-            return {
+            const updatedMsg = {
               ...msg,
               lastMessage: updatedConversation.lastMessage?.content || "",
-              lastMessageType:
-                updatedConversation.lastMessage?.messageType || "text",
-              lastMessageSenderId:
-                updatedConversation.lastMessage?.userId || null,
+              lastMessageType: updatedConversation.lastMessage?.messageType || "text",
+              lastMessageSenderId: updatedConversation.lastMessage?.userId || null,
               time: new Date(updatedConversation.updatedAt).toLocaleTimeString(
                 [],
                 { hour: "2-digit", minute: "2-digit" }
               ),
               updateAt: updatedConversation.updatedAt,
             };
+            console.log("ChatScreen: Cập nhật message", updatedMsg);
+            return updatedMsg;
           }
           return msg;
         });
@@ -90,40 +212,119 @@ const ChatScreen = ({ navigation }) => {
             [updatedConversation],
             currentUserId
           )[0];
+          console.log("ChatScreen: Thêm message mới", newMessage);
           return [newMessage, ...updatedMessages];
         }
 
+        console.log("ChatScreen: Messages sau khi cập nhật conversation", updatedMessages);
         return updatedMessages;
+      });
+    };
+
+    const handleNewGroupConversation = (newConversation) => {
+      console.log("ChatScreen: Nhóm mới từ socket:", newConversation);
+      addNewGroup(newConversation);
+    };
+
+    const handleGroupLeft = (data) => {
+      console.log("ChatScreen: Nhận groupLeft:", data);
+      setMessages((prevMessages) =>
+        prevMessages.filter((msg) => msg.id !== data.conversationId)
+      );
+      dispatch(setSelectedMessage(null));
+    };
+
+    const handleConversationRemoved = (data) => {
+      console.log("ChatScreen: Cuộc trò chuyện đã bị xóa:", data);
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== data.conversationId)
+      );
+      dispatch(setSelectedMessage(null));
+    };
+
+    const handleChatInfoUpdated = (updatedInfo) => {
+      console.log("ChatScreen: Nhận cập nhật chatInfo:", updatedInfo);
+      if (!validateConversation(updatedInfo)) {
+        console.error("ChatScreen: Invalid updated chat info, skipping");
+        return;
+      }
+
+      setMessages((prevMessages) => {
+        const updatedMessages = prevMessages.map((msg) => {
+          if (msg.id === updatedInfo._id) {
+            const participant = updatedInfo.participants?.find(
+              (p) => p.userId === currentUserId
+            );
+            const updatedMsg = {
+              ...msg,
+              participants: updatedInfo.participants || msg.participants,
+              name: updatedInfo.name || msg.name,
+              isGroup: updatedInfo.isGroup ?? msg.isGroup,
+              imageGroup: updatedInfo.imageGroup || msg.imageGroup,
+              isPinned: participant?.isPinned || false,
+              mute: participant?.mute || false,
+            };
+            console.log("ChatScreen: Cập nhật message với tên mới", updatedMsg);
+            return updatedMsg;
+          }
+          return msg;
+        });
+        console.log("ChatScreen: Danh sách messages sau khi cập nhật", updatedMessages);
+        return [...updatedMessages];
       });
     };
 
     const cleanupLoad = loadAndListenConversations(socket, handleConversations);
     onConversationUpdate(socket, handleConversationUpdate);
+    onChatInfoUpdated(socket, handleChatInfoUpdated);
+    socket.on("newGroupConversation", handleNewGroupConversation);
+    onConversationRemoved(socket, handleConversationRemoved);
+    onGroupLeft(socket, handleGroupLeft);
 
     return () => {
+      console.log("ChatScreen: Gỡ sự kiện socket");
       cleanupLoad();
       offConversationUpdate(socket);
+      offChatInfoUpdated(socket);
+      socket.off("newGroupConversation", handleNewGroupConversation);
+      offConversationRemoved(socket);
+      offGroupLeft(socket);
     };
-  }, [socket, currentUserId]);
+  }, [socket, currentUserId, dispatch]);
 
-  const handlePress = (message) => {
-    joinConversation(socket, message.id);
-    dispatch(setSelectedMessage(message));
-    console.log("Selected message jhasdgashjdgs:", message);
-    console.log(
-      "chat user profile",
-      userProfiles[message.participants[0].userId]
-    );
+  const handlePress = (item) => {
+    if (item.id === "my-cloud") {
+      console.log("ChatScreen: Chọn Cloud của tôi");
+      // Handle navigation for My Cloud if needed
+      return;
+    }
+
+    console.log(`ChatScreen: Chọn conversation: ${item.id}`);
+    joinConversation(socket, item.id);
+    joinedRoomsRef.current.add(item.id);
+    dispatch(setSelectedMessage(item));
+    console.log("ChatScreen: Selected message:", item);
+
+    const otherParticipant = !item.isGroup && Array.isArray(item.participants)
+      ? item.participants.find((p) => p.userId !== currentUserId)
+      : null;
+    const userProfile = otherParticipant
+      ? userCache[otherParticipant.userId]
+      : null;
+
     navigation.navigate("MessageScreen", {
-      message,
-      user: userProfiles[message.participants[0].userId], // Thêm thông tin user vào params
-    }); // Thêm `user` vào params
+      message: item,
+      user: userProfile,
+    });
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      {/* <View style={styles.searchContainer}>
+        <SearchCompo onGroupCreated={(groupData) => addNewGroup(groupData)} />
+      </View> */}
       <FlatList
-        data={messages}
+        data={[myCloudItem, ...messages]}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View>
@@ -132,18 +333,29 @@ const ChatScreen = ({ navigation }) => {
           </View>
         }
         renderItem={({ item }) => {
-          const otherParticipant = !item.isGroup
+          if (item.id === "my-cloud") {
+            return (
+              <ChatItems
+                avatar={item.avatar}
+                username={item.name}
+                lastMessage={item.lastMessage}
+                time={item.time}
+                onPress={() => handlePress(item)}
+              />
+            );
+          }
+
+          const otherParticipant = !item.isGroup && Array.isArray(item.participants)
             ? item.participants.find((p) => p.userId !== currentUserId)
             : null;
-
           const userProfile = otherParticipant
-            ? userProfiles[otherParticipant.userId]
+            ? userCache[otherParticipant.userId]
             : null;
 
           return (
             <ChatItems
               avatar={
-                item.isGroup ? item.avatar : userProfile?.avatar || item.avatar
+                item.isGroup ? item.avatar || item.imageGroup : userProfile?.avatar || item.avatar
               }
               username={
                 item.isGroup ? item.name : userProfile?.name || item.name
@@ -160,10 +372,12 @@ const ChatScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  backIcon: {
-    marginTop: 20,
-    marginLeft: 20,
-  },
+  // searchContainer: {
+  //   padding: 10,
+  //   backgroundColor: "#fff",
+  //   borderBottomWidth: 1,
+  //   borderBottomColor: "#e5e7eb",
+  // },
 });
 
 export default ChatScreen;
