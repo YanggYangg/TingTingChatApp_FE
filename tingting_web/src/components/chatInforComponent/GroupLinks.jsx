@@ -4,7 +4,7 @@ import { FaTrash, FaShare } from "react-icons/fa";
 import StoragePage from "./StoragePage";
 import {
   getChatLinks,
-  deleteMessage,
+  deleteMessageChatInfo,
   forwardMessage,
   onChatLinks,
   offChatLinks,
@@ -255,6 +255,7 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
           onClose={() => setIsOpen(false)}
           onDelete={fetchLinks}
           socket={socket}
+          userId={userId}
         />
       )}
 

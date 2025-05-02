@@ -4,7 +4,7 @@ import StoragePage from "./StoragePage";
 import {
   getChatFiles,
   forwardMessage,
-  deleteMessage,
+  deleteMessageChatInfo,
   onChatFiles,
   offChatFiles,
   onError,
@@ -239,6 +239,7 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
           onDelete={fetchFiles}
           onForwardFile={onForwardFile}
           socket={socket}
+          userId={userId}
         />
       )}
 
