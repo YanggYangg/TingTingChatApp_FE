@@ -15,7 +15,10 @@ import {
   leaveGroup,
   onError,
   offError,
+  onChatInfoUpdated,
+  offChatInfoUpdated,
 } from '../../../../../services/sockets/events/chatInfo';
+import { joinConversation } from '../../../../../services/sockets/events/conversation';
 
 interface Participant {
   userId: string;
@@ -98,6 +101,7 @@ const SecuritySettings: React.FC<Props> = ({
         setIsHidden(participant?.isHidden || false);
         setIsAdmin(participant?.role === 'admin');
         setChatInfo(data);
+        console.log('SecuritySettings: Đã cập nhật chatInfo', data);
         setLoading(false);
       } else {
         setError(response.message || 'Không thể lấy thông tin cuộc trò chuyện.');
@@ -153,6 +157,16 @@ const SecuritySettings: React.FC<Props> = ({
       return;
     }
 
+    // Check socket connection
+    if (!socket.connected) {
+      console.warn('SecuritySettings: Socket chưa kết nối', { socketId: socket.id });
+      socket.connect();
+    }
+
+    // Join socket room
+    console.log('SecuritySettings: Tham gia phòng socket', { conversationId, socketId: socket.id });
+    joinConversation(socket, conversationId);
+
     fetchChatInfo();
 
     onChatInfo(socket, (data) => {
@@ -163,6 +177,24 @@ const SecuritySettings: React.FC<Props> = ({
       setIsHidden(participant?.isHidden || false);
       setIsAdmin(participant?.role === 'admin');
       setChatInfo(data);
+      console.log('SecuritySettings: Đã cập nhật chatInfo từ onChatInfo', data);
+    });
+
+    onChatInfoUpdated(socket, (updatedInfo) => {
+      console.log('SecuritySettings: Nhận onChatInfoUpdated', JSON.stringify(updatedInfo, null, 2));
+      setIsGroup(updatedInfo.isGroup);
+      setGroupMembers(updatedInfo.participants.filter((p) => p.userId !== userId));
+      const participant = updatedInfo.participants.find((p) => p.userId === userId);
+      console.log('SecuritySettings: Participant role', { userId, role: participant?.role });
+      setIsHidden(participant?.isHidden || false);
+      setIsAdmin(participant?.role === 'admin');
+      setChatInfo(updatedInfo);
+      console.log('SecuritySettings: Đã cập nhật chatInfo từ onChatInfoUpdated', updatedInfo);
+      if (participant?.role === 'admin') {
+        Alert.alert('Thông báo', 'Bạn đã được chuyển quyền trưởng nhóm!');
+        // Fetch lại để đảm bảo dữ liệu mới nhất
+        fetchChatInfo();
+      }
     });
 
     onError(socket, (error) => {
@@ -173,6 +205,7 @@ const SecuritySettings: React.FC<Props> = ({
     return () => {
       console.log('SecuritySettings: Gỡ sự kiện socket');
       offChatInfo(socket);
+      offChatInfoUpdated(socket);
       offError(socket);
     };
   }, [socket, conversationId, userId, fetchChatInfo, setChatInfo]);
@@ -295,7 +328,7 @@ const SecuritySettings: React.FC<Props> = ({
       if (response.success) {
         setChatInfo(null);
         Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
-        navigation.navigate('Main', { screen: 'ChatScreen' });
+        navigation.navigate('Main', { screen: 'MessageScreen' });
       } else {
         Alert.alert('Lỗi', `Rời nhóm thất bại: ${response.message}`);
       }
@@ -322,13 +355,14 @@ const SecuritySettings: React.FC<Props> = ({
       console.log('SecuritySettings: Phản hồi từ transferGroupAdmin', response);
       if (response.success) {
         Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
+        fetchChatInfo(); // Fetch to ensure updated state
         console.log('SecuritySettings: Gửi yêu cầu leaveGroup', { conversationId, userId });
         leaveGroup(socket, { conversationId, userId }, (leaveResponse) => {
           console.log('SecuritySettings: Phản hồi từ leaveGroup', leaveResponse);
           if (leaveResponse.success) {
             setChatInfo(null);
             Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
-            navigation.navigate('Main', { screen: 'ChatScreen' });
+            navigation.navigate('Main', { screen: 'MessageScreen' });
           } else {
             Alert.alert('Lỗi', `Rời nhóm thất bại: ${leaveResponse.message}`);
           }
@@ -339,13 +373,14 @@ const SecuritySettings: React.FC<Props> = ({
         });
       } else {
         Alert.alert('Lỗi', `Chuyển quyền thất bại: ${response.message}`);
+        fetchChatInfo(); // Fetch to ensure updated state
         setIsLeaving(false);
         setShowTransferAdminModal(false);
         setNewAdminUserId('');
         setIsProcessing(false);
       }
     });
-  }, [socket, conversationId, userId, newAdminUserId, setChatInfo, navigation, isProcessing]);
+  }, [socket, conversationId, userId, newAdminUserId, setChatInfo, navigation, isProcessing, fetchChatInfo]);
 
   // Disband group functionality
   const handleDisbandGroup = useCallback(() => {
@@ -366,7 +401,8 @@ const SecuritySettings: React.FC<Props> = ({
       if (response.success) {
         setChatInfo(null);
         Alert.alert('Thành công', 'Nhóm đã được giải tán!');
-        navigation.navigate('Main', { screen: 'ChatScreen' });
+        console.log('SecuritySettings: Đã xóa chatInfo và điều hướng đến MessageScreen');
+        navigation.navigate('Main', { screen: 'MessageScreen' });
       } else {
         Alert.alert('Lỗi', `Giải tán nhóm thất bại: ${response.message}`);
       }
@@ -393,10 +429,14 @@ const SecuritySettings: React.FC<Props> = ({
       if (response.success) {
         setIsAdmin(false);
         Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
-        fetchChatInfo();
+        fetchChatInfo(); // Fetch to ensure updated state
+        // Fallback: Fetch after a short delay if onChatInfoUpdated doesn't trigger
+        setTimeout(() => {
+          fetchChatInfo();
+        }, 2000);
       } else {
         Alert.alert('Lỗi', `Chuyển quyền thất bại: ${response.message}`);
-        fetchChatInfo();
+        fetchChatInfo(); // Fetch to ensure updated state
       }
       setShowTransferAdminModal(false);
       setNewAdminUserId('');

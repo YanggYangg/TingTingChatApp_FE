@@ -17,15 +17,15 @@ import { useSocket } from "../../../../contexts/SocketContext";
 import MessageItem from "../../../chatitems/MessageItem";
 import ChatFooter from "./ChatFooter";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios"; // Add axios for API calls
-import { Api_Profile } from "../../../../apis/api_profile"; // Import the API module
-import ShareModal from "../Chat/chatInfoComponent/ShareModal"; // Import ShareModal component
+import axios from "axios";
+import { Api_Profile } from "../../../../apis/api_profile";
+import ShareModal from "../Chat/chatInfoComponent/ShareModal";
 import {
   onConversationUpdate,
   offConversationUpdate,
   joinConversation,
   onConversationRemoved,
-  offConversationRemoved,
+  // offConversationRemoved, // Tạm thời bỏ vì không được định nghĩa
 } from "../../../../services/sockets/events/conversation";
 import {
   onChatInfoUpdated,
@@ -43,9 +43,8 @@ const ChatScreen = ({ route, navigation }) => {
   const [showOptions, setShowOptions] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [userCache, setUserCache] = useState({});
-  const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
-  const [messageToForward, setMessageToForward] = useState(null); // Tin nhắn cần chuyển tiếp
-
+  const [isShareModalVisible, setIsShareModalVisible] = useState(false);
+  const [messageToForward, setMessageToForward] = useState(null);
 
   const [conversationInfo, setConversationInfo] = useState({
     name: "",
@@ -54,17 +53,10 @@ const ChatScreen = ({ route, navigation }) => {
     imageGroup: null,
   });
 
-  
   const { message, user } = route?.params || {};
   const conversationId = message?.id || null;
   const userId = currentUserId || null;
-  console.log("userId", userId);
-  console.log("conversationId", conversationId);
-  console.log("message", message);
-  console.log("selectmessage", selectedMessage);
-  console.log("user", user);
 
-  // Log params for debugging
   console.log("ChatScreen params:", {
     userId,
     conversationId,
@@ -105,7 +97,6 @@ const ChatScreen = ({ route, navigation }) => {
           avatar: response.data.user.avatar || "https://picsum.photos/200",
         };
       } else {
-        // Fallback if API returns no user data
         userInfo = {
           name: `Người dùng ${userId.slice(-4)}`,
           avatar: "https://picsum.photos/200",
@@ -146,22 +137,33 @@ const ChatScreen = ({ route, navigation }) => {
     }
   }, [messages, currentUserId]);
 
-  // Log currentUserId after state update
-  useEffect(() => {
-    console.log("Current userId set in state (after update):", currentUserId);
-  }, [currentUserId]);
-
   // Socket.IO setup for regular chat
   useEffect(() => {
-    if (!socket || !selectedMessageId || !currentUserId) return;
+    if (!socket || !selectedMessageId || !currentUserId) {
+      console.warn("Socket setup skipped: missing socket, selectedMessageId, or currentUserId", {
+        socket: !!socket,
+        selectedMessageId,
+        currentUserId,
+      });
+      return;
+    }
+
+    // Check socket connection
+    if (!socket.connected) {
+      console.warn("Socket not connected, attempting to connect", { socketId: socket.id });
+      socket.connect();
+    }
 
     console.log("Joining conversation with ID:", selectedMessageId);
+    joinConversation(socket, selectedMessageId);
 
-    socket.emit("joinConversation", { conversationId: selectedMessageId });
-
-    socket.on("loadMessages", (data) => setMessages(data));
+    socket.on("loadMessages", (data) => {
+      console.log("Received loadMessages:", data);
+      setMessages(data);
+    });
 
     socket.on("receiveMessage", (newMessage) => {
+      console.log("Received receiveMessage:", newMessage);
       setMessages((prev) =>
         prev.some((msg) => msg._id === newMessage._id)
           ? prev
@@ -170,6 +172,7 @@ const ChatScreen = ({ route, navigation }) => {
     });
 
     socket.on("messageSent", (newMessage) => {
+      console.log("Received messageSent:", newMessage);
       setMessages((prev) =>
         prev.some((msg) => msg._id === newMessage._id)
           ? prev
@@ -178,6 +181,7 @@ const ChatScreen = ({ route, navigation }) => {
     });
 
     socket.on("messageRevoked", ({ messageId }) => {
+      console.log("Received messageRevoked for messageId:", messageId);
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === messageId ? { ...msg, isRevoked: true } : msg
@@ -186,7 +190,7 @@ const ChatScreen = ({ route, navigation }) => {
     });
 
     socket.on("messageDeleted", ({ messageId }) => {
-      console.log("Received messageDeleted event for messageId:", messageId);
+      console.log("Received messageDeleted for messageId:", messageId);
       setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
     });
 
@@ -194,52 +198,55 @@ const ChatScreen = ({ route, navigation }) => {
       console.error("Delete message error:", error);
       Alert.alert("Lỗi", error.message || "Không thể xóa tin nhắn");
     });
-// Conversation update
-socket.on("conversationUpdate", (updatedConversation) => {
-  console.log("ChatScreen: Received conversationUpdate:", updatedConversation);
-  setConversationInfo((prev) => ({
-    ...prev,
-    name: updatedConversation.name || prev.name,
-    lastMessage: updatedConversation.lastMessage?.content || "",
-    lastMessageType: updatedConversation.lastMessage?.messageType || "text",
-    lastMessageSenderId: updatedConversation.lastMessage?.userId || null,
-    time: new Date(updatedConversation.updatedAt).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  }));
-});
 
-// Chat info updated
-socket.on("chatInfoUpdated", (updatedInfo) => {
-  console.log("ChatScreen: Received chatInfoUpdated:", updatedInfo);
-  setConversationInfo((prev) => ({
-    ...prev,
-    name: updatedInfo.name || prev.name,
-    isGroup: updatedInfo.isGroup ?? prev.isGroup,
-    participants: updatedInfo.participants || prev.participants,
-    imageGroup: updatedInfo.imageGroup || prev.imageGroup,
-  }));
-});
+    // Conversation update
+    onConversationUpdate(socket, (updatedConversation) => {
+      console.log("ChatScreen: Received conversationUpdate:", updatedConversation);
+      setConversationInfo((prev) => ({
+        ...prev,
+        name: updatedConversation.name || prev.name,
+        lastMessage: updatedConversation.lastMessage?.content || "",
+        lastMessageType: updatedConversation.lastMessage?.messageType || "text",
+        lastMessageSenderId: updatedConversation.lastMessage?.userId || null,
+        time: new Date(updatedConversation.updatedAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      }));
+    });
 
-// Group left
-socket.on("groupLeft", (data) => {
-  console.log("ChatScreen: Received groupLeft:", data);
-  if (data.conversationId === selectedMessageId) {
-    Alert.alert("Thông báo", "Bạn đã rời khỏi nhóm.");
-    navigation.goBack();
-  }
-});
+    // Chat info updated
+    onChatInfoUpdated(socket, (updatedInfo) => {
+      console.log("ChatScreen: Received chatInfoUpdated:", updatedInfo);
+      setConversationInfo((prev) => ({
+        ...prev,
+        name: updatedInfo.name || prev.name,
+        isGroup: updatedInfo.isGroup ?? prev.isGroup,
+        participants: updatedInfo.participants || prev.participants,
+        imageGroup: updatedInfo.imageGroup || prev.imageGroup,
+      }));
+    });
 
-// Conversation removed
-socket.on("conversationRemoved", (data) => {
-  console.log("ChatScreen: Received conversationRemoved:", data);
-  if (data.conversationId === selectedMessageId) {
-    Alert.alert("Thông báo", "Cuộc trò chuyện đã bị xóa.");
-    navigation.goBack();
-  }
-});
+    // Group left
+    onGroupLeft(socket, (data) => {
+      console.log("ChatScreen: Received groupLeft:", data);
+      if (data.conversationId === selectedMessageId) {
+        Alert.alert("Thông báo", "Bạn đã rời khỏi nhóm.");
+        navigation.navigate("Main", { screen: "MessageScreen" });
+      }
+    });
+
+    // Conversation removed
+    onConversationRemoved(socket, (data) => {
+      console.log("ChatScreen: Received conversationRemoved:", data);
+      if (data.conversationId === selectedMessageId) {
+        Alert.alert("Thông báo", "Nhóm đã được giải tán.");
+        navigation.navigate("Main", { screen: "MessageScreen" });
+      }
+    });
+
     return () => {
+      console.log("Cleaning up socket listeners for ChatScreen");
       socket.off("loadMessages");
       socket.off("receiveMessage");
       socket.off("messageSent");
@@ -249,7 +256,7 @@ socket.on("conversationRemoved", (data) => {
       offConversationUpdate(socket);
       offChatInfoUpdated(socket);
       offGroupLeft(socket);
-      offConversationRemoved(socket);
+      // offConversationRemoved(socket); // Tạm thời bỏ vì không được định nghĩa
     };
   }, [socket, selectedMessageId, currentUserId, navigation]);
 
@@ -264,7 +271,7 @@ socket.on("conversationRemoved", (data) => {
       });
     }
   }, [message]);
-  
+
   const sendMessage = (payload) => {
     if (!payload.content && !payload.linkURL) return;
 
@@ -352,10 +359,6 @@ socket.on("conversationRemoved", (data) => {
     );
   };
 
-  // const handleForward = () => {
-  //   Alert.alert("Chuyển tiếp", "Tính năng chuyển tiếp đang được phát triển.");
-  //   setShowOptions(false);
-  // };
   const handleForward = () => {
     if (!selectedMessage?._id) {
       Alert.alert("Lỗi", "Không thể chuyển tiếp: Tin nhắn không hợp lệ.");
@@ -382,6 +385,7 @@ socket.on("conversationRemoved", (data) => {
       content
     );
   };
+
   const formatTime = (createdAt) => {
     return new Date(createdAt).toLocaleTimeString("vi-VN", {
       hour: "2-digit",
@@ -440,7 +444,6 @@ socket.on("conversationRemoved", (data) => {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={60}
     >
-      {/* Header */}
       <View style={styles.headerContainer}>
         <View style={styles.leftContainer}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -468,7 +471,7 @@ socket.on("conversationRemoved", (data) => {
               console.log("Navigating to ChatInfo with:", {
                 userId,
                 conversationId,
-                socket
+                socket,
               });
               if (!userId || !conversationId || !socket) {
                 console.warn(
@@ -480,7 +483,7 @@ socket.on("conversationRemoved", (data) => {
                 );
                 return;
               }
-              navigation.push("ChatInfo", { userId, conversationId , socket});
+              navigation.push("ChatInfo", { userId, conversationId, socket });
             }}
             style={{ marginLeft: 15 }}
           >
