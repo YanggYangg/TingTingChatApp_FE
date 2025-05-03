@@ -145,9 +145,9 @@ const MessageList = ({ messages, onMessageClick, onPinConversation, userId, user
 
   return (
     <div className="w-full max-w-md mx-auto bg-white text-black p-2">
-      {loadingDetails && (
+      {/* {loadingDetails && (
         <p className="text-center text-gray-500">Đang tải thông tin...</p>
-      )}
+      )} */}
       {errorDetails && (
         <p className="text-center text-red-500">{errorDetails}</p>
       )}
@@ -195,16 +195,12 @@ const MessageList = ({ messages, onMessageClick, onPinConversation, userId, user
                   )}
                 </div>
                 <div className="w-40">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-semibold truncate">
-                      {getConversationName(
-                        { ...msg, ...customProps },
-                        memberDetails?.[msg.id]?.memberDetails
-                      )}
-                    </span>
-                    {isPinned && <Pin size={14} className="text-yellow-500" />}
-                    {isMuted && <BellOff size={14} className="text-gray-500" />}
-                  </div>
+                  <span className="font-semibold truncate">
+                    {getConversationName(
+                      { ...msg, ...customProps },
+                      memberDetails?.[msg.id]?.memberDetails
+                    )}
+                  </span>
                   <div className="text-sm text-gray-400 flex items-center space-x-1">
                     {msg.isCall ? (
                       <>
@@ -222,8 +218,12 @@ const MessageList = ({ messages, onMessageClick, onPinConversation, userId, user
                   </div>
                 </div>
               </div>
-              <div className="text-xs text-gray-400 whitespace-nowrap">
-                {msg.time}
+              <div className="flex items-center space-x-2">
+                {isPinned && <Pin size={16} className="text-yellow-500" />}
+                {isMuted && <BellOff size={16} className="text-gray-500" />}
+                <div className="text-xs text-gray-400 whitespace-nowrap">
+                  {msg.time}
+                </div>
               </div>
             </div>
           );

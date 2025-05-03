@@ -261,6 +261,8 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     const newIsPinned = !isPinned;
     console.log("ChatInfo: Thay đổi trạng thái pin", { conversationId, newIsPinned });
     pinChat(socket, { conversationId, isPinned: newIsPinned });
+    // Tham gia phòng để nhận sự kiện chatInfoUpdated
+    joinConversation(socket, conversationId);
     setIsPinned(newIsPinned);
   };
 

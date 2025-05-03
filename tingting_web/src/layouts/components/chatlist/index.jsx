@@ -122,13 +122,9 @@ function ChatList({ activeTab, onGroupCreated }) {
         userId: currentUserId,
         isPinned: !isPinned,
       });
-      // Cập nhật ngay lập tức trên thiết bị hiện tại
-      setMessages((prevMessages) => {
-        const updatedMessages = prevMessages.map((msg) =>
-          msg.id === conversationId ? { ...msg, isPinned: !isPinned } : msg
-        );
-        return sortMessages(updatedMessages);
-      });
+      // Tham gia phòng để nhận sự kiện chatInfoUpdated
+      joinConversation(socket, conversationId);
+      joinedRoomsRef.current.add(conversationId);
     }
   };
 
@@ -195,7 +191,7 @@ function ChatList({ activeTab, onGroupCreated }) {
       return;
     }
 
-    console.log("ChatList: Đ binge ký sự kiện socket", { socketId: socket?.id, currentUserId });
+    console.log("ChatList: Đăng ký sự kiện socket", { socketId: socket?.id, currentUserId });
 
     const handleConversations = async (conversations) => {
       console.log("ChatList: Nhận danh sách hội thoại:", conversations);
@@ -259,9 +255,9 @@ function ChatList({ activeTab, onGroupCreated }) {
           if (msg.id === updatedConversationId) {
             const updatedMsg = {
               ...msg,
-              lastMessage: updatedConversation.lastMessage?.content || "",
-              lastMessageType: updatedConversation.lastMessage?.messageType || "text",
-              lastMessageSenderId: updatedConversation.lastMessage?.userId || null,
+              lastMessage: updatedConversation.lastMessage?.content || msg.lastMessage || "",
+              lastMessageType: updatedConversation.lastMessage?.messageType || msg.lastMessageType || "text",
+              lastMessageSenderId: updatedConversation.lastMessage?.userId || msg.lastMessageSenderId || null,
               time: new Date(updatedConversation.lastMessage?.createdAt || updatedConversation.updatedAt).toLocaleTimeString(
                 [],
                 { hour: "2-digit", minute: "2-digit" }
@@ -394,14 +390,14 @@ function ChatList({ activeTab, onGroupCreated }) {
           if (msg.id === conversationId) {
             const updatedMsg = {
               ...msg,
-              lastMessage: lastMessageUpdate.lastMessage.content || "",
-              lastMessageType: lastMessageUpdate.lastMessage.messageType || "text",
-              lastMessageSenderId: lastMessageUpdate.lastMessage.userId || null,
-              time: new Date(lastMessageUpdate.lastMessage.createdAt).toLocaleTimeString(
+              lastMessage: lastMessageUpdate.lastMessage?.content || msg.lastMessage || "",
+              lastMessageType: lastMessageUpdate.lastMessage?.messageType || msg.lastMessageType || "text",
+              lastMessageSenderId: lastMessageUpdate.lastMessage?.userId || msg.lastMessageSenderId || null,
+              time: new Date(lastMessageUpdate.lastMessage?.createdAt).toLocaleTimeString(
                 [],
                 { hour: "2-digit", minute: "2-digit" }
               ),
-              updateAt: lastMessageUpdate.lastMessage.createdAt,
+              updateAt: lastMessageUpdate.lastMessage?.createdAt,
             };
             console.log("ChatList: Cập nhật message từ Redux (lastMessageUpdate):", updatedMsg);
             return updatedMsg;
