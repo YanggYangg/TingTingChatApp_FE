@@ -319,20 +319,27 @@ function ChatPage() {
       }
     });
 
-    socket.on("deleteAllChatHistory", ({ conversationId }) => {
-      console.log("ChatPage: Nhận deleteAllChatHistory", { conversationId });
-      if (conversationId === selectedMessageId) {
+    socket.on("deleteAllChatHistory", ({ conversationId, userId }) => {
+      console.log("ChatPage: Nhận deleteAllChatHistory", { conversationId, userId });
+      if (conversationId === selectedMessageId && userId === currentUserId) {
         setMessages([]);
         dispatch(setLastMessageUpdate({
           conversationId: conversationId,
           lastMessage: null,
         }));
         toast.success("Toàn bộ lịch sử trò chuyện đã được xóa!");
+      } else {
+        console.log("ChatPage: Bỏ qua deleteAllChatHistory vì không khớp userId hoặc conversationId", {
+          userId,
+          currentUserId,
+          conversationId,
+          selectedMessageId,
+        });
       }
     });
 
-    socket.on("conversationUpdated", ({ conversationId, lastMessage }) => {
-      console.log("ChatPage: Nhận conversationUpdated", { conversationId, lastMessage });
+    socket.on("conversationUpdated", ({ conversationId, lastMessage, updatedAt }) => {
+      console.log("ChatPage: Nhận conversationUpdated", { conversationId, lastMessage, updatedAt });
       if (conversationId === selectedMessageId) {
         setMessages((prevMessages) => {
           const updatedMessages = prevMessages.filter(
@@ -859,11 +866,7 @@ function ChatPage() {
             ) : (
               <>
                 <div className="flex-1 overflow-y-auto p-4">
-                  {messages.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">Không có tin nhắn nào.</p>
-                    </div>
-                  ) : (
+                  {messages.length > 0 ? (
                     messages
                       .filter(
                         (msg) =>
@@ -893,6 +896,8 @@ function ChatPage() {
                           messages={messages}
                         />
                       ))
+                  ) : (
+                    <div></div> // Không render gì khi messages rỗng
                   )}
                   <div ref={messagesEndRef} />
                 </div>
