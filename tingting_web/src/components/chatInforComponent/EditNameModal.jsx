@@ -8,9 +8,15 @@ const EditNameModal = ({ isOpen, onClose, initialName = "", onSave }) => {
   }, [initialName, isOpen]);
 
   const handleSave = () => {
-    if (!newName.trim()) return;
-    onSave(newName.trim());
-    onClose();
+    if (!newName.trim()) {
+      alert("Tên không được để trống!");
+      return;
+    }
+    // Thêm xác nhận trước khi lưu
+    if (window.confirm("Bạn có chắc muốn thay đổi tên nhóm thành: " + newName.trim() + "?")) {
+      onSave(newName.trim());
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -37,7 +43,9 @@ const EditNameModal = ({ isOpen, onClose, initialName = "", onSave }) => {
           <button
             onClick={handleSave}
             className={`px-4 py-2 rounded ${
-              newName.trim() ? "bg-blue-500 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              newName.trim()
+                ? "bg-blue-500 text-white"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
             disabled={!newName.trim()}
           >

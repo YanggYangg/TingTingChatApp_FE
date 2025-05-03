@@ -129,10 +129,8 @@ function ChatList({ activeTab, onGroupCreated }) {
 
   const sortMessages = (messages) => {
     return messages.sort((a, b) => {
-      // Ưu tiên cuộc trò chuyện ghim lên đầu
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      // Nếu cả hai đều ghim hoặc không ghim, sắp xếp theo updateAt giảm dần
       const timeA = new Date(a.updateAt || a.time || 0);
       const timeB = new Date(b.updateAt || b.time || 0);
       return timeB - timeA;
@@ -210,7 +208,6 @@ function ChatList({ activeTab, onGroupCreated }) {
         ...new Set(
           conversations
             .map((conversation) => {
-              // Kiểm tra an toàn participants
               const participants = Array.isArray(conversation.participants) ? conversation.participants : [];
               const other = participants.find((p) => p.userId !== currentUserId);
               return other?.userId;
@@ -280,7 +277,7 @@ function ChatList({ activeTab, onGroupCreated }) {
           const newMessage = transformConversationsToMessages(
             [updatedConversation],
             currentUserId,
-            [] // Không cần profiles cho newMessage vì sẽ gọi lại API sau
+            []
           )[0];
           console.log("ChatList: Thêm message mới:", newMessage);
           updatedMessages.push(newMessage);

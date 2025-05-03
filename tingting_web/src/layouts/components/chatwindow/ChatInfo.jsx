@@ -22,6 +22,7 @@ import {
   updateNotification,
   onError,
   offError,
+
 } from "../../../services/sockets/events/chatInfo";
 import {
   onConversations,
@@ -29,6 +30,7 @@ import {
   onConversationUpdate,
   offConversationUpdate,
   loadAndListenConversations,
+  joinConversation,
 } from "../../../services/sockets/events/conversation";
 import { Api_Profile } from "../../../../apis/api_profile";
 
@@ -142,6 +144,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     const handleError = (error) => {
       console.error("ChatInfo: Lỗi từ server", error);
+      alert("Đã xảy ra lỗi: " + (error.message || "Không thể cập nhật thông tin."));
       setLoading(false);
     };
 
@@ -261,7 +264,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     const newIsPinned = !isPinned;
     console.log("ChatInfo: Thay đổi trạng thái pin", { conversationId, newIsPinned });
     pinChat(socket, { conversationId, isPinned: newIsPinned });
-    // Tham gia phòng để nhận sự kiện chatInfoUpdated
     joinConversation(socket, conversationId);
     setIsPinned(newIsPinned);
   };
@@ -313,12 +315,25 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       return;
     }
 
+    const originalName = chatInfo.name; // Lưu tên cũ để hoàn nguyên nếu lỗi
     console.log("ChatInfo: Gửi yêu cầu cập nhật tên nhóm", {
       conversationId,
       newName: newName.trim(),
     });
+    setChatInfo((prev) => ({ ...prev, name: newName.trim() })); // Cập nhật tạm thời
     updateChatName(socket, { conversationId, name: newName.trim() });
-    setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
+
+    // Xử lý lỗi socket
+    const handleUpdateError = (error) => {
+      console.error("ChatInfo: Lỗi khi cập nhật tên nhóm", error);
+      alert("Không thể cập nhật tên nhóm: " + (error.message || "Lỗi server."));
+      setChatInfo((prev) => ({ ...prev, name: originalName })); // Hoàn nguyên tên cũ
+    };
+    socket.once("error", handleUpdateError);
+
+    // Dọn dẹp listener lỗi sau khi hoàn tất
+    setTimeout(() => socket.off("error", handleUpdateError), 5000);
+
     handleCloseEditNameModal();
   };
 
