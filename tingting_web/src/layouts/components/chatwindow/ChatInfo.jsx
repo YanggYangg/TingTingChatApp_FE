@@ -108,6 +108,14 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     const handleOnChatInfoUpdated = (updatedInfo) => {
       console.log("ChatInfo: Nhận sự kiện chatInfoUpdated", updatedInfo);
+      if (updatedInfo._id !== conversationId) {
+        console.log("ChatInfo: Bỏ qua cập nhật vì không khớp conversationId", {
+          updatedConversationId: updatedInfo._id,
+          currentConversationId: conversationId,
+        });
+        return;
+      }
+
       setChatInfo((prev) => {
         const newChatInfo = {
           ...prev,
@@ -118,6 +126,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         console.log("ChatInfo: Cập nhật chatInfo", newChatInfo);
         return newChatInfo;
       });
+
       const participant = updatedInfo.participants?.find((p) => p.userId === userId);
       if (participant) {
         console.log("ChatInfo: Cập nhật trạng thái isMuted/isPinned/role", {
@@ -306,14 +315,8 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       conversationId,
       newName: newName.trim(),
     });
-
-    // Gửi sự kiện socket để cập nhật tên nhóm
     updateChatName(socket, { conversationId, name: newName.trim() });
-
-    // Cập nhật local state ngay lập tức để giao diện phản ánh thay đổi
-    console.log("ChatInfo: Cập nhật local chatInfo với tên mới", newName.trim());
     setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
-
     handleCloseEditNameModal();
   };
 
@@ -342,11 +345,9 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
   return (
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
-    <div className="flex-shrink-0">
-      <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
-    </div>
-
-
+      <div className="flex-shrink-0">
+        <h2 className="text-xl font-bold text-center mb-4">{chatTitle}</h2>
+      </div>
       <div className="flex-1 overflow-y-auto">
         <div className="text-center my-4">
           <img

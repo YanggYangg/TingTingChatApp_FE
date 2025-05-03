@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Phone, MessageCircle, Pin, BellOff } from "lucide-react";
 import { Api_Profile } from "../../../apis/api_profile";
 
-const MessageList = ({ messages, onMessageClick, userId }) => {
+const MessageList = ({ messages, onMessageClick, onPinConversation, userId, userCache }) => {
   const [memberDetails, setMemberDetails] = useState({});
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [errorDetails, setErrorDetails] = useState(null);
 
-  // Hàm lấy tên conversation
+  // Hàm lấy tên cuộc trò chuyện
   const getConversationName = (msg, memberDetails) => {
     if (msg?.customName) return msg.customName;
     if (msg?.isGroup) {
@@ -16,12 +16,12 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
       const otherParticipant = msg.participants.find(
         (participant) => participant.userId !== userId
       );
-      return memberDetails?.[otherParticipant?.userId]?.name || "Unknown";
+      return memberDetails?.[otherParticipant?.userId]?.name || userCache?.[otherParticipant?.userId]?.name || "Unknown";
     }
     return "Unknown Conversation";
   };
 
-  // Hàm lấy avatar conversation
+  // Hàm lấy avatar cuộc trò chuyện
   const getConversationAvatar = (msg, memberDetails) => {
     if (msg?.customAvatar) return msg.customAvatar;
     if (msg?.isGroup && msg.imageGroup) {
@@ -32,6 +32,7 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
       );
       return (
         memberDetails?.[otherParticipant?.userId]?.avatar ||
+        userCache?.[otherParticipant?.userId]?.avatar ||
         "https://via.placeholder.com/150"
       );
     }
@@ -51,6 +52,10 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
             const participantDetails = {};
             const fetchParticipantPromises = msg.participants.map(
               async (member) => {
+                if (userCache[member.userId]) {
+                  participantDetails[member.userId] = userCache[member.userId];
+                  return;
+                }
                 try {
                   const response = await Api_Profile.getProfile(member.userId);
                   if (response?.data?.user) {
@@ -65,7 +70,7 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
                     };
                   }
                 } catch (error) {
-                  console.error("Lỗi khi lấy thông tin người dùng:", error);
+                  console.error("MessageList: Lỗi khi lấy thông tin người dùng:", error);
                   participantDetails[member.userId] = {
                     name: "Lỗi tải",
                     avatar: null,
@@ -80,6 +85,14 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
               (participant) => participant.userId !== userId
             );
             if (otherParticipant?.userId) {
+              if (userCache[otherParticipant.userId]) {
+                details[msg.id] = {
+                  memberDetails: {
+                    [otherParticipant.userId]: userCache[otherParticipant.userId],
+                  },
+                };
+                return;
+              }
               try {
                 const response = await Api_Profile.getProfile(
                   otherParticipant.userId
@@ -104,7 +117,7 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
                   };
                 }
               } catch (error) {
-                console.error("Lỗi khi lấy thông tin người dùng:", error);
+                console.error("MessageList: Lỗi khi lấy thông tin người dùng:", error);
                 details[msg.id] = {
                   memberDetails: {
                     [otherParticipant.userId]: {
@@ -128,7 +141,7 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
     };
 
     fetchMemberDetails();
-  }, [messages, userId]);
+  }, [messages, userId, userCache]);
 
   return (
     <div className="w-full max-w-md mx-auto bg-white text-black p-2">
@@ -140,7 +153,6 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
       )}
       {messages &&
         messages.map((msg, index) => {
-          // Gán custom props cho "Cloud của tôi"
           const customProps =
             index === 0
               ? {
@@ -150,13 +162,12 @@ const MessageList = ({ messages, onMessageClick, userId }) => {
                 }
               : {};
 
-          // Kiểm tra trạng thái pin và mute
           const isPinned = msg.participants?.find(
             (p) => p.userId === userId
-          )?.isPinned;
+          )?.isPinned || false;
           const isMuted = msg.participants?.find(
             (p) => p.userId === userId
-          )?.mute;
+          )?.mute || false;
 
           return (
             <div
