@@ -319,27 +319,20 @@ function ChatPage() {
       }
     });
 
-    socket.on("deleteAllChatHistory", ({ conversationId, userId }) => {
-      console.log("ChatPage: Nhận deleteAllChatHistory", { conversationId, userId });
-      if (conversationId === selectedMessageId && userId === currentUserId) {
+    socket.on("deleteAllChatHistory", ({ conversationId }) => {
+      console.log("ChatPage: Nhận deleteAllChatHistory", { conversationId });
+      if (conversationId === selectedMessageId) {
         setMessages([]);
         dispatch(setLastMessageUpdate({
           conversationId: conversationId,
           lastMessage: null,
         }));
         toast.success("Toàn bộ lịch sử trò chuyện đã được xóa!");
-      } else {
-        console.log("ChatPage: Bỏ qua deleteAllChatHistory vì không khớp userId hoặc conversationId", {
-          userId,
-          currentUserId,
-          conversationId,
-          selectedMessageId,
-        });
       }
     });
 
-    socket.on("conversationUpdated", ({ conversationId, lastMessage, updatedAt }) => {
-      console.log("ChatPage: Nhận conversationUpdated", { conversationId, lastMessage, updatedAt });
+    socket.on("conversationUpdated", ({ conversationId, lastMessage }) => {
+      console.log("ChatPage: Nhận conversationUpdated", { conversationId, lastMessage });
       if (conversationId === selectedMessageId) {
         setMessages((prevMessages) => {
           const updatedMessages = prevMessages.filter(
@@ -897,7 +890,7 @@ function ChatPage() {
                         />
                       ))
                   ) : (
-                    <div></div> // Không render gì khi messages rỗng
+                    <div></div>
                   )}
                   <div ref={messagesEndRef} />
                 </div>
