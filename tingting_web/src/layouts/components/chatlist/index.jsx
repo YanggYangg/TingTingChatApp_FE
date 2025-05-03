@@ -122,7 +122,6 @@ function ChatList({ activeTab, onGroupCreated }) {
         userId: currentUserId,
         isPinned: !isPinned,
       });
-      // Tham gia phòng để nhận sự kiện chatInfoUpdated
       joinConversation(socket, conversationId);
       joinedRoomsRef.current.add(conversationId);
     }
@@ -130,9 +129,13 @@ function ChatList({ activeTab, onGroupCreated }) {
 
   const sortMessages = (messages) => {
     return messages.sort((a, b) => {
+      // Ưu tiên cuộc trò chuyện ghim lên đầu
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      return new Date(b.updateAt || b.time) - new Date(a.updateAt || a.time);
+      // Nếu cả hai đều ghim hoặc không ghim, sắp xếp theo updateAt giảm dần
+      const timeA = new Date(a.updateAt || a.time || 0);
+      const timeB = new Date(b.updateAt || b.time || 0);
+      return timeB - timeA;
     });
   };
 
@@ -207,7 +210,9 @@ function ChatList({ activeTab, onGroupCreated }) {
         ...new Set(
           conversations
             .map((conversation) => {
-              const other = conversation.participants.find((p) => p.userId !== currentUserId);
+              // Kiểm tra an toàn participants
+              const participants = Array.isArray(conversation.participants) ? conversation.participants : [];
+              const other = participants.find((p) => p.userId !== currentUserId);
               return other?.userId;
             })
             .filter(Boolean)
@@ -250,8 +255,8 @@ function ChatList({ activeTab, onGroupCreated }) {
     const handleConversationUpdate = (updatedConversation) => {
       console.log("ChatList: Nhận sự kiện conversationUpdated:", updatedConversation);
       setMessages((prevMessages) => {
+        const updatedConversationId = updatedConversation.conversationId?._id || updatedConversation.conversationId || updatedConversation._id;
         const updatedMessages = prevMessages.map((msg) => {
-          const updatedConversationId = updatedConversation.conversationId?._id || updatedConversation.conversationId || updatedConversation._id;
           if (msg.id === updatedConversationId) {
             const updatedMsg = {
               ...msg,
@@ -271,10 +276,11 @@ function ChatList({ activeTab, onGroupCreated }) {
         });
 
         const isNew = !updatedMessages.some((msg) => msg.id === updatedConversation._id);
-        if (isNew) {
+        if (isNew && updatedConversation._id) {
           const newMessage = transformConversationsToMessages(
             [updatedConversation],
-            currentUserId
+            currentUserId,
+            [] // Không cần profiles cho newMessage vì sẽ gọi lại API sau
           )[0];
           console.log("ChatList: Thêm message mới:", newMessage);
           updatedMessages.push(newMessage);
@@ -385,8 +391,8 @@ function ChatList({ activeTab, onGroupCreated }) {
     if (lastMessageUpdate) {
       console.log("ChatList: Nhận lastMessageUpdate từ Redux:", lastMessageUpdate);
       setMessages((prevMessages) => {
+        const conversationId = lastMessageUpdate.conversationId?._id || lastMessageUpdate.conversationId;
         const updatedMessages = prevMessages.map((msg) => {
-          const conversationId = lastMessageUpdate.conversationId?._id || lastMessageUpdate.conversationId;
           if (msg.id === conversationId) {
             const updatedMsg = {
               ...msg,
@@ -397,7 +403,7 @@ function ChatList({ activeTab, onGroupCreated }) {
                 [],
                 { hour: "2-digit", minute: "2-digit" }
               ),
-              updateAt: lastMessageUpdate.lastMessage?.createdAt,
+              updateAt: lastMessageUpdate.lastMessage?.createdAt || new Date().toISOString(),
             };
             console.log("ChatList: Cập nhật message từ Redux (lastMessageUpdate):", updatedMsg);
             return updatedMsg;
