@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from "react-icons/fa";
+import { useDispatch } from "react-redux"; // Thêm import
+import { setChatInfoUpdate } from "../../../redux/slices/chatSlice"; // Thêm action
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
 import GroupMemberList from "../../../components/chatInforComponent/GroupMemberList";
 import GroupMediaGallery from "../../../components/chatInforComponent/GroupMediaGallery";
@@ -48,6 +50,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const [userRoleInGroup, setUserRoleInGroup] = useState(null);
   const [hasMounted, setHasMounted] = useState(false);
   const [commonGroups, setCommonGroups] = useState([]);
+  const dispatch = useDispatch(); // Khởi tạo dispatch
 
   useEffect(() => {
     setHasMounted(true);
@@ -237,6 +240,12 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         (p) => p.userId !== removedUserId
       ),
     }));
+    dispatch(
+      setChatInfoUpdate({
+        ...chatInfo,
+        participants: chatInfo.participants.filter((p) => p.userId !== removedUserId),
+      })
+    );
   };
 
   const handleMuteNotification = () => {
@@ -266,6 +275,14 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     pinChat(socket, { conversationId, isPinned: newIsPinned });
     joinConversation(socket, conversationId);
     setIsPinned(newIsPinned);
+    dispatch(
+      setChatInfoUpdate({
+        ...chatInfo,
+        participants: chatInfo.participants.map((p) =>
+          p.userId === userId ? { ...p, isPinned: newIsPinned } : p
+        ),
+      })
+    );
   };
 
   const copyToClipboard = () => {
@@ -297,6 +314,10 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   };
 
   const handleOpenEditNameModal = () => {
+    if (!chatInfo?.isGroup) {
+      alert("Chỉ nhóm mới có thể đổi tên!");
+      return;
+    }
     console.log("ChatInfo: Mở modal chỉnh sửa tên");
     setIsEditNameModalOpen(true);
   };
@@ -315,23 +336,37 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       return;
     }
 
-    const originalName = chatInfo.name; // Lưu tên cũ để hoàn nguyên nếu lỗi
+    const originalName = chatInfo.name;
     console.log("ChatInfo: Gửi yêu cầu cập nhật tên nhóm", {
       conversationId,
       newName: newName.trim(),
     });
-    setChatInfo((prev) => ({ ...prev, name: newName.trim() })); // Cập nhật tạm thời
+    setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
     updateChatName(socket, { conversationId, name: newName.trim() });
 
-    // Xử lý lỗi socket
+    // Dispatch action Redux để cập nhật ChatList
+    dispatch(
+      setChatInfoUpdate({
+        ...chatInfo,
+        _id: conversationId,
+        name: newName.trim(),
+      })
+    );
+
     const handleUpdateError = (error) => {
       console.error("ChatInfo: Lỗi khi cập nhật tên nhóm", error);
       alert("Không thể cập nhật tên nhóm: " + (error.message || "Lỗi server."));
-      setChatInfo((prev) => ({ ...prev, name: originalName })); // Hoàn nguyên tên cũ
+      setChatInfo((prev) => ({ ...prev, name: originalName }));
+      // Hoàn nguyên trong Redux nếu lỗi
+      dispatch(
+        setChatInfoUpdate({
+          ...chatInfo,
+          _id: conversationId,
+          name: originalName,
+        })
+      );
     };
     socket.once("error", handleUpdateError);
-
-    // Dọn dẹp listener lỗi sau khi hoàn tất
     setTimeout(() => socket.off("error", handleUpdateError), 5000);
 
     handleCloseEditNameModal();

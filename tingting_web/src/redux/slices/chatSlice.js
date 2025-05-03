@@ -20,8 +20,14 @@ const chatSlice = createSlice({
     updateChatInfo: (state, action) => {
       state.chatInfoUpdate = action.payload;
     },
+    setChatInfoUpdate(state, action) {
+      state.chatInfoUpdate = action.payload;
+    },
+    setLastMessageUpdate(state, action) {
+      state.lastMessageUpdate = action.payload;
+    },
   },
 });
 
-export const { setSelectedMessage, clearSelectedMessage, updateLastMessage, updateChatInfo } = chatSlice.actions;
+export const { setSelectedMessage, clearSelectedMessage, updateLastMessage, updateChatInfo, setChatInfoUpdate, setLastMessageUpdate } = chatSlice.actions;
 export default chatSlice.reducer;

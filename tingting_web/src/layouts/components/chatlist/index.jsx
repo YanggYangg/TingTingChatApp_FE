@@ -59,6 +59,10 @@ function ChatList({ activeTab, onGroupCreated }) {
     const handleConnect = () => {
       console.log("ChatList: Socket đã kết nối", { socketId: socket.id });
       setIsSocketConnected(true);
+      joinedRoomsRef.current.forEach((conversationId) => {
+        joinConversation(socket, conversationId);
+        console.log(`ChatList: Tham gia lại phòng khi reconnect: ${conversationId}`);
+      });
     };
 
     const handleDisconnect = () => {
@@ -85,10 +89,10 @@ function ChatList({ activeTab, onGroupCreated }) {
       return;
     }
     console.log(`ChatList: Chọn cuộc hội thoại: ${message.id}`);
-    if (message.id !== "my-cloud") {
+    if (message.id !== "my-cloud" && !joinedRoomsRef.current.has(message.id)) {
       joinConversation(socket, message.id);
       joinedRoomsRef.current.add(message.id);
-      console.log(`ChatList: Tham gia phòng thành công: ${message.id}`);
+      console.log(`ChatList: Tham gia phòng: ${message.id}`);
     }
     dispatch(setSelectedMessage(message));
   };
@@ -122,8 +126,10 @@ function ChatList({ activeTab, onGroupCreated }) {
         userId: currentUserId,
         isPinned: !isPinned,
       });
-      joinConversation(socket, conversationId);
-      joinedRoomsRef.current.add(conversationId);
+      if (!joinedRoomsRef.current.has(conversationId)) {
+        joinConversation(socket, conversationId);
+        joinedRoomsRef.current.add(conversationId);
+      }
     }
   };
 
@@ -184,6 +190,12 @@ function ChatList({ activeTab, onGroupCreated }) {
       );
       return sortMessages(uniqueMessages);
     });
+
+    if (!joinedRoomsRef.current.has(newConversation._id)) {
+      joinConversation(socket, newConversation._id);
+      joinedRoomsRef.current.add(newConversation._id);
+      console.log(`ChatList: Tham gia phòng nhóm mới: ${newConversation._id}`);
+    }
   };
 
   useEffect(() => {
@@ -281,6 +293,10 @@ function ChatList({ activeTab, onGroupCreated }) {
           )[0];
           console.log("ChatList: Thêm message mới:", newMessage);
           updatedMessages.push(newMessage);
+          if (!joinedRoomsRef.current.has(updatedConversation._id)) {
+            joinConversation(socket, updatedConversation._id);
+            joinedRoomsRef.current.add(updatedConversation._id);
+          }
         }
 
         return sortMessages(updatedMessages);
@@ -337,15 +353,6 @@ function ChatList({ activeTab, onGroupCreated }) {
     onConversationRemoved(socket, handleConversationRemoved);
     onGroupLeft(socket, handleGroupLeft);
 
-    const handleReconnect = () => {
-      console.log("ChatList: Socket reconnect, tham gia lại các phòng");
-      joinedRoomsRef.current.forEach((conversationId) => {
-        joinConversation(socket, conversationId);
-      });
-    };
-
-    socket.on("connect", handleReconnect);
-
     return () => {
       console.log("ChatList: Dọn dẹp sự kiện socket");
       cleanupLoad();
@@ -354,7 +361,6 @@ function ChatList({ activeTab, onGroupCreated }) {
       socket.off("newGroupConversation", handleNewGroupConversation);
       offConversationRemoved(socket);
       offGroupLeft(socket);
-      socket.off("connect", handleReconnect);
     };
   }, [socket, currentUserId, onGroupCreated, dispatch]);
 
@@ -364,15 +370,15 @@ function ChatList({ activeTab, onGroupCreated }) {
       setMessages((prevMessages) => {
         const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === chatInfoUpdate._id) {
-            const participant = chatInfoUpdate.participants?.find((p) => p.userId === currentUserId);
+            const participant = chatInfoUpdate.participants?.find((p) => p.userId === currentUserId) || {};
             const updatedMsg = {
               ...msg,
               participants: chatInfoUpdate.participants || msg.participants,
               name: chatInfoUpdate.name || msg.name,
               isGroup: chatInfoUpdate.isGroup ?? msg.isGroup,
               imageGroup: chatInfoUpdate.imageGroup || msg.imageGroup,
-              isPinned: participant?.isPinned || false,
-              mute: participant?.mute || false,
+              isPinned: participant.isPinned || false,
+              mute: participant.mute || false,
             };
             console.log("ChatList: Cập nhật message từ Redux (chatInfoUpdate):", updatedMsg);
             return updatedMsg;
