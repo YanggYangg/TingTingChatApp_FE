@@ -110,12 +110,12 @@ function ChatList({ activeTab, onGroupCreated }) {
   const handlePinConversation = (conversationId, isPinned) => {
     if (!isSocketConnected) {
       console.warn("ChatList: Socket chưa kết nối, không thể ghim/bỏ ghim");
-      alert("Socket chưa kết nối, vui lòng thử lại sau!");
+      toast.error("Socket chưa kết nối, vui lòng thử lại sau!");
       return;
     }
 
     if (!isPinned && checkPinnedLimit()) {
-      alert("Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!");
+      toast.error("Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!");
       return;
     }
 
@@ -428,21 +428,19 @@ function ChatList({ activeTab, onGroupCreated }) {
       {activeTab === "/chat" && (
         <div className="flex justify-start space-x-4 px-4 py-2 border-b">
           <button
-            className={`font-semibold px-2 ${
-              selectedTab === "priority"
+            className={`font-semibold px-2 ${selectedTab === "priority"
                 ? "text-blue-600 border-b-2 border-blue-600"
                 : "text-gray-600"
-            }`}
+              }`}
             onClick={() => handleTabClick("priority")}
           >
             Ưu tiên
           </button>
           <button
-            className={`font-semibold px-2 ${
-              selectedTab === "others"
+            className={`font-semibold px-2 ${selectedTab === "others"
                 ? "text-blue-600 border-b-2 border-blue-600"
                 : "text-gray-600"
-            }`}
+              }`}
             onClick={() => handleTabClick("others")}
           >
             Khác

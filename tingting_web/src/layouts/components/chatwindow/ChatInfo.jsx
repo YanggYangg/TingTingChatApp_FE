@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from "react-icons/fa";
-import { useDispatch } from "react-redux"; // Thêm import
-import { setChatInfoUpdate } from "../../../redux/slices/chatSlice"; // Thêm action
+import { useDispatch } from "react-redux";
+import { setChatInfoUpdate } from "../../../redux/slices/chatSlice";
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
 import GroupMemberList from "../../../components/chatInforComponent/GroupMemberList";
 import GroupMediaGallery from "../../../components/chatInforComponent/GroupMediaGallery";
@@ -24,7 +24,6 @@ import {
   updateNotification,
   onError,
   offError,
-
 } from "../../../services/sockets/events/chatInfo";
 import {
   onConversations,
@@ -50,7 +49,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const [userRoleInGroup, setUserRoleInGroup] = useState(null);
   const [hasMounted, setHasMounted] = useState(false);
   const [commonGroups, setCommonGroups] = useState([]);
-  const dispatch = useDispatch(); // Khởi tạo dispatch
+  const dispatch = useDispatch();
 
   useEffect(() => {
     setHasMounted(true);
@@ -109,6 +108,8 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         console.log("ChatInfo: Đây là nhóm, không cần lấy thông tin người dùng");
         setLoading(false);
       }
+
+      dispatch(setChatInfoUpdate(newChatInfo)); // Đồng bộ với Redux
     };
 
     const handleOnChatInfoUpdated = (updatedInfo) => {
@@ -143,11 +144,13 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         setIsPinned(!!participant.isPinned);
         setUserRoleInGroup(participant.role || null);
       }
+
+      dispatch(setChatInfoUpdate(updatedInfo)); // Đồng bộ với Redux
     };
 
     const handleError = (error) => {
       console.error("ChatInfo: Lỗi từ server", error);
-      alert("Đã xảy ra lỗi: " + (error.message || "Không thể cập nhật thông tin."));
+      toast.error("Đã xảy ra lỗi: " + (error.message || "Không thể cập nhật thông tin."));
       setLoading(false);
     };
 
@@ -162,7 +165,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       offChatInfoUpdated(socket);
       offError(socket);
     };
-  }, [socket, conversationId, userId, hasMounted]);
+  }, [socket, conversationId, userId, hasMounted, dispatch]);
 
   useEffect(() => {
     if (!socket || !userId) {
@@ -234,18 +237,16 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
   const handleMemberRemoved = (removedUserId) => {
     console.log("ChatInfo: Xóa thành viên", { removedUserId });
-    setChatInfo((prevChatInfo) => ({
-      ...prevChatInfo,
-      participants: prevChatInfo.participants.filter(
-        (p) => p.userId !== removedUserId
-      ),
-    }));
-    dispatch(
-      setChatInfoUpdate({
-        ...chatInfo,
-        participants: chatInfo.participants.filter((p) => p.userId !== removedUserId),
-      })
-    );
+    setChatInfo((prevChatInfo) => {
+      const updatedChatInfo = {
+        ...prevChatInfo,
+        participants: prevChatInfo.participants.filter(
+          (p) => p.userId !== removedUserId
+        ),
+      };
+      dispatch(setChatInfoUpdate(updatedChatInfo));
+      return updatedChatInfo;
+    });
   };
 
   const handleMuteNotification = () => {
@@ -288,7 +289,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const copyToClipboard = () => {
     console.log("ChatInfo: Sao chép link nhóm", { link: chatInfo?.linkGroup });
     navigator.clipboard.writeText(chatInfo?.linkGroup || "");
-    alert("Đã sao chép link nhóm!");
+    toast.success("Đã sao chép link nhóm!");
   };
 
   const handleAddMember = () => {
@@ -315,7 +316,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
   const handleOpenEditNameModal = () => {
     if (!chatInfo?.isGroup) {
-      alert("Chỉ nhóm mới có thể đổi tên!");
+      toast.error("Chỉ nhóm mới có thể đổi tên!");
       return;
     }
     console.log("ChatInfo: Mở modal chỉnh sửa tên");
@@ -344,7 +345,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
     updateChatName(socket, { conversationId, name: newName.trim() });
 
-    // Dispatch action Redux để cập nhật ChatList
     dispatch(
       setChatInfoUpdate({
         ...chatInfo,
@@ -355,9 +355,8 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     const handleUpdateError = (error) => {
       console.error("ChatInfo: Lỗi khi cập nhật tên nhóm", error);
-      alert("Không thể cập nhật tên nhóm: " + (error.message || "Lỗi server."));
+      toast.error("Không thể cập nhật tên nhóm: " + (error.message || "Lỗi server."));
       setChatInfo((prev) => ({ ...prev, name: originalName }));
-      // Hoàn nguyên trong Redux nếu lỗi
       dispatch(
         setChatInfoUpdate({
           ...chatInfo,
@@ -388,7 +387,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       ? chatInfo.imageGroup
       : "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA="
     : otherUser?.avatar ||
-      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
+      "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
   const displayName = chatInfo?.isGroup
     ? chatInfo.name
     : `${otherUser?.firstname} ${otherUser?.surname}`.trim() || "Đang tải...";
@@ -480,6 +479,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
           userId={userId}
           setChatInfo={setChatInfo}
           userRoleInGroup={userRoleInGroup}
+          setUserRoleInGroup={setUserRoleInGroup} // Truyền prop
           chatInfo={chatInfo}
           socket={socket}
         />

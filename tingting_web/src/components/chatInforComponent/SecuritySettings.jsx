@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import Switch from "react-switch";
 import { FaTrash, FaDoorOpen, FaSignOutAlt, FaUserShield } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { useDispatch } from "react-redux"; // Thêm Redux
+import { setChatInfoUpdate } from "../../redux/slices/chatSlice"; // Action Redux
 import { Api_Profile } from "../../../apis/api_profile";
 import {
   getChatInfo,
@@ -14,8 +16,9 @@ import {
   leaveGroup,
   onError,
   offError,
+  onChatInfoUpdated,
+  offChatInfoUpdated,
 } from "../../services/sockets/events/chatInfo";
-import { onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
 
 const SecuritySettings = ({
   socket,
@@ -23,6 +26,7 @@ const SecuritySettings = ({
   userId,
   setChatInfo,
   userRoleInGroup,
+  setUserRoleInGroup, // Thêm prop để cập nhật userRoleInGroup
   chatInfo,
 }) => {
   const [isHidden, setIsHidden] = useState(false);
@@ -39,6 +43,7 @@ const SecuritySettings = ({
   const [isLeaving, setIsLeaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const isAdmin = userRoleInGroup === "admin";
+  const dispatch = useDispatch();
 
   // Lấy thông tin chat
   const fetchChatInfo = useCallback(async () => {
@@ -51,6 +56,7 @@ const SecuritySettings = ({
           setIsGroup(data.isGroup);
           const participant = data.participants.find((p) => p.userId === userId);
           setIsHidden(participant?.isHidden || false);
+          setUserRoleInGroup(participant?.role || null);
 
           // Lấy thông tin thành viên
           const members = data.participants.filter((p) => p.userId !== userId);
@@ -75,6 +81,7 @@ const SecuritySettings = ({
           });
 
           setChatInfo(data);
+          dispatch(setChatInfoUpdate(data)); // Đồng bộ với Redux
         } else {
           console.error("SecuritySettings: Lỗi khi lấy thông tin chat:", response.message);
           toast.error("Không thể lấy thông tin cuộc trò chuyện.");
@@ -86,7 +93,7 @@ const SecuritySettings = ({
       toast.error("Lỗi hệ thống. Vui lòng thử lại.");
       setLoadingMembers(false);
     }
-  }, [socket, conversationId, userId, setChatInfo]);
+  }, [socket, conversationId, userId, setChatInfo, setUserRoleInGroup, dispatch]);
 
   // Đăng ký socket events
   useEffect(() => {
@@ -106,7 +113,25 @@ const SecuritySettings = ({
       setIsGroup(data.isGroup);
       const participant = data.participants.find((p) => p.userId === userId);
       setIsHidden(participant?.isHidden || false);
+      setUserRoleInGroup(participant?.role || null);
       setChatInfo(data);
+      dispatch(setChatInfoUpdate(data)); // Đồng bộ với Redux
+    });
+
+    onChatInfoUpdated(socket, (updatedInfo) => {
+      console.log("SecuritySettings: Nhận onChatInfoUpdated", updatedInfo);
+      if (updatedInfo._id !== conversationId) return;
+
+      setChatInfo((prev) => ({
+        ...prev,
+        ...updatedInfo,
+        participants: updatedInfo.participants || prev.participants,
+      }));
+      const participant = updatedInfo.participants.find((p) => p.userId === userId);
+      setIsHidden(participant?.isHidden || false);
+      setUserRoleInGroup(participant?.role || null);
+      setIsGroup(updatedInfo.isGroup);
+      dispatch(setChatInfoUpdate(updatedInfo)); // Đồng bộ với Redux
     });
 
     onError(socket, (error) => {
@@ -117,9 +142,10 @@ const SecuritySettings = ({
     return () => {
       console.log("SecuritySettings: Gỡ sự kiện socket");
       offChatInfo(socket);
+      offChatInfoUpdated(socket);
       offError(socket);
     };
-  }, [socket, conversationId, userId, fetchChatInfo, setChatInfo]);
+  }, [socket, conversationId, userId, fetchChatInfo, setChatInfo, setUserRoleInGroup, dispatch]);
 
   // Xử lý ẩn/hiện trò chuyện
   const handleToggle = useCallback(
@@ -233,6 +259,10 @@ const SecuritySettings = ({
             ...prev,
             participants: prev.participants.filter((p) => p.userId !== userId),
           }));
+          dispatch(setChatInfoUpdate({
+            ...chatInfo,
+            participants: chatInfo.participants.filter((p) => p.userId !== userId),
+          }));
         } else {
           toast.error("Lỗi khi rời nhóm: " + response.message);
         }
@@ -247,7 +277,7 @@ const SecuritySettings = ({
       setShowLeaveConfirm(false);
       setIsProcessing(false);
     }
-  }, [socket, conversationId, userId, setChatInfo, isProcessing]);
+  }, [socket, conversationId, userId, setChatInfo, chatInfo, dispatch, isProcessing]);
 
   // Chuyển quyền admin và tự động rời nhóm
   const handleTransferAdminAndLeave = useCallback(async () => {
@@ -288,6 +318,10 @@ const SecuritySettings = ({
             ...prev,
             participants: prev.participants.filter((p) => p.userId !== userId),
           }));
+          dispatch(setChatInfoUpdate({
+            ...chatInfo,
+            participants: chatInfo.participants.filter((p) => p.userId !== userId),
+          }));
         } else {
           toast.error("Lỗi khi rời nhóm: " + response.message);
         }
@@ -303,7 +337,7 @@ const SecuritySettings = ({
       setShowTransferAdminModal(false);
       setIsProcessing(false);
     }
-  }, [socket, conversationId, userId, newAdminUserId, setChatInfo, isProcessing]);
+  }, [socket, conversationId, userId, newAdminUserId, setChatInfo, chatInfo, dispatch, isProcessing]);
 
   // Giải tán nhóm
   const handleDisbandGroup = useCallback(() => {
@@ -360,22 +394,21 @@ const SecuritySettings = ({
         console.log("SecuritySettings: Phản hồi từ transferGroupAdmin", response);
         if (response.success) {
           toast.success("Quyền trưởng nhóm đã được chuyển!");
-          fetchChatInfo();
           setShowTransferAdminModal(false);
           setNewAdminUserId("");
+          // Cập nhật Redux ngay lập tức với dữ liệu từ response
+          dispatch(setChatInfoUpdate(response.data));
         } else {
           toast.error("Lỗi khi chuyển quyền: " + response.message);
-          fetchChatInfo();
         }
         setIsProcessing(false);
       });
     } catch (error) {
       console.error("SecuritySettings: Lỗi khi chuyển quyền:", error);
       toast.error("Lỗi khi chuyển quyền. Vui lòng thử lại.");
-      fetchChatInfo();
       setIsProcessing(false);
     }
-  }, [socket, conversationId, newAdminUserId, fetchChatInfo, isProcessing]);
+  }, [socket, conversationId, newAdminUserId, isProcessing, dispatch]);
 
   // Đóng modal chuyển quyền
   const handleCloseTransferAdminModal = useCallback(() => {
@@ -470,8 +503,8 @@ const SecuritySettings = ({
       )}
 
       {showTransferAdminModal && (
-        <div className="fixed inset-0 flex items-center justify-center"  overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white p-6 rounded-md shadow-lg w-96">
+        <div className="fixed inset-0 flex items-center justify-center" overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]" >
+          <div className="bg-white p-6 rounded-md shadow-lg w-96" >
             <h2 className="text-lg font-semibold mb-4">
               {isLeaving ? "Chuyển quyền trước khi rời nhóm" : "Chuyển quyền trưởng nhóm"}
             </h2>
@@ -524,7 +557,7 @@ const SecuritySettings = ({
       )}
 
       {showDisbandConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center"  overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="fixed inset-0 flex items-center justify-center  bg-opacity-50 z-50"  overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận giải tán nhóm</h2>
             <p className="mb-4">
@@ -551,7 +584,7 @@ const SecuritySettings = ({
       )}
 
       {showLeaveConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center"  overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận rời nhóm</h2>
             <p className="mb-4">
