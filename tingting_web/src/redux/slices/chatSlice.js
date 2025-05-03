@@ -4,8 +4,8 @@ const chatSlice = createSlice({
   name: "chat",
   initialState: {
     selectedMessage: null,
-    chatInfoUpdate: null,
     lastMessageUpdate: null,
+    chatInfoUpdate: null,
   },
   reducers: {
     setSelectedMessage: (state, action) => {
@@ -14,14 +14,14 @@ const chatSlice = createSlice({
     clearSelectedMessage: (state) => {
       state.selectedMessage = null;
     },
-    updateChatInfo: (state, action) => {
-      state.chatInfoUpdate = action.payload;
-    },
     updateLastMessage: (state, action) => {
       state.lastMessageUpdate = action.payload;
+    },
+    updateChatInfo: (state, action) => {
+      state.chatInfoUpdate = action.payload;
     },
   },
 });
 
-export const { setSelectedMessage, clearSelectedMessage, updateChatInfo, updateLastMessage } = chatSlice.actions;
+export const { setSelectedMessage, clearSelectedMessage, updateLastMessage, updateChatInfo } = chatSlice.actions;
 export default chatSlice.reducer;

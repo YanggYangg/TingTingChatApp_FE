@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import ChatInfo from "../../layouts/components/chatwindow/ChatInfo";
 import { useSelector, useDispatch } from "react-redux";
-import { clearSelectedMessage, updateChatInfo, updateLastMessage } from "../../redux/slices/chatSlice";
+import { clearSelectedMessage, updateLastMessage, updateChatInfo } from "../../redux/slices/chatSlice";
 import ChatHeader from "./ChatWindow/ChatHeader";
 import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
@@ -11,11 +11,11 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import ChatHeaderCloud from "./ChatWindow/ChatHeaderCloud";
 import ChatFooterCloud from "./ChatWindow/ChatFooterCloud";
-import { useSocket } from "../../contexts/SocketContext";
-import { useCloudSocket } from "../../contexts/CloudSocketContext";
 import ShareModal from "../../components/chat/ShareModal";
 import { Api_Profile } from "../../../apis/api_profile";
 import { onChatInfoUpdated, offChatInfoUpdated } from "../../services/sockets/events/chatInfo";
+import { useSocket } from "../../contexts/SocketContext";
+import { useCloudSocket } from "../../contexts/CloudSocketContext";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -240,7 +240,7 @@ function ChatPage() {
       setMessages((prevMessages) => {
         if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
           const updatedMessages = [...prevMessages, newMessage];
-          console.log("ChatPage: Dispatch lastMessage từ receiveMessage", newMessage);
+          // Dispatch updateLastMessage để ChatList cập nhật ngay lập tức
           dispatch(updateLastMessage({
             conversationId: newMessage.conversationId,
             lastMessage: newMessage,
@@ -265,9 +265,9 @@ function ChatPage() {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
             const updatedMessages = [...prevMessages, newMessage];
-            console.log("ChatPage: Dispatch lastMessage từ newMessage", newMessage);
+            // Dispatch updateLastMessage để ChatList cập nhật ngay lập tức
             dispatch(updateLastMessage({
-              conversationId: messageConversationId,
+              conversationId: newMessage.conversationId,
               lastMessage: newMessage,
             }));
             return updatedMessages;
@@ -283,7 +283,7 @@ function ChatPage() {
       setMessages((prevMessages) => {
         if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
           const updatedMessages = [...prevMessages, newMessage];
-          console.log("ChatPage: Dispatch lastMessage từ messageSent", newMessage);
+          // Dispatch updateLastMessage để ChatList cập nhật ngay lập tức
           dispatch(updateLastMessage({
             conversationId: newMessage.conversationId,
             lastMessage: newMessage,
@@ -330,7 +330,7 @@ function ChatPage() {
           );
           if (lastMessage && !updatedMessages.some((msg) => msg._id === lastMessage._id)) {
             const newMessages = [...updatedMessages, lastMessage];
-            console.log("ChatPage: Dispatch lastMessage từ conversationUpdated", lastMessage);
+            // Dispatch updateLastMessage để ChatList cập nhật ngay lập tức
             dispatch(updateLastMessage({
               conversationId: conversationId,
               lastMessage: lastMessage,
@@ -401,7 +401,7 @@ function ChatPage() {
           console.log("ChatPage: Cập nhật chatDetails với tên mới", newDetails);
           return newDetails;
         });
-        console.log("ChatPage: Dispatch chatInfoUpdated đến Redux", updatedInfo);
+        // Dispatch updateChatInfo để ChatList cập nhật ngay lập tức
         dispatch(updateChatInfo(updatedInfo));
       } else {
         console.warn("ChatPage: chatInfoUpdated không khớp với selectedMessageId", {
@@ -454,19 +454,6 @@ function ChatPage() {
       };
       console.log("ChatPage: Gửi sendMessage", payload);
       socket.emit("sendMessage", payload);
-      // Tạo một đối tượng tin nhắn giả để dispatch
-      const tempMessage = {
-        conversationId: selectedMessageId,
-        content: message.content,
-        messageType: message.messageType,
-        userId: currentUserId,
-        createdAt: new Date().toISOString(),
-      };
-      console.log("ChatPage: Dispatch lastMessage từ sendMessage", tempMessage);
-      dispatch(updateLastMessage({
-        conversationId: selectedMessageId,
-        lastMessage: tempMessage,
-      }));
     } else {
       console.error("ChatPage: Không thể gửi tin nhắn", { socket, selectedMessageId });
     }

@@ -79,6 +79,7 @@ function ChatList({ activeTab, onGroupCreated }) {
 
     // Gửi sự kiện socket để cập nhật trạng thái ghim
     if (socket) {
+      console.log(`ChatList: Gửi sự kiện updateChatInfo để ${isPinned ? "bỏ ghim" : "ghim"}`, { conversationId });
       socket.emit("updateChatInfo", {
         conversationId,
         userId: currentUserId,
@@ -213,23 +214,30 @@ function ChatList({ activeTab, onGroupCreated }) {
     };
 
     const handleConversationUpdate = (updatedConversation) => {
-      console.log("ChatList: Cập nhật hội thoại:", updatedConversation);
+      console.log("ChatList: Nhận sự kiện conversationUpdated:", updatedConversation);
       setMessages((prevMessages) => {
         const updatedMessages = prevMessages.map((msg) => {
           const updatedConversationId = updatedConversation.conversationId?._id || updatedConversation.conversationId || updatedConversation._id;
           if (msg.id === updatedConversationId) {
+            // Kiểm tra nếu lastMessage đã được cập nhật qua Redux thì bỏ qua
+            const existingLastMessage = msg.lastMessage;
+            const newLastMessage = updatedConversation.lastMessage?.content || "";
+            if (existingLastMessage === newLastMessage && msg.updateAt === updatedConversation.updatedAt) {
+              console.log("ChatList: Bỏ qua cập nhật lastMessage từ socket vì đã có từ Redux:", msg.id);
+              return msg;
+            }
             const updatedMsg = {
               ...msg,
-              lastMessage: updatedConversation.lastMessage?.content || "",
+              lastMessage: newLastMessage,
               lastMessageType: updatedConversation.lastMessage?.messageType || "text",
               lastMessageSenderId: updatedConversation.lastMessage?.userId || null,
-              time: new Date(updatedConversation.updatedAt).toLocaleTimeString(
+              time: new Date(updatedConversation.lastMessage?.createdAt || updatedConversation.updatedAt).toLocaleTimeString(
                 [],
                 { hour: "2-digit", minute: "2-digit" }
               ),
-              updateAt: updatedConversation.updatedAt,
+              updateAt: updatedConversation.lastMessage?.createdAt || updatedConversation.updatedAt,
             };
-            console.log("ChatList: Message đã cập nhật:", updatedMsg);
+            console.log("ChatList: Message đã cập nhật từ conversationUpdated:", updatedMsg);
             return updatedMsg;
           }
           return msg;
@@ -251,7 +259,7 @@ function ChatList({ activeTab, onGroupCreated }) {
           if (!a.isPinned && b.isPinned) return 1;
           return new Date(b.updateAt || b.time) - new Date(a.updateAt || a.time);
         });
-        console.log("ChatList: Danh sách message sau khi cập nhật:", sortedMessages);
+        console.log("ChatList: Danh sách message sau khi cập nhật từ conversationUpdated:", sortedMessages);
         return sortedMessages;
       });
     };
@@ -281,13 +289,20 @@ function ChatList({ activeTab, onGroupCreated }) {
         const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === updatedInfo._id) {
             const participant = updatedInfo.participants?.find((p) => p.userId === currentUserId);
+            // Kiểm tra nếu isPinned đã được cập nhật qua Redux thì bỏ qua
+            const existingIsPinned = msg.isPinned;
+            const newIsPinned = participant?.isPinned || false;
+            if (existingIsPinned === newIsPinned) {
+              console.log("ChatList: Bỏ qua cập nhật isPinned từ socket vì đã có từ Redux:", msg.id);
+              return msg;
+            }
             const updatedMsg = {
               ...msg,
               participants: updatedInfo.participants || msg.participants,
               name: updatedInfo.name || msg.name,
               isGroup: updatedInfo.isGroup ?? msg.isGroup,
               imageGroup: updatedInfo.imageGroup || msg.imageGroup,
-              isPinned: participant?.isPinned || msg.isPinned || false,
+              isPinned: newIsPinned,
               mute: participant?.mute || msg.mute || false,
             };
             console.log("ChatList: Message đã cập nhật từ chatInfoUpdated:", updatedMsg);
