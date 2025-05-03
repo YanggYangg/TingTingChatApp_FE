@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import ChatInfo from "../../layouts/components/chatwindow/ChatInfo";
 import { useSelector, useDispatch } from "react-redux";
-import { clearSelectedMessage, updateLastMessage, updateChatInfo } from "../../redux/slices/chatSlice";
+import { clearSelectedMessage, setLastMessageUpdate, setChatInfoUpdate } from "../../redux/slices/chatSlice";
 import ChatHeader from "./ChatWindow/ChatHeader";
 import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
@@ -16,6 +16,7 @@ import { Api_Profile } from "../../../apis/api_profile";
 import { onChatInfoUpdated, offChatInfoUpdated } from "../../services/sockets/events/chatInfo";
 import { useSocket } from "../../contexts/SocketContext";
 import { useCloudSocket } from "../../contexts/CloudSocketContext";
+import { toast } from "react-toastify";
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -240,8 +241,7 @@ function ChatPage() {
       setMessages((prevMessages) => {
         if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
           const updatedMessages = [...prevMessages, newMessage];
-          // Dispatch updateLastMessage để ChatList cập nhật ngay lập tức
-          dispatch(updateLastMessage({
+          dispatch(setLastMessageUpdate({
             conversationId: newMessage.conversationId,
             lastMessage: newMessage,
           }));
@@ -265,8 +265,7 @@ function ChatPage() {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
             const updatedMessages = [...prevMessages, newMessage];
-            // Dispatch updateLastMessage để ChatList cập nhật ngay lập tức
-            dispatch(updateLastMessage({
+            dispatch(setLastMessageUpdate({
               conversationId: newMessage.conversationId,
               lastMessage: newMessage,
             }));
@@ -283,8 +282,7 @@ function ChatPage() {
       setMessages((prevMessages) => {
         if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
           const updatedMessages = [...prevMessages, newMessage];
-          // Dispatch updateLastMessage để ChatList cập nhật ngay lập tức
-          dispatch(updateLastMessage({
+          dispatch(setLastMessageUpdate({
             conversationId: newMessage.conversationId,
             lastMessage: newMessage,
           }));
@@ -321,6 +319,18 @@ function ChatPage() {
       }
     });
 
+    socket.on("deleteAllChatHistory", ({ conversationId }) => {
+      console.log("ChatPage: Nhận deleteAllChatHistory", { conversationId });
+      if (conversationId === selectedMessageId) {
+        setMessages([]);
+        dispatch(setLastMessageUpdate({
+          conversationId: conversationId,
+          lastMessage: null,
+        }));
+        toast.success("Toàn bộ lịch sử trò chuyện đã được xóa!");
+      }
+    });
+
     socket.on("conversationUpdated", ({ conversationId, lastMessage }) => {
       console.log("ChatPage: Nhận conversationUpdated", { conversationId, lastMessage });
       if (conversationId === selectedMessageId) {
@@ -330,8 +340,7 @@ function ChatPage() {
           );
           if (lastMessage && !updatedMessages.some((msg) => msg._id === lastMessage._id)) {
             const newMessages = [...updatedMessages, lastMessage];
-            // Dispatch updateLastMessage để ChatList cập nhật ngay lập tức
-            dispatch(updateLastMessage({
+            dispatch(setLastMessageUpdate({
               conversationId: conversationId,
               lastMessage: lastMessage,
             }));
@@ -368,6 +377,7 @@ function ChatPage() {
       socket.off("messageDeleted");
       socket.off("messageRevoked");
       socket.off("chatHistoryDeleted");
+      socket.off("deleteAllChatHistory");
       socket.off("conversationUpdated");
       socket.off("error");
       socket.off("connect");
@@ -401,8 +411,7 @@ function ChatPage() {
           console.log("ChatPage: Cập nhật chatDetails với tên mới", newDetails);
           return newDetails;
         });
-        // Dispatch updateChatInfo để ChatList cập nhật ngay lập tức
-        dispatch(updateChatInfo(updatedInfo));
+        dispatch(setChatInfoUpdate(updatedInfo));
       } else {
         console.warn("ChatPage: chatInfoUpdated không khớp với selectedMessageId", {
           selectedMessageId,
@@ -850,35 +859,41 @@ function ChatPage() {
             ) : (
               <>
                 <div className="flex-1 overflow-y-auto p-4">
-                  {messages
-                    .filter(
-                      (msg) =>
-                        msg.conversationId === selectedMessageId &&
-                        !msg.deletedBy?.includes(currentUserId)
-                    )
-                    .map((msg) => (
-                      <MessageItem
-                        key={msg._id}
-                        msg={{
-                          ...msg,
-                          sender:
-                            msg.userId === currentUserId
-                              ? "Bạn"
-                              : userCache[msg.userId]?.name || "Unknown",
-                          time: formatTime(msg.createdAt),
-                          messageType: msg.messageType || "text",
-                          content: msg.content || "",
-                          linkURL: msg.linkURL || "",
-                          userId: msg.userId,
-                        }}
-                        currentUserId={currentUserId}
-                        onReply={handleReply}
-                        onForward={handleForward}
-                        onRevoke={handleRevoke}
-                        onDelete={handleDelete}
-                        messages={messages}
-                      />
-                    ))}
+                  {messages.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">Không có tin nhắn nào.</p>
+                    </div>
+                  ) : (
+                    messages
+                      .filter(
+                        (msg) =>
+                          msg.conversationId === selectedMessageId &&
+                          !msg.deletedBy?.includes(currentUserId)
+                      )
+                      .map((msg) => (
+                        <MessageItem
+                          key={msg._id}
+                          msg={{
+                            ...msg,
+                            sender:
+                              msg.userId === currentUserId
+                                ? "Bạn"
+                                : userCache[msg.userId]?.name || "Unknown",
+                            time: formatTime(msg.createdAt),
+                            messageType: msg.messageType || "text",
+                            content: msg.content || "",
+                            linkURL: msg.linkURL || "",
+                            userId: msg.userId,
+                          }}
+                          currentUserId={currentUserId}
+                          onReply={handleReply}
+                          onForward={handleForward}
+                          onRevoke={handleRevoke}
+                          onDelete={handleDelete}
+                          messages={messages}
+                        />
+                      ))
+                  )}
                   <div ref={messagesEndRef} />
                 </div>
                 <ChatFooter

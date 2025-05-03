@@ -259,3 +259,7 @@ export const updateGroupImage = (socket, data) => {
 export const offGroupLeft = (socket) => {
   socket.off("groupLeft");
 };
+
+export const deleteAllChatHistory = (socket, data, callback) => {
+  socket.emit("deleteAllChatHistory", data, callback);
+};

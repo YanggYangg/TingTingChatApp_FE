@@ -2,15 +2,15 @@ import React, { useState, useEffect, useCallback } from "react";
 import Switch from "react-switch";
 import { FaTrash, FaDoorOpen, FaSignOutAlt, FaUserShield } from "react-icons/fa";
 import { toast } from "react-toastify";
-import { useDispatch } from "react-redux"; // Thêm Redux
-import { setChatInfoUpdate } from "../../redux/slices/chatSlice"; // Action Redux
+import { useDispatch } from "react-redux";
+import { setChatInfoUpdate } from "../../redux/slices/chatSlice";
 import { Api_Profile } from "../../../apis/api_profile";
 import {
   getChatInfo,
   onChatInfo,
   offChatInfo,
   hideChat,
-  deleteChatHistoryForMe,
+  deleteAllChatHistory, // Cập nhật import
   transferGroupAdmin,
   disbandGroup,
   leaveGroup,
@@ -26,7 +26,7 @@ const SecuritySettings = ({
   userId,
   setChatInfo,
   userRoleInGroup,
-  setUserRoleInGroup, // Thêm prop để cập nhật userRoleInGroup
+  setUserRoleInGroup,
   chatInfo,
 }) => {
   const [isHidden, setIsHidden] = useState(false);
@@ -81,7 +81,7 @@ const SecuritySettings = ({
           });
 
           setChatInfo(data);
-          dispatch(setChatInfoUpdate(data)); // Đồng bộ với Redux
+          dispatch(setChatInfoUpdate(data));
         } else {
           console.error("SecuritySettings: Lỗi khi lấy thông tin chat:", response.message);
           toast.error("Không thể lấy thông tin cuộc trò chuyện.");
@@ -115,7 +115,7 @@ const SecuritySettings = ({
       setIsHidden(participant?.isHidden || false);
       setUserRoleInGroup(participant?.role || null);
       setChatInfo(data);
-      dispatch(setChatInfoUpdate(data)); // Đồng bộ với Redux
+      dispatch(setChatInfoUpdate(data));
     });
 
     onChatInfoUpdated(socket, (updatedInfo) => {
@@ -131,7 +131,7 @@ const SecuritySettings = ({
       setIsHidden(participant?.isHidden || false);
       setUserRoleInGroup(participant?.role || null);
       setIsGroup(updatedInfo.isGroup);
-      dispatch(setChatInfoUpdate(updatedInfo)); // Đồng bộ với Redux
+      dispatch(setChatInfoUpdate(updatedInfo));
     });
 
     onError(socket, (error) => {
@@ -197,19 +197,19 @@ const SecuritySettings = ({
     handleHideChat(true, pin);
   }, [pin, handleHideChat]);
 
-  // Xóa lịch sử trò chuyện
+  // Xóa toàn bộ lịch sử trò chuyện
   const handleDeleteHistory = useCallback(async () => {
     if (isProcessing) {
-      console.log("SecuritySettings: Đang xử lý, bỏ qua deleteChatHistoryForMe");
+      console.log("SecuritySettings: Đang xử lý, bỏ qua deleteAllChatHistory");
       return;
     }
     setIsProcessing(true);
     try {
-      console.log("SecuritySettings: Gửi yêu cầu deleteChatHistoryForMe", { conversationId });
-      deleteChatHistoryForMe(socket, { conversationId }, (response) => {
-        console.log("SecuritySettings: Phản hồi từ deleteChatHistoryForMe", response);
+      console.log("SecuritySettings: Gửi yêu cầu deleteAllChatHistory", { conversationId });
+      deleteAllChatHistory(socket, { conversationId }, (response) => {
+        console.log("SecuritySettings: Phản hồi từ deleteAllChatHistory", response);
         if (response.success) {
-          toast.success("Đã xóa lịch sử trò chuyện!");
+          toast.success("Đã xóa toàn bộ lịch sử trò chuyện!");
         } else {
           toast.error("Lỗi khi xóa lịch sử: " + response.message);
         }
@@ -396,7 +396,6 @@ const SecuritySettings = ({
           toast.success("Quyền trưởng nhóm đã được chuyển!");
           setShowTransferAdminModal(false);
           setNewAdminUserId("");
-          // Cập nhật Redux ngay lập tức với dữ liệu từ response
           dispatch(setChatInfoUpdate(response.data));
         } else {
           toast.error("Lỗi khi chuyển quyền: " + response.message);
@@ -503,8 +502,8 @@ const SecuritySettings = ({
       )}
 
       {showTransferAdminModal && (
-        <div className="fixed inset-0 flex items-center justify-center" overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]" >
-          <div className="bg-white p-6 rounded-md shadow-lg w-96" >
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">
               {isLeaving ? "Chuyển quyền trước khi rời nhóm" : "Chuyển quyền trưởng nhóm"}
             </h2>
@@ -557,7 +556,7 @@ const SecuritySettings = ({
       )}
 
       {showDisbandConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center  bg-opacity-50 z-50"  overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận giải tán nhóm</h2>
             <p className="mb-4">

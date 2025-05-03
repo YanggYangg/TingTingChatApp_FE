@@ -4,7 +4,7 @@ import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedMessage } from "../../../redux/slices/chatSlice";
+import { setSelectedMessage, setLastMessageUpdate, setChatInfoUpdate } from "../../../redux/slices/chatSlice";
 import { useSocket } from "../../../contexts/SocketContext";
 import {
   loadAndListenConversations,
@@ -23,6 +23,7 @@ import {
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 import { Api_Profile } from "../../../../apis/api_profile";
 import SibarContact from "../contact-form/SideBarContact/SideBarContact";
+import { toast } from "react-toastify";
 
 const cx = classNames.bind(styles);
 
@@ -399,13 +400,15 @@ function ChatList({ activeTab, onGroupCreated }) {
           if (msg.id === conversationId) {
             const updatedMsg = {
               ...msg,
-              lastMessage: lastMessageUpdate.lastMessage?.content || msg.lastMessage || "",
+              lastMessage: lastMessageUpdate.lastMessage?.content || "",
               lastMessageType: lastMessageUpdate.lastMessage?.messageType || msg.lastMessageType || "text",
               lastMessageSenderId: lastMessageUpdate.lastMessage?.userId || msg.lastMessageSenderId || null,
-              time: new Date(lastMessageUpdate.lastMessage?.createdAt).toLocaleTimeString(
-                [],
-                { hour: "2-digit", minute: "2-digit" }
-              ),
+              time: lastMessageUpdate.lastMessage
+                ? new Date(lastMessageUpdate.lastMessage.createdAt).toLocaleTimeString(
+                    [],
+                    { hour: "2-digit", minute: "2-digit" }
+                  )
+                : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
               updateAt: lastMessageUpdate.lastMessage?.createdAt || new Date().toISOString(),
             };
             console.log("ChatList: Cập nhật message từ Redux (lastMessageUpdate):", updatedMsg);
