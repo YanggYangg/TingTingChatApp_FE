@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import ChatInfo from "../../layouts/components/chatwindow/ChatInfo";
 import { useSelector, useDispatch } from "react-redux";
-import { clearSelectedMessage } from "../../redux/slices/chatSlice";
+import { clearSelectedMessage, updateChatInfo, updateLastMessage } from "../../redux/slices/chatSlice";
 import ChatHeader from "./ChatWindow/ChatHeader";
 import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
@@ -37,7 +37,7 @@ function ChatPage() {
   const [isShareModalVisible, setIsShareModalVisible] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
   const [userCache, setUserCache] = useState({});
-  const joinedRoomRef = useRef(null); // Lưu trữ phòng hiện tại
+  const joinedRoomRef = useRef(null);
 
   const [chatDetails, setChatDetails] = useState({
     name: "Unknown",
@@ -50,6 +50,7 @@ function ChatPage() {
   const selectedMessageId = selectedMessage?.id;
   const socketCloud = useCloudSocket();
   const currUserId = localStorage.getItem("userId");
+  const dispatch = useDispatch();
 
   console.log("ChatPage: Current socket", { socket, socketCloud, currUserId });
 
@@ -238,7 +239,13 @@ function ChatPage() {
       console.log("ChatPage: Nhận receiveMessage", newMessage);
       setMessages((prevMessages) => {
         if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
-          return [...prevMessages, newMessage];
+          const updatedMessages = [...prevMessages, newMessage];
+          console.log("ChatPage: Dispatch lastMessage từ receiveMessage", newMessage);
+          dispatch(updateLastMessage({
+            conversationId: newMessage.conversationId,
+            lastMessage: newMessage,
+          }));
+          return updatedMessages;
         }
         return prevMessages;
       });
@@ -257,8 +264,13 @@ function ChatPage() {
       if (messageConversationId === selectedMessageId) {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
-            console.log("ChatPage: Thêm newMessage vào messages", newMessage);
-            return [...prevMessages, newMessage];
+            const updatedMessages = [...prevMessages, newMessage];
+            console.log("ChatPage: Dispatch lastMessage từ newMessage", newMessage);
+            dispatch(updateLastMessage({
+              conversationId: messageConversationId,
+              lastMessage: newMessage,
+            }));
+            return updatedMessages;
           }
           console.log("ChatPage: Message đã tồn tại", newMessage._id);
           return prevMessages;
@@ -270,7 +282,13 @@ function ChatPage() {
       console.log("ChatPage: Nhận messageSent", newMessage);
       setMessages((prevMessages) => {
         if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
-          return [...prevMessages, newMessage];
+          const updatedMessages = [...prevMessages, newMessage];
+          console.log("ChatPage: Dispatch lastMessage từ messageSent", newMessage);
+          dispatch(updateLastMessage({
+            conversationId: newMessage.conversationId,
+            lastMessage: newMessage,
+          }));
+          return updatedMessages;
         }
         return prevMessages;
       });
@@ -311,7 +329,13 @@ function ChatPage() {
             (msg) => !msg.deletedBy?.includes(currentUserId)
           );
           if (lastMessage && !updatedMessages.some((msg) => msg._id === lastMessage._id)) {
-            return [...updatedMessages, lastMessage];
+            const newMessages = [...updatedMessages, lastMessage];
+            console.log("ChatPage: Dispatch lastMessage từ conversationUpdated", lastMessage);
+            dispatch(updateLastMessage({
+              conversationId: conversationId,
+              lastMessage: lastMessage,
+            }));
+            return newMessages;
           }
           return updatedMessages;
         });
@@ -330,6 +354,7 @@ function ChatPage() {
         joinedRoomRef.current = selectedMessageId;
       }
     });
+
     socket.on("disconnect", () => {
       console.warn("ChatPage: Socket disconnected");
     });
@@ -348,7 +373,7 @@ function ChatPage() {
       socket.off("connect");
       socket.off("disconnect");
     };
-  }, [socket, selectedMessageId, currentUserId]);
+  }, [socket, selectedMessageId, currentUserId, dispatch]);
 
   useEffect(() => {
     if (!socket || !selectedMessageId || selectedMessageId === "my-cloud") {
@@ -376,6 +401,8 @@ function ChatPage() {
           console.log("ChatPage: Cập nhật chatDetails với tên mới", newDetails);
           return newDetails;
         });
+        console.log("ChatPage: Dispatch chatInfoUpdated đến Redux", updatedInfo);
+        dispatch(updateChatInfo(updatedInfo));
       } else {
         console.warn("ChatPage: chatInfoUpdated không khớp với selectedMessageId", {
           selectedMessageId,
@@ -390,7 +417,7 @@ function ChatPage() {
       console.log("ChatPage: Gỡ sự kiện chatInfoUpdated");
       offChatInfoUpdated(socket);
     };
-  }, [socket, selectedMessageId]);
+  }, [socket, selectedMessageId, dispatch]);
 
   const selectedChat = useMemo(
     () =>
@@ -427,6 +454,19 @@ function ChatPage() {
       };
       console.log("ChatPage: Gửi sendMessage", payload);
       socket.emit("sendMessage", payload);
+      // Tạo một đối tượng tin nhắn giả để dispatch
+      const tempMessage = {
+        conversationId: selectedMessageId,
+        content: message.content,
+        messageType: message.messageType,
+        userId: currentUserId,
+        createdAt: new Date().toISOString(),
+      };
+      console.log("ChatPage: Dispatch lastMessage từ sendMessage", tempMessage);
+      dispatch(updateLastMessage({
+        conversationId: selectedMessageId,
+        lastMessage: tempMessage,
+      }));
     } else {
       console.error("ChatPage: Không thể gửi tin nhắn", { socket, selectedMessageId });
     }
