@@ -3,7 +3,7 @@ import Modal from "react-modal";
 
 Modal.setAppElement("#root");
 
-const CommonGroupsModal = ({ isOpen, onClose, commonGroups }) => {
+const CommonGroupsModal = ({ isOpen, onClose, commonGroups, onGroupSelect }) => {
   if (!commonGroups?.length) return null;
 
   return (
@@ -18,7 +18,8 @@ const CommonGroupsModal = ({ isOpen, onClose, commonGroups }) => {
         {commonGroups.map((group) => (
           <li
             key={group._id}
-            className="py-2 border-b last:border-none flex items-center"
+            className="py-2 border-b last:border-none flex items-center cursor-pointer hover:bg-gray-100"
+            onClick={() => onGroupSelect(group)}
           >
             <img
               src={group.imageGroup || "https://via.placeholder.com/40"}

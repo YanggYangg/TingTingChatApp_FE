@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from "react-icons/fa";
 import { useDispatch } from "react-redux";
-import { setChatInfoUpdate } from "../../../redux/slices/chatSlice";
+import { setChatInfoUpdate, setSelectedMessage } from "../../../redux/slices/chatSlice";
 import GroupActionButton from "../../../components/chatInforComponent/GroupActionButton";
 import GroupMemberList from "../../../components/chatInforComponent/GroupMemberList";
 import GroupMediaGallery from "../../../components/chatInforComponent/GroupMediaGallery";
@@ -34,6 +34,7 @@ import {
   joinConversation,
 } from "../../../services/sockets/events/conversation";
 import { Api_Profile } from "../../../../apis/api_profile";
+import { toast } from "react-toastify";
 
 const ChatInfo = ({ userId, conversationId, socket }) => {
   const [chatInfo, setChatInfo] = useState(null);
@@ -50,6 +51,33 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const [hasMounted, setHasMounted] = useState(false);
   const [commonGroups, setCommonGroups] = useState([]);
   const dispatch = useDispatch();
+
+  const handleGroupSelect = (group) => {
+    if (!socket) {
+      toast.error("Socket chưa kết nối, không thể chọn nhóm!");
+      return;
+    }
+
+    // Định dạng dữ liệu nhóm cho selectedMessage
+    const formattedMessage = {
+      id: group._id,
+      name: group.name || "Nhóm không tên",
+      participants: group.participants || [],
+      isGroup: true,
+      imageGroup: group.imageGroup || "https://via.placeholder.com/150",
+      isPinned: false,
+      mute: false,
+    };
+
+    console.log("ChatInfo: Chọn nhóm", formattedMessage);
+
+    // Tham gia phòng hội thoại
+    joinConversation(socket, formattedMessage.id);
+    console.log(`ChatInfo: Tham gia phòng: ${formattedMessage.id}`);
+
+    // Cập nhật Redux
+    dispatch(setSelectedMessage(formattedMessage));
+  };
 
   useEffect(() => {
     setHasMounted(true);
@@ -109,7 +137,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         setLoading(false);
       }
 
-      dispatch(setChatInfoUpdate(newChatInfo)); // Đồng bộ với Redux
+      dispatch(setChatInfoUpdate(newChatInfo));
     };
 
     const handleOnChatInfoUpdated = (updatedInfo) => {
@@ -145,7 +173,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         setUserRoleInGroup(participant.role || null);
       }
 
-      dispatch(setChatInfoUpdate(updatedInfo)); // Đồng bộ với Redux
+      dispatch(setChatInfoUpdate(updatedInfo));
     };
 
     const handleError = (error) => {
@@ -442,6 +470,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
           onMemberRemoved={handleMemberRemoved}
           socket={socket}
           commonGroups={commonGroups}
+          onGroupSelect={handleGroupSelect}
         />
 
         {chatInfo?.linkGroup && (
@@ -479,7 +508,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
           userId={userId}
           setChatInfo={setChatInfo}
           userRoleInGroup={userRoleInGroup}
-          setUserRoleInGroup={setUserRoleInGroup} // Truyền prop
+          setUserRoleInGroup={setUserRoleInGroup}
           chatInfo={chatInfo}
           socket={socket}
         />
