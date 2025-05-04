@@ -23,17 +23,13 @@ import {
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 import { Api_Profile } from "../../../apis/api_profile";
 
-// Assuming a SearchCompo equivalent for React Native
-// import SearchCompo from "@/components/searchComponent/SearchCompo"; // Adjust path as needed
-
-const ChatScreen = ({ navigation }) => {
+const ChatScreen = ({ navigation, route }) => {
   const [messages, setMessages] = useState([]);
   const [userCache, setUserCache] = useState({});
   const { socket, userId: currentUserId } = useSocket();
   const dispatch = useDispatch();
-  const joinedRoomsRef = useRef(new Set()); // Track joined rooms
+  const joinedRoomsRef = useRef(new Set());
 
-  // My Cloud item
   const myCloudItem = {
     id: "my-cloud",
     name: "Cloud của tôi",
@@ -46,7 +42,6 @@ const ChatScreen = ({ navigation }) => {
     isCloud: true,
   };
 
-  // Validate conversation data
   const validateConversation = (conversation) => {
     if (!conversation._id) {
       console.warn("ChatScreen: Conversation missing _id:", conversation);
@@ -59,7 +54,6 @@ const ChatScreen = ({ navigation }) => {
     return true;
   };
 
-  // Handle adding a new group
   const addNewGroup = async (newConversation) => {
     console.log("ChatScreen: Thêm nhóm mới:", newConversation);
 
@@ -113,7 +107,6 @@ const ChatScreen = ({ navigation }) => {
     });
   };
 
-  // Load and update conversations
   useEffect(() => {
     if (!socket || !currentUserId) {
       console.warn("ChatScreen: Thiếu socket hoặc userId", { socket, currentUserId });
@@ -125,10 +118,8 @@ const ChatScreen = ({ navigation }) => {
     const handleConversations = async (conversations) => {
       console.log("ChatScreen: Nhận conversations:", conversations);
 
-      // Filter valid conversations
       const validConversations = conversations.filter(validateConversation);
 
-      // Join rooms that haven't been joined
       validConversations.forEach((conversation) => {
         if (!joinedRoomsRef.current.has(conversation._id)) {
           console.log("ChatScreen: Tham gia phòng", conversation._id);
@@ -274,10 +265,42 @@ const ChatScreen = ({ navigation }) => {
       });
     };
 
+    const handleDeleteAllChatHistory = ({ conversationId, deletedBy }) => {
+      console.log("ChatScreen: Nhận deleteAllChatHistory", {
+        conversationId,
+        deletedBy,
+        currentUserId,
+        messagesLength: messages.length,
+      });
+      if (deletedBy === currentUserId) {
+        setMessages((prevMessages) => {
+          const updatedMessages = prevMessages.filter((msg) => msg.id !== conversationId);
+          console.log("ChatScreen: Messages sau khi xóa", {
+            conversationId,
+            updatedMessagesLength: updatedMessages.length,
+          });
+          return [...updatedMessages];
+        });
+        dispatch(setSelectedMessage(null));
+        console.log("ChatScreen: Đã xóa cuộc trò chuyện", { conversationId });
+      } else {
+        console.log("ChatScreen: Giữ nguyên danh sách cuộc trò chuyện", { userId: currentUserId });
+      }
+    };
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      const refresh = route?.params?.refresh;
+      if (refresh) {
+        console.log("ChatScreen: Làm mới danh sách cuộc trò chuyện");
+        loadAndListenConversations(socket, handleConversations)();
+      }
+    });
+
     const cleanupLoad = loadAndListenConversations(socket, handleConversations);
     onConversationUpdate(socket, handleConversationUpdate);
     onChatInfoUpdated(socket, handleChatInfoUpdated);
     socket.on("newGroupConversation", handleNewGroupConversation);
+    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
     onConversationRemoved(socket, handleConversationRemoved);
     onGroupLeft(socket, handleGroupLeft);
 
@@ -287,15 +310,16 @@ const ChatScreen = ({ navigation }) => {
       offConversationUpdate(socket);
       offChatInfoUpdated(socket);
       socket.off("newGroupConversation", handleNewGroupConversation);
+      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
       offConversationRemoved(socket);
       offGroupLeft(socket);
+      unsubscribe();
     };
-  }, [socket, currentUserId, dispatch]);
+  }, [socket, currentUserId, dispatch, navigation, route]);
 
   const handlePress = (item) => {
     if (item.id === "my-cloud") {
       console.log("ChatScreen: Chọn Cloud của tôi");
-      // Handle navigation for My Cloud if needed
       return;
     }
 
@@ -320,9 +344,6 @@ const ChatScreen = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
-      {/* <View style={styles.searchContainer}>
-        <SearchCompo onGroupCreated={(groupData) => addNewGroup(groupData)} />
-      </View> */}
       <FlatList
         data={[myCloudItem, ...messages]}
         keyExtractor={(item) => item.id}
@@ -371,13 +392,5 @@ const ChatScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  // searchContainer: {
-  //   padding: 10,
-  //   backgroundColor: "#fff",
-  //   borderBottomWidth: 1,
-  //   borderBottomColor: "#e5e7eb",
-  // },
-});
-
+const styles = StyleSheet.create({});
 export default ChatScreen;

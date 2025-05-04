@@ -9,7 +9,7 @@ import {
   onChatInfo,
   offChatInfo,
   hideChat,
-  deleteChatHistoryForMe,
+  deleteAllChatHistory, // Thay thế deleteChatHistoryForMe
   transferGroupAdmin,
   disbandGroup,
   leaveGroup,
@@ -192,7 +192,6 @@ const SecuritySettings: React.FC<Props> = ({
       console.log('SecuritySettings: Đã cập nhật chatInfo từ onChatInfoUpdated', updatedInfo);
       if (participant?.role === 'admin') {
         Alert.alert('Thông báo', 'Bạn đã được chuyển quyền trưởng nhóm!');
-        // Fetch lại để đảm bảo dữ liệu mới nhất
         fetchChatInfo();
       }
     });
@@ -268,15 +267,15 @@ const SecuritySettings: React.FC<Props> = ({
     handleHideChat(true, pin);
   }, [pin, handleHideChat]);
 
-  // Delete chat history
+  // Delete chat history for all users
   const handleDeleteHistory = useCallback(() => {
     if (isProcessing) {
-      console.log('SecuritySettings: Đang xử lý, bỏ qua deleteChatHistoryForMe');
+      console.log('SecuritySettings: Đang xử lý, bỏ qua deleteAllChatHistory');
       return;
     }
     Alert.alert(
       'Xác nhận',
-      'Bạn có chắc chắn muốn xóa lịch sử trò chuyện này?',
+      'Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện này cho tất cả người dùng?',
       [
         { text: 'Hủy', style: 'cancel' },
         {
@@ -284,13 +283,20 @@ const SecuritySettings: React.FC<Props> = ({
           style: 'destructive',
           onPress: () => {
             setIsProcessing(true);
-            console.log('SecuritySettings: Gửi yêu cầu deleteChatHistoryForMe', { conversationId });
-            deleteChatHistoryForMe(socket, { conversationId }, (response) => {
-              console.log('SecuritySettings: Phản hồi từ deleteChatHistoryForMe', response);
-              if (response.success) {
-                Alert.alert('Thành công', 'Lịch sử trò chuyện đã được xóa!');
+            console.log('SecuritySettings: Gửi yêu cầu deleteAllChatHistory', { conversationId, userId });
+            if (!socket.connected) {
+              Alert.alert('Lỗi', 'Không thể kết nối đến server. Vui lòng thử lại.');
+              setIsProcessing(false);
+              return;
+            }
+            deleteAllChatHistory(socket, { conversationId }, (response) => {
+              console.log('SecuritySettings: Phản hồi từ deleteAllChatHistory', response);
+              if (response?.success) {
+                Alert.alert('Thành công', 'Toàn bộ lịch sử trò chuyện đã được xóa!');
+                setChatInfo(null);
+                navigation.navigate('Main', { screen: 'MessageScreen', params: { refresh: true } });
               } else {
-                Alert.alert('Lỗi', `Xóa lịch sử thất bại: ${response.message}`);
+                Alert.alert('Lỗi', `Xóa lịch sử thất bại: ${response?.message || 'Lỗi không xác định'}`);
               }
               setIsProcessing(false);
             });
@@ -299,7 +305,7 @@ const SecuritySettings: React.FC<Props> = ({
       ],
       { cancelable: false }
     );
-  }, [socket, conversationId, isProcessing]);
+  }, [socket, conversationId, userId, isProcessing, setChatInfo, navigation]);
 
   // Leave group functionality
   const handleLeaveGroup = useCallback(() => {
@@ -355,7 +361,7 @@ const SecuritySettings: React.FC<Props> = ({
       console.log('SecuritySettings: Phản hồi từ transferGroupAdmin', response);
       if (response.success) {
         Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
-        fetchChatInfo(); // Fetch to ensure updated state
+        fetchChatInfo();
         console.log('SecuritySettings: Gửi yêu cầu leaveGroup', { conversationId, userId });
         leaveGroup(socket, { conversationId, userId }, (leaveResponse) => {
           console.log('SecuritySettings: Phản hồi từ leaveGroup', leaveResponse);
@@ -373,7 +379,7 @@ const SecuritySettings: React.FC<Props> = ({
         });
       } else {
         Alert.alert('Lỗi', `Chuyển quyền thất bại: ${response.message}`);
-        fetchChatInfo(); // Fetch to ensure updated state
+        fetchChatInfo();
         setIsLeaving(false);
         setShowTransferAdminModal(false);
         setNewAdminUserId('');
@@ -429,14 +435,13 @@ const SecuritySettings: React.FC<Props> = ({
       if (response.success) {
         setIsAdmin(false);
         Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
-        fetchChatInfo(); // Fetch to ensure updated state
-        // Fallback: Fetch after a short delay if onChatInfoUpdated doesn't trigger
+        fetchChatInfo();
         setTimeout(() => {
           fetchChatInfo();
         }, 2000);
       } else {
         Alert.alert('Lỗi', `Chuyển quyền thất bại: ${response.message}`);
-        fetchChatInfo(); // Fetch to ensure updated state
+        fetchChatInfo();
       }
       setShowTransferAdminModal(false);
       setNewAdminUserId('');
@@ -516,7 +521,7 @@ const SecuritySettings: React.FC<Props> = ({
         disabled={isProcessing}
       >
         <Ionicons name="trash" size={16} color="#ff0000" style={styles.actionIcon} />
-        <Text style={styles.actionText}>Xóa lịch sử trò chuyện</Text>
+        <Text style={styles.actionText}>Xóa toàn bộ lịch sử trò chuyện</Text>
       </TouchableOpacity>
 
       {isGroup && (

@@ -15,6 +15,7 @@ export const offChatInfo = (socket) => {
 
 // Lắng nghe cập nhật thông tin chat
 export const onChatInfoUpdated = (socket, callback) => {
+  console.log("Registering chatInfoUpdated event");
   socket.on("chatInfoUpdated", callback);
 };
 
@@ -247,7 +248,18 @@ export const onGroupLeft = (socket, callback) => {
   socket.on("groupLeft", callback);
 };
 
+// New function to emit updateGroupImage event
+export const updateGroupImage = (socket, data) => {
+  socket.emit("updateGroupImage", data, (response) => {
+    console.log("updateGroupImage response:", response);
+  });
+};
+
 // Thêm sự kiện offGroupLeft
 export const offGroupLeft = (socket) => {
   socket.off("groupLeft");
+};
+
+export const deleteAllChatHistory = (socket, data, callback) => {
+  socket.emit("deleteAllChatHistory", data, callback);
 };

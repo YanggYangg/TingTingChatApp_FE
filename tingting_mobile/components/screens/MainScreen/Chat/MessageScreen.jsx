@@ -25,7 +25,6 @@ import {
   offConversationUpdate,
   joinConversation,
   onConversationRemoved,
-  // offConversationRemoved, // Tạm thời bỏ vì không được định nghĩa
 } from "../../../../services/sockets/events/conversation";
 import {
   onChatInfoUpdated,
@@ -33,7 +32,6 @@ import {
   onGroupLeft,
   offGroupLeft,
 } from "../../../../services/sockets/events/chatInfo";
-import { transformConversationsToMessages } from "../../../../utils/conversationTransformer";
 
 const ChatScreen = ({ route, navigation }) => {
   const { socket, userId: currentUserId } = useSocket();
@@ -65,9 +63,7 @@ const ChatScreen = ({ route, navigation }) => {
     routeParams: route.params,
   });
 
-  const selectedMessageData = useSelector(
-    (state) => state.chat.selectedMessage
-  );
+  const selectedMessageData = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessageData?.id;
 
   // Fetch user info using the Api_Profile.getProfile API
@@ -90,10 +86,9 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (response?.data?.user) {
         userInfo = {
-          name:
-            `${response.data.user.firstname || ""} ${
-              response.data.user.surname || ""
-            }`.trim() || `Người dùng ${userId.slice(-4)}`,
+          name: `${response.data.user.firstname || ""} ${
+            response.data.user.surname || ""
+          }`.trim() || `Người dùng ${userId.slice(-4)}`,
           avatar: response.data.user.avatar || "https://picsum.photos/200",
         };
       } else {
@@ -148,7 +143,6 @@ const ChatScreen = ({ route, navigation }) => {
       return;
     }
 
-    // Check socket connection
     if (!socket.connected) {
       console.warn("Socket not connected, attempting to connect", { socketId: socket.id });
       socket.connect();
@@ -199,7 +193,23 @@ const ChatScreen = ({ route, navigation }) => {
       Alert.alert("Lỗi", error.message || "Không thể xóa tin nhắn");
     });
 
-    // Conversation update
+    // Handle deleteAllChatHistory
+    socket.on("deleteAllChatHistory", ({ conversationId: deletedConversationId, deletedBy }) => {
+      console.log("ChatScreen: Nhận deleteAllChatHistory", { deletedConversationId, deletedBy });
+      if (deletedConversationId === selectedMessageId) {
+        if (deletedBy === currentUserId) {
+          setMessages([]);
+          Alert.alert("Thành công", "Lịch sử trò chuyện đã được xóa!");
+          navigation.navigate("Main", { screen: "MessageScreen", params: { refresh: true } });
+        } else {
+          setMessages((prevMessages) =>
+            prevMessages.filter((msg) => !msg.deletedBy?.includes(deletedBy))
+          );
+          console.log("ChatScreen: Giữ nguyên tin nhắn cho người không xóa", { userId: currentUserId });
+        }
+      }
+    });
+
     onConversationUpdate(socket, (updatedConversation) => {
       console.log("ChatScreen: Received conversationUpdate:", updatedConversation);
       setConversationInfo((prev) => ({
@@ -215,7 +225,6 @@ const ChatScreen = ({ route, navigation }) => {
       }));
     });
 
-    // Chat info updated
     onChatInfoUpdated(socket, (updatedInfo) => {
       console.log("ChatScreen: Received chatInfoUpdated:", updatedInfo);
       setConversationInfo((prev) => ({
@@ -227,7 +236,6 @@ const ChatScreen = ({ route, navigation }) => {
       }));
     });
 
-    // Group left
     onGroupLeft(socket, (data) => {
       console.log("ChatScreen: Received groupLeft:", data);
       if (data.conversationId === selectedMessageId) {
@@ -236,7 +244,6 @@ const ChatScreen = ({ route, navigation }) => {
       }
     });
 
-    // Conversation removed
     onConversationRemoved(socket, (data) => {
       console.log("ChatScreen: Received conversationRemoved:", data);
       if (data.conversationId === selectedMessageId) {
@@ -253,10 +260,10 @@ const ChatScreen = ({ route, navigation }) => {
       socket.off("messageRevoked");
       socket.off("messageDeleted");
       socket.off("deleteMessageError");
+      socket.off("deleteAllChatHistory");
       offConversationUpdate(socket);
       offChatInfoUpdated(socket);
       offGroupLeft(socket);
-      // offConversationRemoved(socket); // Tạm thời bỏ vì không được định nghĩa
     };
   }, [socket, selectedMessageId, currentUserId, navigation]);
 
