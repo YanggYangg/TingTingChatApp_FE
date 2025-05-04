@@ -224,18 +224,22 @@ function ChatPage() {
       });
       return;
     }
-
+  
     console.log("ChatPage: Tham gia phòng", { selectedMessageId });
     if (joinedRoomRef.current !== selectedMessageId) {
       socket.emit("joinConversation", { conversationId: selectedMessageId });
       joinedRoomRef.current = selectedMessageId;
+      // Thêm log xác nhận tham gia phòng
+      socket.once("joinedConversation", ({ conversationId }) => {
+        console.log("ChatPage: Đã tham gia phòng thành công", { conversationId });
+      });
     }
-
+  
     socket.on("loadMessages", (data) => {
       console.log("ChatPage: Nhận loadMessages", data);
       setMessages(data);
     });
-
+  
     socket.on("receiveMessage", (newMessage) => {
       console.log("ChatPage: Nhận receiveMessage", newMessage);
       setMessages((prevMessages) => {
@@ -250,7 +254,7 @@ function ChatPage() {
         return prevMessages;
       });
     });
-
+  
     socket.on("newMessage", (newMessage) => {
       console.log("ChatPage: Nhận newMessage", newMessage);
       const messageConversationId = newMessage.conversationId?._id
@@ -260,7 +264,7 @@ function ChatPage() {
         messageConversationId,
         selectedMessageId,
       });
-
+  
       if (messageConversationId === selectedMessageId) {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
@@ -276,7 +280,7 @@ function ChatPage() {
         });
       }
     });
-
+  
     socket.on("messageSent", (newMessage) => {
       console.log("ChatPage: Nhận messageSent", newMessage);
       setMessages((prevMessages) => {
@@ -291,14 +295,14 @@ function ChatPage() {
         return prevMessages;
       });
     });
-
+  
     socket.on("messageDeleted", ({ messageId }) => {
       console.log("ChatPage: Nhận messageDeleted", { messageId });
       setMessages((prevMessages) =>
         prevMessages.filter((msg) => msg._id !== messageId)
       );
     });
-
+  
     socket.on("messageRevoked", ({ messageId }) => {
       console.log("ChatPage: Nhận messageRevoked", { messageId });
       setMessages((prevMessages) =>
@@ -307,7 +311,7 @@ function ChatPage() {
         )
       );
     });
-
+  
     socket.on("chatHistoryDeleted", ({ conversationId }) => {
       console.log("ChatPage: Nhận chatHistoryDeleted", { conversationId });
       if (conversationId === selectedMessageId) {
@@ -318,19 +322,31 @@ function ChatPage() {
         );
       }
     });
-
-    socket.on("deleteAllChatHistory", ({ conversationId }) => {
-      console.log("ChatPage: Nhận deleteAllChatHistory", { conversationId });
+  
+    socket.on("deleteAllChatHistory", ({ conversationId, deletedBy }) => {
+      console.log("ChatPage: Nhận deleteAllChatHistory", { conversationId, deletedBy });
       if (conversationId === selectedMessageId) {
-        setMessages([]);
-        dispatch(setLastMessageUpdate({
-          conversationId: conversationId,
-          lastMessage: null,
-        }));
-        toast.success("Toàn bộ lịch sử trò chuyện đã được xóa!");
+        if (deletedBy === currentUserId) {
+          // Nếu tài khoản hiện tại là người xóa, xóa toàn bộ tin nhắn
+          setMessages([]);
+          dispatch(setLastMessageUpdate({
+            conversationId: conversationId,
+            lastMessage: null,
+          }));
+          toast.success("Toàn bộ lịch sử trò chuyện đã được xóa!");
+        } else {
+          // Nếu không phải người xóa, lọc lại tin nhắn để giữ nguyên giao diện
+          setMessages((prevMessages) =>
+            prevMessages.filter(
+              (msg) => !msg.deletedBy?.includes(deletedBy)
+            )
+          );
+          // **Sửa lỗi**: Không hiển thị toast cho người không xóa
+          console.log("ChatPage: Giữ nguyên tin nhắn cho người không xóa", { userId: currentUserId });
+        }
       }
     });
-
+  
     socket.on("conversationUpdated", ({ conversationId, lastMessage }) => {
       console.log("ChatPage: Nhận conversationUpdated", { conversationId, lastMessage });
       if (conversationId === selectedMessageId) {
@@ -350,11 +366,11 @@ function ChatPage() {
         });
       }
     });
-
+  
     socket.on("error", (error) => {
       console.error("ChatPage: Socket error", error);
     });
-
+  
     socket.on("connect", () => {
       console.log("ChatPage: Socket connected", { socketId: socket.id });
       if (selectedMessageId && selectedMessageId !== "my-cloud" && joinedRoomRef.current !== selectedMessageId) {
@@ -363,11 +379,11 @@ function ChatPage() {
         joinedRoomRef.current = selectedMessageId;
       }
     });
-
+  
     socket.on("disconnect", () => {
       console.warn("ChatPage: Socket disconnected");
     });
-
+  
     return () => {
       console.log("ChatPage: Gỡ socket events");
       socket.off("loadMessages");
@@ -382,6 +398,7 @@ function ChatPage() {
       socket.off("error");
       socket.off("connect");
       socket.off("disconnect");
+      socket.off("joinedConversation");
     };
   }, [socket, selectedMessageId, currentUserId, dispatch]);
 
