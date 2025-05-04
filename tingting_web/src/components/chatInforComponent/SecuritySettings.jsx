@@ -504,7 +504,7 @@ const SecuritySettings = ({
       )}
 
       {showTransferAdminModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div className="fixed inset-0 flex items-center justify-center ">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">
               {isLeaving ? "Chuyển quyền trước khi rời nhóm" : "Chuyển quyền trưởng nhóm"}
@@ -558,7 +558,7 @@ const SecuritySettings = ({
       )}
 
       {showDisbandConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div className="fixed inset-0 flex items-center justify-center ">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận giải tán nhóm</h2>
             <p className="mb-4">
