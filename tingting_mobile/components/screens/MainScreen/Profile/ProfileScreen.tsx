@@ -46,7 +46,7 @@ export default function ProfileScreen() {
         console.log("User ID:", userId);
 
         const response = await axios.get(
-          `http://192.168.1.9:3001/api/v1/profile/${userId}`,
+          `http://192.168.1.7:3001/api/v1/profile/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
