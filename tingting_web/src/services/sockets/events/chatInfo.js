@@ -263,3 +263,8 @@ export const offGroupLeft = (socket) => {
 export const deleteAllChatHistory = (socket, data, callback) => {
   socket.emit("deleteAllChatHistory", data, callback);
 };
+
+// Xóa trong storage
+export const deleteMessageChatInfo = (socket, data, callback) => {
+  socket.emit("deleteMessageChatInfo", data, callback);
+}

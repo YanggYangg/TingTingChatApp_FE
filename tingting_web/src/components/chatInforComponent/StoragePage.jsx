@@ -10,7 +10,7 @@ import {
   getChatLinks,
   onChatLinks,
   offChatLinks,
-  deleteMessage,
+  deleteMessageChatInfo,
   onMessageDeleted,
   offMessageDeleted,
   onError,
@@ -18,7 +18,8 @@ import {
 import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
 import { onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
 
-const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
+// Assume userId is passed as a prop or retrieved from context
+const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
   const [activeTab, setActiveTab] = useState("images");
   const [filterSender, setFilterSender] = useState("Tất cả");
   const [startDate, setStartDate] = useState("");
@@ -32,14 +33,15 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete }) => {
   const [isSelecting, setIsSelecting] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
   const videoRef = useRef(null);
-console.log("StoragePage component mounted conversationId:", conversationId);
-console.log("StoragePage component mounted socket:", socket);
+
+  console.log("StoragePage component mounted conversationId:", conversationId);
+  console.log("StoragePage component mounted socket:", socket);
+
   useEffect(() => {
     if (!socket || !conversationId) return;
 
     const fetchData = async () => {
       try {
-        // Lấy dữ liệu media, files, links qua socket
         getChatMedia(socket, { conversationId }, (response) => {
           if (response.success) {
             setData((prev) => ({
@@ -76,7 +78,6 @@ console.log("StoragePage component mounted socket:", socket);
           }
         });
 
-        // Lắng nghe cập nhật thời gian thực
         onChatMedia(socket, (media) => {
           setData((prev) => ({
             ...prev,
@@ -224,47 +225,71 @@ console.log("StoragePage component mounted socket:", socket);
   const handleDeleteSelected = async () => {
     if (selectedItems.length === 0) {
       console.log("Không có mục nào được chọn để xóa.");
-      alert("Vui lòng chọn ít nhất một hình ảnh để xóa.");
+      alert("Vui lòng chọn ít nhất một mục để xóa.");
       return;
     }
 
     try {
-      const items = selectedItems
-        .map((id) => {
-          const item = data[activeTab].find((item) => item.id === id);
-          return item ? { messageId: item.messageId } : null;
-        })
-        .filter(Boolean);
+      const deletionPromises = selectedItems.map(async (id) => {
+        const item = data[activeTab].find((item) => item.id === id);
+        if (!item) {
+          console.warn(`Không tìm thấy mục với id: ${id}`);
+          return { success: false, message: `Không tìm thấy mục với id: ${id}` };
+        }
 
-      if (items.length === 0) {
-        console.error("Không tìm thấy mục để xóa.");
-        alert("Lỗi: Không tìm thấy mục để xóa.");
-        return;
+        return new Promise((resolve) => {
+          deleteMessageChatInfo(socket, { messageId: item.messageId, urlIndex: item.urlIndex }, (response) => {
+            if (response.success) {
+              resolve({ success: true, item, isMessageDeleted: response.data.isMessageDeleted });
+            } else {
+              resolve({ success: false, message: response.message });
+            }
+          });
+        });
+      });
+
+      const results = await Promise.all(deletionPromises);
+      const failedDeletions = results.filter((result) => !result.success);
+
+      if (failedDeletions.length > 0) {
+        const errorMessages = failedDeletions.map((result) => result.message).join("; ");
+        alert(`Lỗi khi xóa một số mục: ${errorMessages}`);
       }
 
-      deleteMessage(socket, { messageId: items[0].messageId }, (response) => {
-        if (response.success) {
-          const newData = {
-            images: data.images.filter((item) => !selectedItems.includes(item.id)),
-            files: data.files.filter((item) => !selectedItems.includes(item.id)),
-            links: data.links.filter((item) => !selectedItems.includes(item.id)),
-          };
-          setData(newData);
-
-          if (onDelete) {
-            onDelete(items);
+      // Update local data
+      const newData = { ...data };
+      results
+        .filter((result) => result.success)
+        .forEach(({ item, isMessageDeleted }) => {
+          if (isMessageDeleted) {
+            // Remove all items with the same messageId
+            newData.images = newData.images.filter((i) => i.messageId !== item.messageId);
+            newData.files = newData.files.filter((i) => i.messageId !== item.messageId);
+            newData.links = newData.links.filter((i) => i.messageId !== item.messageId);
+          } else {
+            // Remove only the specific item
+            newData[activeTab] = newData[activeTab].filter((i) => i.id !== item.id);
           }
+        });
 
-          setSelectedItems([]);
-          setIsSelecting(false);
-          alert(`Đã xóa ${selectedItems.length} mục thành công.`);
-        } else {
-          alert("Lỗi: Có lỗi xảy ra khi xóa: " + response.message);
-        }
-      });
+      setData(newData);
+
+      if (onDelete) {
+        const deletedItems = results
+          .filter((result) => result.success)
+          .map(({ item }) => ({ messageId: item.messageId }));
+        onDelete(deletedItems);
+      }
+
+      setSelectedItems([]);
+      setIsSelecting(false);
+
+      if (failedDeletions.length === 0) {
+        alert(`Đã xóa ${selectedItems.length} mục thành công.`);
+      }
     } catch (error) {
-      console.error("Lỗi khi xóa hình ảnh:", error);
-      alert("Lỗi: Không thể xóa hình ảnh. Vui lòng thử lại.");
+      console.error("Lỗi khi xóa mục:", error);
+      alert("Lỗi: Không thể xóa mục. Vui lòng thử lại.");
     }
   };
 
