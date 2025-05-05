@@ -311,10 +311,12 @@ function ChatList({ activeTab, onGroupCreated }) {
 
     const handleGroupLeft = (data) => {
       console.log("ChatList: Nhận sự kiện rời nhóm:", data);
-      setMessages((prevMessages) =>
-        prevMessages.filter((msg) => msg.id !== data.conversationId)
-      );
-      dispatch(setSelectedMessage(null));
+      if (data.userId === currentUserId) {
+        setMessages((prevMessages) =>
+          prevMessages.filter((msg) => msg.id !== data.conversationId)
+        );
+        dispatch(setSelectedMessage(null));
+      }
     };
 
     const handleConversationRemoved = (data) => {
