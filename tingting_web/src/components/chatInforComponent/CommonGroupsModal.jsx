@@ -6,6 +6,11 @@ Modal.setAppElement("#root");
 const CommonGroupsModal = ({ isOpen, onClose, commonGroups, onGroupSelect }) => {
   if (!commonGroups?.length) return null;
 
+  const handleGroupSelect = (group) => {
+    onGroupSelect(group); // Gọi hàm xử lý chọn nhóm từ component cha
+    onClose(); // Gọi hàm đóng modal
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -19,7 +24,7 @@ const CommonGroupsModal = ({ isOpen, onClose, commonGroups, onGroupSelect }) => 
           <li
             key={group._id}
             className="py-2 border-b last:border-none flex items-center cursor-pointer hover:bg-gray-100"
-            onClick={() => onGroupSelect(group)}
+            onClick={() => handleGroupSelect(group)}
           >
             <img
               src={group.imageGroup || "https://via.placeholder.com/40"}
