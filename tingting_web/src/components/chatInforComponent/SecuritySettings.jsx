@@ -131,6 +131,28 @@ const SecuritySettings = ({
       setIsHidden(participant?.isHidden || false);
       setUserRoleInGroup(participant?.role || null);
       setIsGroup(updatedInfo.isGroup);
+
+      // Cập nhật groupMembers
+      const members = updatedInfo.participants.filter((p) => p.userId !== userId);
+      Promise.all(
+        members.map(async (p) => {
+          try {
+            const userResponse = await Api_Profile.getProfile(p.userId);
+            const userData = userResponse?.data?.user || {};
+            return {
+              userId: p.userId,
+              name: `${userData.firstname || ""} ${userData.surname || ""}`.trim() || p.userId,
+            };
+          } catch (error) {
+            console.error(`SecuritySettings: Lỗi khi lấy thông tin user ${p.userId}:`, error);
+            return { userId: p.userId, name: p.userId };
+          }
+        })
+      ).then((detailedMembers) => {
+        setGroupMembers(detailedMembers);
+        setLoadingMembers(false);
+      });
+
       dispatch(setChatInfoUpdate(updatedInfo));
     });
 
