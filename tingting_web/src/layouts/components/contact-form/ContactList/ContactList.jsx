@@ -16,11 +16,13 @@ import { Api_Conversation } from "../../../../../apis/Api_Conversation.js";
 const ContactList = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredFriends, setFilteredFriends] = useState([]);
   const [groupedFriends, setGroupedFriends] = useState({});
+  
   const [menuOpenId, setMenuOpenId] = useState(null); // Quản lý menu đang mở
 
   const [allFriends, setAllFriends] = useState([]);
