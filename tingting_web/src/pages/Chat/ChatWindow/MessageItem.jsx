@@ -42,7 +42,7 @@ const MessageItem = ({
         <p className="text-sm text-gray-700">{msg.content}</p>
       </div>
     );
-  }
+  };
   const [openMedia, setOpenMedia] = useState(null);
   const isImage = msg.messageType === "image";
   const isVideo = msg.messageType === "video";
@@ -57,6 +57,28 @@ const MessageItem = ({
 
   const handleCloseMedia = () => {
     setOpenMedia(null);
+  };
+  const renderTextWithLinks = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    return parts.map((part, index) => {
+      if (urlRegex.test(part)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline break-words"
+          >
+            {part}
+          </a>
+        );
+      } else {
+        return <span key={index}>{part}</span>;
+      }
+    });
   };
 
   return (
@@ -75,42 +97,44 @@ const MessageItem = ({
             <p className="text-xs font-semibold text-gray-700">{msg.sender}</p>
           )}
 
-        {/* Nếu đã bị thu hồi thì chỉ hiển thị text */}
-        {msg.isRevoked ? (
-          <p className="italic text-gray-500">Tin nhắn đã được thu hồi</p>
-        ) : (
-          <>
-            {/* Tin nhắn trả lời */}
-            {msg.messageType === "reply" && (
-              <div className="bg-gray-100 p-2 rounded-md mt-1 border-l-4 border-blue-400 pl-3">
-                <p className="text-sm text-gray-700 font-semibold">
-                  {repliedMessage?.sender || ""}
-                </p>
-                <p className="text-sm text-gray-600 italic line-clamp-2">
-                  {repliedMessage?.messageType === "image"
-                    ? "[Ảnh]"
-                    : repliedMessage?.messageType === "file"
-                    ? "[Tệp]"
-                    : repliedMessage?.messageType === "call"
-                    ? "[Cuộc gọi]"
-                    : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
-                </p>
-                <p className="text-sm text-gray-900 mt-1">{msg.content}</p>
-              </div>
-            )}
+          {/* Nếu đã bị thu hồi thì chỉ hiển thị text */}
+          {msg.isRevoked ? (
+            <p className="italic text-gray-500">Tin nhắn đã được thu hồi</p>
+          ) : (
+            <>
+              {/* Tin nhắn trả lời */}
+              {msg.messageType === "reply" && (
+                <div className="bg-gray-100 p-2 rounded-md mt-1 border-l-4 border-blue-400 pl-3">
+                  <p className="text-sm text-gray-700 font-semibold">
+                    {repliedMessage?.sender || ""}
+                  </p>
+                  <p className="text-sm text-gray-600 italic line-clamp-2">
+                    {repliedMessage?.messageType === "image"
+                      ? "[Ảnh]"
+                      : repliedMessage?.messageType === "file"
+                      ? "[Tệp]"
+                      : repliedMessage?.messageType === "call"
+                      ? "[Cuộc gọi]"
+                      : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
+                  </p>
+                  <p className="text-sm text-gray-900 mt-1">{msg.content}</p>
+                </div>
+              )}
 
-            {/* Tin nhắn cuộc gọi */}
-            {msg.messageType === "call" && (
-              <>
-                {/* {console.log("Rendering call message:", msg)} */}
-                {renderCallMessage()}
-              </>
-            )}
+              {/* Tin nhắn cuộc gọi */}
+              {msg.messageType === "call" && (
+                <>
+                  {/* {console.log("Rendering call message:", msg)} */}
+                  {renderCallMessage()}
+                </>
+              )}
 
-            {/* Tin nhắn văn bản không phải reply */}
-            {msg.messageType === "text" && !msg.replyMessageId && (
-              <p>{msg.content}</p>
-            )}
+              {/* Tin nhắn văn bản không phải reply */}
+              {msg.messageType === "text" && !msg.replyMessageId && (
+                <p className="break-words">
+                  {renderTextWithLinks(msg.content)}
+                </p>
+              )}
 
               {/* Tin nhắn hình ảnh (nhiều ảnh) */}
               {isImage && Array.isArray(msg.linkURL) && (

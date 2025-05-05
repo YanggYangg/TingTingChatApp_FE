@@ -1,16 +1,25 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { FaPaperclip, FaSmile, FaRegImage, FaPaperPlane } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import EmojiPicker from "emoji-picker-react";
+import { useSocket } from "../../../contexts/SocketContext";
 
-function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
+function ChatFooter({
+  sendMessage,
+  replyingTo,
+  setReplyingTo,
+  conversationId,
+  className,
+}) {
   const [message, setMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
-
+  const { socket } = useSocket();
   const fileInputRef = useRef(null);
   const mediaInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
 
   const truncateMessage = (content, maxLength = 50) =>
     content?.length > maxLength
@@ -24,6 +33,33 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
     }
   };
 
+  const handleTyping = () => {
+    if (!socket || !conversationId) {
+      console.warn("Cannot send typing: socket or conversationId missing", {
+        socket,
+        conversationId,
+      });
+      return;
+    }
+
+    if (!isTypingRef.current) {
+      console.log("Sending typing for conversation:", conversationId);
+      socket.emit("typing", { conversationId });
+      isTypingRef.current = true;
+    }
+
+    // Xóa timeout cũ (nếu có)
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      console.log("Sending stopTyping for conversation:", conversationId);
+      socket.emit("stopTyping", { conversationId });
+      isTypingRef.current = false; // Đặt lại trạng thái "đang gõ"
+    }, 5000);
+  };
+
   const handleAttachFiles = (files) => {
     const newFiles = Array.from(files).map((file) => ({
       file,
@@ -34,14 +70,12 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         : "file",
       previewURL: URL.createObjectURL(file),
     }));
-
     setAttachedFiles((prev) => [...prev, ...newFiles]);
   };
 
   const uploadToS3 = async (file) => {
     const formData = new FormData();
     formData.append("media", file);
-
     const res = await fetch(
       "http://localhost:5000/messages/sendMessageWithMedia",
       {
@@ -49,7 +83,6 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         body: formData,
       }
     );
-
     const text = await res.text();
     if (!res.ok) throw new Error("Upload failed");
     return JSON.parse(text).linkURL;
@@ -57,13 +90,18 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
 
   const handleSend = async () => {
     if (uploading || (!message.trim() && attachedFiles.length === 0)) return;
-
     setUploading(true);
+    if (socket && conversationId && isTypingRef.current) {
+      console.log("Sending stopTyping on message send:", conversationId);
+      socket.emit("stopTyping", { conversationId });
+      isTypingRef.current = false;
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
 
     try {
       let uploadedLinks = [];
-
-      // Nếu có file đính kèm thì upload tất cả lên S3
       if (attachedFiles.length > 0) {
         const uploadPromises = attachedFiles.map((item) =>
           uploadToS3(item.file)
@@ -71,12 +109,10 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
         uploadedLinks = await Promise.all(uploadPromises);
       }
 
-      // Nếu có file (ảnh/video/file)
       if (uploadedLinks.length > 0) {
-        const firstType = attachedFiles[0]?.type || "image"; // Ưu tiên dùng loại đầu tiên
-
+        const firstType = attachedFiles[0]?.type || "image";
         const payload = {
-          messageType: firstType, // Có thể là "image", "video", "file"
+          messageType: firstType,
           content: message || null,
           linkURL: uploadedLinks,
           ...(replyingTo && {
@@ -87,10 +123,8 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
             replyMessageSender: replyingTo.sender,
           }),
         };
-
         sendMessage(payload);
       } else if (message.trim()) {
-        // Nếu chỉ gửi văn bản
         const payload = {
           messageType: replyingTo ? "reply" : "text",
           content: message.trim(),
@@ -101,7 +135,6 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
             replyMessageSender: replyingTo.sender,
           }),
         };
-
         sendMessage(payload);
       }
 
@@ -116,20 +149,33 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      if (socket && conversationId && isTypingRef.current) {
+        socket.emit("stopTyping", { conversationId });
+      }
+    };
+  }, [socket, conversationId]);
+
   return (
-    <div className="bg-white p-3 border-t border-gray-300 w-full relative">
+    <div
+      className={`bg-white p-4 border-t border-gray-200 w-full relative ${className}`}
+    >
       {showEmojiPicker && (
-        <div className="absolute bottom-24 left-3 z-10 bg-white shadow-md rounded-lg border border-gray-200">
+        <div className="absolute bottom-28 left-4 z-20 bg-white shadow-xl rounded-lg border border-gray-200">
           <EmojiPicker
             onEmojiClick={(emoji) => setMessage((prev) => prev + emoji.emoji)}
           />
         </div>
       )}
-
       {replyingTo && (
-        <div className="flex items-center justify-between mb-2 p-2 border border-gray-300 rounded-lg bg-gray-50">
+        <div className="flex items-center justify-between mb-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
           <div className="text-sm">
-            <p className="font-medium text-gray-700">
+            <p className="font-semibold text-gray-700">
               Đang trả lời {replyingTo.sender || "Unknown"}
             </p>
             <p className="text-gray-500">
@@ -148,14 +194,12 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
           </button>
         </div>
       )}
-
-      {/* Preview các file đính kèm */}
       {attachedFiles.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 mb-2">
+        <div className="grid grid-cols-3 gap-2 mb-3">
           {attachedFiles.map((item, index) => (
             <div
               key={index}
-              className="relative border p-1 rounded-md bg-gray-100"
+              className="relative border border-gray-200 p-1 rounded-md bg-gray-50"
             >
               {item.type === "image" ? (
                 <img
@@ -170,7 +214,9 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
                   className="w-full h-24 object-cover rounded"
                 />
               ) : (
-                <p className="text-sm truncate">📎 {item.file.name}</p>
+                <p className="text-sm truncate text-gray-600">
+                  📎 {item.file.name}
+                </p>
               )}
               {!uploading && (
                 <button
@@ -188,8 +234,7 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
           ))}
         </div>
       )}
-
-      <div className="flex space-x-4 mb-2">
+      <div className="flex space-x-4 mb-3">
         <button
           className="p-2 text-gray-500 hover:text-gray-700"
           onClick={() => fileInputRef.current.click()}
@@ -209,7 +254,6 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
           <FaSmile size={20} />
         </button>
       </div>
-
       <input
         type="file"
         multiple
@@ -218,9 +262,8 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
           if (e.target.files.length) handleAttachFiles(e.target.files);
           e.target.value = null;
         }}
-        hidden
+        className="hidden"
       />
-
       <input
         type="file"
         accept="image/*,video/*"
@@ -230,16 +273,18 @@ function ChatFooter({ sendMessage, replyingTo, setReplyingTo }) {
           if (e.target.files.length) handleAttachFiles(e.target.files);
           e.target.value = null;
         }}
-        hidden
+        className="hidden"
       />
-
       <div className="flex items-center space-x-2">
         <input
           type="text"
-          className="flex-1 px-3 py-2 rounded-lg outline-none bg-white text-gray-700 border border-gray-300"
+          className="flex-1 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
           placeholder="Nhập tin nhắn..."
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            handleTyping();
+          }}
           onKeyDown={handleKeyPress}
           disabled={uploading}
         />
