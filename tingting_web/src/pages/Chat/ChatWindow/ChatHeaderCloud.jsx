@@ -11,7 +11,9 @@ const ChatHeaderCloud = ({
   setIsChatInfoVisible,
 }) => {
   return (
-    <div className={`flex items-center justify-between p-2 border-b border-gray-200 bg-white`}>
+    <div
+      className={`flex items-center justify-between p-2 border-b border-gray-200 bg-white`}
+    >
       {/* Thông tin nhóm/người chat */}
       <div className="flex items-center">
         <img
@@ -36,12 +38,6 @@ const ChatHeaderCloud = ({
 
       {/* Action Buttons - Căn phải */}
       <div className="ml-auto flex space-x-3">
-    
-        <button className="text-gray-500 hover:text-gray-700">
-          {/* <FontAwesomeIcon icon={faSearch} /> */}
-          <Search />
-        </button>
-
         <button
           className="text-gray-500 hover:text-gray-700"
           onClick={() => {

@@ -18,6 +18,8 @@ import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_Profile } from "../../../apis/api_profile";
 import ConfirmModal from "../../components/ConfirmModal";
 
+import ChatInfoCloud from "./ChatCloud/ChatInfoCloud";
+
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -778,10 +780,18 @@ function ChatPage() {
 
           {isChatInfoVisible && (
             <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
-              <ChatInfo
-                userId={currentUserId}
-                conversationId={conversationId}
-              />
+              {selectedChat.type === "cloud" ? (
+                <ChatInfoCloud
+                  userId={currentUserId}
+                  conversationId={conversationId}
+                  cloudMessages={cloudMessages}
+                />
+              ) : (
+                <ChatInfo
+                  userId={currentUserId}
+                  conversationId={conversationId}
+                />
+              )}
             </div>
           )}
         </div>
