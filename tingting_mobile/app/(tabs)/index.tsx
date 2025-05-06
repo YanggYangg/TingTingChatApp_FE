@@ -39,6 +39,7 @@ import VerificationCodeRegister from "@/components/screens/AuthScreen/Verificati
 import { CloudSocketProvider } from "../../context/CloudSocketContext";
 
 import ChatInfo from "@/components/screens/MainScreen/Chat/ChatInfo";
+import ChatInfoCloud from "@/components/screens/MainScreen/Cloud/ChatInfoCloud";
 
 type RootStackParamList = {
   Main: undefined;
@@ -209,7 +210,7 @@ export default function App() {
   //       // console.log("Fetched userId from AsyncStorage:", userId1);
   //       // Gọi API để lấy thông tin người dùng
   //       const response = await axios.get(
-  //         `http://192.168.1.33:3001/api/v1/profile/${userId1}`,
+  //         `http://192.168.1.49:3001/api/v1/profile/${userId1}`,
   //         {
   //           headers: {
   //             "Content-Type": "application/json",
@@ -250,6 +251,12 @@ export default function App() {
               component={ChatInfo}
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="ChatInfoCloud"
+              component={ChatInfoCloud}
+              options={{ headerShown: false }}
+            />
+
             <Stack.Screen
               name="Welcome"
               component={Welcome}
