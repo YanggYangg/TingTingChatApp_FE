@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,17 +12,51 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import { Api_S3 } from "../../../../apis/api_s3";
+import { useSocket } from "../../../../contexts/SocketContext";
 
-const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
+const ChatFooter = ({
+  sendMessage,
+  replyingTo,
+  setReplyingTo,
+  conversationId,
+}) => {
   const [message, setMessage] = useState("");
   const [attachedFile, setAttachedFile] = useState(null);
   const [previewURL, setPreviewURL] = useState(null);
+  const { socket } = useSocket();
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
 
   const truncateMessage = (content, maxLength = 50) =>
     content?.length > maxLength
       ? content.slice(0, maxLength) + "..."
       : content || "[Tin nhắn trống]";
+
+  const handleTyping = () => {
+    if (!socket || !conversationId) {
+      console.warn("Cannot send typing: socket or conversationId missing", {
+        socket,
+        conversationId,
+      });
+      return;
+    }
+
+    if (!isTypingRef.current) {
+      console.log("Sending typing for conversation:", conversationId);
+      socket.emit("typing", { conversationId });
+      isTypingRef.current = true;
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      console.log("Sending stopTyping for conversation:", conversationId);
+      socket.emit("stopTyping", { conversationId });
+      isTypingRef.current = false;
+    }, 5000);
+  };
 
   const handleKeyPress = ({ nativeEvent }) => {
     if (nativeEvent.key === "Enter" && !nativeEvent.shiftKey) {
@@ -72,7 +106,7 @@ const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
   const handleAttachFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*", // Chọn mọi loại file
+        type: "*/*",
         copyToCacheDirectory: true,
       });
 
@@ -91,7 +125,7 @@ const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
           type: asset.mimeType || "application/octet-stream",
         };
         setAttachedFile({ file, type: "file" });
-        setPreviewURL(null); // File không có preview hình ảnh
+        setPreviewURL(null);
       }
     } catch (err) {
       console.error("Document picker error:", err);
@@ -119,7 +153,6 @@ const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
             body: formData,
           }
         );
-        //const res = Api_S3.uploadFile(formData);
 
         const text = await res.text();
         console.log("Response status:", res.status);
@@ -158,6 +191,15 @@ const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
 
   const handleSend = async () => {
     if (!message.trim() && !attachedFile) return;
+
+    if (socket && conversationId && isTypingRef.current) {
+      console.log("Sending stopTyping on message send:", conversationId);
+      socket.emit("stopTyping", { conversationId });
+      isTypingRef.current = false;
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
 
     try {
       let fileURL = null;
@@ -200,6 +242,18 @@ const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
       Alert.alert("Lỗi", error.message || "Không thể gửi tin nhắn");
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      if (socket && conversationId && isTypingRef.current) {
+        socket.emit("stopTyping", { conversationId });
+      }
+    };
+  }, [socket, conversationId]);
 
   return (
     <View style={styles.container}>
@@ -251,7 +305,6 @@ const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
           </TouchableOpacity>
         </View>
       )}
-
       <View style={styles.toolbar}>
         <TouchableOpacity onPress={handleAttachMedia}>
           <Ionicons name="image" size={24} color="#6B7280" />
@@ -266,7 +319,10 @@ const ChatFooter = ({ sendMessage, replyingTo, setReplyingTo }) => {
           style={styles.input}
           placeholder="Nhập tin nhắn..."
           value={message}
-          onChangeText={setMessage}
+          onChangeText={(text) => {
+            setMessage(text);
+            handleTyping();
+          }}
           onKeyPress={handleKeyPress}
           multiline
         />

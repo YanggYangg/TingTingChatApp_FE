@@ -233,6 +233,30 @@ const MessageItem = ({
 
   // {/* Call message */}
   // {msg.messageType === "call" && renderCallMessage()}
+  const renderAutoLinkText = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    return parts.map((part, index) => {
+      if (urlRegex.test(part)) {
+        return (
+          <Text
+            key={index}
+            style={styles.linkMessage}
+            onPress={() => Linking.openURL(url)}
+          >
+            {part}
+          </Text>
+        );
+      } else {
+        return (
+          <Text key={index} style={styles.textMessage}>
+            {part}
+          </Text>
+        );
+      }
+    });
+  };
 
   return (
     <View
@@ -263,7 +287,9 @@ const MessageItem = ({
               {renderReply()}
 
               {msg.messageType === "text" && !msg.replyMessageId && (
-                <Text style={styles.textMessage}>{msg.content}</Text>
+                <Text style={styles.textMessage}>
+                  {renderAutoLinkText(msg.content)}
+                </Text>
               )}
 
               {renderImages()}

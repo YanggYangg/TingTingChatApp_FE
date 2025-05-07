@@ -31,25 +31,17 @@ const ChatScreen = ({ route, navigation }) => {
   const [userCache, setUserCache] = useState({});
   const [isShareModalVisible, setIsShareModalVisible] = useState(false); // State cho ShareModal
   const [messageToForward, setMessageToForward] = useState(null); // Tin nhắn cần chuyển tiếp
+  const [isOnline, setIsOnline] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const receiverId = Object.keys(userCache)[0];
 
   const { message, user } = route?.params || {};
+
   const conversationId = message?.id || null;
-  const userId = currentUserId || null;
-  console.log("userId", userId);
-  console.log("conversationId", conversationId);
-  console.log("message", message);
-  console.log("selectmessage", selectedMessage);
-  console.log("user", user);
+  const isGroupChat = message?.isGroup === true;
+  const memberCount = message?.members || 0;
 
-  // Log params for debugging
-  console.log("ChatScreen params:", {
-    userId,
-    conversationId,
-    message,
-    user,
-    routeParams: route.params,
-  });
-
+  const [typingUsers, setTypingUsers] = useState([]);
   const selectedMessageData = useSelector(
     (state) => state.chat.selectedMessage
   );
@@ -171,6 +163,25 @@ const ChatScreen = ({ route, navigation }) => {
       console.error("Delete message error:", error);
       Alert.alert("Lỗi", error.message || "Không thể xóa tin nhắn");
     });
+    socket.on("userTyping", async ({ userId, conversationId }) => {
+      console.log("User typing:", userId, conversationId);
+      if (conversationId === selectedMessageId && userId !== currentUserId) {
+        const userInfo = await fetchUserInfo(userId);
+
+        setTypingUsers((prev) => {
+          if (!prev.some((user) => user.userId === userId)) {
+            return [...prev, { userId, name: userInfo.name }];
+          }
+          return prev;
+        });
+      }
+    });
+
+    socket.on("userStopTyping", ({ userId, conversationId }) => {
+      if (conversationId === selectedMessageId) {
+        setTypingUsers((prev) => prev.filter((user) => user.userId !== userId));
+      }
+    });
 
     return () => {
       socket.off("loadMessages");
@@ -179,8 +190,34 @@ const ChatScreen = ({ route, navigation }) => {
       socket.off("messageRevoked");
       socket.off("messageDeleted");
       socket.off("deleteMessageError");
+      socket.off("userTyping");
+      socket.off("userStopTyping");
     };
   }, [socket, selectedMessageId, currentUserId]);
+
+  // Add socket listener for online status
+  useEffect(() => {
+    if (!socket) return;
+    console.log("socket", socket);
+
+    // Request current online users when component mounts
+    socket.emit("getOnlineUsers");
+
+    // Listen for online users updates
+    socket.on("getOnlineUsers", (users) => {
+      console.log("Received online users:", users);
+      console.log("Receiver ID:", receiverId);
+      setOnlineUsers(users);
+      // Check if the receiver is online
+      if (receiverId) {
+        setIsOnline(users.includes(receiverId));
+      }
+    });
+
+    return () => {
+      socket.off("getOnlineUsers");
+    };
+  }, [socket, receiverId]);
 
   const sendMessage = (payload) => {
     if (!payload.content && !payload.linkURL) return;
@@ -363,9 +400,28 @@ const ChatScreen = ({ route, navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back-outline" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerText}>
-            {message?.name || userCache[user?.id]?.name || "Cuộc trò chuyện"}
-          </Text>
+          <View style={styles.nameContainer}>
+            <Text style={styles.headerText}>
+              {message?.name || userCache[user?.id]?.name || "Cuộc trò chuyện"}
+            </Text>
+            <View style={styles.statusContainer}>
+              {isGroupChat ? (
+                <Text style={styles.statusText}>{memberCount} thành viên</Text>
+              ) : (
+                <>
+                  <Text style={styles.statusText}>
+                    {isOnline ? "Đang hoạt động " : "Đang offline "}
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: isOnline ? "#4CAF50" : "#9E9E9E" },
+                    ]}
+                  />
+                </>
+              )}
+            </View>
+          </View>
         </View>
         <View style={styles.rightContainer}>
           <TouchableOpacity
@@ -415,11 +471,22 @@ const ChatScreen = ({ route, navigation }) => {
           flatListRef.current?.scrollToEnd({ animated: true })
         }
       />
-
+      {
+        /* Typing indicator */
+        typingUsers.length > 0 && (
+          <View style={{ padding: 10 }}>
+            <Text style={{ fontSize: 14, color: "#555" }}>
+              {typingUsers.map((user) => user.name).join(", ")} đang gõ...
+            </Text>
+          </View>
+        )
+      }
+      {/* Typing indicator */}
       <ChatFooter
         sendMessage={sendMessage}
         replyingTo={replyingTo}
         setReplyingTo={setReplyingTo}
+        conversationId={selectedMessageId}
       />
 
       <Modal visible={showOptions} transparent animationType="fade">
@@ -476,15 +543,33 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  rightContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  nameContainer: {
+    marginLeft: 12,
   },
   headerText: {
     fontSize: 18,
     fontWeight: "bold",
-    marginLeft: 12,
     color: "#fff",
+  },
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    color: "#fff",
+    opacity: 0.8,
+  },
+  rightContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   dateSeparatorContainer: {
     flexDirection: "row",
