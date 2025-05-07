@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import ChatInfo from "../../layouts/components/chatwindow/ChatInfo";
 import { useSelector, useDispatch } from "react-redux";
-import { clearSelectedMessage, setLastMessageUpdate, setChatInfoUpdate } from "../../redux/slices/chatSlice";
+import { clearSelectedMessage, setLastMessageUpdate, setChatInfoUpdate } from "../../redux/slices/chatSlice"; // Nhi thêm: Thêm setLastMessageUpdate, setChatInfoUpdate
 import ChatHeader from "./ChatWindow/ChatHeader";
 import MessageItem from "./ChatWindow/MessageItem";
 import ChatFooter from "./ChatWindow/ChatFooter";
@@ -12,11 +12,13 @@ import { vi } from "date-fns/locale";
 import ChatHeaderCloud from "./ChatWindow/ChatHeaderCloud";
 import ChatFooterCloud from "./ChatWindow/ChatFooterCloud";
 import ShareModal from "../../components/chat/ShareModal";
+import { Api_chatInfo } from "../../../apis/Api_chatInfo"; // File 1
 import { Api_Profile } from "../../../apis/api_profile";
-import { onChatInfoUpdated, offChatInfoUpdated } from "../../services/sockets/events/chatInfo";
+import ConfirmModal from "../../components/ConfirmModal"; // File 1
 import { useSocket } from "../../contexts/SocketContext";
 import { useCloudSocket } from "../../contexts/CloudSocketContext";
-import { toast } from "react-toastify";
+import { toast } from "react-toastify"; // Nhi thêm
+import { onChatInfoUpdated, offChatInfoUpdated } from "../../services/sockets/events/chatInfo"; // Nhi thêm
 
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
@@ -38,7 +40,7 @@ function ChatPage() {
   const [isShareModalVisible, setIsShareModalVisible] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
   const [userCache, setUserCache] = useState({});
-  const joinedRoomRef = useRef(null);
+  const joinedRoomRef = useRef(null); // Nhi thêm
 
   const [chatDetails, setChatDetails] = useState({
     name: "Unknown",
@@ -53,7 +55,7 @@ function ChatPage() {
   const currUserId = localStorage.getItem("userId");
   const dispatch = useDispatch();
 
-  console.log("ChatPage: Current socket", { socket, socketCloud, currUserId });
+  console.log("ChatPage: Current socket", { socket, socketCloud, currUserId }); // Nhi thêm
 
   const receiverId = selectedMessage?.participants?.find(
     (p) => p.userId !== currentUserId
@@ -72,7 +74,7 @@ function ChatPage() {
 
   const fetchUserInfo = async (userId) => {
     if (userCache[userId]) {
-      console.log("ChatPage: Lấy thông tin người dùng từ cache", { userId, userInfo: userCache[userId] });
+      console.log("ChatPage: Lấy thông tin người dùng từ cache", { userId, userInfo: userCache[userId] }); // Nhi thêm
       return userCache[userId];
     }
 
@@ -83,12 +85,12 @@ function ChatPage() {
           name: `${response.data.user.firstname} ${response.data.user.surname}`.trim(),
           avatar: response.data.user.avatar || "https://picsum.photos/200",
         };
-        console.log("ChatPage: Nhận thông tin người dùng từ API", { userId, userInfo });
+        console.log("ChatPage: Nhận thông tin người dùng từ API", { userId, userInfo }); // Nhi thêm
         setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
         return userInfo;
       }
     } catch (error) {
-      console.error("ChatPage: Lỗi khi lấy thông tin người dùng", { userId, error });
+      console.error("ChatPage: Lỗi khi lấy thông tin người dùng", { userId, error }); // Nhi thêm
       return { name: "Unknown", avatar: "https://picsum.photos/200" };
     }
   };
@@ -100,7 +102,7 @@ function ChatPage() {
           messages.map((msg) => msg.userId).filter((id) => id !== currentUserId)
         ),
       ];
-      console.log("ChatPage: Tải thông tin người dùng", { userIds });
+      console.log("ChatPage: Tải thông tin người dùng", { userIds }); // Nhi thêm
       for (const userId of userIds) {
         await fetchUserInfo(userId);
       }
@@ -114,7 +116,7 @@ function ChatPage() {
   useEffect(() => {
     const fetchChatDetails = async () => {
       if (!selectedMessage || !currentUserId) {
-        console.warn("ChatPage: Thiếu selectedMessage hoặc currentUserId", { selectedMessage, currentUserId });
+        console.warn("ChatPage: Thiếu selectedMessage hoặc currentUserId", { selectedMessage, currentUserId }); // Nhi thêm
         return;
       }
 
@@ -138,7 +140,7 @@ function ChatPage() {
         }
       }
 
-      console.log("ChatPage: Cập nhật chatDetails", { name, avatar, members, lastActive });
+      console.log("ChatPage: Cập nhật chatDetails", { name, avatar, members, lastActive }); // Nhi thêm
       setChatDetails({ name, avatar, members, lastActive });
     };
 
@@ -151,12 +153,12 @@ function ChatPage() {
 
   useEffect(() => {
     if (socketCloud && selectedMessageId === "my-cloud") {
-      console.log("ChatPage: Socket for cloud active", { currUserId });
+      console.log("ChatPage: Socket for cloud active", { currUserId }); // Nhi thêm
 
       socketCloud.on("newMessage", (newMessage) => {
-        console.log("ChatPage: Nhận newMessage từ cloud", newMessage);
+        console.log("ChatPage: Nhận newMessage từ cloud", newMessage); // Nhi thêm
         if (!newMessage.userId) {
-          console.warn("ChatPage: newMessage thiếu userId", newMessage);
+          console.warn("ChatPage: newMessage thiếu userId", newMessage); // Nhi thêm
           return;
         }
         if (newMessage.userId === currentUserId) {
@@ -166,44 +168,44 @@ function ChatPage() {
                 (msg) => msg.messageId === newMessage.messageId
               )
             ) {
-              console.log("ChatPage: Thêm newMessage vào cloudMessages", newMessage);
+              console.log("ChatPage: Thêm newMessage vào cloudMessages", newMessage); // Nhi thêm
               const updatedMessages = [...prevMessages, newMessage].sort(
                 (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
               );
               setShouldScrollToBottom(true);
               return updatedMessages;
             }
-            console.log("ChatPage: Message đã tồn tại", newMessage.messageId);
+            console.log("ChatPage: Message đã tồn tại", newMessage.messageId); // Nhi thêm
             return prevMessages;
           });
         }
       });
 
       socketCloud.on("messageDeleted", ({ messageId }) => {
-        console.log("ChatPage: Nhận messageDeleted từ cloud", { messageId });
+        console.log("ChatPage: Nhận messageDeleted từ cloud", { messageId }); // Nhi thêm
         setCloudMessages((prevMessages) =>
           prevMessages.filter((msg) => msg.messageId !== messageId)
         );
       });
 
       socketCloud.on("error", (error) => {
-        console.error("ChatPage: Socket error trong cloud", error);
+        console.error("ChatPage: Socket error trong cloud", error); // Nhi thêm
       });
 
       socketCloud.on("connect", () => {
-        console.log("ChatPage: Socket reconnected cho cloud");
+        console.log("ChatPage: Socket reconnected cho cloud"); // Nhi thêm
       });
 
       socketCloud.on("disconnect", () => {
-        console.warn("ChatPage: Socket disconnected cho cloud");
+        console.warn("ChatPage: Socket disconnected cho cloud"); // Nhi thêm
       });
 
       socketCloud.on("connect_error", (error) => {
-        console.error("ChatPage: Socket connect_error trong cloud", error.message);
+        console.error("ChatPage: Socket connect_error trong cloud", error.message); // Nhi thêm
       });
 
       return () => {
-        console.log("ChatPage: Gỡ socket listeners cho cloud");
+        console.log("ChatPage: Gỡ socket listeners cho cloud"); // Nhi thêm
         socketCloud.off("newMessage");
         socketCloud.off("messageDeleted");
         socketCloud.off("error");
@@ -212,7 +214,7 @@ function ChatPage() {
         socketCloud.off("connect_error");
       };
     } else if (selectedMessageId === "my-cloud" && !socketCloud) {
-      console.warn("ChatPage: Socket không khởi tạo cho cloud");
+      console.warn("ChatPage: Socket không khởi tạo cho cloud"); // Nhi thêm
     }
   }, [socketCloud, selectedMessageId, currUserId, currentUserId]);
 
@@ -221,31 +223,30 @@ function ChatPage() {
       console.warn("ChatPage: Không xử lý socket events", {
         socket: !!socket,
         selectedMessageId,
-      });
+      }); // Nhi thêm
       return;
     }
-  
-    console.log("ChatPage: Tham gia phòng", { selectedMessageId });
+
+    console.log("ChatPage: Tham gia phòng", { selectedMessageId }); // Nhi thêm
     if (joinedRoomRef.current !== selectedMessageId) {
       socket.emit("joinConversation", { conversationId: selectedMessageId });
       joinedRoomRef.current = selectedMessageId;
-      // Thêm log xác nhận tham gia phòng
       socket.once("joinedConversation", ({ conversationId }) => {
-        console.log("ChatPage: Đã tham gia phòng thành công", { conversationId });
+        console.log("ChatPage: Đã tham gia phòng thành công", { conversationId }); // Nhi thêm
       });
     }
-  
+
     socket.on("loadMessages", (data) => {
-      console.log("ChatPage: Nhận loadMessages", data);
+      console.log("ChatPage: Nhận loadMessages", data); // Nhi thêm
       setMessages(data);
     });
-  
+
     socket.on("receiveMessage", (newMessage) => {
-      console.log("ChatPage: Nhận receiveMessage", newMessage);
+      console.log("ChatPage: Nhận receiveMessage", newMessage); // Nhi thêm
       setMessages((prevMessages) => {
         if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
           const updatedMessages = [...prevMessages, newMessage];
-          dispatch(setLastMessageUpdate({
+          dispatch(setLastMessageUpdate({ // Nhi thêm
             conversationId: newMessage.conversationId,
             lastMessage: newMessage,
           }));
@@ -254,39 +255,39 @@ function ChatPage() {
         return prevMessages;
       });
     });
-  
+
     socket.on("newMessage", (newMessage) => {
-      console.log("ChatPage: Nhận newMessage", newMessage);
+      console.log("ChatPage: Nhận newMessage", newMessage); // Nhi thêm
       const messageConversationId = newMessage.conversationId?._id
         ? newMessage.conversationId._id.toString()
         : newMessage.conversationId.toString();
       console.log("ChatPage: So sánh conversationId", {
         messageConversationId,
         selectedMessageId,
-      });
-  
+      }); // Nhi thêm
+
       if (messageConversationId === selectedMessageId) {
         setMessages((prevMessages) => {
           if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
             const updatedMessages = [...prevMessages, newMessage];
-            dispatch(setLastMessageUpdate({
+            dispatch(setLastMessageUpdate({ // Nhi thêm
               conversationId: newMessage.conversationId,
               lastMessage: newMessage,
             }));
             return updatedMessages;
           }
-          console.log("ChatPage: Message đã tồn tại", newMessage._id);
+          console.log("ChatPage: Message đã tồn tại", newMessage._id); // Nhi thêm
           return prevMessages;
         });
       }
     });
-  
+
     socket.on("messageSent", (newMessage) => {
-      console.log("ChatPage: Nhận messageSent", newMessage);
+      console.log("ChatPage: Nhận messageSent", newMessage); // Nhi thêm
       setMessages((prevMessages) => {
         if (!prevMessages.some((msg) => msg._id === newMessage._id)) {
           const updatedMessages = [...prevMessages, newMessage];
-          dispatch(setLastMessageUpdate({
+          dispatch(setLastMessageUpdate({ // Nhi thêm
             conversationId: newMessage.conversationId,
             lastMessage: newMessage,
           }));
@@ -295,24 +296,24 @@ function ChatPage() {
         return prevMessages;
       });
     });
-  
+
     socket.on("messageDeleted", ({ messageId }) => {
-      console.log("ChatPage: Nhận messageDeleted", { messageId });
+      console.log("ChatPage: Nhận messageDeleted", { messageId }); // Nhi thêm
       setMessages((prevMessages) =>
         prevMessages.filter((msg) => msg._id !== messageId)
       );
     });
-  
+
     socket.on("messageRevoked", ({ messageId }) => {
-      console.log("ChatPage: Nhận messageRevoked", { messageId });
+      console.log("ChatPage: Nhận messageRevoked", { messageId }); // Nhi thêm
       setMessages((prevMessages) =>
         prevMessages.map((msg) =>
           msg._id === messageId ? { ...msg, isRevoked: true } : msg
         )
       );
     });
-  
-    socket.on("chatHistoryDeleted", ({ conversationId }) => {
+
+    socket.on("chatHistoryDeleted", ({ conversationId }) => { // Nhi thêm
       console.log("ChatPage: Nhận chatHistoryDeleted", { conversationId });
       if (conversationId === selectedMessageId) {
         setMessages((prevMessages) =>
@@ -322,32 +323,29 @@ function ChatPage() {
         );
       }
     });
-  
-    socket.on("deleteAllChatHistory", ({ conversationId, deletedBy }) => {
+
+    socket.on("deleteAllChatHistory", ({ conversationId, deletedBy }) => { // Nhi thêm
       console.log("ChatPage: Nhận deleteAllChatHistory", { conversationId, deletedBy });
       if (conversationId === selectedMessageId) {
         if (deletedBy === currentUserId) {
-          // Nếu tài khoản hiện tại là người xóa, xóa toàn bộ tin nhắn
           setMessages([]);
           dispatch(setLastMessageUpdate({
             conversationId: conversationId,
             lastMessage: null,
           }));
-          toast.success("Toàn bộ lịch sử trò chuyện đã được xóa!");
+          toast.success("Toàn bộ lịch sử trò chuyện đã được xóa!"); // Nhi thêm
         } else {
-          // Nếu không phải người xóa, lọc lại tin nhắn để giữ nguyên giao diện
           setMessages((prevMessages) =>
             prevMessages.filter(
               (msg) => !msg.deletedBy?.includes(deletedBy)
             )
           );
-          // **Sửa lỗi**: Không hiển thị toast cho người không xóa
-          console.log("ChatPage: Giữ nguyên tin nhắn cho người không xóa", { userId: currentUserId });
+          console.log("ChatPage: Giữ nguyên tin nhắn cho người không xóa", { userId: currentUserId }); // Nhi thêm
         }
       }
     });
-  
-    socket.on("conversationUpdated", ({ conversationId, lastMessage }) => {
+
+    socket.on("conversationUpdated", ({ conversationId, lastMessage }) => { // Nhi thêm
       console.log("ChatPage: Nhận conversationUpdated", { conversationId, lastMessage });
       if (conversationId === selectedMessageId) {
         setMessages((prevMessages) => {
@@ -366,43 +364,43 @@ function ChatPage() {
         });
       }
     });
-  
+
     socket.on("error", (error) => {
-      console.error("ChatPage: Socket error", error);
+      console.error("ChatPage: Socket error", error); // Nhi thêm
     });
-  
+
     socket.on("connect", () => {
-      console.log("ChatPage: Socket connected", { socketId: socket.id });
+      console.log("ChatPage: Socket connected", { socketId: socket.id }); // Nhi thêm
       if (selectedMessageId && selectedMessageId !== "my-cloud" && joinedRoomRef.current !== selectedMessageId) {
-        console.log("ChatPage: Tham gia lại phòng khi reconnect", selectedMessageId);
+        console.log(" ChatterPage: Tham gia lại phòng khi reconnect", selectedMessageId ); // Nhi thêm
         socket.emit("joinConversation", { conversationId: selectedMessageId });
         joinedRoomRef.current = selectedMessageId;
       }
     });
-  
+
     socket.on("disconnect", () => {
-      console.warn("ChatPage: Socket disconnected");
+      console.warn("ChatPage: Socket disconnected"); // Nhi thêm
     });
-  
+
     return () => {
-      console.log("ChatPage: Gỡ socket events");
+      console.log("ChatPage: Gỡ socket events"); // Nhi thêm
       socket.off("loadMessages");
       socket.off("receiveMessage");
       socket.off("messageSent");
       socket.off("newMessage");
       socket.off("messageDeleted");
       socket.off("messageRevoked");
-      socket.off("chatHistoryDeleted");
-      socket.off("deleteAllChatHistory");
-      socket.off("conversationUpdated");
+      socket.off("chatHistoryDeleted"); // Nhi thêm
+      socket.off("deleteAllChatHistory"); // Nhi thêm
+      socket.off("conversationUpdated"); // Nhi thêm
       socket.off("error");
       socket.off("connect");
       socket.off("disconnect");
-      socket.off("joinedConversation");
+      socket.off("joinedConversation"); // Nhi thêm
     };
   }, [socket, selectedMessageId, currentUserId, dispatch]);
 
-  useEffect(() => {
+  useEffect(() => { // Nhi thêm
     if (!socket || !selectedMessageId || selectedMessageId === "my-cloud") {
       console.warn("ChatPage: Không xử lý chatInfoUpdated", {
         socket: !!socket,
@@ -445,7 +443,7 @@ function ChatPage() {
     };
   }, [socket, selectedMessageId, dispatch]);
 
-  const selectedChat = useMemo(
+  const selectedChat = useMemo( // Nhi thêm
     () =>
       selectedMessage
         ? {
@@ -478,59 +476,79 @@ function ChatPage() {
           }),
         },
       };
-      console.log("ChatPage: Gửi sendMessage", payload);
+      console.log("ChatPage: Gửi sendMessage", payload); // Nhi thêm
       socket.emit("sendMessage", payload);
     } else {
-      console.error("ChatPage: Không thể gửi tin nhắn", { socket, selectedMessageId });
+      console.error("ChatPage: Không thể gửi tin nhắn", { socket, selectedMessageId }); // Nhi thêm
     }
   };
 
   const handleReply = (msg) => {
-    console.log("ChatPage: Trả lời tin nhắn", msg);
+    console.log("ChatPage: Trả lời tin nhắn", msg); // Nhi thêm
     setReplyingTo(msg);
   };
 
   const handleForward = (msg) => {
-    console.log("ChatPage: Chuyển tiếp tin nhắn", msg);
+    console.log("ChatPage: Chuyển tiếp tin nhắn", msg); // Nhi thêm
     setMessageToForward(msg);
     setIsShareModalVisible(true);
   };
 
   const handleCloseShareModal = () => {
-    console.log("ChatPage: Đóng ShareModal");
+    console.log("ChatPage: Đóng ShareModal"); // Nhi thêm
     setIsShareModalVisible(false);
     setMessageToForward(null);
   };
 
   const handleShare = (selectedConversations, messageContent) => {
-    console.log("ChatPage: Chia sẻ tin nhắn", { selectedConversations, messageContent, messageToForward });
+    console.log("ChatPage: Chia sẻ tin nhắn", { selectedConversations, messageContent, messageToForward }); // Nhi thêm
     handleCloseShareModal();
   };
 
   const handleDelete = (msg) => {
-    if (
-      window.confirm(
-        "Bạn có chắc muốn xóa tin nhắn này? Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi"
-      )
-    ) {
-      console.log("ChatPage: Xóa tin nhắn", { messageId: msg._id });
+    // File 1: Sử dụng ConfirmModal thay vì window.confirm
+    const confirmDelete = () => {
+      console.log("ChatPage: Xóa tin nhắn", { messageId: msg._id }); // Nhi thêm
       socket.emit("messageDeleted", { messageId: msg._id });
       setMessages((prevMessages) =>
         prevMessages.filter((message) => message._id !== msg._id)
       );
-    }
+    };
+
+    // File 1: Hiển thị ConfirmModal
+    return (
+      <ConfirmModal
+        isOpen={true}
+        onClose={() => {}}
+        onConfirm={confirmDelete}
+        title="Xóa tin nhắn"
+        message="Bạn có chắc muốn xóa tin nhắn này? Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi."
+      />
+    );
   };
 
   const handleRevoke = (msg) => {
-    if (window.confirm("Bạn có chắc muốn thu hồi tin nhắn này?")) {
-      console.log("ChatPage: Thu hồi tin nhắn", { messageId: msg._id });
+    // File 1: Sử dụng ConfirmModal thay vì window.confirm
+    const confirmRevoke = () => {
+      console.log("ChatPage: Thu hồi tin nhắn", { messageId: msg._id }); // Nhi thêm
       socket.emit("messageRevoked", { messageId: msg._id });
       setMessages((prevMessages) =>
         prevMessages.map((message) =>
           message._id === msg._id ? { ...message, isRevoked: true } : message
         )
       );
-    }
+    };
+
+    // File 1: Hiển thị ConfirmModal
+    return (
+      <ConfirmModal
+        isOpen={true}
+        onClose={() => {}}
+        onConfirm={confirmRevoke}
+        title="Thu hồi tin nhắn"
+        message="Bạn có chắc muốn thu hồi tin nhắn này?"
+      />
+    );
   };
 
   const formatDate = (dateString) => {
@@ -552,11 +570,11 @@ function ChatPage() {
       const sortedMessages = response.data.sort(
         (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
       );
-      console.log("ChatPage: Nhận cloud messages", sortedMessages);
+      console.log("ChatPage: Nhận cloud messages", sortedMessages); // Nhi thêm
       setCloudMessages(sortedMessages);
       setShouldScrollToBottom(true);
     } catch (error) {
-      console.error("ChatPage: Lỗi khi tải tin nhắn cloud", error);
+      console.error("ChatPage: Lỗi khi tải tin nhắn cloud", error); // Nhi thêm
     } finally {
       setLoading(false);
     }
@@ -564,7 +582,7 @@ function ChatPage() {
 
   useLayoutEffect(() => {
     if (shouldScrollToBottom && cloudChatContainerRef.current) {
-      console.log("ChatPage: Cuộn xuống cuối cloud messages", { length: cloudMessages.length });
+      console.log("ChatPage: Cuộn xuống cuối cloud messages", { length: cloudMessages.length }); // Nhi thêm
       cloudChatContainerRef.current.scrollTop = cloudChatContainerRef.current.scrollHeight;
       setShouldScrollToBottom(false);
     }
@@ -572,14 +590,14 @@ function ChatPage() {
 
   useEffect(() => {
     if (selectedMessageId === "my-cloud") {
-      console.log("ChatPage: Tải cloud messages");
+      console.log("ChatPage: Tải cloud messages"); // Nhi thêm
       fetchCloudMessages();
     }
   }, [selectedMessageId]);
 
   useEffect(() => {
     const handleClickOutside = () => {
-      console.log("ChatPage: Đóng context menu do click outside");
+      console.log("ChatPage: Đóng context menu do click outside"); // Nhi thêm
       setContextMenu((prev) => ({ ...prev, visible: false }));
     };
 
@@ -592,11 +610,11 @@ function ChatPage() {
   const ContextMenu = ({ x, y, message, fileIndex, onClose }) => {
     const isFile = fileIndex !== null;
     const fileUrl = isFile ? message.fileUrls[fileIndex] : null;
-    const isImage = isFile && /\.(jpg|jpeg|png|gif)$/.test(fileUrl);
+    const isImage = isFile && /\.(jpg|jpeg|png|gif)$/.test(fileUrl); // Nhi thêm: Sử dụng regex đơn giản hơn
 
     const handleCopyText = () => {
       if (message.content) {
-        console.log("ChatPage: Sao chép nội dung tin nhắn", message.content);
+        console.log("ChatPage: Sao chép nội dung tin nhắn", message.content); // Nhi thêm
         navigator.clipboard.writeText(message.content);
       }
       onClose();
@@ -604,25 +622,25 @@ function ChatPage() {
 
     const handleCopyImage = () => {
       if (fileUrl) {
-        console.log("ChatPage: Sao chép URL hình ảnh", fileUrl);
+        console.log("ChatPage: Sao chép URL hình ảnh", fileUrl); // Nhi thêm
         navigator.clipboard.writeText(fileUrl);
       }
       onClose();
     };
 
     const handleDelete = async () => {
-      console.log("ChatPage: Xóa tin nhắn cloud", { messageId: message.messageId });
+      console.log("ChatPage: Xóa tin nhắn cloud", { messageId: message.messageId }); // Nhi thêm
       try {
         await axios.delete(`http://localhost:3000/api/messages/${message.messageId}`);
       } catch (error) {
-        console.error("ChatPage: Lỗi khi xóa tin nhắn cloud", error);
+        console.error("ChatPage: Lỗi khi xóa tin nhắn cloud", error); // Nhi thêm
       }
       onClose();
     };
 
     const handleDownload = () => {
       if (fileUrl) {
-        console.log("ChatPage: Tải xuống file", { fileUrl });
+        console.log("ChatPage: Tải xuống file", { fileUrl }); // Nhi thêm
         const link = document.createElement("a");
         link.href = fileUrl;
         link.download =
@@ -700,7 +718,7 @@ function ChatPage() {
   const renderCloudMessage = (message) => {
     const handleContextMenu = (e, fileIndex = null) => {
       e.preventDefault();
-      console.log("ChatPage: Mở context menu cho cloud message", { messageId: message.messageId, fileIndex });
+      console.log("ChatPage: Mở context menu cho cloud message", { messageId: message.messageId, fileIndex }); // Nhi thêm
       setContextMenu({
         visible: true,
         x: e.clientX,
@@ -796,7 +814,7 @@ function ChatPage() {
     );
   };
 
-  console.log("ChatPage: Render với", { selectedChat, chatDetails, messages, cloudMessages });
+  console.log("ChatPage: Render với", { selectedChat, chatDetails, messages, cloudMessages }); // Nhi thêm
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
@@ -876,7 +894,7 @@ function ChatPage() {
             ) : (
               <>
                 <div className="flex-1 overflow-y-auto p-4">
-                  {messages.length > 0 ? (
+                  {messages.length > 0 ? ( // Nhi thêm: Hiển thị tin nhắn hoặc div trống
                     messages
                       .filter(
                         (msg) =>
@@ -907,7 +925,7 @@ function ChatPage() {
                         />
                       ))
                   ) : (
-                    <div></div>
+                    <div></div> // Nhi thêm
                   )}
                   <div ref={messagesEndRef} />
                 </div>
@@ -926,7 +944,7 @@ function ChatPage() {
               <ChatInfo
                 userId={currentUserId}
                 conversationId={conversationId}
-                socket={socket}
+                socket={socket} // Nhi thêm
               />
             </div>
           )}

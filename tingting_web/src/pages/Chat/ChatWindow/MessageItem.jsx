@@ -18,10 +18,11 @@ const MessageItem = ({
   onRevoke,
   messages,
 }) => {
-  // Kiểm tra nếu tin nhắn đã bị xóa bởi người dùng hiện tại
+  // Nhi thêm: Kiểm tra nếu tin nhắn đã bị xóa bởi người dùng hiện tại
   if (msg.deletedBy?.includes(currentUserId)) {
     return null;
   }
+
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
 
@@ -46,8 +47,10 @@ const MessageItem = ({
         <p className="text-sm text-gray-700">{msg.content}</p>
       </div>
     );
-  }
+  };
+
   const [openMedia, setOpenMedia] = useState(null);
+  // Nhi thêm: Sử dụng các biến kiểm tra rõ ràng hơn
   const isImage = msg.messageType === "image";
   const isVideo = msg.messageType === "video";
   const isFile = msg.messageType === "file";
@@ -81,42 +84,40 @@ const MessageItem = ({
             <p className="text-xs font-semibold text-gray-700">{msg.sender}</p>
           )}
 
-        {/* Nếu đã bị thu hồi thì chỉ hiển thị text */}
-        {msg.isRevoked ? (
-          <p className="italic text-gray-500">Tin nhắn đã được thu hồi</p>
-        ) : (
-          <>
-            {/* Tin nhắn trả lời */}
-            {msg.messageType === "reply" && (
-              <div className="bg-gray-100 p-2 rounded-md mt-1 border-l-4 border-blue-400 pl-3">
-                <p className="text-sm text-gray-700 font-semibold">
-                  {repliedMessage?.sender || ""}
-                </p>
-                <p className="text-sm text-gray-600 italic line-clamp-2">
-                  {repliedMessage?.messageType === "image"
-                    ? "[Ảnh]"
-                    : repliedMessage?.messageType === "file"
-                    ? "[Tệp]"
-                    : repliedMessage?.messageType === "call"
-                    ? "[Cuộc gọi]"
-                    : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
-                </p>
-                <p className="text-sm text-gray-900 mt-1">{msg.content}</p>
-              </div>
-            )}
+          {/* Nếu đã bị thu hồi thì chỉ hiển thị text */}
+          {msg.isRevoked ? (
+            <p className="italic text-gray-500">Tin nhắn đã được thu hồi</p>
+          ) : (
+            <>
+              {/* Tin nhắn trả lời */}
+              {isReply && (
+                <div className="bg-gray-100 p-2 rounded-md mt-1 border-l-4 border-blue-400 pl-3">
+                  <p className="text-sm text-gray-700 font-semibold">
+                    {repliedMessage?.sender || ""}
+                  </p>
+                  <p className="text-sm text-gray-600 italic line-clamp-2">
+                    {repliedMessage?.messageType === "image"
+                      ? "[Ảnh]"
+                      : repliedMessage?.messageType === "file"
+                      ? "[Tệp]"
+                      : repliedMessage?.messageType === "call"
+                      ? "[Cuộc gọi]"
+                      : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
+                  </p>
+                  <p className="text-sm text-gray-900 mt-1">{msg.content}</p>
+                </div>
+              )}
 
-            {/* Tin nhắn cuộc gọi */}
-            {msg.messageType === "call" && (
-              <>
-                {/* {console.log("Rendering call message:", msg)} */}
-                {renderCallMessage()}
-              </>
-            )}
+              {/* Tin nhắn cuộc gọi */}
+              {isCall && (
+                <>
+                  {/* {console.log("Rendering call message:", msg)} */}
+                  {renderCallMessage()}
+                </>
+              )}
 
-            {/* Tin nhắn văn bản không phải reply */}
-            {msg.messageType === "text" && !msg.replyMessageId && (
-              <p>{msg.content}</p>
-            )}
+              {/* Tin nhắn văn bản không phải reply */}
+              {isText && <p>{msg.content}</p>}
 
               {/* Tin nhắn hình ảnh (nhiều ảnh) */}
               {isImage && Array.isArray(msg.linkURL) && (
@@ -219,7 +220,7 @@ const MessageItem = ({
                     <IoTrashOutline size={18} />
                   </button>
                   <button
-                    onClick={() => onRevoke(msg)}
+                    onClick={handleRevokeClick} // Sử dụng handleRevokeClick thay vì gọi onRevoke trực tiếp
                     title="Thu hồi"
                     className="p-1 rounded-full bg-white/80 hover:bg-purple-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-purple-500"
                   >
