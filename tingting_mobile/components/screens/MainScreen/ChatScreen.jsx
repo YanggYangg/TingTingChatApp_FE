@@ -14,20 +14,22 @@ import {
   onConversationRemoved,
   offConversationRemoved,
 } from "../../../services/sockets/events/conversation";
-import { onChatInfoUpdated,
+import {
+  onChatInfoUpdated,
   offChatInfoUpdated,
   onGroupLeft,
-  offGroupLeft,}
+  offGroupLeft,
+}
   from "../../../services/sockets/events/chatInfo";
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 import { Api_Profile } from "../../../apis/api_profile";
-import axios from "axios"; 
-import AsyncStorage from "@react-native-async-storage/async-storage"; 
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ChatScreen = ({ navigation, route }) => {
   const [messages, setMessages] = useState([]);
   const [userCache, setUserCache] = useState({}); // Nhi thêm: Thay userProfiles bằng userCache
-  const [currentUserId, setCurrentUserId] = useState(null); 
+  const [currentUserId, setCurrentUserId] = useState(null);
   const { socket, userId } = useSocket();
   const dispatch = useDispatch();
   const joinedRoomsRef = useRef(new Set()); // Nhi thêm
@@ -366,7 +368,7 @@ const ChatScreen = ({ navigation, route }) => {
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <FlatList
-        data={[myCloudItem, ...messages]} // Nhi thêm: Thêm myCloudItem ??? này hình như không cần thiết
+        data={[...messages]} // Removed myCloudItem and its render logic
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View>
@@ -375,19 +377,6 @@ const ChatScreen = ({ navigation, route }) => {
           </View>
         }
         renderItem={({ item }) => {
-          // Nhi thêm: Render đặc biệt cho my-cloud // 1 trong 2 cái bị dư 
-          if (item.id === "my-cloud") {
-            return (
-              <ChatItems
-                avatar={item.avatar}
-                username={item.name}
-                lastMessage={item.lastMessage}
-                time={item.time}
-                onPress={() => handlePress(item)}
-              />
-            );
-          }
-
           const otherParticipant = !item.isGroup && Array.isArray(item.participants)
             ? item.participants.find((p) => p.userId !== currentUserId)
             : null;
