@@ -13,11 +13,12 @@ import {
   joinConversation,
   onConversationRemoved,
   offConversationRemoved,
-  onChatInfoUpdated,
+} from "../../../services/sockets/events/conversation";
+import { onChatInfoUpdated,
   offChatInfoUpdated,
   onGroupLeft,
-  offGroupLeft,
-} from "../../../services/sockets/events/conversation";
+  offGroupLeft,}
+  from "../../../services/sockets/events/chatInfo";
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 import { Api_Profile } from "../../../apis/api_profile";
 import axios from "axios"; 
