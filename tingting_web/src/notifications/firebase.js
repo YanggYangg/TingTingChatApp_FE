@@ -9,13 +9,7 @@ import { getMessaging, getToken } from "firebase/messaging";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
-  measurementId: ""
+
 };
 
 // Initialize Firebase
@@ -23,6 +17,7 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 
 export const messaging = getMessaging(app);
+// Hàm gửi token về backend
 const sendTokenToBackend = async (userId, fcmToken) => {
   try {
     await fetch("http://localhost:3003/userFcmToken/saveUserTokenFcm", {
@@ -38,8 +33,13 @@ const sendTokenToBackend = async (userId, fcmToken) => {
   }
 };
 
+//Xin quyền nhận thông báo từ trình duyệt
 export const generateToken = async (userId) => {
   const permission = await Notification.requestPermission();
+  /*
+    granted: người dùng đã đồng ý nhận thông báo
+    denied: người dùng đã từ chối nhận thông báo
+    */
   if (permission === "granted") {
     const token = await getToken(messaging, {
       vapidKey:

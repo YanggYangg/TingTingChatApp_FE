@@ -21,6 +21,7 @@ import axios from "axios"; // Add axios for API calls
 import { Api_Profile } from "../../../../apis/api_profile"; // Import the API module
 import ShareModal from "../Chat/chatInfoComponent/ShareModal"; // Import ShareModal component
 
+
 const ChatScreen = ({ route, navigation }) => {
   const { socket, userId: currentUserId } = useSocket();
   const flatListRef = useRef(null);
@@ -35,11 +36,11 @@ const ChatScreen = ({ route, navigation }) => {
   const { message, user } = route?.params || {};
   const conversationId = message?.id || null;
   const userId = currentUserId || null;
-  console.log("userId", userId);
-  console.log("conversationId", conversationId);
-  console.log("message", message);
-  console.log("selectmessage", selectedMessage);
-  console.log("user", user);
+  console.log("userId:", userId);
+  console.log("conversationId:", conversationId);
+  console.log("message:", message);
+  console.log("selectmessage:", selectedMessage);
+  console.log("user:", user);
 
   // Log params for debugging
   console.log("ChatScreen params:", {
@@ -53,6 +54,8 @@ const ChatScreen = ({ route, navigation }) => {
   const selectedMessageData = useSelector(
     (state) => state.chat.selectedMessage
   );
+
+  
   const selectedMessageId = selectedMessageData?.id;
 
   // Fetch user info using the Api_Profile.getProfile API

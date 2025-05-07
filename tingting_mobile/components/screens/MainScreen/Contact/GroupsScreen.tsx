@@ -1,97 +1,75 @@
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import React, { useEffect, useState } from "react"
 import { useNavigation } from "@react-navigation/native"
 import { Ionicons } from "@expo/vector-icons"
+import { Api_Conversation } from "../../../../apis/api_conversation"
+import { setSelectedMessage } from "../../../../redux/slices/chatSlice";
+import { useDispatch } from "react-redux";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Dữ liệu mẫu
-const GROUPS = [
-  {
-    id: "1",
-    name: "Nhom01_QLDA_T3_T7-9",
-    avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-    lastMessage: "Dương Thái Bảo: [Thư mục] final_qlda",
-    time: "21 phút",
-  },
-  {
-    id: "2",
-    name: "bóng chuyền tối thứ cn(7-9h)",
-    avatar: "https://randomuser.me/api/portraits/men/2.jpg",
-    lastMessage: "Đào Nhật Diễn: @Hoàng Long đánh sân...",
-    time: "2 giờ",
-    memberCount: 12,
-  },
-  {
-    id: "3",
-    name: "Nhóm 01_CNM_App Zalo",
-    avatar: "https://randomuser.me/api/portraits/women/2.jpg",
-    lastMessage: "Nhi Nhi: em làm nhóm trưởng",
-    time: "4 giờ",
-    memberCount: 5,
-  },
-  {
-    id: "4",
-    name: "DHKTPM17B_QLDA",
-    avatar: "https://randomuser.me/api/portraits/women/3.jpg",
-    lastMessage: "Thu Ha: thời hạn trong hết hôm nay",
-    time: "13 giờ",
-    memberCount: 63,
-  },
-  {
-    id: "5",
-    name: "NhomX_Bigdata_BTTH",
-    avatar: "https://randomuser.me/api/portraits/men/3.jpg",
-    lastMessage: "Nguyen Thi Nga: Còn msssv đó tui chưa t...",
-    time: "CN",
-  },
-]
-
-// Dữ liệu mẫu cho các loại nhóm
-const GROUP_TYPES = [
-  {
-    id: "1",
-    name: "Lịch",
-    icon: "calendar",
-    color: "#0091ff",
-  },
-  {
-    id: "2",
-    name: "Nhắc hẹn",
-    icon: "alarm",
-    color: "#ff4d4f",
-  },
-  {
-    id: "3",
-    name: "Nhóm Offline",
-    icon: "people-circle",
-    color: "#7265e6",
-  },
-]
 
 export default function GroupsScreen() {
   const navigation = useNavigation()
+  const dispatch = useDispatch();
+  const [groups, setGroups] = useState([])
 
-  const renderGroupTypeItem = ({ item }) => (
-    <View style={styles.groupTypeItem}>
-      <View style={[styles.groupTypeIcon, { backgroundColor: "#f0f0f0" }]}>
-        <Ionicons name={item.icon} size={24} color={item.color} />
-      </View>
-      <Text style={styles.groupTypeName}>{item.name}</Text>
-    </View>
-  )
+
+    const fetchGroups = async () => {
+      try {
+        const userId = await AsyncStorage.getItem("userId"); 
+        const res = await Api_Conversation.getUserJoinGroup(userId);
+        console.log("Danh sách nhóm:", res);
+        setGroups(res)
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách nhóm:", error)
+      }
+    }
+
+  useEffect(() => {
+    fetchGroups()
+  }, []);
+  
+  const handleStartChat = async (group) => {
+     try {
+          const conversationId = group._id; // dùng luôn ID của group làm conversationId
+          console.log("== Navigating to group conversation ==", conversationId);
+      
+          dispatch(setSelectedMessage({
+            id: conversationId,
+            isGroup: true,
+            participants: group.participants,
+            name: group.name,
+            imageGroup: group.imageGroup || ""  // nếu có ảnh nhóm
+          }));
+      
+          navigation.navigate("MessageScreen", {
+            conversationId: conversationId,
+            isGroup: true,
+            participants: group.participants,
+            name: group.name,
+            imageGroup: group.imageGroup || ""  // nếu có ảnh nhóm
+          });
+        } catch (error) {
+          console.error("Lỗi khi bắt đầu trò chuyện nhóm:", error);
+        }
+  }
 
   const renderGroupItem = ({ item }) => (
-    <View style={styles.groupItem}>
+    <TouchableOpacity 
+    onPress={() => handleStartChat(item)}
+    style={styles.groupItem}>
       <Image source={{ uri: item.avatar }} style={styles.groupAvatar} />
 
       <View style={styles.groupInfo}>
         <Text style={styles.groupName}>{item.name}</Text>
         <Text style={styles.groupLastMessage} numberOfLines={1}>
-          {item.lastMessage}
+           {item.participants.length} thành viên
         </Text>
       </View>
 
       <Text style={styles.groupTime}>{item.time}</Text>
-    </View>
+    </TouchableOpacity>
   )
 
   return (
@@ -129,24 +107,12 @@ export default function GroupsScreen() {
         <Text style={styles.createGroupText}>Tạo nhóm</Text>
       </TouchableOpacity>
 
-      {/* Group Types */}
-      <Text style={styles.sectionHeader}>Tạo nhóm với:</Text>
-      <FlatList
-        data={GROUP_TYPES}
-        renderItem={renderGroupTypeItem}
-        keyExtractor={(item) => item.id}
-        horizontal
-        style={styles.groupTypesList}
-        contentContainerStyle={styles.groupTypesContent}
-      />
-
       {/* Groups List */}
       <View style={styles.groupsHeader}>
-        <Text style={styles.groupsHeaderText}>Nhóm đang tham gia (81)</Text>
-        <Text style={styles.groupsHeaderAction}>Hoạt động cuối</Text>
+        <Text style={styles.groupsHeaderText}>Nhóm đang tham gia ({(groups.length)})</Text>
       </View>
 
-      <FlatList data={GROUPS} renderItem={renderGroupItem} keyExtractor={(item) => item.id} style={styles.groupsList} />
+      <FlatList data={groups} renderItem={renderGroupItem} keyExtractor={(item) => item._id} style={styles.groupsList} />
     </View>
   )
 }

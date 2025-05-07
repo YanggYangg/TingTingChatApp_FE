@@ -11,9 +11,16 @@ import ContactItem from "../ContactItem";
 import GroupItem from "../GroupItem";
 import Search from "../Search";
 
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { selectConversation, setSelectedMessage } from '../../../../redux/slices/chatSlice.js'; 
+
 import { Api_Conversation } from "../../../../../apis/Api_Conversation";
 
 const GroupList = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -115,6 +122,26 @@ const GroupList = () => {
       document.removeEventListener("click", handleClickOutside);
     };
   }, []);
+
+  const handleStartChat = async (group) => {
+    try {
+      const conversationId = group._id; // dùng luôn ID của group làm conversationId
+      console.log("== Navigating to group conversation ==", conversationId);
+  
+      dispatch(setSelectedMessage({
+        id: conversationId,
+        isGroup: true,
+        participants: group.participants,
+        name: group.name,
+        imageGroup: group.imageGroup || ""  // nếu có ảnh nhóm
+      }));
+  
+      navigate("/chat");
+    } catch (error) {
+      console.error("Lỗi khi bắt đầu trò chuyện nhóm:", error);
+    }
+  };
+  
 
   return (
     <div className="w-full h-full bg-white text-black flex flex-col ">
@@ -225,6 +252,7 @@ const GroupList = () => {
                               menuOpenId === group._id ? null : group._id
                             )
                           }
+                          onClick={() => handleStartChat(group)}
                         />
                       ))}
                     </div>

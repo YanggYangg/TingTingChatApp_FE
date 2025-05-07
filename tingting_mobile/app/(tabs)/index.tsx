@@ -40,6 +40,8 @@ import { CloudSocketProvider } from "../../context/CloudSocketContext";
 
 import ChatInfo from "@/components/screens/MainScreen/Chat/ChatInfo";
 
+import AddFriendScreen from "../../components/find/AddFriendScreen"; 
+
 type RootStackParamList = {
   Main: undefined;
   MessageScreen: { userId?: string; username?: string };
@@ -94,6 +96,7 @@ type RootStackParamList = {
     };
   };
   MessageSupportScreen: { userId?: string; username?: string };
+  AddFriendScreen: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -247,7 +250,7 @@ export default function App() {
           >
             <Stack.Screen
               name="ChatInfo"
-              component={ChatInfo}
+              getComponent={ChatInfo}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -304,6 +307,11 @@ export default function App() {
             <Stack.Screen
               name="MessageSupportScreen"
               component={MessageSupportScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="AddFriendScreen"
+              component={AddFriendScreen}
               options={{ headerShown: false }}
             />
           </Stack.Navigator>

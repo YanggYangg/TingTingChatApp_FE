@@ -1,7 +1,10 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = "http://192.168.1.6:3001";
+// Use environment-specific base URL
+const BASE_URL = "http://192.168.1.6:5000";
+
+// const BASE_URL = 'http://192.168.139.71:3001'
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -47,7 +50,6 @@ const request = async (method, url, data = null, params = null) => {
     throw error;
   }
 };
-
 // 🔧 API Manager
 const ApiManager = {
   get: async (url, { params } = {}) => request("get", url, null, params),
@@ -56,15 +58,16 @@ const ApiManager = {
   delete: async (url) => request("delete", url),
 };
 
-// 📂 API Calls
-export const Api_Profile = {
-  getProfile: async (id) => {
-    return ApiManager.get(`api/v1/profile/${id}`);
+export const Api_Conversation = {
+    getUserJoinGroup: async (userId) => {
+        return ApiManager.get( `/conversations/userGroups/${userId}`);
+    },
+    getOrCreateConversation: async (user1Id, user2Id)  => {
+      return ApiManager.post('/conversations/getOrCreateConversation', {
+          user1Id,
+          user2Id,
+      });
   },
-  updateProfile: async (id, data) => {
-    return ApiManager.post(`api/v1/profile/${id}`, data);
-  },
-  uploadImage: async () => {
-    return ApiManager.post("api/v1/profile/upload");
-  },
+
+
 };

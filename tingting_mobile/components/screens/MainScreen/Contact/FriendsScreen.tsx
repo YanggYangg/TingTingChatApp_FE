@@ -5,11 +5,14 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { useNavigation } from "@react-navigation/native"
 import { Ionicons } from "@expo/vector-icons"
 import { Api_FriendRequest } from "../../../../apis/api_friendRequest";
+import { Api_Conversation } from "../../../../apis/api_conversation"
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import { setSelectedMessage } from "../../../../redux/slices/chatSlice";
+import { useDispatch } from "react-redux";
 
 export default function FriendsScreen() {
   const navigation = useNavigation()
+  const dispatch = useDispatch();
   const [friends, setFriends] = useState([]);
   const [receivedRequests, setReceivedRequests] = useState([]);
 
@@ -43,7 +46,7 @@ export default function FriendsScreen() {
     }
   }
 
-  const handleDeleteFriend = async (friendId) => {
+  const handleDeleteFriend = async (friendId: any) => {
     Alert.alert(
       "Xác nhận xóa bạn",
       "Bạn có chắc chắn muốn xóa người này khỏi danh sách bạn bè?",
@@ -70,13 +73,58 @@ export default function FriendsScreen() {
     );
   };
 
+  const handleStartChat = async (friendId: any) => {
+    const currentUserId = await AsyncStorage.getItem("userId");
+    console.log("== CLICKED FRIEND ID ==", friendId); 
+    console.log("== CURRENT USER ID ==", currentUserId);
+
+
+    try{
+      const res = await Api_Conversation.getOrCreateConversation(currentUserId, friendId);
+      console.log("== GET OR CREATE CONVERSATION ==", res);
+
+      if(res?.conversationId){
+        const conversationId = res.conversationId;
+        console.log("== Đã lấy được conversationId ==", conversationId);
+
+        dispatch(setSelectedMessage({
+          id: conversationId,
+          isGroup: false,
+          participants: [
+            { userId: currentUserId },
+            { userId: friendId }
+          ]
+        }));
+        //navigation.navigate("MessageScreen");
+        navigation.navigate("MessageScreen", {
+          message: {
+            id: conversationId,
+            isGroup: false,
+            participants: [
+              { userId: currentUserId },
+              { userId: friendId },
+            ]
+          },
+          user: {
+            userId: friendId,
+          }
+        });
+      }
+    }catch(error){
+      console.error("Lỗi khi bắt đầu cuộc trò chuyện:", error);
+    }
+
+  }
+
   
   
   
 
  
   const renderContactItem = ({ item }: { item: { _id: string; name: string; avatar: string } }) => (
-    <View style={styles.contactItem}>
+    <TouchableOpacity 
+    onPress={() => handleStartChat(item._id)}
+    style={styles.contactItem}>
       <View style={styles.avatarContainer}>
         <Image source={{ uri: item.avatar }} style={styles.avatar} />
       </View>
@@ -98,7 +146,7 @@ export default function FriendsScreen() {
           <Ionicons name="trash-outline" size={22} color="#666" />
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   )
 
   return (
