@@ -25,13 +25,13 @@ import {
   offConversationUpdate,
   joinConversation,
   onConversationRemoved,
-} from "../../../../services/sockets/events/conversation";
+} from "../../../../services/sockets/events/conversation"; // Nhi thêm
 import {
   onChatInfoUpdated,
   offChatInfoUpdated,
   onGroupLeft,
   offGroupLeft,
-} from "../../../../services/sockets/events/chatInfo";
+} from "../../../../services/sockets/events/chatInfo"; // Nhi thêm
 
 const ChatScreen = ({ route, navigation }) => {
   const { socket, userId: currentUserId } = useSocket();
@@ -43,8 +43,8 @@ const ChatScreen = ({ route, navigation }) => {
   const [userCache, setUserCache] = useState({});
   const [isShareModalVisible, setIsShareModalVisible] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
-
   const [conversationInfo, setConversationInfo] = useState({
+    // Nhi thêm: Thêm state conversationInfo
     name: "",
     isGroup: false,
     participants: [],
@@ -132,6 +132,18 @@ const ChatScreen = ({ route, navigation }) => {
     }
   }, [messages, currentUserId]);
 
+  // Nhi thêm: Initialize conversation info
+  useEffect(() => {
+    if (message) {
+      setConversationInfo({
+        name: message.name || "",
+        isGroup: message.isGroup || false,
+        participants: message.participants || [],
+        imageGroup: message.imageGroup || null,
+      });
+    }
+  }, [message]);
+
   // Socket.IO setup for regular chat
   useEffect(() => {
     if (!socket || !selectedMessageId || !currentUserId) {
@@ -143,13 +155,14 @@ const ChatScreen = ({ route, navigation }) => {
       return;
     }
 
+    // Nhi thêm: Kiểm tra và kết nối socket nếu chưa kết nối
     if (!socket.connected) {
       console.warn("Socket not connected, attempting to connect", { socketId: socket.id });
       socket.connect();
     }
 
     console.log("Joining conversation with ID:", selectedMessageId);
-    joinConversation(socket, selectedMessageId);
+    joinConversation(socket, selectedMessageId); // Nhi thêm: Sử dụng joinConversation thay vì socket.emit
 
     socket.on("loadMessages", (data) => {
       console.log("Received loadMessages:", data);
@@ -193,7 +206,7 @@ const ChatScreen = ({ route, navigation }) => {
       Alert.alert("Lỗi", error.message || "Không thể xóa tin nhắn");
     });
 
-    // Handle deleteAllChatHistory
+    // Nhi thêm: Xử lý xóa toàn bộ lịch sử trò chuyện
     socket.on("deleteAllChatHistory", ({ conversationId: deletedConversationId, deletedBy }) => {
       console.log("ChatScreen: Nhận deleteAllChatHistory", { deletedConversationId, deletedBy });
       if (deletedConversationId === selectedMessageId) {
@@ -210,6 +223,7 @@ const ChatScreen = ({ route, navigation }) => {
       }
     });
 
+    // Nhi thêm: Cập nhật thông tin cuộc trò chuyện
     onConversationUpdate(socket, (updatedConversation) => {
       console.log("ChatScreen: Received conversationUpdate:", updatedConversation);
       setConversationInfo((prev) => ({
@@ -225,6 +239,7 @@ const ChatScreen = ({ route, navigation }) => {
       }));
     });
 
+    // Nhi thêm: Cập nhật thông tin nhóm
     onChatInfoUpdated(socket, (updatedInfo) => {
       console.log("ChatScreen: Received chatInfoUpdated:", updatedInfo);
       setConversationInfo((prev) => ({
@@ -236,6 +251,7 @@ const ChatScreen = ({ route, navigation }) => {
       }));
     });
 
+    // Nhi thêm: Xử lý rời nhóm
     onGroupLeft(socket, (data) => {
       console.log("ChatScreen: Received groupLeft:", data);
       if (data.conversationId === selectedMessageId) {
@@ -244,6 +260,7 @@ const ChatScreen = ({ route, navigation }) => {
       }
     });
 
+    // Nhi thêm: Xử lý giải tán nhóm
     onConversationRemoved(socket, (data) => {
       console.log("ChatScreen: Received conversationRemoved:", data);
       if (data.conversationId === selectedMessageId) {
@@ -260,24 +277,13 @@ const ChatScreen = ({ route, navigation }) => {
       socket.off("messageRevoked");
       socket.off("messageDeleted");
       socket.off("deleteMessageError");
-      socket.off("deleteAllChatHistory");
-      offConversationUpdate(socket);
-      offChatInfoUpdated(socket);
-      offGroupLeft(socket);
+      socket.off("deleteAllChatHistory"); // Nhi thêm
+      offConversationUpdate(socket); // Nhi thêm
+      offChatInfoUpdated(socket); // Nhi thêm
+      offGroupLeft(socket); // Nhi thêm
+      onConversationRemoved(socket); // Nhi thêm
     };
   }, [socket, selectedMessageId, currentUserId, navigation]);
-
-  // Initialize conversation info
-  useEffect(() => {
-    if (message) {
-      setConversationInfo({
-        name: message.name || "",
-        isGroup: message.isGroup || false,
-        participants: message.participants || [],
-        imageGroup: message.imageGroup || null,
-      });
-    }
-  }, [message]);
 
   const sendMessage = (payload) => {
     if (!payload.content && !payload.linkURL) return;
@@ -490,7 +496,7 @@ const ChatScreen = ({ route, navigation }) => {
                 );
                 return;
               }
-              navigation.push("ChatInfo", { userId, conversationId, socket });
+              navigation.push("ChatInfo", { userId, conversationId, socket }); // Nhi thêm: Truyền socket
             }}
             style={{ marginLeft: 15 }}
           >

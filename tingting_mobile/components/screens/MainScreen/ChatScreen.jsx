@@ -13,23 +13,25 @@ import {
   joinConversation,
   onConversationRemoved,
   offConversationRemoved,
-} from "../../../services/sockets/events/conversation";
-import {
   onChatInfoUpdated,
   offChatInfoUpdated,
   onGroupLeft,
   offGroupLeft,
-} from "../../../services/sockets/events/chatInfo";
+} from "../../../services/sockets/events/conversation";
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 import { Api_Profile } from "../../../apis/api_profile";
+import axios from "axios"; 
+import AsyncStorage from "@react-native-async-storage/async-storage"; 
 
 const ChatScreen = ({ navigation, route }) => {
   const [messages, setMessages] = useState([]);
-  const [userCache, setUserCache] = useState({});
-  const { socket, userId: currentUserId } = useSocket();
+  const [userCache, setUserCache] = useState({}); // Nhi thêm: Thay userProfiles bằng userCache
+  const [currentUserId, setCurrentUserId] = useState(null); 
+  const { socket, userId } = useSocket();
   const dispatch = useDispatch();
-  const joinedRoomsRef = useRef(new Set());
+  const joinedRoomsRef = useRef(new Set()); // Nhi thêm
 
+  // Nhi thêm: Item tĩnh "Cloud của tôi"
   const myCloudItem = {
     id: "my-cloud",
     name: "Cloud của tôi",
@@ -42,6 +44,7 @@ const ChatScreen = ({ navigation, route }) => {
     isCloud: true,
   };
 
+  // Nhi thêm: Kiểm tra tính hợp lệ của conversation
   const validateConversation = (conversation) => {
     if (!conversation._id) {
       console.warn("ChatScreen: Conversation missing _id:", conversation);
@@ -54,6 +57,7 @@ const ChatScreen = ({ navigation, route }) => {
     return true;
   };
 
+  // Nhi thêm: Thêm nhóm mới
   const addNewGroup = async (newConversation) => {
     console.log("ChatScreen: Thêm nhóm mới:", newConversation);
 
@@ -108,18 +112,23 @@ const ChatScreen = ({ navigation, route }) => {
   };
 
   useEffect(() => {
-    if (!socket || !currentUserId) {
-      console.warn("ChatScreen: Thiếu socket hoặc userId", { socket, currentUserId });
+    if (!socket || !userId) {
+      console.warn("ChatScreen: Thiếu socket hoặc userId", { socket, userId });
       return;
     }
+
+
+    setCurrentUserId(userId);
 
     console.log("ChatScreen: Đăng ký lắng nghe socket events", { socketId: socket.id });
 
     const handleConversations = async (conversations) => {
       console.log("ChatScreen: Nhận conversations:", conversations);
 
+      // Nhi thêm: Lọc các conversation hợp lệ
       const validConversations = conversations.filter(validateConversation);
 
+      // Nhi thêm: Tham gia các phòng chưa join
       validConversations.forEach((conversation) => {
         if (!joinedRoomsRef.current.has(conversation._id)) {
           console.log("ChatScreen: Tham gia phòng", conversation._id);
@@ -139,6 +148,10 @@ const ChatScreen = ({ navigation, route }) => {
 
       const profiles = await Promise.all(
         otherParticipantIds.map(async (userId) => {
+          // Nhi thêm: Kiểm tra userCache trước
+          if (userCache[userId]) {
+            return userCache[userId];
+          }
           try {
             const response = await Api_Profile.getProfile(userId);
             const userData = response?.data?.user || {};
@@ -212,11 +225,13 @@ const ChatScreen = ({ navigation, route }) => {
       });
     };
 
+    // Nhi thêm: Xử lý nhóm mới
     const handleNewGroupConversation = (newConversation) => {
       console.log("ChatScreen: Nhóm mới từ socket:", newConversation);
       addNewGroup(newConversation);
     };
 
+    // Nhi thêm: Xử lý rời nhóm
     const handleGroupLeft = (data) => {
       console.log("ChatScreen: Nhận groupLeft:", data);
       setMessages((prevMessages) =>
@@ -225,6 +240,7 @@ const ChatScreen = ({ navigation, route }) => {
       dispatch(setSelectedMessage(null));
     };
 
+    // Nhi thêm: Xử lý xóa cuộc trò chuyện
     const handleConversationRemoved = (data) => {
       console.log("ChatScreen: Cuộc trò chuyện đã bị xóa:", data);
       setMessages((prev) =>
@@ -233,6 +249,7 @@ const ChatScreen = ({ navigation, route }) => {
       dispatch(setSelectedMessage(null));
     };
 
+    // Nhi thêm: Xử lý cập nhật thông tin trò chuyện
     const handleChatInfoUpdated = (updatedInfo) => {
       console.log("ChatScreen: Nhận cập nhật chatInfo:", updatedInfo);
       if (!validateConversation(updatedInfo)) {
@@ -265,6 +282,7 @@ const ChatScreen = ({ navigation, route }) => {
       });
     };
 
+    // Nhi thêm: Xử lý xóa toàn bộ lịch sử trò chuyện
     const handleDeleteAllChatHistory = ({ conversationId, deletedBy }) => {
       console.log("ChatScreen: Nhận deleteAllChatHistory", {
         conversationId,
@@ -288,6 +306,7 @@ const ChatScreen = ({ navigation, route }) => {
       }
     };
 
+    // Nhi thêm: Làm mới khi màn hình focus
     const unsubscribe = navigation.addListener('focus', () => {
       const refresh = route?.params?.refresh;
       if (refresh) {
@@ -298,26 +317,27 @@ const ChatScreen = ({ navigation, route }) => {
 
     const cleanupLoad = loadAndListenConversations(socket, handleConversations);
     onConversationUpdate(socket, handleConversationUpdate);
-    onChatInfoUpdated(socket, handleChatInfoUpdated);
-    socket.on("newGroupConversation", handleNewGroupConversation);
-    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
-    onConversationRemoved(socket, handleConversationRemoved);
-    onGroupLeft(socket, handleGroupLeft);
+    onChatInfoUpdated(socket, handleChatInfoUpdated); // Nhi thêm
+    socket.on("newGroupConversation", handleNewGroupConversation); // Nhi thêm
+    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory); // Nhi thêm
+    onConversationRemoved(socket, handleConversationRemoved); // Nhi thêm
+    onGroupLeft(socket, handleGroupLeft); // Nhi thêm
 
     return () => {
       console.log("ChatScreen: Gỡ sự kiện socket");
       cleanupLoad();
       offConversationUpdate(socket);
-      offChatInfoUpdated(socket);
-      socket.off("newGroupConversation", handleNewGroupConversation);
-      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
-      offConversationRemoved(socket);
-      offGroupLeft(socket);
-      unsubscribe();
+      offChatInfoUpdated(socket); // Nhi thêm
+      socket.off("newGroupConversation", handleNewGroupConversation); // Nhi thêm
+      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory); // Nhi thêm
+      offConversationRemoved(socket); // Nhi thêm
+      offGroupLeft(socket); // Nhi thêm
+      unsubscribe(); // Nhi thêm
     };
-  }, [socket, currentUserId, dispatch, navigation, route]);
+  }, [socket, userId, dispatch, navigation, route]);
 
   const handlePress = (item) => {
+    // Nhi thêm: Kiểm tra my-cloud
     if (item.id === "my-cloud") {
       console.log("ChatScreen: Chọn Cloud của tôi");
       return;
@@ -325,7 +345,7 @@ const ChatScreen = ({ navigation, route }) => {
 
     console.log(`ChatScreen: Chọn conversation: ${item.id}`);
     joinConversation(socket, item.id);
-    joinedRoomsRef.current.add(item.id);
+    joinedRoomsRef.current.add(item.id); // Nhi thêm
     dispatch(setSelectedMessage(item));
     console.log("ChatScreen: Selected message:", item);
 
@@ -345,7 +365,7 @@ const ChatScreen = ({ navigation, route }) => {
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <FlatList
-        data={[myCloudItem, ...messages]}
+        data={[myCloudItem, ...messages]} // Nhi thêm: Thêm myCloudItem ??? này hình như không cần thiết
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View>
@@ -354,6 +374,7 @@ const ChatScreen = ({ navigation, route }) => {
           </View>
         }
         renderItem={({ item }) => {
+          // Nhi thêm: Render đặc biệt cho my-cloud // 1 trong 2 cái bị dư 
           if (item.id === "my-cloud") {
             return (
               <ChatItems
@@ -392,5 +413,11 @@ const ChatScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  backIcon: {
+    marginTop: 20,
+    marginLeft: 20,
+  },
+});
+
 export default ChatScreen;
