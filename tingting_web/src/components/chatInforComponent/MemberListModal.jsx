@@ -1,10 +1,11 @@
-// Path: src/components/chatInforComponent/MemberListModal.js
+// src/components/chatInforComponent/MemberListModal.js
 import React, { useEffect, useState } from "react";
 import Modal from "react-modal";
 import { Api_Profile } from "../../../apis/api_profile";
 import { removeParticipant, onError } from "../../services/sockets/events/chatInfo";
 import { onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
 import { FaTrash } from "react-icons/fa";
+import { toast } from "react-toastify";
 
 const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onMemberRemoved }) => {
   const [memberDetails, setMemberDetails] = useState({});
@@ -70,42 +71,42 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
   }, [isOpen, chatInfo]);
 
   const handleRemoveMember = async (memberIdToRemove) => {
+    if (!socket) {
+      toast.error("Socket chưa kết nối, không thể xóa thành viên!");
+      return;
+    }
+
     if (isAdmin && currentUserId !== memberIdToRemove) {
       const confirmRemove = window.confirm(`Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?`);
       if (confirmRemove) {
         try {
           removeParticipant(socket, { conversationId: chatInfo._id, userId: memberIdToRemove }, (response) => {
             if (response.success) {
+              console.log(`MemberListModal: Đã xóa thành viên ${memberIdToRemove} khỏi nhóm ${chatInfo._id}`);
+              toast.success("Đã xóa thành viên khỏi nhóm!");
               if (onMemberRemoved) {
                 onMemberRemoved(memberIdToRemove);
               }
             } else {
-              alert("Lỗi khi xóa thành viên: " + response.message);
+              console.error("MemberListModal: Lỗi khi xóa thành viên:", response.message);
+              toast.error("Lỗi khi xóa thành viên: " + response.message);
             }
           });
 
-          // Lắng nghe cập nhật cuộc trò chuyện
-          onConversationUpdate(socket, (data) => {
-            if (data.conversationId === chatInfo._id) {
-              if (onMemberRemoved) {
-                onMemberRemoved(memberIdToRemove);
-              }
-            }
-          });
-
-          // Lắng nghe lỗi
+          // Lắng nghe lỗi từ server
           onError(socket, (error) => {
-            alert("Lỗi khi xóa thành viên: " + error.message);
+            console.error("MemberListModal: Lỗi từ server:", error);
+            toast.error("Lỗi khi xóa thành viên: " + error.message);
           });
         } catch (error) {
-          console.error("Lỗi khi xóa thành viên:", error);
-          alert("Lỗi khi xóa thành viên. Vui lòng thử lại.");
+          console.error("MemberListModal: Lỗi khi xóa thành viên:", error);
+          toast.error("Lỗi khi xóa thành viên. Vui lòng thử lại.");
         }
       }
     } else if (currentUserId === memberIdToRemove) {
-      alert("Bạn không thể tự xóa mình khỏi đây. Hãy rời nhóm từ trang thông tin nhóm.");
+      toast.error("Bạn không thể tự xóa mình khỏi đây. Hãy rời nhóm từ trang thông tin nhóm.");
     } else {
-      alert("Bạn không có quyền xóa thành viên khỏi nhóm này.");
+      toast.error("Bạn không có quyền xóa thành viên khỏi nhóm này.");
     }
   };
 

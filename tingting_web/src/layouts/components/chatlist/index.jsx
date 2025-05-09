@@ -350,10 +350,20 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     };
 
     // Nhi thêm: Xử lý xóa hội thoại
-    const handleConversationRemoved = (data) => {
-      console.log("ChatList: Hội thoại bị xóa:", data);
-      setMessages((prev) => prev.filter((msg) => msg.id !== data.conversationId));
+   const handleConversationRemoved = (data) => {
+      console.log("ChatList: Nhận sự kiện conversationRemoved:", data);
+      setMessages((prev) => {
+        const updatedMessages = prev.filter((msg) => msg.id !== data.conversationId);
+        console.log(`ChatList: Xóa hội thoại ${data.conversationId} khỏi danh sách`);
+        return updatedMessages;
+      });
       dispatch(setSelectedMessage(null));
+      // Bỏ tham gia phòng socket
+      if (joinedRoomsRef.current.has(data.conversationId)) {
+        joinedRoomsRef.current.delete(data.conversationId);
+        socket.emit("leaveConversation", { conversationId: data.conversationId });
+        console.log(`ChatList: Rời phòng ${data.conversationId}`);
+      }
     };
 
     // Nhi thêm: Xử lý cập nhật thông tin chat
