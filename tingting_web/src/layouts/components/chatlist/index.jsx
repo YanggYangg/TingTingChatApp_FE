@@ -28,10 +28,6 @@ import {
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 import { Api_Profile } from "../../../../apis/api_profile";
 import SibarContact from "../contact-form/SideBarContact/SideBarContact";
-import GroupList from "../contact-form/GroupList";
-import FriendRequests from "../contact-form/FriendRequests";
-import GroupInvites from "../contact-form/GroupInvites";
-import ContactList from "../contact-form/ContactList";
 import { toast } from "react-toastify";
 
 const cx = classNames.bind(styles);
@@ -138,6 +134,15 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
   const handlePinVerified = () => {
     if (selectedConversation) {
       console.log(`ChatList: Xác thực PIN thành công, chọn hội thoại: ${selectedConversation.id}`);
+      // Cập nhật messages để đảm bảo hội thoại không còn bị ẩn
+      setMessages((prevMessages) => {
+        const updatedMessages = prevMessages.map((msg) =>
+          msg.id === selectedConversation.id
+            ? { ...msg, isHidden: false }
+            : msg
+        );
+        return sortMessages(updatedMessages);
+      });
       proceedWithMessageSelection(selectedConversation);
     }
     setIsPinModalOpen(false);

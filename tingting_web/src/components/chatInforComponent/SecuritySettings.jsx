@@ -29,7 +29,9 @@ const SecuritySettings = ({
   setUserRoleInGroup,
   chatInfo,
 }) => {
-  const [isHidden, setIsHidden] = useState(false);
+  const [isHidden, setIsHidden] = useState(
+    chatInfo?.participants?.find((p) => p.userId === userId)?.isHidden || false
+  );
   const [pin, setPin] = useState("");
   const [showPinInput, setShowPinInput] = useState(false);
   const [isGroup, setIsGroup] = useState(false);
@@ -55,7 +57,6 @@ const SecuritySettings = ({
           const data = response.data;
           setIsGroup(data.isGroup);
           const participant = data.participants.find((p) => p.userId === userId);
-          setIsHidden(participant?.isHidden || false);
           setUserRoleInGroup(participant?.role || null);
 
           // Lấy thông tin thành viên
@@ -112,23 +113,30 @@ const SecuritySettings = ({
       console.log("SecuritySettings: Nhận onChatInfo", data);
       setIsGroup(data.isGroup);
       const participant = data.participants.find((p) => p.userId === userId);
-      setIsHidden(participant?.isHidden || false);
       setUserRoleInGroup(participant?.role || null);
       setChatInfo(data);
       dispatch(setChatInfoUpdate(data));
+      // Không cập nhật isHidden để giữ trạng thái ban đầu
     });
 
     onChatInfoUpdated(socket, (updatedInfo) => {
       console.log("SecuritySettings: Nhận onChatInfoUpdated", updatedInfo);
       if (updatedInfo._id !== conversationId) return;
 
+      const participant = updatedInfo.participants.find((p) => p.userId === userId);
+      // Chỉ cập nhật isHidden nếu sự kiện liên quan đến xác thực PIN (isHidden thay đổi)
+      if (participant && participant.isHidden !== isHidden) {
+        setIsHidden(participant.isHidden);
+        console.log("SecuritySettings: Cập nhật isHidden từ sự kiện xác thực PIN", {
+          isHidden: participant.isHidden,
+        });
+      }
+
       setChatInfo((prev) => ({
         ...prev,
         ...updatedInfo,
         participants: updatedInfo.participants || prev.participants,
       }));
-      const participant = updatedInfo.participants.find((p) => p.userId === userId);
-      setIsHidden(participant?.isHidden || false);
       setUserRoleInGroup(participant?.role || null);
       setIsGroup(updatedInfo.isGroup);
 
@@ -167,7 +175,7 @@ const SecuritySettings = ({
       offChatInfoUpdated(socket);
       offError(socket);
     };
-  }, [socket, conversationId, userId, fetchChatInfo, setChatInfo, setUserRoleInGroup, dispatch]);
+  }, [socket, conversationId, userId, fetchChatInfo, setChatInfo, setUserRoleInGroup, dispatch, isHidden]);
 
   // Xử lý ẩn/hiện trò chuyện
   const handleToggle = useCallback(
@@ -180,7 +188,6 @@ const SecuritySettings = ({
     },
     [isHidden]
   );
-
 
   const handleHideChat = useCallback(
     async (hide, pin) => {
@@ -199,12 +206,20 @@ const SecuritySettings = ({
             setPin("");
             toast.success(hide ? "Đã ẩn trò chuyện!" : "Đã hiện trò chuyện!");
             // Cập nhật chatInfo để đồng bộ với ChatList
-            dispatch(setChatInfoUpdate({
-              ...chatInfo,
-              participants: chatInfo.participants.map((p) =>
+            setChatInfo((prev) => ({
+              ...prev,
+              participants: prev.participants.map((p) =>
                 p.userId === userId ? { ...p, isHidden: hide, pin: hide ? pin : null } : p
               ),
             }));
+            dispatch(
+              setChatInfoUpdate({
+                ...chatInfo,
+                participants: chatInfo.participants.map((p) =>
+                  p.userId === userId ? { ...p, isHidden: hide, pin: hide ? pin : null } : p
+                ),
+              })
+            );
           } else {
             toast.error(`Lỗi khi ${hide ? "ẩn" : "hiện"} trò chuyện: ${response.message}`);
           }
@@ -218,7 +233,6 @@ const SecuritySettings = ({
     },
     [socket, conversationId, isProcessing, chatInfo, dispatch, userId]
   );
-
 
   const handleSubmitPin = useCallback(() => {
     if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
@@ -292,10 +306,12 @@ const SecuritySettings = ({
             ...prev,
             participants: prev.participants.filter((p) => p.userId !== userId),
           }));
-          dispatch(setChatInfoUpdate({
-            ...chatInfo,
-            participants: chatInfo.participants.filter((p) => p.userId !== userId),
-          }));
+          dispatch(
+            setChatInfoUpdate({
+              ...chatInfo,
+              participants: chatInfo.participants.filter((p) => p.userId !== userId),
+            })
+          );
         } else {
           toast.error("Lỗi khi rời nhóm: " + response.message);
         }
@@ -350,10 +366,12 @@ const SecuritySettings = ({
             ...prev,
             participants: prev.participants.filter((p) => p.userId !== userId),
           }));
-          dispatch(setChatInfoUpdate({
-            ...chatInfo,
-            participants: chatInfo.participants.filter((p) => p.userId !== userId),
-          }));
+          dispatch(
+            setChatInfoUpdate({
+              ...chatInfo,
+              participants: chatInfo.participants.filter((p) => p.userId !== userId),
+            })
+          );
         } else {
           toast.error("Lỗi khi rời nhóm: " + response.message);
         }
@@ -449,11 +467,11 @@ const SecuritySettings = ({
   }, []);
 
   return (
- <div className="p-4 bg-white rounded-lg shadow-md">
-     <h2 className="text-lg font-semibold mb-4 flex items-center">
-             <FaUserShield className="mr-2" /> Cài đặt bảo mật
-           </h2>
- {/* Ẩn trò chuyện */}
+    <div className="p-4 bg-white rounded-lg shadow-md">
+      <h2 className="text-lg font-semibold mb-4 flex items-center">
+        <FaUserShield className="mr-2" /> Cài đặt bảo mật
+      </h2>
+      {/* Ẩn trò chuyện */}
       <div className="mb-4">
         <div className="flex items-center justify-between">
           <span className="text-gray-700">Ẩn trò chuyện</span>
@@ -550,7 +568,7 @@ const SecuritySettings = ({
       )}
 
       {showTransferAdminModal && (
-        <div className="fixed inset-0 flex items-center justify-center ">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">
               {isLeaving ? "Chuyển quyền trước khi rời nhóm" : "Chuyển quyền trưởng nhóm"}
@@ -604,7 +622,7 @@ const SecuritySettings = ({
       )}
 
       {showDisbandConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center ">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận giải tán nhóm</h2>
             <p className="mb-4">
@@ -631,7 +649,7 @@ const SecuritySettings = ({
       )}
 
       {showLeaveConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center ">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận rời nhóm</h2>
             <p className="mb-4">

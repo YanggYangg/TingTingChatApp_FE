@@ -4,6 +4,7 @@ const PinVerificationModal = ({ isOpen, onClose, conversationId, userId, socket,
   const [pin, setPin] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Xử lý xác thực mã PIN
   const handleVerifyPin = () => {
     if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
       alert("Mã PIN phải là 4 chữ số!");
@@ -16,9 +17,16 @@ const PinVerificationModal = ({ isOpen, onClose, conversationId, userId, socket,
       setIsProcessing(false);
       if (response.success) {
         alert("Xác thực PIN thành công!");
+        // Cập nhật trạng thái isHidden thành false
+        socket.emit("updateChatInfo", {
+          conversationId,
+          userId,
+          
+        });
         onVerified();
       } else {
         alert(response.message || "Mã PIN không đúng!");
+        setPin("");
       }
     });
   };
