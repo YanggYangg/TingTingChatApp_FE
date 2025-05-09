@@ -41,6 +41,7 @@ function ChatPage() {
     avatar: "https://picsum.photos/200",
     members: 0,
     lastActive: 6,
+    type: "personal"
   });
 
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
@@ -109,11 +110,13 @@ function ChatPage() {
       let avatar = "https://picsum.photos/200";
       let members = 0;
       let lastActive = 6;
+      let type = "personal";
 
       if (selectedMessage.isGroup && selectedMessage.name) {
         name = selectedMessage.name;
         avatar = selectedMessage.imageGroup || avatar;
         members = selectedMessage.participants?.length || 0;
+        type = "group";
       } else if (selectedMessage.participants) {
         const otherParticipant = selectedMessage.participants.find(
           (p) => p.userId !== currentUserId
@@ -124,7 +127,7 @@ function ChatPage() {
           avatar = userInfo.avatar;
         }
       }
-      setChatDetails({ name, avatar, members, lastActive });
+      setChatDetails({ name, avatar, members, lastActive, type });
     };
     fetchChatDetails();
   }, [selectedMessage, currentUserId]);
@@ -683,29 +686,38 @@ function ChatPage() {
                         msg.conversationId === selectedMessageId &&
                         !msg.deletedBy?.includes(currentUserId)
                     )
-                    .map((msg) => (
-                      <MessageItem
-                        key={msg._id}
-                        msg={{
-                          ...msg,
-                          sender:
-                            msg.userId === currentUserId
-                              ? "Bạn"
-                              : userCache[msg.userId]?.name || "Unknown",
-                          time: formatTime(msg.createdAt),
-                          messageType: msg.messageType || "text",
-                          content: msg.content || "",
-                          linkURL: msg.linkURL || "",
-                          userId: msg.userId,
-                        }}
-                        currentUserId={currentUserId}
-                        onReply={handleReply}
-                        onForward={handleForward}
-                        onRevoke={handleRevoke}
-                        onDelete={handleDelete}
-                        messages={messages}
-                      />
-                    ))}
+                    .map((msg, index, filteredMessages) => {
+                      // Kiểm tra xem tin nhắn hiện tại có phải là tin nhắn cuối cùng của cuộc trò chuyện không
+                      const isLastMessageInConversation = index === filteredMessages.length - 1;
+                      // Kiểm tra xem tin nhắn cuối cùng có phải của người dùng hiện tại không
+                      const isLastMessageFromCurrentUser = isLastMessageInConversation && msg.userId === currentUserId;
+
+                      return (
+                        <MessageItem
+                          key={msg._id}
+                          msg={{
+                            ...msg,
+                            sender:
+                              msg.userId === currentUserId
+                                ? "Bạn"
+                                : userCache[msg.userId]?.name || "Unknown",
+                            time: formatTime(msg.createdAt),
+                            messageType: msg.messageType || "text",
+                            content: msg.content || "",
+                            linkURL: msg.linkURL || "",
+                            userId: msg.userId,
+                          }}
+                          currentUserId={currentUserId}
+                          onReply={handleReply}
+                          onForward={handleForward}
+                          onRevoke={handleRevoke}
+                          onDelete={handleDelete}
+                          messages={messages}
+                          isLastMessage={isLastMessageFromCurrentUser}
+                          readBy={msg.readBy || []}
+                        />
+                      );
+                    })}
                   <div ref={messagesEndRef} />
                 </div>
                 {typingUsers.length > 0 && (
