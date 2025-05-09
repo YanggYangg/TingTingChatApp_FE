@@ -61,6 +61,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
   };
 
   // Nhi thêm: Xử lý kết nối socket
+  // [Thêm mới] Gửi userId khi kết nối socket để server liên kết socket với người dùng
   useEffect(() => {
     if (!socket) {
       setIsSocketConnected(false);
@@ -70,6 +71,10 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     const handleConnect = () => {
       console.log("ChatList: Socket đã kết nối", { socketId: socket.id });
       setIsSocketConnected(true);
+      // Gửi userId để server biết socket này thuộc người dùng nào
+      socket.emit("registerUser", { userId: currentUserId });
+      console.log(`ChatList: Đăng ký userId ${currentUserId} với socket`);
+      // Tham gia lại các phòng không bị ẩn
       joinedRoomsRef.current.forEach((conversationId) => {
         joinConversation(socket, conversationId);
         console.log(`ChatList: Tham gia lại phòng khi reconnect: ${conversationId}`);
@@ -85,14 +90,14 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     socket.on("disconnect", handleDisconnect);
 
     if (socket.connected) {
-      setIsSocketConnected(true);
+      handleConnect();
     }
 
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
     };
-  }, [socket]);
+  }, [socket, currentUserId]);
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
@@ -111,7 +116,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
   };
 
   // Nhi thêm: Kiểm tra giới hạn ghim hội thoại
-  const checkPinneddontLimit = () => {
+  const checkPinnedLimit = () => {
     const pinnedCount = messages.filter((msg) => msg.isPinned && !msg.isCloud).length;
     return pinnedCount >= 5;
   };
