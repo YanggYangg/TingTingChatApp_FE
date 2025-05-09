@@ -27,10 +27,10 @@ import {
 import { transformConversationsToMessages } from "../../../utils/conversationTransformer";
 import { Api_Profile } from "../../../../apis/api_profile";
 import SibarContact from "../contact-form/SideBarContact/SideBarContact";
-import GroupList from "../contact-form/GroupList"; 
-import FriendRequests from "../contact-form/FriendRequests"; 
-import GroupInvites from "../contact-form/GroupInvites"; 
-import ContactList from "../contact-form/ContactList"; 
+import GroupList from "../contact-form/GroupList";
+import FriendRequests from "../contact-form/FriendRequests";
+import GroupInvites from "../contact-form/GroupInvites";
+import ContactList from "../contact-form/ContactList";
 import { toast } from "react-toastify"; // Nhi thêm
 
 const cx = classNames.bind(styles);
@@ -350,7 +350,8 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     };
 
     // Nhi thêm: Xử lý xóa hội thoại
-   const handleConversationRemoved = (data) => {
+    // [Đã chỉnh sửa] Thêm toast thông báo khi bị xóa khỏi nhóm và đảm bảo rời phòng socket
+    const handleConversationRemoved = (data) => {
       console.log("ChatList: Nhận sự kiện conversationRemoved:", data);
       setMessages((prev) => {
         const updatedMessages = prev.filter((msg) => msg.id !== data.conversationId);
@@ -364,9 +365,12 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
         socket.emit("leaveConversation", { conversationId: data.conversationId });
         console.log(`ChatList: Rời phòng ${data.conversationId}`);
       }
+      // [Thêm mới] Hiển thị thông báo khi bị xóa khỏi nhóm
+      toast.info("Bạn đã bị xóa khỏi nhóm!");
     };
 
     // Nhi thêm: Xử lý cập nhật thông tin chat
+    // [Đã chỉnh sửa] Thêm logic rời phòng socket khi người dùng không còn trong nhóm
     const handleChatInfoUpdated = (updatedInfo) => {
       console.log("ChatList: Nhận sự kiện chatInfoUpdated:", updatedInfo);
       if (!updatedInfo.participants.some((p) => p.userId === currentUserId)) {
@@ -375,6 +379,12 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
           prevMessages.filter((msg) => msg.id !== updatedInfo._id)
         );
         dispatch(setSelectedMessage(null));
+        // [Thêm mới] Rời phòng socket nếu không còn là thành viên
+        if (joinedRoomsRef.current.has(updatedInfo._id)) {
+          socket.emit("leaveConversation", { conversationId: updatedInfo._id });
+          joinedRoomsRef.current.delete(updatedInfo._id);
+          console.log(`ChatList: Rời phòng ${updatedInfo._id}`);
+        }
         return;
       }
 
@@ -400,12 +410,23 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
       });
     };
 
+    // [Thêm mới] Đảm bảo tham gia lại các phòng khi socket reconnect
+    const handleConnect = () => {
+      console.log("ChatList: Socket đã kết nối, tham gia lại các phòng");
+      joinedRoomsRef.current.forEach((conversationId) => {
+        joinConversation(socket, conversationId);
+        console.log(`ChatList: Tham gia lại phòng: ${conversationId}`);
+      });
+    };
+
     const cleanupLoad = loadAndListenConversations(socket, handleConversations);
     onConversationUpdate(socket, handleConversationUpdate);
     onChatInfoUpdated(socket, handleChatInfoUpdated); // Nhi thêm
     socket.on("newGroupConversation", handleNewGroupConversation); // Nhi thêm
     onConversationRemoved(socket, handleConversationRemoved); // Nhi thêm
     onGroupLeft(socket, handleGroupLeft); // Nhi thêm
+    // [Thêm mới] Lắng nghe sự kiện connect để tham gia lại phòng
+    socket.on("connect", handleConnect);
 
     return () => {
       console.log("ChatList: Dọn dẹp sự kiện socket"); // Nhi thêm
@@ -415,6 +436,8 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
       socket.off("newGroupConversation", handleNewGroupConversation); // Nhi thêm
       offConversationRemoved(socket); // Nhi thêm
       offGroupLeft(socket); // Nhi thêm
+      // [Thêm mới] Gỡ bỏ lắng nghe sự kiện connect
+      socket.off("connect", handleConnect);
     };
   }, [socket, currentUserId, dispatch]);
 
@@ -428,6 +451,12 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
           prevMessages.filter((msg) => msg.id !== chatInfoUpdate._id)
         );
         dispatch(setSelectedMessage(null));
+        // [Thêm mới] Rời phòng socket nếu không còn là thành viên
+        if (joinedRoomsRef.current.has(chatInfoUpdate._id)) {
+          socket.emit("leaveConversation", { conversationId: chatInfoUpdate._id });
+          joinedRoomsRef.current.delete(chatInfoUpdate._id);
+          console.log(`ChatList: Rời phòng ${chatInfoUpdate._id}`);
+        }
         return;
       }
 
@@ -444,7 +473,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
               isPinned: participant.isPinned || false,
               mute: participant.mute || false,
             };
-            console.log("ChatList: Cập nhật message từ Redux (chatInfoUpdate):", updatedMsg);
+            console.log("ChatList: Cập nhật message từ(). Redux (chatInfoUpdate):", updatedMsg);
             return updatedMsg;
           }
           return msg;
