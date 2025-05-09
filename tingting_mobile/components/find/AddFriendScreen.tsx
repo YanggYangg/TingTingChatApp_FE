@@ -1,131 +1,70 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  Image
+  Image,
+  Alert
 } from "react-native";
 import { Ionicons, MaterialIcons, Entypo } from "@expo/vector-icons";
+import { Api_Profile } from "@/apis/api_profile";
+import { Api_FriendRequest } from "@/apis/api_friendRequest";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AddFriendScreen = ({ navigation }) => {
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phone, setPhone] = useState('');
   const [searchResult, setSearchResult] = useState(null);
-  const [relationshipStatus, setRelationshipStatus] = useState(null);
-
-    // Dữ liệu giả định người dùng hiện tại
-  const currentUserId = "me123";
-
-  // Dữ liệu giả định người dùng tìm thấy
-  const dummyUser = {
-    _id: "123abc",
-    name: "Nguyễn Văn A",
-    phone: "912345678",
-    avatar: "https://i.pravatar.cc/100?img=5",
-  };
-
-  // Các trạng thái mối quan hệ có thể:
-  const STATUS = {
-    NOT_FRIEND: "NOT_FRIEND",
-    REQUEST_SENT: "REQUEST_SENT",
-    REQUEST_RECEIVED: "REQUEST_RECEIVED",
-    FRIEND: "FRIEND",
-  };
-
-  const handleSearch = () => {
-    if (phoneNumber === dummyUser.phone) {
-      setSearchResult(dummyUser);
-
-      // 👉 Giả lập logic quan hệ (đổi lại cho đúng app thật):
-      // Ví dụ:
-      // setRelationshipStatus(STATUS.NOT_FRIEND);
-      // setRelationshipStatus(STATUS.REQUEST_SENT);
-      setRelationshipStatus(STATUS.REQUEST_RECEIVED);
-       //setRelationshipStatus(STATUS.FRIEND);
-
-      //setRelationshipStatus(STATUS.NOT_FRIEND);
-    } else {
-      setSearchResult(null);
-      setRelationshipStatus(null);
-    }
-  };
-
-  const handleAddFriend = () => {
-    setRelationshipStatus(STATUS.REQUEST_SENT);
-  };
-
-  const handleCancelRequest = () => {
-    setRelationshipStatus(STATUS.NOT_FRIEND);
-  };
-
-  const handleAcceptRequest = () => {
-    setRelationshipStatus(STATUS.FRIEND);
-  };
-
-  const handleRejectRequest = () => {
-    setRelationshipStatus(STATUS.NOT_FRIEND);
-  };
-
+  const [status, setStatus] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
   
-  const renderActionButtons = () => {
-    switch (relationshipStatus) {
-      case STATUS.NOT_FRIEND:
-        return (
-          <TouchableOpacity style={styles.addButton} onPress={handleAddFriend}>
-            <Text style={styles.addButtonText}>Kết bạn</Text>
-          </TouchableOpacity>
-        );
-      case STATUS.REQUEST_SENT:
-        return (
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: "#ccc" }]}
-            onPress={handleCancelRequest}
-          >
-            <Text style={[styles.addButtonText, { color: "#000" }]}>
-              Thu hồi
-            </Text>
-          </TouchableOpacity>
-        );
-      case STATUS.REQUEST_RECEIVED:
-        return (
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: "#4CD964" }]}
-              onPress={handleAcceptRequest}
-            >
-              <Text style={styles.addButtonText}>Chấp nhận</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: "#FF3B30" }]}
-              onPress={handleRejectRequest}
-            >
-              <Text style={styles.addButtonText}>Từ chối</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      case STATUS.FRIEND:
-        return (
-          <View
-            style={{
-              paddingVertical: 6,
-              paddingHorizontal: 12,
-              borderRadius: 6,
-              backgroundColor: "#ddd",
-            }}
-          >
-            <Text style={{ fontWeight: "500", color: "#555" }}>
-              Đã là bạn bè
-            </Text>
-          </View>
-        );
-      default:
-        return null;
+    // Lấy userId hiện tại từ AsyncStorage
+    useEffect(() => {
+      const fetchUserId = async () => {
+        try {
+          const id = await AsyncStorage.getItem("userId");
+          setUserId(id);
+        } catch (error) {
+          console.log("Lỗi lấy userId từ AsyncStorage:", error);
+        }
+      };
+      fetchUserId();
+    }, []);
+
+  const handleSearch = async () => {
+    if(!userId) {
+      Alert.alert("Không tìm thấy userId hiện tại");
+      return;
     }
-  };
 
+    try{
+      const res = await Api_Profile.getProfiles();
+      const allUsers = res.data.users;
 
-  return (
+      const foundUser =  allUsers.find((u: { phone: string; }) => u.phone === phone);
+
+      if(!foundUser) {
+        Alert.alert("Không tìm thấy người dùng ");
+        setSearchResult(null);
+        return;
+      }
+
+      setSearchResult(foundUser);
+
+      const statusRes = await Api_FriendRequest.checkFriendStatus(
+        {
+          userIdA: userId,
+          userIdB: foundUser._id,
+        }
+      );
+      setStatus(statusRes.data);
+    }catch (err) {
+      console.error("Lỗi tìm kiếm", err);
+    }
+  }
+
+return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -142,8 +81,8 @@ const AddFriendScreen = ({ navigation }) => {
           style={styles.input}
           placeholder="Nhập số điện thoại"
           keyboardType="number-pad"
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
+          value={phone}
+          onChangeText={setPhone}
         />
         <TouchableOpacity onPress={handleSearch}>
           <Ionicons name="arrow-forward-circle" size={28} color="#007AFF" />
@@ -158,10 +97,10 @@ const AddFriendScreen = ({ navigation }) => {
             style={styles.avatar}
           />
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{searchResult.name}</Text>
+            <Text style={styles.name}>{searchResult.firstname} {searchResult.surname}</Text>
             <Text style={styles.phone}>+84 {searchResult.phone}</Text>
+            <Text style={styles.status}>Trạng thái: {status}</Text>
           </View>
-          {renderActionButtons()}
         </View>
       )}
 

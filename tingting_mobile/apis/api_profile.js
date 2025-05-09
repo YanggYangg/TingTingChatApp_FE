@@ -67,4 +67,7 @@ export const Api_Profile = {
   uploadImage: async () => {
     return ApiManager.post("api/v1/profile/upload");
   },
+  getProfiles: async () => {
+    return ApiManager.get("api/v1/profile");
+  }
 };

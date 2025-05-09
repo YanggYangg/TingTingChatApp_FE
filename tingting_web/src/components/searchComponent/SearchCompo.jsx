@@ -30,9 +30,6 @@ function Search() {
   }, []);
 
 
-
-
-
   //Modal bb
   const toggleFriendsModal = () => {
     setIsModalFriendsOpen(!isModalFriendsOpen);
