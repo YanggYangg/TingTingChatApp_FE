@@ -28,11 +28,42 @@ import { CloudSocketProvider } from "./contexts/CloudSocketContext";
 import { CallManagerProvider } from "./contexts/CallManagerContext";
 import CallModal from "./components/Call/CallModal";
 
+//Notifications
+import { generateToken, messaging  } from "./notifications/firebase";
+import { useEffect } from "react";
+import { onMessage } from "firebase/messaging";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
+import FCMHandler from "./utils/FCMHandler";
+
 function App() {
+  
   // const userId = "6601a1b2c3d4e5f678901234";
   // console.log("Using userId:", userId);
   // const userId = localStorage.getItem("userId");
   // console.log("Using userIdddddđ:", userId);
+
+  // useEffect(() => {
+  //   const userId = localStorage.getItem("userId");
+  //   console.log("Using userId with FCM:", userId);
+  //   //generateToken();
+  //   if (userId) {
+  //     generateToken(userId);
+  //     console.log("Token generated and sent to backend");
+  //   }
+
+  //   onMessage(messaging, (payload) => {
+  //     console.log("PAYLOAD", payload);
+
+  //     const { title, body } = payload?.notification || {};
+  //     toast.info(`${title}: ${body}`, {
+  //       position: "top-right",
+  //       autoClose: 3000,
+  //     });
+  //   })
+  // }, []);
+  // const userId = localStorage.getItem("userId");
 
   return (
     <Provider store={store}>
@@ -40,6 +71,7 @@ function App() {
         <CloudSocketProvider>
           <CallManagerProvider>
             <Router>
+            <FCMHandler />
               <Routes>
                 <Route path="/" element={<DefaultLayout />}>
                   <Route index element={<h1>Chat window</h1>} />
@@ -71,6 +103,7 @@ function App() {
                 })}
               </Routes>
               <CallModal />
+              <ToastContainer position="top-right" autoClose={3000} />
             </Router>
           </CallManagerProvider>
         </CloudSocketProvider>

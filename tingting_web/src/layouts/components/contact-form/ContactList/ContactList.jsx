@@ -4,64 +4,90 @@ import { faUser } from "@fortawesome/free-solid-svg-icons";
 import { ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import ContactItem from "../ContactItem";
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { selectConversation, setSelectedMessage } from '../../../../redux/slices/chatSlice.js'; 
 // import ContactItem from "@/components/ContactItem";
 
 import Search from "../Search";
 import { Api_FriendRequest } from "../../../../../apis/api_friendRequest.js";
+import { Api_Conversation } from "../../../../../apis/Api_Conversation.js";
 
 const ContactList = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredFriends, setFilteredFriends] = useState([]);
   const [groupedFriends, setGroupedFriends] = useState({});
+  
   const [menuOpenId, setMenuOpenId] = useState(null); // Quản lý menu đang mở
 
   const [allFriends, setAllFriends] = useState([]);
+  const [sortOrder, setSortOrder] = useState("asc"); // 'asc' hoặc 'desc'
 
-
-    const fetchFriends = async () => {
-      try {
-        const userId = localStorage.getItem("userId"); // thay bằng userId thật
-        const response = await Api_FriendRequest.getFriendsList(userId);
-        console.log("====Danh sach ban be====", response);
-        if (response?.data) {
-          setAllFriends(response.data); // giả sử response.data là mảng friend
-        }
-      } catch (error) {
-        console.error("Error fetching friends:", error);
+  const fetchFriends = async () => {
+    try {
+      const userId = localStorage.getItem("userId");
+      const response = await Api_FriendRequest.getFriendsList(userId);
+      console.log("====Danh sach ban be====", response);
+      if (response?.data) {
+        setAllFriends(response.data); // giả sử response.data là mảng friend
       }
-    };
-    useEffect(() => {
+    } catch (error) {
+      console.error("Error fetching friends:", error);
+    }
+  };
+
+  useEffect(() => {
     fetchFriends();
   }, []);
 
   console.log("filtered", allFriends);
 
-
-  // Filter and group friends when search query changes
   useEffect(() => {
-    // Filter friends based on search query
+    //1. Lọc bb theo từ khóa tìm kiếm
     const filtered = searchQuery
       ? allFriends.filter((friend) =>
           friend.name.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : allFriends;
 
-    setFilteredFriends(filtered);
+    //setFilteredFriends(filtered);
+    // 2. Sắp xếp toàn bộ danh sách theo tên (A-Z hoặc Z-A)
+    const sorted = [...filtered].sort((a, b) => {
+      const nameA = a.name.toLowerCase();
+      const nameB = b.name.toLowerCase();
+      return sortOrder === "asc"
+        ? nameA.localeCompare(nameB)
+        : nameB.localeCompare(nameA);
+    });
+  
+    setFilteredFriends(sorted);
 
-    // Group friends by first letter
-    const grouped = filtered.reduce((acc, friend) => {
-      const firstLetter = friend.name.charAt(0).toUpperCase();
-      if (!acc[firstLetter]) {
-        acc[firstLetter] = [];
-      }
-      acc[firstLetter].push(friend);
-      return acc;
-    }, {});
+// Nhóm theo chữ cái đầu
+const groupedRaw = sorted.reduce((acc, friend) => {
+  const firstLetter = friend.name.charAt(0).toUpperCase();
+  if (!acc[firstLetter]) acc[firstLetter] = [];
+  acc[firstLetter].push(friend);
+  return acc;
+}, {});
 
-    setGroupedFriends(grouped);
-  }, [searchQuery, allFriends]);
+// Sắp xếp thứ tự các nhóm (chữ cái đầu)
+const sortedGroupKeys = Object.keys(groupedRaw).sort((a, b) =>
+  sortOrder === "asc" ? a.localeCompare(b) : b.localeCompare(a)
+);
+
+// Tạo object mới có thứ tự đúng
+const groupedSorted = {};
+sortedGroupKeys.forEach((key) => {
+  groupedSorted[key] = groupedRaw[key];
+});
+
+setGroupedFriends(groupedSorted); 
+  }, [searchQuery, allFriends, sortOrder]);
 
   // Clear search
   const clearSearch = () => {
@@ -103,15 +129,50 @@ const ContactList = () => {
   };
 
   const handleDeleteFriend = async (friendId) => {
-    const confirmDelete = window.confirm("Bạn có chắc muốn huỷ kết bạn với người này không?");
+    const confirmDelete = window.confirm(
+      "Bạn có chắc muốn huỷ kết bạn với người này không?"
+    );
     if (!confirmDelete) return;
-    try{
+    try {
       const currentUserId = localStorage.getItem("userId");
-      const response = await Api_FriendRequest.unfriend(currentUserId, friendId);
+      const response = await Api_FriendRequest.unfriend(
+        currentUserId,
+        friendId
+      );
       console.log("====Xoa ban be====", response.data);
       await fetchFriends();
-    }catch (error) {
+    } catch (error) {
       console.error("Error deleting friend:", error);
+    }
+  };
+
+  const handleStartChat = async (friendId) => {
+    const currentUserId = localStorage.getItem("userId");
+    console.log("== CLICKED FRIEND ID ==", friendId); 
+    console.log("== CURRENT USER ID ==", currentUserId);
+    try{
+      const res = await Api_Conversation.getOrCreateConversation(currentUserId, friendId);
+      console.log("== RESPONSE từ API ==", res);
+
+
+      if (res?.conversationId) {
+        const conversationId = res.conversationId;
+        console.log("== Đã lấy được conversationId ==", conversationId);
+   // Dispatch để set selectedMessage
+   dispatch(setSelectedMessage({
+    id: conversationId,
+    isGroup: false,
+    participants: [
+      { userId: currentUserId },
+      { userId: friendId }
+    ]
+  }));
+
+  console.log("== Navigating to /chat ==");
+  navigate("/chat");
+      }
+    }catch (error) {
+      console.error("Lỗi khi bắt đầu trò chuyện:", error);
     }
   }
 
@@ -124,10 +185,14 @@ const ContactList = () => {
       />
 
       <div className="bg-gray-200 w-full flex-1 p-4 overflow-y-auto">
-        <h2 className="pb-4 text-black font-medium">Bạn bè {allFriends.length}</h2>
+        <h2 className="pb-4 text-black font-medium">
+          Bạn bè ({allFriends.length})
+        </h2>
+
         <div className="w-full bg-white rounded-xs">
           <div className="w-full rounded-xs p-4 flex justify-between">
-            <Search />
+            <Search  value={searchQuery} onChange={setSearchQuery}
+            />
             <div className="relative flex justify">
               <button
                 onClick={(e) => {
@@ -145,10 +210,20 @@ const ContactList = () => {
                   className="absolute right-0 top-12 bg-white rounded-md shadow-lg z-10 w-[95%]"
                   onClick={handleDropdownClick}
                 >
-                  <button className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                  <button 
+                  onClick={() => {
+                    setSortOrder("asc");
+                    setSortOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
                     Tên (A-Z)
                   </button>
-                  <button className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                  <button 
+                  onClick={() => {
+                    setSortOrder("desc");
+                    setSortOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
                     Tên (Z-A)
                   </button>
                 </div>
@@ -197,10 +272,9 @@ const ContactList = () => {
                 </div>
               ) : (
                 Object.keys(groupedFriends)
-                  .sort()
                   .map((letter) => (
                     <div key={letter} className="">
-                      {/* Letter header */}
+                      {/* Nhóm DSBB theo chữ cái đầu */}
                       <div className="text-base font-medium">{letter}</div>
                       {/* Contacts under this letter */}
                       <div className="bg-white rounded-md">
@@ -212,7 +286,10 @@ const ContactList = () => {
                             showBorder={index !== array.length - 1}
                             showMenuIcon={true}
                             menuOpen={menuOpenId === friend.id}
-                            onDeleteFriend={() => handleDeleteFriend(friend._id)}
+                            onDeleteFriend={() =>
+                              handleDeleteFriend(friend._id)
+                            }
+                            onClick={() => handleStartChat(friend._id)}
                             // onMenuToggle={() =>
                             //   setMenuOpenId(
                             //     menuOpenId === friend.id ? null : friend.id
