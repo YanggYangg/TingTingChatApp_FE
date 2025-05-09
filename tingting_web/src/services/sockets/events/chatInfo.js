@@ -268,3 +268,18 @@ export const deleteAllChatHistory = (socket, data, callback) => {
 export const deleteMessageChatInfo = (socket, data, callback) => {
   socket.emit("deleteMessageChatInfo", data, callback);
 }
+
+//verifyPin
+export const verifyPin = (socket, data, callback) => {
+  socket.emit("verifyPin", data, callback);
+};
+
+// Lắng nghe sự kiện verifyPin
+export const onVerifyPin = (socket, callback) => {
+  socket.on("verifyPin", callback);
+};
+
+// Ngừng lắng nghe sự kiện verifyPin
+export const offVerifyPin = (socket) => {
+  socket.off("verifyPin");
+};
