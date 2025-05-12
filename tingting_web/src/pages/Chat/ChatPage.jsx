@@ -15,6 +15,7 @@ import ShareModal from "../../components/chat/ShareModal";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo"; // File 1
 import { Api_Profile } from "../../../apis/api_profile";
 import ConfirmModal from "../../components/ConfirmModal"; // File 1
+import ChatInfoCloud from "./ChatCloud/ChatInfoCloud";
 import { useSocket } from "../../contexts/SocketContext";
 import { useCloudSocket } from "../../contexts/CloudSocketContext";
 import { toast } from "react-toastify"; // Nhi thêm
@@ -979,11 +980,19 @@ function ChatPage() {
 
           {isChatInfoVisible && (
             <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
-              <ChatInfo
-                userId={currentUserId}
-                conversationId={conversationId}
-                socket={socket} // Nhi thêm
-              />
+           {selectedChat.type === "cloud" ? (
+                <ChatInfoCloud
+                  userId={currentUserId}
+                  conversationId={conversationId}
+                  cloudMessages={cloudMessages}
+                />
+              ) : (
+                <ChatInfo
+                  userId={currentUserId}
+                  conversationId={conversationId}
+                  socket={socket} // Nhi thêm
+                />
+              )}
             </div>
           )}
         </div>

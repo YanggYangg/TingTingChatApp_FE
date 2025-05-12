@@ -26,6 +26,7 @@ import * as MediaLibrary from "expo-media-library";
 import * as DocumentPicker from "expo-document-picker";
 import { useCloudSocket } from "../../../../context/CloudSocketContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
 // Define the type for the navigation stack params
 type RootStackParamList = {
@@ -61,7 +62,7 @@ interface TimestampMessage {
 // Union type for messages
 type Message = UserMessage | TimestampMessage;
 
-const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
+const ChatScreenCloud = ({ route, navigation }: ChatScreenCloudProps) => {
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("Tất cả");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -72,6 +73,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const tabs = ["Tất cả", "Văn bản", "Ảnh", "File", "Link"];
   const { socket } = useCloudSocket();
@@ -87,6 +89,7 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
         }
         console.log("userId fetched from AsyncStorage:", userId);
         setCurrentUserId(userId);
+        setUserId(userId);
       } catch (error) {
         console.error("Failed to fetch userId:", error);
         setCurrentUserId("user123");
@@ -620,13 +623,13 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             />
           </TouchableWithoutFeedback>
           <View style={styles.downloadButtonContainer}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.downloadButton}
               onPress={() => selectedImage && downloadImage(selectedImage)}
             >
               <Ionicons name="download-outline" size={24} color="white" />
               <Text style={styles.downloadText}>Tải xuống</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
       </Modal>
@@ -676,21 +679,14 @@ const ChatScreenCloud = ({ navigation }: ChatScreenCloudProps) => {
             <Ionicons name="chevron-back" size={28} color="white" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Cloud của tôi</Text>
-          <Ionicons
-            name="checkmark-circle"
-            size={20}
-            color="#FFA500"
-            style={styles.verifiedIcon}
-          />
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="grid-outline" size={24} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="search" size={24} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => {
+              navigation.push("ChatInfoCloud", { userId });
+            }}
+          >
             <Ionicons name="menu" size={24} color="white" />
           </TouchableOpacity>
         </View>
