@@ -1,16 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
-const EditNameModal = ({ isOpen, onClose, initialName = '', onSave }) => {
+const EditNameModal = ({ isOpen, onClose, initialName = "", onSave }) => {
   const [newName, setNewName] = useState(initialName);
 
   useEffect(() => {
-    setNewName(initialName); // Cập nhật giá trị khi modal mở lại
+    setNewName(initialName);
   }, [initialName, isOpen]);
 
   const handleSave = () => {
-    if (!newName.trim()) return;
-    onSave(newName.trim()); // Gửi giá trị mới về ChatInfo
-    onClose();
+    if (!newName.trim()) {
+      alert("Tên không được để trống!");
+      return;
+    }
+    // Thêm xác nhận trước khi lưu
+    if (window.confirm("Bạn có chắc muốn thay đổi tên nhóm thành: " + newName.trim() + "?")) {
+      onSave(newName.trim());
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -36,7 +42,11 @@ const EditNameModal = ({ isOpen, onClose, initialName = '', onSave }) => {
           </button>
           <button
             onClick={handleSave}
-            className={`px-4 py-2 rounded ${newName.trim() ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+            className={`px-4 py-2 rounded ${
+              newName.trim()
+                ? "bg-blue-500 text-white"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
             disabled={!newName.trim()}
           >
             Lưu

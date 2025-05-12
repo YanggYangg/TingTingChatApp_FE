@@ -1,9 +1,25 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FaCalendarAlt, FaArrowLeft, FaDownload } from "react-icons/fa";
-import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import {
+  getChatMedia,
+  onChatMedia,
+  offChatMedia,
+  getChatFiles,
+  onChatFiles,
+  offChatFiles,
+  getChatLinks,
+  onChatLinks,
+  offChatLinks,
+  deleteMessageChatInfo,
+  onMessageDeleted,
+  offMessageDeleted,
+  onError,
+} from "../../services/sockets/events/chatInfo";
 import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
+import { onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
 
-const StoragePage = ({ onClose, conversationId, onDelete }) => {
+// Assume userId is passed as a prop or retrieved from context
+const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
   const [activeTab, setActiveTab] = useState("images");
   const [filterSender, setFilterSender] = useState("Tất cả");
   const [startDate, setStartDate] = useState("");
@@ -18,28 +34,100 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
   const [previewFile, setPreviewFile] = useState(null);
   const videoRef = useRef(null);
 
+  console.log("StoragePage component mounted conversationId:", conversationId);
+  console.log("StoragePage component mounted socket:", socket);
+
   useEffect(() => {
+    if (!socket || !conversationId) return;
+
     const fetchData = async () => {
       try {
-        const [images, files, links] = await Promise.all([
-          Api_chatInfo.getChatMedia(conversationId),
-          Api_chatInfo.getChatFiles(conversationId),
-          Api_chatInfo.getChatLinks(conversationId),
-        ]);
-
-        setData({
-          images: formatData(images, "media"),
-          files: formatData(files, "file"),
-          links: formatData(links, "link"),
+        getChatMedia(socket, { conversationId }, (response) => {
+          if (response.success) {
+            setData((prev) => ({
+              ...prev,
+              images: formatData(response.data, "media"),
+            }));
+            console.log("Dữ liệu media:", formatData(response.data, "media"));
+          } else {
+            setError("Lỗi khi tải media: " + response.message);
+          }
         });
+
+        getChatFiles(socket, { conversationId }, (response) => {
+          if (response.success) {
+            setData((prev) => ({
+              ...prev,
+              files: formatData(response.data, "file"),
+            }));
+            console.log("Dữ liệu files:", formatData(response.data, "file"));
+          } else {
+            setError("Lỗi khi tải files: " + response.message);
+          }
+        });
+
+        getChatLinks(socket, { conversationId }, (response) => {
+          if (response.success) {
+            setData((prev) => ({
+              ...prev,
+              links: formatData(response.data, "link"),
+            }));
+            console.log("Dữ liệu links:", formatData(response.data, "link"));
+          } else {
+            setError("Lỗi khi tải links: " + response.message);
+          }
+        });
+
+        onChatMedia(socket, (media) => {
+          setData((prev) => ({
+            ...prev,
+            images: formatData(media, "media"),
+          }));
+        });
+
+        onChatFiles(socket, (files) => {
+          setData((prev) => ({
+            ...prev,
+            files: formatData(files, "file"),
+          }));
+        });
+
+        onChatLinks(socket, (links) => {
+          setData((prev) => ({
+            ...prev,
+            links: formatData(links, "link"),
+          }));
+        });
+
+        onMessageDeleted(socket, (data) => {
+          setData((prev) => ({
+            images: prev.images.filter((item) => item.messageId !== data.messageId),
+            files: prev.files.filter((item) => item.messageId !== data.messageId),
+            links: prev.links.filter((item) => item.messageId !== data.messageId),
+          }));
+        });
+
+        onError(socket, (error) => {
+          setError("Lỗi từ server: " + error.message);
+        });
+
         setError(null);
       } catch (error) {
         console.error("Lỗi khi lấy dữ liệu:", error);
         setError("Lỗi khi tải dữ liệu. Vui lòng thử lại.");
       }
     };
+
     fetchData();
-  }, [conversationId]);
+
+    return () => {
+      offChatMedia(socket);
+      offChatFiles(socket);
+      offChatLinks(socket);
+      offMessageDeleted(socket);
+      socket.off("error");
+    };
+  }, [socket, conversationId]);
 
   const formatData = (items, dataType) => {
     if (!Array.isArray(items)) {
@@ -137,59 +225,71 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
   const handleDeleteSelected = async () => {
     if (selectedItems.length === 0) {
       console.log("Không có mục nào được chọn để xóa.");
-      alert("Vui lòng chọn ít nhất một hình ảnh để xóa.");
+      alert("Vui lòng chọn ít nhất một mục để xóa.");
       return;
     }
 
     try {
-      // Tạo danh sách items: [{ messageId, urlIndex }, ...]
-      const items = selectedItems
-        .map((id) => {
-          const item = data[activeTab].find((item) => item.id === id);
-          return item ? { messageId: item.messageId, urlIndex: item.urlIndex } : null;
-        })
-        .filter(Boolean);
-
-      if (items.length === 0) {
-        console.error("Không tìm thấy mục để xóa.");
-        alert("Lỗi: Không tìm thấy mục để xóa.");
-        return;
-      }
-
-      const response = await Api_chatInfo.deleteMessage({ items });
-      console.log("[DELETE] Phản hồi API (xóa mục):", response);
-
-      if (response?.message) {
-        // Cập nhật data, loại bỏ các mục đã xóa
-        const newData = {
-          images: data.images.filter((item) => 
-            !selectedItems.includes(item.id)
-          ),
-          files: data.files.filter((item) => 
-            !selectedItems.includes(item.id)
-          ),
-          links: data.links.filter((item) => 
-            !selectedItems.includes(item.id)
-          ),
-        };
-        setData(newData);
-
-        // Thông báo GroupMediaGallery với danh sách items đã xóa
-        if (onDelete) {
-          onDelete(items);
+      const deletionPromises = selectedItems.map(async (id) => {
+        const item = data[activeTab].find((item) => item.id === id);
+        if (!item) {
+          console.warn(`Không tìm thấy mục với id: ${id}`);
+          return { success: false, message: `Không tìm thấy mục với id: ${id}` };
         }
 
-        // Reset trạng thái chọn
-        setSelectedItems([]);
-        setIsSelecting(false);
-        alert(`Đã xóa ${selectedItems.length} hình ảnh thành công.`);
-      } else {
-        console.error("[DELETE] Phản hồi API không mong đợi:", response);
-        alert("Lỗi: Có lỗi xảy ra khi xóa hình ảnh.");
+        return new Promise((resolve) => {
+          deleteMessageChatInfo(socket, { messageId: item.messageId, urlIndex: item.urlIndex }, (response) => {
+            if (response.success) {
+              resolve({ success: true, item, isMessageDeleted: response.data.isMessageDeleted });
+            } else {
+              resolve({ success: false, message: response.message });
+            }
+          });
+        });
+      });
+
+      const results = await Promise.all(deletionPromises);
+      const failedDeletions = results.filter((result) => !result.success);
+
+      if (failedDeletions.length > 0) {
+        const errorMessages = failedDeletions.map((result) => result.message).join("; ");
+        alert(`Lỗi khi xóa một số mục: ${errorMessages}`);
+      }
+
+      // Update local data
+      const newData = { ...data };
+      results
+        .filter((result) => result.success)
+        .forEach(({ item, isMessageDeleted }) => {
+          if (isMessageDeleted) {
+            // Remove all items with the same messageId
+            newData.images = newData.images.filter((i) => i.messageId !== item.messageId);
+            newData.files = newData.files.filter((i) => i.messageId !== item.messageId);
+            newData.links = newData.links.filter((i) => i.messageId !== item.messageId);
+          } else {
+            // Remove only the specific item
+            newData[activeTab] = newData[activeTab].filter((i) => i.id !== item.id);
+          }
+        });
+
+      setData(newData);
+
+      if (onDelete) {
+        const deletedItems = results
+          .filter((result) => result.success)
+          .map(({ item }) => ({ messageId: item.messageId }));
+        onDelete(deletedItems);
+      }
+
+      setSelectedItems([]);
+      setIsSelecting(false);
+
+      if (failedDeletions.length === 0) {
+        alert(`Đã xóa ${selectedItems.length} mục thành công.`);
       }
     } catch (error) {
-      console.error("Lỗi khi xóa hình ảnh:", error);
-      alert("Lỗi: Không thể xóa hình ảnh. Vui lòng thử lại.");
+      console.error("Lỗi khi xóa mục:", error);
+      alert("Lỗi: Không thể xóa mục. Vui lòng thử lại.");
     }
   };
 
@@ -361,7 +461,7 @@ const StoragePage = ({ onClose, conversationId, onDelete }) => {
   );
 
   return (
-    <div className="absolute right-0 top-0 h-full w-[410px] bg-white shadow-lg p-4 overflow-y-auto">
+    <div className="fixed top-0 right-0 h-full w-[410px] bg-white shadow-lg p-4 overflow-y-auto z-50">
       <div className="flex justify-between mb-4">
         <button onClick={onClose} className="text-blue-500 text-sm">
           <FaArrowLeft />

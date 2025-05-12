@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import Modal from 'react-native-modal';
 import Swiper from 'react-native-swiper';
 import StoragePage from './StoragePage';
-import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 
@@ -22,10 +21,12 @@ interface Media {
 interface Props {
   conversationId: string;
   userId: string;
+  socket: any; // Replace with proper Socket.IO type if available
   otherUser?: { firstname: string; surname: string; avatar?: string } | null;
+  onForward?: (media: Media, targetConversations: string[], content: string) => void;
 }
 
-const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser }) => {
+const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, socket, otherUser, onForward }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [media, setMedia] = useState<Media[]>([]);
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
@@ -36,26 +37,32 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
   const [mediaLoading, setMediaLoading] = useState(false);
   const [mediaLoadError, setMediaLoadError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [mediaToForward, setMediaToForward] = useState<Media | null>(null);
+  const [messageIdToForward, setMessageIdToForward] = useState<string | null>(null);
 
-  const fetchMedia = async () => {
-    setLoading(true);
-    try {
-      console.log('Đang lấy dữ liệu từ API...');
-      const response = await Api_chatInfo.getChatMedia(conversationId);
-      console.log('Dữ liệu API nhận được:', response);
+  const fetchMedia = () => {
+    if (!conversationId || !socket) {
+      console.warn('conversationId or socket not provided.');
+      setMedia([]);
+      setLoading(false);
+      Alert.alert('Error', 'Missing information to load media.');
+      return;
+    }
 
-      const mediaData = Array.isArray(response?.data) ? response.data : response;
-
-      if (Array.isArray(mediaData)) {
+    socket.emit('getChatMedia', { conversationId }, (response: any) => {
+      if (response && response.success) {
+        const mediaData = Array.isArray(response.data) ? response.data : [];
+        console.log('[Socket.IO] Response (get media):', mediaData);
         const filteredMedia = mediaData
-          .flatMap((item) => {
+          .flatMap((item: any) => {
             const urls = Array.isArray(item?.linkURL)
               ? item.linkURL.filter((url: string) => url && typeof url === 'string')
               : typeof item?.linkURL === 'string'
               ? [item.linkURL]
               : [];
             if (urls.length === 0) {
-              console.warn(`Tin nhắn ${item._id} thiếu linkURL:`, item);
+              console.warn(`Message ${item._id} lacks linkURL:`, item);
               return [];
             }
             return urls.map((url: string, urlIndex: number) => ({
@@ -68,29 +75,67 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
               userId: item?.userId || 'unknown',
             }));
           })
-          .filter((mediaItem) => mediaItem.linkURL);
-        setMedia(filteredMedia);
+          .filter((mediaItem: Media) => mediaItem.linkURL);
+        setMedia(filteredMedia.length ? filteredMedia : []);
       } else {
-        console.warn('API không trả về dữ liệu hợp lệ.');
         setMedia([]);
+        console.error('Error fetching media:', response?.message);
+        Alert.alert('Error', 'Could not load media. Please try again.');
       }
-    } catch (error) {
-      console.error('Lỗi khi lấy dữ liệu media:', error);
-      Alert.alert('Lỗi', 'Không thể tải dữ liệu media. Vui lòng thử lại.');
-      setMedia([]);
-    } finally {
       setLoading(false);
-    }
+    });
   };
 
   useEffect(() => {
-    if (!conversationId) return;
-    console.log('GRM userId:', userId);
+    if (!socket || !conversationId) return;
+
+    socket.on('chatMedia', (updatedMedia: any[]) => {
+      console.log('[Socket.IO] Updated media list:', updatedMedia);
+      if (Array.isArray(updatedMedia)) {
+        const filteredMedia = updatedMedia
+          .flatMap((item: any) => {
+            const urls = Array.isArray(item?.linkURL)
+              ? item.linkURL.filter((url: string) => url && typeof url === 'string')
+              : typeof item?.linkURL === 'string'
+              ? [item.linkURL]
+              : [];
+            if (urls.length === 0) {
+              console.warn(`Message ${item._id} lacks linkURL:`, item);
+              return [];
+            }
+            return urls.map((url: string, urlIndex: number) => ({
+              id: `${item?._id}_${urlIndex}`,
+              messageId: item?._id,
+              urlIndex,
+              linkURL: url,
+              name: item?.content || `Media_${urlIndex + 1}`,
+              type: item?.messageType || 'image',
+              userId: item?.userId || 'unknown',
+            }));
+          })
+          .filter((mediaItem: Media) => mediaItem.linkURL);
+        setMedia(filteredMedia.length ? filteredMedia : []);
+      } else {
+        setMedia([]);
+        console.warn('Invalid update data:', updatedMedia);
+      }
+    });
+
+    socket.on('error', (error: any) => {
+      console.error('[Socket.IO] Error:', error.message);
+      Alert.alert('Error', 'An error occurred. Please try again.');
+    });
+
     fetchMedia();
-  }, [conversationId]);
+
+    return () => {
+      socket.off('chatMedia');
+      socket.off('error');
+    };
+  }, [conversationId, socket]);
 
   const handleDeleteFromStorage = (deletedItems: { messageId: string; urlIndex: number }[]) => {
-    console.log('Cập nhật media sau khi xóa:', deletedItems);
+    console.log('Updating media after deletion:', deletedItems);
     const newMedia = media.filter((mediaItem) => {
       const isDeleted = deletedItems.some(
         (item) => item.messageId === mediaItem.messageId && item.urlIndex === mediaItem.urlIndex
@@ -105,7 +150,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
         setIsPlaying(false);
       }
     } else {
-      console.warn('Không thể cập nhật cục bộ, tải lại media...');
+      console.warn('Could not update locally, reloading media...');
       fetchMedia();
     }
   };
@@ -118,25 +163,80 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
       const permission = await MediaLibrary.requestPermissionsAsync();
       if (permission.granted) {
         await MediaLibrary.createAssetAsync(uri);
-        Alert.alert('Thành công', `${type === 'image' ? 'Ảnh' : 'Video'} đã được lưu vào thư viện!`);
+        Alert.alert('Success', `${type === 'image' ? 'Image' : 'Video'} has been saved to gallery!`);
       } else {
-        Alert.alert('Lỗi', 'Không có quyền truy cập vào thư viện để lưu.');
+        Alert.alert('Error', 'No permission to access gallery for saving.');
       }
     } catch (error: any) {
-      console.error(`Tải ${type} thất bại:`, error.message || error);
-      Alert.alert('Lỗi', `Không thể tải xuống ${type}. Vui lòng thử lại.`);
+      console.error(`Download ${type} failed:`, error.message || error);
+      Alert.alert('Error', `Could not download ${type}. Please try again.`);
     }
+  };
+
+  const handleForwardClick = (item: Media) => {
+    setMediaToForward(item);
+    setMessageIdToForward(item.messageId);
+    setIsShareModalOpen(true);
+  };
+
+  const handleMediaShared = (targetConversations: string[], shareContent: string) => {
+    if (!mediaToForward?.messageId) {
+      console.error('No message ID available for forwarding.');
+      Alert.alert('Error', 'No message ID available for forwarding.');
+      return;
+    }
+    if (!userId) {
+      console.error('No user ID available for forwarding.');
+      Alert.alert('Error', 'No user ID available for forwarding.');
+      return;
+    }
+    if (!Array.isArray(targetConversations) || targetConversations.length === 0) {
+      console.warn('No conversations selected for forwarding.');
+      Alert.alert('Error', 'No conversations selected for forwarding.');
+      return;
+    }
+
+    socket.emit(
+      'forwardMessage',
+      {
+        messageId: mediaToForward.messageId,
+        targetConversationIds: targetConversations,
+        userId: userId,
+        content: shareContent,
+      },
+      (response: any) => {
+        if (response && response.success) {
+          console.log(`Forwarded media to ${response.data.length} conversations.`);
+          setIsShareModalOpen(false);
+          setMediaToForward(null);
+          setMessageIdToForward(null);
+          if (onForward) {
+            onForward(mediaToForward, targetConversations, shareContent);
+          }
+          Alert.alert('Success', 'Media forwarded successfully.');
+        } else {
+          console.error('Error forwarding media:', response?.message);
+          Alert.alert('Error', 'Could not forward media. Please try again.');
+        }
+      }
+    );
+  };
+
+  const handleShareModalClose = () => {
+    setIsShareModalOpen(false);
+    setMediaToForward(null);
+    setMessageIdToForward(null);
   };
 
   useEffect(() => {
     if (fullScreenMedia && fullScreenMedia.type === 'video' && videoRef.current) {
       if (isPlaying) {
         videoRef.current.playAsync().catch((error: any) => {
-          console.error('Lỗi khi phát video (modal):', error);
+          console.error('Error playing video (modal):', error);
         });
       } else {
         videoRef.current.pauseAsync().catch((error: any) => {
-          console.error('Lỗi khi dừng video (modal):', error);
+          console.error('Error pausing video (modal):', error);
         });
       }
     }
@@ -177,25 +277,25 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
   };
 
   const handleMediaError = (error: any) => {
-    console.error('Lỗi tải media:', error);
+    console.error('Error loading media:', error);
     setMediaLoading(false);
-    setMediaLoadError('Không thể tải media này.');
+    setMediaLoadError('Could not load this media.');
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Đang tải ảnh và video...</Text>
+        <Text style={styles.loadingText}>Loading Hình ảnh/Video...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Ảnh/Video</Text>
+      <Text style={styles.title}>Hình ảnh/Video</Text>
       {media.length === 0 ? (
-        <Text style={styles.noDataText}>Không có ảnh hoặc video nào.</Text>
+        <Text style={styles.noDataText}>Không có hình ảnh/video.</Text>
       ) : (
         <>
           <View style={styles.grid}>
@@ -205,7 +305,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
                   <Image
                     source={{ uri: item.linkURL }}
                     style={styles.mediaItem}
-                    onError={(error) => console.error(`Lỗi tải ảnh ${item.id}:`, error)}
+                    onError={(error) => console.error(`Error loading image ${item.id}:`, error)}
                   />
                 ) : (
                   <View style={styles.videoContainer}>
@@ -216,7 +316,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
                       useNativeControls={false}
                       isMuted={true}
                       resizeMode="cover"
-                      onError={(error) => console.error(`Lỗi tải video ${item.id}:`, error)}
+                      onError={(error) => console.error(`Error loading video ${item.id}:`, error)}
                     />
                     <View style={styles.playIconContainer}>
                       <Ionicons name="play-circle-outline" size={30} color="#fff" />
@@ -228,7 +328,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
           </View>
 
           <TouchableOpacity style={styles.viewAllButton} onPress={() => setIsOpen(true)}>
-            <Text style={styles.viewAllText}>Xem tất cả ({media.length})</Text>
+            <Text style={styles.viewAllText}>View All ({media.length})</Text>
           </TouchableOpacity>
         </>
       )}
@@ -238,6 +338,7 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
           conversationId={conversationId}
           userId={userId}
           otherUser={otherUser}
+          socket={socket}
           isVisible={isOpen}
           onClose={() => setIsOpen(false)}
           onDelete={handleDeleteFromStorage}
@@ -273,6 +374,12 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
               onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type)}
             >
               <Ionicons name="download-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.forwardButton}
+              onPress={() => handleForwardClick(fullScreenMedia)}
+            >
+              <Ionicons name="share-outline" size={24} color="#fff" />
             </TouchableOpacity>
             <Swiper
               index={currentIndex}
@@ -332,6 +439,16 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, otherUser 
           </View>
         )}
       </Modal>
+
+      {/* ShareModal component would need to be implemented for React Native */}
+      {/* <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={handleShareModalClose}
+        onShare={handleMediaShared}
+        userId={userId}
+        messageId={messageIdToForward}
+        messageToForward={mediaToForward}
+      /> */}
     </View>
   );
 };
@@ -413,6 +530,15 @@ const styles = StyleSheet.create({
   downloadButton: {
     position: 'absolute',
     top: 16,
+    right: 16,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  forwardButton: {
+    position: 'absolute',
+    top: 60,
     right: 16,
     zIndex: 100,
     backgroundColor: 'rgba(0,0,0,0.5)',

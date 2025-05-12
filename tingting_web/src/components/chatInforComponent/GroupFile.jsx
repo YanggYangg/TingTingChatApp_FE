@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { FaRegFolderOpen, FaDownload, FaTrash, FaShare } from "react-icons/fa";
 import StoragePage from "./StoragePage";
-import { Api_chatInfo } from "../../../apis/Api_chatInfo";
-import DocViewer, { DocViewerRenderers } from 'react-doc-viewer';
-import ShareModal from '../chat/ShareModal';
+import {
+  getChatFiles,
+  forwardMessage,
+  deleteMessage,
+  onChatFiles,
+  offChatFiles,
+  onError,
+  offError,
+} from "../../services/sockets/events/chatInfo";
+import DocViewer, { DocViewerRenderers } from "react-doc-viewer";
+import ShareModal from "../chat/ShareModal";
 
-const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
+const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [files, setFiles] = useState([]);
   const [previewFile, setPreviewFile] = useState(null);
@@ -17,48 +25,81 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
   const [fileToForward, setFileToForward] = useState(null);
   const [messageIdToForward, setMessageIdToForward] = useState(null);
 
-  // Hàm gọi API để lấy danh sách file của cuộc trò chuyện
-  const fetchFiles = async () => {
-    if (!conversationId) {
-      console.warn("conversationId không được cung cấp.");
+  // Hàm lấy danh sách file bằng Socket.IO
+  const fetchFiles = () => {
+    if (!conversationId || !socket) {
+      console.warn("conversationId hoặc socket không được cung cấp.");
       setFiles([]);
       setData({ files: [] });
       return;
     }
-    try {
-      const response = await Api_chatInfo.getChatFiles(conversationId);
-      const fileData = Array.isArray(response) ? response : response?.data;
 
-      console.log('[GET] Phản hồi API (lấy file):', fileData);
-      if (Array.isArray(fileData)) {
-        // Sắp xếp file theo thời gian tạo mới nhất và lấy 3 file đầu tiên
-        const sortedFiles = fileData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt) || 0);
-        setFiles(sortedFiles.slice(0, 3).map(file => ({
-          ...file,
-          // Đảm bảo có trường id để làm key
-          id: file?._id || file?.id,
-        })));
-        // Lưu trữ toàn bộ danh sách file cho StoragePage
+    getChatFiles(socket, { conversationId }, (response) => {
+      if (response && response.success) {
+        const fileData = Array.isArray(response.data) ? response.data : [];
+        console.log("[Socket.IO] Phản hồi (lấy file):", fileData);
+        if (Array.isArray(fileData)) {
+          const sortedFiles = fileData.sort(
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt) || 0
+          );
+          setFiles(
+            sortedFiles.slice(0, 3).map((file) => ({
+              ...file,
+              id: file?._id || file?.id,
+            }))
+          );
+          setData({ files: sortedFiles });
+        } else {
+          setFiles([]);
+          setData({ files: [] });
+          console.warn("Socket.IO không trả về mảng hợp lệ.");
+        }
+      } else {
+        setFiles([]);
+        setData({ files: [] });
+        console.error("Lỗi khi lấy danh sách file:", response?.message);
+      }
+    });
+  };
+
+  // Lắng nghe cập nhật danh sách file qua Socket.IO
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+
+    // Cập nhật state trực tiếp từ dữ liệu nhận được
+    onChatFiles(socket, (updatedFiles) => {
+      console.log("[Socket.IO] Cập nhật danh sách file:", updatedFiles);
+      if (Array.isArray(updatedFiles)) {
+        const sortedFiles = updatedFiles.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt) || 0
+        );
+        setFiles(
+          sortedFiles.slice(0, 3).map((file) => ({
+            ...file,
+            id: file?._id || file?.id,
+          }))
+        );
         setData({ files: sortedFiles });
       } else {
         setFiles([]);
         setData({ files: [] });
-        console.warn("API không trả về mảng hợp lệ.");
+        console.warn("Dữ liệu cập nhật không hợp lệ:", updatedFiles);
       }
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách file:", error);
-      setFiles([]);
-      setData({ files: [] });
-    }
-  };
+    });
 
-  // useEffect hook để gọi fetchFiles khi conversationId thay đổi
-  useEffect(() => {
-    console.log("Fetching files for conversationId:", conversationId);
+    onError(socket, (error) => {
+      console.error("[Socket.IO] Lỗi:", error.message);
+    });
+
+    // Gọi fetch lần đầu tiên khi component mount
     fetchFiles();
-  }, [conversationId]);
 
-  // Hàm xử lý sự kiện tải xuống file
+    return () => {
+      offChatFiles(socket);
+      offError(socket);
+    };
+  }, [conversationId, socket]);
+
   const handleDownload = (file) => {
     if (!file?.linkURL) {
       console.error("Không có link file để tải.");
@@ -72,35 +113,29 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
     document.body.removeChild(link);
   };
 
-  // Hàm xử lý sự kiện chuột vào một item file
   const handleMouseEnter = (index) => {
     setHoveredIndex(index);
   };
 
-  // Hàm xử lý sự kiện chuột rời khỏi một item file
   const handleMouseLeave = () => {
     setHoveredIndex(-1);
   };
 
-  // Hàm xử lý sự kiện click vào nút chuyển tiếp file
   const handleForwardClick = (fileItem, event) => {
-    event.stopPropagation(); // Ngăn chặn sự kiện click lan ra các phần tử cha
+    event.stopPropagation();
     setFileToForward(fileItem);
-    setMessageIdToForward(fileItem._id); // Gán ID tin nhắn chứa file
-    setIsShareModalOpen(true); // Mở modal chia sẻ
+    setMessageIdToForward(fileItem._id);
+    setIsShareModalOpen(true);
     console.log("Yêu cầu chuyển tiếp file:", fileItem, "messageId:", fileItem._id);
   };
 
-
-  // Hàm xử lý sự kiện đóng modal chia sẻ
   const handleShareModalClose = () => {
     setIsShareModalOpen(false);
     setFileToForward(null);
     setMessageIdToForward(null);
   };
 
-  // Hàm xử lý sự kiện file được chia sẻ thành công từ modal
-  const handleFileShared = async (targetConversations, shareContent) => {
+  const handleFileShared = (targetConversations, shareContent) => {
     if (!fileToForward?._id) {
       console.error("Không có ID tin nhắn để chuyển tiếp.");
       return;
@@ -114,31 +149,28 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
       return;
     }
 
-    try {
-      const response = await Api_chatInfo.forwardMessage({
+    forwardMessage(
+      socket,
+      {
         messageId: fileToForward._id,
         targetConversationIds: targetConversations,
         userId: userId,
         content: shareContent,
-      });
-
-      console.log("Phản hồi API chuyển tiếp:", response);
-      if (response && Array.isArray(response)) {
-        console.log(`Đã chuyển tiếp tệp đến ${response.length} cuộc trò chuyện.`);
-        setIsShareModalOpen(false); // Đóng modal sau khi chuyển tiếp thành công
-        setFileToForward(null);
-        setMessageIdToForward(null);
-        if (onForwardFile) {
-          onForwardFile(fileToForward, targetConversations, shareContent); // Gọi callback từ component cha
+      },
+      (response) => {
+        if (response && response.success) {
+          console.log(`Đã chuyển tiếp tệp đến ${response.data.length} cuộc trò chuyện.`);
+          setIsShareModalOpen(false);
+          setFileToForward(null);
+          setMessageIdToForward(null);
+          if (onForwardFile) {
+            onForwardFile(fileToForward, targetConversations, shareContent);
+          }
+        } else {
+          console.error("Lỗi khi chuyển tiếp:", response?.message);
         }
-      } else if (response?.message) {
-        console.error(`Lỗi chuyển tiếp: ${response.message}`);
-      } else {
-        console.error("Lỗi không xác định khi chuyển tiếp.");
       }
-    } catch (error) {
-      console.error("Lỗi khi gọi API chuyển tiếp:", error);
-    }
+    );
   };
 
   return (
@@ -158,20 +190,13 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-500 text-sm font-semibold truncate"
-                style={{ maxWidth: '70%' }}
+                style={{ maxWidth: "70%" }}
               >
                 {file.content || "Không có tên"}
               </a>
               <div
                 className={`absolute top-0 right-0 p-1 flex items-center bg-black bg-opacity-50 rounded-tr-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 space-x-1`}
               >
-                {/* <button
-                  onClick={(event) => handleDeleteClick(file, event)}
-                  className="text-gray-300 hover:text-red-500"
-                  title="Xóa"
-                >
-                  <FaTrash size={16} />
-                </button> */}
                 <button
                   onClick={(event) => handleForwardClick(file, event)}
                   className="text-gray-300 hover:text-blue-500"
@@ -213,6 +238,7 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
           onClose={() => setIsOpen(false)}
           onDelete={fetchFiles}
           onForwardFile={onForwardFile}
+          socket={socket}
         />
       )}
 
@@ -224,7 +250,7 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
               <DocViewer
                 documents={[{ uri: previewFile.linkURL }]}
                 pluginRenderers={DocViewerRenderers}
-                style={{ height: '100%' }}
+                style={{ height: "100%" }}
               />
             </div>
             <div className="flex justify-between mt-4">
@@ -245,13 +271,12 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId }) => {
         </div>
       )}
 
-      {/* Modal chia sẻ */}
       <ShareModal
         isOpen={isShareModalOpen}
         onClose={handleShareModalClose}
         onShare={handleFileShared}
         userId={userId}
-        messageId={messageIdToForward} // Đã đổi tên prop thành 'messageId'
+        messageId={messageIdToForward}
         messageToForward={fileToForward}
       />
     </div>

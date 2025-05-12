@@ -18,7 +18,7 @@ import Swiper from 'react-native-swiper';
 import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
-import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 interface Media {
   id: string;
@@ -35,26 +35,30 @@ interface Media {
 interface Props {
   conversationId: string;
   userId: string;
+  socket: any; // Replace with proper Socket.IO type if available
   otherUser?: { firstname: string; surname: string; avatar?: string } | null;
   isVisible: boolean;
   onClose: () => void;
   onDelete?: (items: { messageId: string; urlIndex: number }[]) => void;
+  onDataUpdated?: () => void; // Added for consistency with other components
 }
+
 
 const StoragePage: React.FC<Props> = ({
   conversationId,
   userId,
+  socket,
   otherUser,
   isVisible,
   onClose,
   onDelete,
+  onDataUpdated,
 }) => {
   const [activeTab, setActiveTab] = useState<'images' | 'files' | 'links'>('images');
-  const [filterSender, setFilterSender] = useState<string>('Tất cả');
+  const [filterSender, setFilterSender] = useState<string>('All');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
-  const [showDateSuggestions, setShowDateSuggestions] = useState<boolean>(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState<boolean>(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState<boolean>(false);
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
@@ -77,79 +81,150 @@ const StoragePage: React.FC<Props> = ({
     links: [],
   });
 
-  // Hàm tải dữ liệu từ API
-  const fetchData = async () => {
-    try {
-      const [mediaResponse, filesResponse, linksResponse] = await Promise.all([
-        Api_chatInfo.getChatMedia(conversationId),
-        Api_chatInfo.getChatFiles(conversationId),
-        Api_chatInfo.getChatLinks(conversationId),
-      ]);
+  const fetchData = () => {
+    if (!conversationId || !socket) {
+      console.warn('conversationId or socket not provided.');
+      setData({ images: [], files: [], links: [] });
+      return;
+    }
 
-      const formatData = (items: any[], dataType: string): Media[] => {
-        if (!Array.isArray(items)) {
-          console.warn(`Dữ liệu ${dataType} không phải mảng:`, items);
+    socket.emit('getChatMedia', { conversationId }, (response: any) => {
+      if (response && response.success) {
+        setData((prev) => ({
+          ...prev,
+          images: formatData(response.data, 'media'),
+        }));
+        console.log('Media data:', formatData(response.data, 'media'));
+      } else {
+        console.error('Error fetching media:', response?.message);
+        Alert.alert('Error', 'Could not load media. Please try again.');
+      }
+    });
+
+    socket.emit('getChatFiles', { conversationId }, (response: any) => {
+      if (response && response.success) {
+        setData((prev) => ({
+          ...prev,
+          files: formatData(response.data, 'file'),
+        }));
+        console.log('Files data:', formatData(response.data, 'file'));
+      } else {
+        console.error('Error fetching files:', response?.message);
+        Alert.alert('Error', 'Could not load files. Please try again.');
+      }
+    });
+
+    socket.emit('getChatLinks', { conversationId }, (response: any) => {
+      if (response && response.success) {
+        setData((prev) => ({
+          ...prev,
+          links: formatData(response.data, 'link'),
+        }));
+        console.log('Links data:', formatData(response.data, 'link'));
+      } else {
+        console.error('Error fetching links:', response?.message);
+        Alert.alert('Error', 'Could not load links. Please try again.');
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (!socket || !conversationId || !isVisible) return;
+
+    socket.on('chatMedia', (media: any[]) => {
+      setData((prev) => ({
+        ...prev,
+        images: formatData(media, 'media'),
+      }));
+      if (onDataUpdated) onDataUpdated();
+    });
+
+    socket.on('chatFiles', (files: any[]) => {
+      setData((prev) => ({
+        ...prev,
+        files: formatData(files, 'file'),
+      }));
+      if (onDataUpdated) onDataUpdated();
+    });
+
+    socket.on('chatLinks', (links: any[]) => {
+      setData((prev) => ({
+        ...prev,
+        links: formatData(links, 'link'),
+      }));
+      if (onDataUpdated) onDataUpdated();
+    });
+
+    socket.on('messageDeleted', (data: any) => {
+      setData((prev) => ({
+        images: prev.images.filter((item) => item.messageId !== data.messageId),
+        files: prev.files.filter((item) => item.messageId !== data.messageId),
+        links: prev.links.filter((item) => item.messageId !== data.messageId),
+      }));
+      if (onDataUpdated) onDataUpdated();
+    });
+
+    socket.on('error', (error: any) => {
+      console.error('[Socket.IO] Error:', error.message);
+      Alert.alert('Error', 'An error occurred. Please try again.');
+    });
+
+    fetchData();
+
+    return () => {
+      socket.off('chatMedia');
+      socket.off('chatFiles');
+      socket.off('chatLinks');
+      socket.off('messageDeleted');
+      socket.off('error');
+    };
+  }, [socket, conversationId, isVisible, onDataUpdated]);
+
+  const formatData = (items: any[], dataType: string): Media[] => {
+    if (!Array.isArray(items)) {
+      console.warn(`Data ${dataType} is not an array:`, items);
+      return [];
+    }
+
+    return items
+      .flatMap((item: any) => {
+        const urls = Array.isArray(item?.linkURL)
+          ? item.linkURL.filter((url: string) => url && typeof url === 'string')
+          : typeof item?.linkURL === 'string'
+          ? [item.linkURL]
+          : [];
+        if (urls.length === 0) {
+          console.warn(`Message ${item._id} lacks valid linkURL:`, item);
           return [];
         }
 
-        return items
-          .flatMap((item) => {
-            const urls = Array.isArray(item?.linkURL)
-              ? item.linkURL.filter((url: string) => url && typeof url === 'string')
-              : typeof item?.linkURL === 'string'
-              ? [item.linkURL]
-              : [];
-            if (urls.length === 0) {
-              console.warn(`Tin nhắn ${item._id} thiếu linkURL:`, item);
-              return [];
-            }
-
-            return urls.map((url: string, urlIndex: number) => ({
-              id: `${item?._id}_${urlIndex}`,
-              messageId: item?._id,
-              urlIndex,
-              linkURL: url,
-              name: item?.content || `Media_${urlIndex + 1}`,
-              type:
-                item?.messageType === 'video'
-                  ? 'video'
-                  : item?.messageType === 'file'
-                  ? 'file'
-                  : item?.messageType === 'link'
-                  ? 'link'
-                  : 'image',
-              date: item?.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : 'Không xác định',
-              sender:
-                otherUser && item?.userId !== userId
-                  ? `${otherUser.firstname} ${otherUser.surname}`.trim()
-                  : item?.userId === userId
-                  ? 'Bạn'
-                  : item?.userId || 'Không rõ người gửi',
-              userId: item?.userId || 'unknown',
-            }));
-          })
-          .filter((item) => item.linkURL);
-      };
-
-      setData({
-        images: formatData(mediaResponse?.data || mediaResponse, 'media'),
-        files: formatData(filesResponse?.data || filesResponse, 'file'),
-        links: formatData(linksResponse?.data || linksResponse, 'link'),
-      });
-    } catch (error) {
-      console.error('Lỗi khi lấy dữ liệu:', error);
-      Alert.alert('Lỗi', 'Không thể tải dữ liệu. Vui lòng thử lại.');
-      setData({ images: [], files: [], links: [] });
-    }
+        return urls.map((url: string, urlIndex: number) => ({
+          id: `${item?._id}_${urlIndex}`,
+          messageId: item?._id,
+          urlIndex,
+          linkURL: url,
+          name: item?.content || `Media_${urlIndex + 1}`,
+          type:
+            item?.messageType === 'video'
+              ? 'video'
+              : item?.messageType === 'file'
+              ? 'file'
+              : item?.messageType === 'link'
+              ? 'link'
+              : 'image',
+          date: item?.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : 'Unknown',
+          sender:
+            otherUser && item?.userId !== userId
+              ? `${otherUser.firstname} ${otherUser.surname}`.trim()
+              : item?.userId === userId
+              ? 'You'
+              : item?.userId || 'Unknown sender',
+          userId: item?.userId || 'unknown',
+        }));
+      })
+      .filter((item) => item.linkURL);
   };
 
-  // Tải dữ liệu khi mở StoragePage
-  useEffect(() => {
-    if (!conversationId || !isVisible) return;
-    fetchData();
-  }, [conversationId, isVisible]);
-
-  // Quản lý trạng thái video
   useEffect(() => {
     if (fullScreenMedia) {
       Object.values(gridVideoRefs.current).forEach((ref) => {
@@ -163,148 +238,100 @@ const StoragePage: React.FC<Props> = ({
     }
   }, [fullScreenMedia]);
 
-  // Xử lý xóa các mục đã chọn
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = () => {
     if (selectedItems.length === 0) {
-      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một mục để xóa.');
+      Alert.alert('Error', 'No items selected for deletion.');
       return;
     }
 
+    Alert.alert(
+      'Confirm Delete',
+      `Are you sure you want to delete ${selectedItems.length} item(s)?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const itemsToDelete = selectedItems.map((item) => ({
+              messageId: item.messageId,
+              urlIndex: item.urlIndex,
+            }));
+
+            socket.emit('deleteMessage', { messageIds: itemsToDelete.map((item) => item.messageId) }, (response: any) => {
+              if (response && response.success) {
+                console.log('Items deleted successfully:', response.data);
+                setData((prev) => ({
+                  images: prev.images.filter(
+                    (item) => !itemsToDelete.some((d) => d.messageId === item.messageId && d.urlIndex === item.urlIndex)
+                  ),
+                  files: prev.files.filter(
+                    (item) => !itemsToDelete.some((d) => d.messageId === item.messageId && d.urlIndex === item.urlIndex)
+                  ),
+                  links: prev.links.filter(
+                    (item) => !itemsToDelete.some((d) => d.messageId === item.messageId && d.urlIndex === item.urlIndex)
+                  ),
+                }));
+                setSelectedItems([]);
+                setIsSelecting(false);
+                if (onDelete) {
+                  onDelete(itemsToDelete);
+                }
+                Alert.alert('Success', 'Items deleted successfully.');
+              } else {
+                console.error('Error deleting items:', response?.message);
+                Alert.alert('Error', 'Could not delete items. Please try again.');
+              }
+            });
+          },
+        },
+      ]
+    );
+  };
+
+  const downloadMedia = async (url: string, type: string) => {
     try {
-      const items = selectedItems.map((item) => ({
-        messageId: item.messageId,
-        urlIndex: item.urlIndex,
-      }));
-
-      const response = await Api_chatInfo.deleteMessage({ items });
-      console.log('[DELETE] Phản hồi API:', response);
-
-      if (response?.message) {
-        const updatedData = { ...data };
-        ['images', 'files', 'links'].forEach((tab) => {
-          updatedData[tab] = updatedData[tab].filter(
-            (item) =>
-              !selectedItems.some(
-                (selected) => selected.messageId === item.messageId && selected.urlIndex === item.urlIndex
-              )
-          );
-        });
-        setData(updatedData);
-        setSelectedItems([]);
-        setIsSelecting(false);
-        Alert.alert('Thành công', `Đã xóa ${selectedItems.length} mục.`);
-
-        if (onDelete) {
-          onDelete(items);
+      const fileName = url.split('/').pop() || (type === 'image' ? 'downloaded_image.jpg' : type === 'video' ? 'downloaded_video.mp4' : 'downloaded_file');
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const { uri } = await FileSystem.downloadAsync(url, fileUri);
+      if (type === 'image' || type === 'video') {
+        const permission = await MediaLibrary.requestPermissionsAsync();
+        if (permission.granted) {
+          await MediaLibrary.createAssetAsync(uri);
+          Alert.alert('Success', `${type === 'image' ? 'Image' : 'Video'} has been saved to gallery!`);
+        } else {
+          Alert.alert('Error', 'No permission to access gallery for saving.');
         }
       } else {
-        Alert.alert('Lỗi', 'Có lỗi xảy ra khi xóa. Phản hồi không hợp lệ.');
-      }
-    } catch (error) {
-      console.error('Lỗi khi xóa:', error);
-      Alert.alert('Lỗi', 'Không thể xóa các mục. Vui lòng thử lại.');
-    }
-  };
-
-  // Chọn/bỏ chọn mục
-  const toggleSelectItem = (item: Media) => {
-    if (selectedItems.some((selected) => selected.id === item.id)) {
-      setSelectedItems(selectedItems.filter((selected) => selected.id !== item.id));
-    } else {
-      setSelectedItems([...selectedItems, item]);
-    }
-  };
-
-  // Lọc dữ liệu
-  const filteredData = useMemo(() => {
-    const items = data[activeTab] || [];
-    return items.filter(
-      (item: Media) =>
-        (filterSender === 'Tất cả' || item.sender === filterSender) &&
-        (!startDate || (item.date && new Date(item.date) >= startDate)) &&
-        (!endDate || (item.date && new Date(item.date) <= endDate)) &&
-        (!isSearching ||
-          item.name?.toLowerCase().includes(searchText.toLowerCase()) ||
-          item.linkURL?.toLowerCase().includes(searchText.toLowerCase()))
-    );
-  }, [data, activeTab, filterSender, startDate, endDate, isSearching, searchText]);
-
-  // Lấy danh sách media đã lọc cho tab "images" để sử dụng trong modal
-  const filteredImages = useMemo(() => {
-    return filteredData.filter((item: Media) => item.type === 'image' || item.type === 'video');
-  }, [filteredData]);
-
-  // Nhóm dữ liệu theo ngày
-  const groupedData = useMemo(() => {
-    const groups: { [key: string]: Media[] } = {};
-    filteredData.forEach((item) => {
-      const dateKey = item.date || 'Không xác định';
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
-      }
-      groups[dateKey].push(item);
-    });
-    return Object.keys(groups)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-      .map((date) => ({ date, data: groups[date] }));
-  }, [filteredData]);
-
-  const getUniqueSenders = (items: Media[]): string[] => {
-    const senders = items.map((item) => item.sender || 'Không xác định');
-    return ['Tất cả', ...new Set(senders)];
-  };
-
-  const handleQuickDateFilter = (days: number) => {
-    const today = new Date();
-    const pastDate = new Date();
-    pastDate.setDate(today.getDate() - days);
-    setStartDate(pastDate);
-    setEndDate(today);
-  };
-
-  const handleResetDateFilter = () => {
-    setStartDate(null);
-    setEndDate(null);
-  };
-
-  // Tải xuống media (ảnh, video)
-  const downloadMedia = async (url: string, type: 'image' | 'video', name: string) => {
-    try {
-      const fileName = url.split('/').pop() || (type === 'image' ? `${name}.jpg` : `${name}.mp4`);
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      const { uri } = await FileSystem.downloadAsync(url, fileUri);
-
-      const permission = await MediaLibrary.requestPermissionsAsync();
-      if (permission.granted) {
-        await MediaLibrary.createAssetAsync(uri);
-        Alert.alert('Thành công', `${type === 'image' ? 'Ảnh' : 'Video'} đã được lưu vào thư viện!`);
-      } else {
-        Alert.alert('Lỗi', 'Không có quyền truy cập vào thư viện để lưu.');
+        Alert.alert('Success', `File "${fileName}" has been downloaded. Check your Files app.`);
+        openFile(uri, fileName);
       }
     } catch (error: any) {
-      console.error(`Tải ${type} thất bại:`, error);
-      Alert.alert('Lỗi', `Không thể tải xuống ${type === 'image' ? 'ảnh' : 'video'}. Vui lòng thử lại.`);
+      console.error(`Download ${type} failed:`, error.message || error);
+      Alert.alert('Error', `Could not download ${type}. Please try again.`);
     }
   };
 
-  // Tải xuống và mở tệp
-  const downloadMediaFile = async (url: string, name: string) => {
-    try {
-      const fileName = url.split('/').pop() || name || 'downloaded_file';
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      const { uri } = await FileSystem.downloadAsync(url, fileUri);
-
-      Alert.alert('Thành công', `Đã tải xuống "${fileName}".`, [
-        { text: 'OK' },
-        { text: 'Mở tệp', onPress: () => openFile(uri, fileName) },
-      ]);
-    } catch (error: any) {
-      console.error('Lỗi khi tải file:', error);
-      Alert.alert('Lỗi', `Không thể tải xuống "${name}". Vui lòng thử lại.`);
+  const openFile = async (fileUri: string, fileName: string) => {
+    if (Platform.OS === 'android') {
+      try {
+        const contentUri = await FileSystem.getContentUriAsync(fileUri);
+        const mimeType = getMimeTypeFromExtension(fileName);
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: contentUri,
+          flags: 1,
+          type: mimeType || 'application/octet-stream',
+        });
+      } catch (error: any) {
+        console.error('Error opening file on Android:', error);
+        Alert.alert('Error', `Could not open file "${fileName}".`);
+      }
+    } else if (Platform.OS === 'ios') {
+      Alert.alert('Open File', `File "${fileName}" has been downloaded. Check your Files app.`);
     }
   };
 
-  const getMimeTypeFromExtension = (fileName: string): string => {
+  const getMimeTypeFromExtension = (fileName: string): string | null => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     switch (extension) {
       case 'doc':
@@ -333,403 +360,318 @@ const StoragePage: React.FC<Props> = ({
     }
   };
 
-  const openFile = async (fileUri: string, fileName: string) => {
-    try {
-      if (Platform.OS === 'android') {
-        const contentUri = await FileSystem.getContentUriAsync(fileUri);
-        await Linking.openURL(contentUri);
-      } else if (Platform.OS === 'ios') {
-        await Linking.openURL(fileUri);
-      }
-    } catch (error: any) {
-      console.error('Lỗi khi mở file:', error);
-      Alert.alert(
-        'Lỗi',
-        `Không thể mở tệp "${fileName}". Hãy kiểm tra xem bạn đã cài đặt ứng dụng phù hợp để mở tệp này chưa.`
-      );
+  const handleOpenLink = (linkURL: string) => {
+    if (!linkURL || linkURL === '#') {
+      Alert.alert('Error', 'Invalid link.');
+      return;
+    }
+    Linking.openURL(linkURL).catch((err) => Alert.alert('Error', 'Could not open link: ' + err.message));
+  };
+
+  const filteredData = useMemo(() => {
+    const currentData = activeTab === 'images' ? data.images : activeTab === 'files' ? data.files : data.links;
+
+    return currentData
+      .filter((item) => {
+        if (filterSender !== 'All' && item.sender !== filterSender) {
+          return false;
+        }
+        if (startDate && new Date(item.date) < startDate) {
+          return false;
+        }
+        if (endDate && new Date(item.date) > endDate) {
+          return false;
+        }
+        if (isSearching && searchText && !item.name.toLowerCase().includes(searchText.toLowerCase())) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [activeTab, data, filterSender, startDate, endDate, searchText, isSearching]);
+
+  const uniqueSenders = useMemo(() => {
+    const senders = new Set<string>();
+    [...data.images, ...data.files, ...data.links].forEach((item) => senders.add(item.sender));
+    return ['All', ...Array.from(senders)];
+  }, [data]);
+
+  const toggleSelectItem = (item: Media) => {
+    if (selectedItems.some((selected) => selected.id === item.id)) {
+      setSelectedItems(selectedItems.filter((selected) => selected.id !== item.id));
+    } else {
+      setSelectedItems([...selectedItems, item]);
     }
   };
 
   const handleSwipe = (index: number) => {
     setCurrentIndex(index);
-    setFullScreenMedia(filteredImages[index]);
-    setVideoError(null);
-    fullScreenVideoRef.current?.pauseAsync().catch(() => {});
+    setFullScreenMedia(filteredData[index]);
   };
 
-  const openFullScreenMedia = (item: Media) => {
-    const index = filteredImages.findIndex((media) => media.id === item.id);
-    if (index !== -1) {
-      setCurrentIndex(index);
-      setFullScreenMedia(item);
-    }
+  const handleSearch = (text: string) => {
+    setSearchText(text);
+    setIsSearching(text.length > 0);
   };
-
-  const DateFilter = () => (
-    <View style={styles.dateFilterContainer}>
-      <View style={styles.dateSuggestionHeader}>
-        <TouchableOpacity
-          style={styles.dateSuggestionButton}
-          onPress={() => setShowDateSuggestions(!showDateSuggestions)}
-        >
-          <Text style={styles.dateSuggestionText}>Gợi ý thời gian</Text>
-        </TouchableOpacity>
-        {(startDate || endDate) && (
-          <TouchableOpacity onPress={handleResetDateFilter}>
-            <Text style={styles.resetFilterText}>Xóa bộ lọc</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      {showDateSuggestions && (
-        <View style={styles.dateSuggestions}>
-          {[7, 30, 90].map((days) => (
-            <TouchableOpacity
-              key={days}
-              style={styles.dateSuggestionItem}
-              onPress={() => handleQuickDateFilter(days)}
-            >
-              <Text style={styles.dateSuggestionItemText}>{days} ngày trước</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-      <View style={styles.datePickerContainer}>
-        <Text style={styles.datePickerLabel}>Chọn khoảng thời gian</Text>
-        <View style={styles.datePickerRow}>
-          <TouchableOpacity
-            style={styles.datePickerButton}
-            onPress={() => setShowStartDatePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#666" />
-            <Text style={styles.datePickerText}>
-              {startDate ? startDate.toISOString().split('T')[0] : 'Từ ngày'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.datePickerButton}
-            onPress={() => setShowEndDatePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#666" />
-            <Text style={styles.datePickerText}>
-              {endDate ? endDate.toISOString().split('T')[0] : 'Đến ngày'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      {/* TODO: Uncomment and install @react-native-community/datetimepicker when ready */}
-      {/* {showStartDatePicker && (
-        <DateTimePicker
-          value={startDate || new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, selectedDate) => {
-            setShowStartDatePicker(false);
-            if (selectedDate) setStartDate(selectedDate);
-          }}
-        />
-      )}
-      {showEndDatePicker && (
-        <DateTimePicker
-          value={endDate || new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, selectedDate) => {
-            setShowEndDatePicker(false);
-            if (selectedDate) setEndDate(selectedDate);
-          }}
-        />
-      )} */}
-    </View>
-  );
-
-  const DateSection = ({
-    date,
-    data: dateData,
-  }: {
-    date: string;
-    data: Media[];
-  }) => (
-    <View style={styles.dateSection}>
-      <Text style={styles.dateSectionTitle}>
-        Ngày{' '}
-        {date === 'Không xác định'
-          ? 'Không xác định'
-          : date.split('-').reverse().join(' Tháng ')}
-      </Text>
-      <View style={activeTab === 'images' ? styles.grid : styles.list}>
-        {dateData.map((item: Media) => (
-          <TouchableOpacity
-            key={item.id}
-            style={[
-              styles.itemContainer,
-              isSelecting && selectedItems.some((selected) => selected.id === item.id)
-                ? styles.selectedItem
-                : null,
-            ]}
-            onPress={() =>
-              isSelecting
-                ? toggleSelectItem(item)
-                : activeTab === 'images'
-                ? openFullScreenMedia(item)
-                : activeTab === 'files'
-                ? downloadMediaFile(item.linkURL, item.name)
-                : Linking.openURL(item.linkURL).catch(() =>
-                    Alert.alert('Lỗi', 'Không thể mở liên kết.')
-                  )
-            }
-          >
-            {activeTab === 'images' ? (
-              <>
-                {item.type === 'image' ? (
-                  <Image source={{ uri: item.linkURL }} style={styles.mediaItem} />
-                ) : (
-                  <View style={styles.videoThumbnailContainer}>
-                    <Video
-                      ref={(ref) => (gridVideoRefs.current[item.id] = ref)}
-                      source={{ uri: item.linkURL }}
-                      style={styles.mediaItem}
-                      useNativeControls={false}
-                      isMuted={true}
-                      resizeMode="cover"
-                      isLooping
-                      shouldPlay={false}
-                      onError={(error) => console.error(`Lỗi tải video ${item.id}:`, error)}
-                    />
-                    <View style={styles.playIconOverlay}>
-                      <Ionicons
-                        name="play-circle-outline"
-                        size={30}
-                        color="#fff"
-                        accessibilityLabel="Phát video"
-                      />
-                    </View>
-                  </View>
-                )}
-              </>
-            ) : activeTab === 'files' ? (
-              <View style={styles.fileItem}>
-                <Text style={styles.fileName}>{item.name || 'Không có tên'}</Text>
-                {!isSelecting && (
-                  <TouchableOpacity onPress={() => downloadMediaFile(item.linkURL, item.name)}>
-                    <Ionicons name="download-outline" size={24} color="#666" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <View style={styles.linkItem}>
-                <Text style={styles.linkUrl}>{item.linkURL}</Text>
-              </View>
-            )}
-            {isSelecting && (
-              <View style={styles.checkbox}>
-                <Ionicons
-                  name={
-                    selectedItems.some((selected) => selected.id === item.id)
-                      ? 'checkbox'
-                      : 'checkbox-outline'
-                  }
-                  size={24}
-                  color={
-                    selectedItems.some((selected) => selected.id === item.id)
-                      ? '#3B82F6'
-                      : '#666'
-                  }
-                />
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
 
   return (
-    <Modal isVisible={isVisible} onBackdropPress={onClose} style={styles.modal} useNativeDriver>
+    <Modal isVisible={isVisible} onBackdropPress={onClose} onBackButtonPress={onClose} style={styles.modal}>
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="arrow-back" size={24} color="#3B82F6" />
+            <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Kho lưu trữ</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => setIsSearching(!isSearching)}>
-              <Ionicons name="search" size={24} color="#3B82F6" />
-            </TouchableOpacity>
-            <View style={styles.selectionContainer}>
-              {isSelecting ? (
-                <>
-                  <TouchableOpacity onPress={handleDeleteSelected}>
-                    <Text style={styles.deleteButton}>Xóa ({selectedItems.length})</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setIsSelecting(false);
-                      setSelectedItems([]);
-                    }}
-                  >
-                    <Text style={styles.cancelButton}>Hủy</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <TouchableOpacity onPress={() => setIsSelecting(true)}>
-                  <Text style={styles.selectButton}>Chọn</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#333" />
+          </TouchableOpacity>
         </View>
-
-        {isSearching && (
-          <View style={styles.searchBar}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={`Tìm kiếm trong ${
-                activeTab === 'images' ? 'ảnh/video' : activeTab === 'files' ? 'files' : 'links'
-              }`}
-              value={searchText}
-              onChangeText={setSearchText}
-            />
-            <TouchableOpacity onPress={() => setIsSearching(false)}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-        )}
 
         <View style={styles.tabContainer}>
-          {(['images', 'files', 'links'] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab && styles.activeTab]}
-              onPress={() => {
-                setActiveTab(tab);
-                setIsSelecting(false);
-                setSelectedItems([]);
-                setIsSearching(false);
-                setSearchText('');
-              }}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                {tab === 'images' ? 'Ảnh/Video' : tab === 'files' ? 'Files' : 'Links'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'images' && styles.activeTab]}
+            onPress={() => setActiveTab('images')}
+          >
+            <Text style={[styles.tabText, activeTab === 'images' && styles.activeTabText]}>Images/Videos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'files' && styles.activeTab]}
+            onPress={() => setActiveTab('files')}
+          >
+            <Text style={[styles.tabText, activeTab === 'files' && styles.activeTabText]}>Files</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'links' && styles.activeTab]}
+            onPress={() => setActiveTab('links')}
+          >
+            <Text style={[styles.tabText, activeTab === 'links' && styles.activeTabText]}>Links</Text>
+          </TouchableOpacity>
         </View>
+
+        <View style={styles.filterContainer}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name..."
+              value={searchText}
+              onChangeText={handleSearch}
+            />
+          </View>
+
+          <View style={styles.filterRow}>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={filterSender}
+                onValueChange={(value) => setFilterSender(value)}
+                style={styles.picker}
+              >
+                {uniqueSenders.map((sender) => (
+                  <Picker.Item key={sender} label={sender} value={sender} />
+                ))}
+              </Picker>
+            </View>
+            <TouchableOpacity
+              style={styles.dateFilterButton}
+              onPress={() => setShowDateFilter(!showDateFilter)}
+            >
+              <Ionicons name="calendar-outline" size={20} color="#007bff" />
+              <Text style={styles.dateFilterText}>Date Filter</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showDateFilter && (
+            <View style={styles.dateFilterContainer}>
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={() => setShowStartDatePicker(true)}
+              >
+                <Text>{startDate ? startDate.toISOString().split('T')[0] : 'Start Date'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={() => setShowEndDatePicker(true)}
+              >
+                <Text>{endDate ? endDate.toISOString().split('T')[0] : 'End Date'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.clearDateButton}
+                onPress={() => {
+                  setStartDate(null);
+                  setEndDate(null);
+                }}
+              >
+                <Text style={styles.clearDateText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.actionContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, isSelecting && styles.actionButtonActive]}
+            onPress={() => {
+              setIsSelecting(!isSelecting);
+              setSelectedItems([]);
+            }}
+          >
+            <Text style={styles.actionButtonText}>{isSelecting ? 'Hủy' : 'Chọn'}</Text>
+          </TouchableOpacity>
+          {isSelecting && selectedItems.length > 0 && (
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteSelected}>
+              <Text style={styles.deleteButtonText}>Xóa ({selectedItems.length})</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <ScrollView style={styles.contentContainer}>
+          {filteredData.length === 0 ? (
+            <Text style={styles.noDataText}>No {activeTab} available.</Text>
+          ) : (
+            <View style={activeTab === 'images' ? styles.grid : styles.list}>
+              {filteredData.map((item) => (
+                <View key={item.id} style={activeTab === 'images' ? styles.gridItem : styles.listItem}>
+                  {isSelecting && (
+                    <TouchableOpacity
+                      style={styles.selectCheckbox}
+                      onPress={() => toggleSelectItem(item)}
+                    >
+                      <Ionicons
+                        name={selectedItems.some((selected) => selected.id === item.id) ? 'checkbox' : 'square-outline'}
+                        size={24}
+                        color={selectedItems.some((selected) => selected.id === item.id) ? '#007bff' : '#666'}
+                      />
+                    </TouchableOpacity>
+                  )}
+                  {activeTab === 'images' && (
+                    <>
+                      {item.type === 'image' ? (
+                        <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
+                          <Image
+                            source={{ uri: item.linkURL }}
+                            style={styles.mediaItem}
+                            onError={(e) => console.error(`Error loading image ${item.id}:`, e)}
+                          />
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
+                          <Video
+                            ref={(ref) => (gridVideoRefs.current[item.id] = ref)}
+                            source={{ uri: item.linkURL }}
+                            style={styles.mediaItem}
+                            useNativeControls={false}
+                            isMuted={true}
+                            resizeMode="cover"
+                            onError={(e) => {
+                              console.error(`Error loading video ${item.id}:`, e);
+                              setVideoError('Could not load video.');
+                            }}
+                          />
+                          <View style={styles.playIconContainer}>
+                            <Ionicons name="play-circle-outline" size={30} color="#fff" />
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+                  {activeTab === 'files' && (
+                    <View style={styles.fileItem}>
+                      <Ionicons name="document-outline" size={24} color="#007bff" style={styles.fileIcon} />
+                      <View style={styles.fileInfo}>
+                        <Text style={styles.fileName}>{item.name}</Text>
+                        <Text style={styles.fileMeta}>
+                          {item.sender} • {item.date}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.downloadButton}
+                        onPress={() => downloadMedia(item.linkURL, 'file')}
+                      >
+                        <Ionicons name="download-outline" size={24} color="#007bff" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {activeTab === 'links' && (
+                    <View style={styles.linkItem}>
+                      <View style={styles.linkInfo}>
+                        <Text style={styles.linkName}>{item.name}</Text>
+                        <TouchableOpacity onPress={() => handleOpenLink(item.linkURL)}>
+                          <Text style={styles.linkUrl}>{item.linkURL}</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.linkMeta}>
+                          {item.sender} • {item.date}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.linkActionButton}
+                        onPress={() => handleOpenLink(item.linkURL)}
+                      >
+                        <Ionicons name="link" size={24} color="#007bff" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
 
         <Modal
           isVisible={!!fullScreenMedia}
-          onBackdropPress={() => {
-            setFullScreenMedia(null);
-            setVideoError(null);
-          }}
-          style={styles.modal}
-          useNativeDriver
+          onBackdropPress={() => setFullScreenMedia(null)}
+          onBackButtonPress={() => setFullScreenMedia(null)}
+          style={styles.fullScreenModal}
         >
           {fullScreenMedia && (
             <View style={styles.fullScreenContainer}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setFullScreenMedia(null)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.downloadButton}
+                onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type)}
+              >
+                <Ionicons name="download-outline" size={24} color="#fff" />
+              </TouchableOpacity>
               <Swiper
-                key={currentIndex}
                 index={currentIndex}
                 onIndexChanged={handleSwipe}
                 loop={false}
                 showsPagination={false}
+                scrollEnabled={true}
               >
-                {filteredImages.map((item) => (
-                  <View key={item.id} style={styles.swiperSlide}>
-                    {item.type === 'image' ? (
-                      <Image
-                        source={{ uri: item.linkURL }}
-                        style={styles.fullScreenMedia}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <>
-                        {videoError ? (
-                          <View style={styles.videoErrorContainer}>
-                            <Text style={styles.videoErrorText}>
-                              Không thể tải video: {videoError}
-                            </Text>
-                          </View>
-                        ) : (
+                {filteredData
+                  .filter((item) => item.type !== 'file' && item.type !== 'link')
+                  .map((item) => (
+                    <View key={item.id} style={styles.swiperSlide}>
+                      {item.type === 'image' ? (
+                        <Image
+                          source={{ uri: item.linkURL }}
+                          style={styles.fullScreenMedia}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <View style={styles.fullScreenVideoContainer}>
                           <Video
-                            ref={fullScreenVideoRef}
+                            ref={item.id === fullScreenMedia.id ? fullScreenVideoRef : null}
                             source={{ uri: item.linkURL }}
-                            style={styles.fullScreenVideo}
-                            useNativeControls={false}
+                            style={styles.fullScreenMedia}
+                            useNativeControls
                             resizeMode="contain"
-                            isLooping
-                            shouldPlay={currentIndex === filteredImages.findIndex((img) => img.id === item.id)}
-                            onPlaybackStatusUpdate={(status) => {
-                              if (!status.isLoaded && status.error) {
-                                setVideoError('Lỗi tải video.');
-                                console.log('Video Error (Fullscreen):', item.linkURL, status.error);
-                              }
-                            }}
-                            onError={(error: any) => {
-                              setVideoError('Không thể phát video.');
-                              console.log('Video Error (Fullscreen):', item.linkURL, error);
+                            onError={(e) => {
+                              console.error(`Error loading full-screen video ${item.id}:`, e);
+                              setVideoError('Could not load video.');
                             }}
                           />
-                        )}
-                        <Text style={styles.mediaName}>{item.name}</Text>
-                      </>
-                    )}
-                  </View>
-                ))}
+                        </View>
+                      )}
+                      <Text style={styles.mediaName}>{item.name}</Text>
+                    </View>
+                  ))}
               </Swiper>
-              <View style={styles.topBar}>
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() => {
-                    setFullScreenMedia(null);
-                    setVideoError(null);
-                  }}
-                >
-                  <Ionicons name="close" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={() =>
-                    downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type, fullScreenMedia.name)
-                  }
-                >
-                  <Ionicons name="download-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
             </View>
           )}
         </Modal>
-
-        <View style={styles.filterContainer}>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={filterSender}
-              onValueChange={(itemValue) => setFilterSender(itemValue)}
-              style={styles.picker}
-            >
-              {getUniqueSenders(data[activeTab]).map((sender) => (
-                <Picker.Item key={sender} label={sender} value={sender} />
-              ))}
-            </Picker>
-          </View>
-          <TouchableOpacity
-            style={styles.dateFilterButton}
-            onPress={() => setShowDateFilter(!showDateFilter)}
-          >
-            <Text style={styles.dateFilterButtonText}>Ngày gửi</Text>
-          </TouchableOpacity>
-        </View>
-
-        {showDateFilter && <DateFilter />}
-
-        <ScrollView style={styles.scrollView}>
-          {groupedData.length === 0 ? (
-            <Text style={styles.noDataText}>Không có dữ liệu để hiển thị.</Text>
-          ) : (
-            groupedData.map(({ date, data }) => (
-              <DateSection key={date} date={date} data={data} />
-            ))
-          )}
-        </ScrollView>
       </View>
     </Modal>
   );
@@ -738,61 +680,239 @@ const StoragePage: React.FC<Props> = ({
 const styles = StyleSheet.create({
   modal: {
     margin: 0,
+    justifyContent: 'flex-end',
   },
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: 16,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-  },
-  selectionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  selectButton: {
-    fontSize: 14,
-    color: '#3B82F6',
-  },
-  deleteButton: {
-    fontSize: 14,
-    color: '#EF4444',
-  },
-  cancelButton: {
-    fontSize: 14,
-    color: '#666',
+    fontWeight: '600',
   },
   tabContainer: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    marginBottom: 16,
   },
   tab: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 15,
     alignItems: 'center',
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#3B82F6',
+    borderBottomColor: '#007bff',
   },
   tabText: {
     fontSize: 14,
     color: '#666',
   },
   activeTabText: {
-    color: '#3B82F6',
-    fontWeight: '500',
+    color: '#007bff',
+    fontWeight: '600',
+  },
+  filterContainer: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 14,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pickerContainer: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  picker: {
+    height: 40,
+    fontSize: 14,
+  },
+  dateFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e0f0ff',
+    padding: 10,
+    borderRadius: 5,
+  },
+  dateFilterText: {
+    marginLeft: 5,
+    color: '#007bff',
+    fontSize: 14,
+  },
+  dateFilterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 10,
+  },
+  datePickerButton: {
+    flex: 1,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  clearDateButton: {
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+  },
+  clearDateText: {
+    color: '#333',
+    fontSize: 14,
+  },
+  actionContainer: {
+    flexDirection: 'row',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    justifyContent: 'space-between',
+  },
+  actionButton: {
+    padding: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+  },
+  actionButtonActive: {
+    backgroundColor: '#007bff',
+  },
+  actionButtonText: {
+    color: '#333',
+    fontSize: 14,
+  },
+  deleteButton: {
+    padding: 10,
+    backgroundColor: '#ff4444',
+    borderRadius: 5,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  contentContainer: {
+    flex: 1,
+    padding: 15,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  list: {
+    gap: 10,
+  },
+  gridItem: {
+    width: '30%',
+    position: 'relative',
+  },
+  listItem: {
+    position: 'relative',
+  },
+  mediaItem: {
+    width: '100%',
+    height: 100,
+    borderRadius: 5,
+  },
+  fileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 5,
+  },
+  fileIcon: {
+    marginRight: 10,
+  },
+  fileInfo: {
+    flex: 1,
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  fileMeta: {
+    fontSize: 12,
+    color: '#666',
+  },
+  downloadButton: {
+    padding: 5,
+  },
+  linkItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 5,
+  },
+  linkInfo: {
+    flex: 1,
+  },
+  linkName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  linkUrl: {
+    fontSize: 12,
+    color: '#007bff',
+  },
+  linkMeta: {
+    fontSize: 12,
+    color: '#666',
+  },
+  linkActionButton: {
+    padding: 5,
+  },
+  selectCheckbox: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    zIndex: 10,
+  },
+  playIconContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenModal: {
+    margin: 0,
   },
   fullScreenContainer: {
     flex: 1,
@@ -800,228 +920,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  swiperSlide: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   fullScreenMedia: {
     width: '100%',
     height: '90%',
   },
-  fullScreenVideo: {
+  fullScreenVideoContainer: {
     width: '100%',
     height: '90%',
-    maxHeight: '100%',
   },
-  videoErrorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  videoErrorText: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  topBar: {
+  closeButton: {
     position: 'absolute',
     top: 16,
     left: 16,
-    right: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 60,
-  },
-  iconButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
     padding: 8,
+  },
+  downloadButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  swiperSlide: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   mediaName: {
     color: '#fff',
     fontSize: 16,
     marginTop: 10,
     textAlign: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 5,
-    borderRadius: 5,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  pickerContainer: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-  },
-  picker: {
-    height: 40,
-    color: '#333',
-  },
-  dateFilterButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  dateFilterButtonText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  dateFilterContainer: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-    padding: 8,
-    marginBottom: 16,
-  },
-  dateSuggestionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dateSuggestionButton: {
-    padding: 8,
-  },
-  dateSuggestionText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  resetFilterText: {
-    fontSize: 14,
-    color: '#3B82F6',
-    padding: 8,
-  },
-  dateSuggestions: {
-    marginTop: 8,
-  },
-  dateSuggestionItem: {
-    padding: 8,
-  },
-  dateSuggestionItemText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  datePickerContainer: {
-    marginTop: 8,
-  },
-  datePickerLabel: {
-    fontSize: 14,
-    color: '#333',
-  },
-  datePickerRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  datePickerButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-    padding: 8,
-    gap: 8,
-  },
-  datePickerText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  dateSection: {
-    marginBottom: 15,
-  },
-  dateSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 5,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-  },
-  list: {
-    gap: 8,
-  },
-  itemContainer: {
-    position: 'relative',
-  },
-  selectedItem: {
-    backgroundColor: '#E0F7FA',
-    borderColor: '#3B82F6',
-    borderWidth: 1,
-    borderRadius: 5,
-  },
-  checkbox: {
     position: 'absolute',
-    top: 5,
-    right: 5,
-  },
-  mediaItem: {
-    width: 80,
-    height: 80,
-    borderRadius: 5,
-  },
-  videoThumbnailContainer: {
-    position: 'relative',
-  },
-  playIconOverlay: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -15 }, { translateY: -15 }],
-    zIndex: 10,
-  },
-  fileItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    padding: 8,
-    borderRadius: 5,
-  },
-  fileName: {
-    fontSize: 14,
-    color: '#3B82F6',
-    fontWeight: '500',
-    flex: 1,
-  },
-  linkItem: {
-    backgroundColor: '#f0f0f0',
-    padding: 8,
-    borderRadius: 5,
-  },
-  linkUrl: {
-    fontSize: 12,
-    color: '#3B82F6',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    paddingHorizontal: 10,
+    bottom: 20,
   },
   noDataText: {
     fontSize: 14,

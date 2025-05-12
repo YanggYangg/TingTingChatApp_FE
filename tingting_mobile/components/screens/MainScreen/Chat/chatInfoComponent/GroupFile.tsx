@@ -1,73 +1,117 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform } from 'react-native';
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from '@expo/vector-icons';
 import StoragePage from './StoragePage';
-import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
 import * as FileSystem from 'expo-file-system';
 import * as IntentLauncher from 'expo-intent-launcher';
 
 interface File {
+  id: string;
   linkURL: string;
   content: string;
   createdAt: string;
+  _id: string;
 }
 
 interface Props {
   conversationId: string;
   userId: string;
+  socket: any; // Replace with proper Socket.IO type if available
+  onDeleteFile?: (fileId: string) => void;
+  onForwardFile?: (file: File, targetConversations: string[], content: string) => void;
 }
 
-const GroupFile: React.FC<Props> = ({ conversationId, userId }) => {
+const GroupFile: React.FC<Props> = ({ conversationId, userId, socket, onDeleteFile, onForwardFile }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [fileToForward, setFileToForward] = useState<File | null>(null);
+  const [messageIdToForward, setMessageIdToForward] = useState<string | null>(null);
 
-  const fetchFiles = async () => {
-    try {
-      console.log("Gửi request đến API...");
-      const response = await Api_chatInfo.getChatFiles(conversationId);
-      console.log("Dữ liệu API trả về:", response);
+  const fetchFiles = () => {
+    if (!conversationId || !socket) {
+      console.warn('conversationId or socket not provided.');
+      setFiles([]);
+      return;
+    }
 
-      const fileData = Array.isArray(response) ? response : response?.data;
-
-      if (Array.isArray(fileData)) {
-        const sortedFiles = fileData.sort((a, b) => {
-          return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || 0;
-        });
-        setFiles(sortedFiles.slice(0, 3));
+    socket.emit('getChatFiles', { conversationId }, (response: any) => {
+      if (response && response.success) {
+        const fileData = Array.isArray(response.data) ? response.data : [];
+        console.log('[Socket.IO] Response (get files):', fileData);
+        if (Array.isArray(fileData)) {
+          const sortedFiles = fileData.sort(
+            (a: File, b: File) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setFiles(
+            sortedFiles.slice(0, 3).map((file: File) => ({
+              ...file,
+              id: file?._id || file?.id,
+            }))
+          );
+        } else {
+          setFiles([]);
+          console.warn('Socket.IO did not return a valid array.');
+        }
       } else {
         setFiles([]);
-        console.warn("API không trả về mảng hợp lệ");
+        console.error('Error fetching file list:', response?.message);
+        Alert.alert('Error', 'Could not load file list. Please try again.');
       }
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách file:", error);
-      Alert.alert('Lỗi', 'Không thể tải danh sách file. Vui lòng thử lại.');
-      setFiles([]);
-    }
+    });
   };
 
   useEffect(() => {
-    if (!conversationId) return;
-    console.log("GRF userId", userId);
+    if (!socket || !conversationId) return;
+
+    socket.on('chatFiles', (updatedFiles: File[]) => {
+      console.log('[Socket.IO] Updated file list:', updatedFiles);
+      if (Array.isArray(updatedFiles)) {
+        const sortedFiles = updatedFiles.sort(
+          (a: File, b: File) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setFiles(
+          sortedFiles.slice(0, 3).map((file: File) => ({
+            ...file,
+            id: file?._id || file?.id,
+          }))
+        );
+      } else {
+        setFiles([]);
+        console.warn('Invalid update data:', updatedFiles);
+      }
+    });
+
+    socket.on('error', (error: any) => {
+      console.error('[Socket.IO] Error:', error.message);
+      Alert.alert('Error', 'An error occurred. Please try again.');
+    });
+
     fetchFiles();
-  }, [conversationId]);
+
+    return () => {
+      socket.off('chatFiles');
+      socket.off('error');
+    };
+  }, [conversationId, socket]);
 
   const handleDownload = async (file: File) => {
     if (!file?.linkURL) {
-      Alert.alert("Lỗi", "Không có link file để tải.");
+      Alert.alert('Error', 'No file link available for download.');
       return;
     }
 
     const fileName = file.linkURL.split('/').pop() || file.content || 'downloaded_file';
-    const fileUri = `${FileSystem.documentDirectory}/${fileName}`;
+    const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
     try {
       const { uri } = await FileSystem.downloadAsync(file.linkURL, fileUri);
-      Alert.alert("Thành công", `Tệp "${fileName}" đã được tải xuống.`);
-      console.log("Tệp đã lưu tại:", uri);
+      Alert.alert('Success', `File "${fileName}" has been downloaded.`);
+      console.log('File saved at:', uri);
       openFile(uri, fileName);
     } catch (downloadError: any) {
-      console.error("Lỗi khi tải file:", downloadError.message || downloadError);
-      Alert.alert("Lỗi", `Không thể tải xuống tệp "${fileName}". Vui lòng thử lại.`);
+      console.error('Error downloading file:', downloadError.message || downloadError);
+      Alert.alert('Error', `Could not download file "${fileName}". Please try again.`);
     }
   };
 
@@ -95,9 +139,8 @@ const GroupFile: React.FC<Props> = ({ conversationId, userId }) => {
         return 'image/png';
       case 'mp4':
         return 'video/mp4';
-      // Thêm các loại MIME khác nếu cần
       default:
-        return 'application/octet-stream'; // Fallback
+        return 'application/octet-stream';
     }
   };
 
@@ -109,60 +152,134 @@ const GroupFile: React.FC<Props> = ({ conversationId, userId }) => {
           const mimeType = getMimeTypeFromExtension(fileName);
           await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
             data: contentUri,
-            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+            flags: 1,
             type: mimeType || 'application/octet-stream',
           });
         } else {
-          Alert.alert("Lỗi", "Không thể tạo Content URI cho tệp.");
+          Alert.alert('Error', 'Could not create Content URI for the file.');
         }
       } catch (error: any) {
-        console.error("Lỗi khi mở file trên Android:", error);
-        Alert.alert("Lỗi", `Không thể mở tệp "${fileName}". Hãy kiểm tra xem bạn đã cài đặt ứng dụng phù hợp để mở tệp này chưa.`);
+        console.error('Error opening file on Android:', error);
+        Alert.alert(
+          'Error',
+          `Could not open file "${fileName}". Please check if you have the appropriate app installed.`
+        );
       }
     } else if (Platform.OS === 'ios') {
       Alert.alert(
-        "Mở tệp",
-        `Tệp "${fileName}" đã được tải xuống. Vui lòng kiểm tra ứng dụng "Tệp" của bạn để xem tệp.`,
-        [{ text: "OK" }]
+        'Open File',
+        `File "${fileName}" has been downloaded. Please check your Files app to view it.`,
+        [{ text: 'OK' }]
       );
-      console.log("Tệp đã lưu tại (iOS):", fileUri);
+      console.log('File saved at (iOS):', fileUri);
     }
+  };
+
+  const handleForwardClick = (fileItem: File) => {
+    setFileToForward(fileItem);
+    setMessageIdToForward(fileItem._id);
+    setIsShareModalOpen(true);
+    console.log('Request to forward file:', fileItem, 'messageId:', fileItem._id);
+  };
+
+  const handleShareModalClose = () => {
+    setIsShareModalOpen(false);
+    setFileToForward(null);
+    setMessageIdToForward(null);
+  };
+
+  const handleFileShared = (targetConversations: string[], shareContent: string) => {
+    if (!fileToForward?._id) {
+      console.error('No message ID available for forwarding.');
+      Alert.alert('Error', 'No message ID available for forwarding.');
+      return;
+    }
+    if (!userId) {
+      console.error('No user ID available for forwarding.');
+      Alert.alert('Error', 'No user ID available for forwarding.');
+      return;
+    }
+    if (!Array.isArray(targetConversations) || targetConversations.length === 0) {
+      console.warn('No conversations selected for forwarding.');
+      Alert.alert('Error', 'No conversations selected for forwarding.');
+      return;
+    }
+
+    socket.emit(
+      'forwardMessage',
+      {
+        messageId: fileToForward._id,
+        targetConversationIds: targetConversations,
+        userId: userId,
+        content: shareContent,
+      },
+      (response: any) => {
+        if (response && response.success) {
+          console.log(`Forwarded file to ${response.data.length} conversations.`);
+          setIsShareModalOpen(false);
+          setFileToForward(null);
+          setMessageIdToForward(null);
+          if (onForwardFile) {
+            onForwardFile(fileToForward, targetConversations, shareContent);
+          }
+          Alert.alert('Success', 'File forwarded successfully.');
+        } else {
+          console.error('Error forwarding file:', response?.message);
+          Alert.alert('Error', 'Could not forward file. Please try again.');
+        }
+      }
+    );
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tệp tin</Text>
+      <Text style={styles.title}>Files</Text>
       <View style={styles.fileList}>
         {files.length > 0 ? (
           files.map((file, index) => (
-            <View key={index} style={styles.fileItem}>
+            <View key={file.id || index} style={styles.fileItem}>
               <View style={styles.fileInfo}>
                 <Ionicons name="document-outline" size={16} color="#1e90ff" style={{ marginRight: 10, paddingBottom: 4, paddingTop: 5 }} />
-                <Text style={styles.fileName}>{file.content || "Không có tên"}</Text>
+                <Text style={styles.fileName}>{file.content || 'No name'}</Text>
               </View>
-              <TouchableOpacity onPress={() => handleDownload(file)} style={styles.downloadButton}>
-                <Ionicons name="download-outline" size={20} color="#1e90ff" />
-              </TouchableOpacity>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity onPress={() => handleForwardClick(file)} style={styles.actionButton}>
+                  <Ionicons name="share-outline" size={20} color="#1e90ff" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDownload(file)} style={styles.actionButton}>
+                  <Ionicons name="download-outline" size={20} color="#1e90ff" />
+                </TouchableOpacity>
+              </View>
             </View>
           ))
         ) : (
-          <Text style={styles.placeholder}>Không có tệp nào.</Text>
+          <Text style={styles.placeholder}>Không có file.</Text>
         )}
       </View>
       <TouchableOpacity style={styles.viewAllButton} onPress={() => setIsOpen(true)}>
-        <Text style={styles.viewAllText}>Xem tất cả</Text>
+        <Text style={styles.viewAllText}>View All</Text>
       </TouchableOpacity>
 
       {isOpen && (
         <StoragePage
           conversationId={conversationId}
-          files={files}
+          userId={userId}
+          socket={socket}
           isVisible={isOpen}
           onClose={() => setIsOpen(false)}
-          userId={userId}
           onDataUpdated={fetchFiles}
         />
       )}
+
+      {/* ShareModal component would need to be implemented for React Native */}
+      {/* <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={handleShareModalClose}
+        onShare={handleFileShared}
+        userId={userId}
+        messageId={messageIdToForward}
+        messageToForward={fileToForward}
+      /> */}
     </View>
   );
 };
@@ -201,8 +318,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 10,
   },
-  downloadButton: {
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
     padding: 2,
+    marginLeft: 8,
   },
   viewAllButton: {
     backgroundColor: '#e0e0e0',
@@ -220,4 +342,5 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 });
+
 export default GroupFile;

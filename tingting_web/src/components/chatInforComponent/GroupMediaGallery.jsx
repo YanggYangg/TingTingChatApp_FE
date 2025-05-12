@@ -3,9 +3,16 @@ import { FaArrowLeft, FaDownload } from "react-icons/fa";
 import { IoArrowRedoOutline, IoTrashOutline } from "react-icons/io5";
 import StoragePage from "./StoragePage";
 import ShareModal from "../../components/chat/ShareModal";
-import { Api_chatInfo } from "../../../apis/Api_chatInfo";
+import {
+  getChatMedia,
+  forwardMessage,
+  onChatMedia,
+  offChatMedia,
+  onError,
+  offError,
+} from "../../services/sockets/events/chatInfo";
 
-const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
+const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
   const [media, setMedia] = useState([]);
   const [error, setError] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -16,69 +23,117 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const videoRef = useRef(null);
 
-  const fetchMedia = async () => {
-    try {
-      const response = await Api_chatInfo.getChatMedia(conversationId);
-      const mediaData = Array.isArray(response?.data) ? response.data : response;
-      const filteredMedia = mediaData
-        .flatMap((item) => {
-          const urls = Array.isArray(item?.linkURL)
-            ? item.linkURL.filter((url) => url && typeof url === "string")
-            : typeof item?.linkURL === "string"
-            ? [item.linkURL]
-            : [];
-          if (urls.length === 0) {
-            console.warn(`Tin nhắn ${item._id} thiếu linkURL:`, item);
-            return [];
-          }
-          return urls.map((url, urlIndex) => ({
-            id: `${item?._id}_${urlIndex}`,
-            messageId: item?._id,
-            src: url,
-            name: item?.content || `Media_${urlIndex + 1}`,
-            type: item?.messageType || "image",
-            urlIndex, // Thêm urlIndex để so sánh khi xóa
-          }));
-        })
-        .filter((mediaItem) => mediaItem.src);
-      setMedia(filteredMedia.length ? filteredMedia : []);
-      setError(filteredMedia.length ? null : "Không có ảnh nào.");
-    } catch (error) {
-      console.error("Lỗi khi lấy dữ liệu media:", error);
-      setError("Lỗi khi tải media. Vui lòng thử lại.");
+  const fetchMedia = () => {
+    if (!conversationId || !socket) {
+      console.warn("conversationId hoặc socket không được cung cấp.");
       setMedia([]);
+      setError("Thiếu thông tin để tải media.");
+      return;
     }
+
+    getChatMedia(socket, { conversationId }, (response) => {
+      if (response && response.success) {
+        const mediaData = Array.isArray(response.data) ? response.data : [];
+        console.log("[Socket.IO] Phản hồi (lấy media):", mediaData);
+        const filteredMedia = mediaData
+          .flatMap((item) => {
+            const urls = Array.isArray(item?.linkURL)
+              ? item.linkURL.filter((url) => url && typeof url === "string")
+              : typeof item?.linkURL === "string"
+              ? [item.linkURL]
+              : [];
+            if (urls.length === 0) {
+              console.warn(`Tin nhắn ${item._id} thiếu linkURL:`, item);
+              return [];
+            }
+            return urls.map((url, urlIndex) => ({
+              id: `${item?._id}_${urlIndex}`,
+              messageId: item?._id,
+              src: url,
+              name: item?.content || `Media_${urlIndex + 1}`,
+              type: item?.messageType || "image",
+              urlIndex,
+            }));
+          })
+          .filter((mediaItem) => mediaItem.src);
+        setMedia(filteredMedia.length ? filteredMedia : []);
+        setError(filteredMedia.length ? null : "Không có ảnh nào.");
+      } else {
+        setMedia([]);
+        setError("Lỗi khi tải media. Vui lòng thử lại.");
+        console.error("Lỗi khi lấy media:", response?.message);
+      }
+    });
   };
 
   useEffect(() => {
-    if (!conversationId) return;
-    fetchMedia();
-  }, [conversationId]);
+    if (!socket || !conversationId) return;
 
-  // Xử lý onDelete từ StoragePage
+    onChatMedia(socket, (updatedMedia) => {
+      console.log("[Socket.IO] Cập nhật danh sách media:", updatedMedia);
+      if (Array.isArray(updatedMedia)) {
+        const filteredMedia = updatedMedia
+          .flatMap((item) => {
+            const urls = Array.isArray(item?.linkURL)
+              ? item.linkURL.filter((url) => url && typeof url === "string")
+              : typeof item?.linkURL === "string"
+              ? [item.linkURL]
+              : [];
+            if (urls.length === 0) {
+              console.warn(`Tin nhắn ${item._id} thiếu linkURL:`, item);
+              return [];
+            }
+            return urls.map((url, urlIndex) => ({
+              id: `${item?._id}_${urlIndex}`,
+              messageId: item?._id,
+              src: url,
+              name: item?.content || `Media_${urlIndex + 1}`,
+              type: item?.messageType || "image",
+              urlIndex,
+            }));
+          })
+          .filter((mediaItem) => mediaItem.src);
+        setMedia(filteredMedia.length ? filteredMedia : []);
+        setError(filteredMedia.length ? null : "Không có ảnh nào.");
+      } else {
+        setMedia([]);
+        setError("Dữ liệu cập nhật không hợp lệ.");
+        console.warn("Dữ liệu cập nhật không hợp lệ:", updatedMedia);
+      }
+    });
+
+    onError(socket, (error) => {
+      console.error("[Socket.IO] Lỗi:", error.message);
+      setError(error.message || "Lỗi khi tải media. Vui lòng thử lại.");
+    });
+
+    fetchMedia();
+
+    return () => {
+      offChatMedia(socket);
+      offError(socket);
+    };
+  }, [conversationId, socket]);
+
   const handleDeleteFromStorage = (deletedItems) => {
     console.log("Cập nhật media sau khi xóa:", deletedItems);
-    
-    // Cập nhật media cục bộ
     const newMedia = media.filter((mediaItem) => {
       const isDeleted = deletedItems.some(
         (item) =>
-          item.messageId === mediaItem.messageId &&
-          item.urlIndex === mediaItem.urlIndex
+          item.messageId === mediaItem.messageId && item.urlIndex === mediaItem.urlIndex
       );
       return !isDeleted;
     });
 
     if (newMedia.length !== media.length) {
       setMedia(newMedia);
-      setError(newMedia.length ? null : "Không có media hợp lệ để hiển thị.");
+      setError(newMedia.length ? null : "Không có media hợpIPLE để hiển thị.");
     } else {
       console.warn("Không thể cập nhật cục bộ, tải lại media...");
       fetchMedia();
     }
   };
 
-  // Xử lý hover
   const handleMouseEnter = (index) => {
     setHoveredIndex(index);
   };
@@ -87,7 +142,6 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
     setHoveredIndex(null);
   };
 
-  // Xử lý chuyển tiếp
   const handleForwardClick = (item, event) => {
     event.stopPropagation();
     setMediaToForward(item);
@@ -95,21 +149,49 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
     setIsShareModalOpen(true);
   };
 
-  // Xử lý chia sẻ từ ShareModal
-  const handleMediaShared = () => {
-    setIsShareModalOpen(false);
-    setMediaToForward(null);
-    setMessageIdToForward(null);
+  const handleMediaShared = (targetConversations, shareContent) => {
+    if (!mediaToForward?.messageId) {
+      console.error("Không có ID tin nhắn để chuyển tiếp.");
+      return;
+    }
+    if (!userId) {
+      console.error("Không có ID người dùng để chuyển tiếp.");
+      return;
+    }
+    if (!Array.isArray(targetConversations) || targetConversations.length === 0) {
+      console.warn("Không có cuộc trò chuyện nào được chọn để chuyển tiếp.");
+      return;
+    }
+
+    forwardMessage(
+      socket,
+      {
+        messageId: mediaToForward.messageId,
+        targetConversationIds: targetConversations,
+        userId: userId,
+        content: shareContent,
+      },
+      (response) => {
+        if (response && response.success) {
+          console.log(`Đã chuyển tiếp media đến ${response.data.length} cuộc trò chuyện.`);
+          setIsShareModalOpen(false);
+          setMediaToForward(null);
+          setMessageIdToForward(null);
+          if (onForward) {
+            onForward(mediaToForward, targetConversations, shareContent);
+          }
+        } else {
+          console.error("Lỗi khi chuyển tiếp media:", response?.message);
+        }
+      }
+    );
   };
 
-  // Xử lý đóng ShareModal
   const handleShareModalClose = () => {
     setIsShareModalOpen(false);
     setMediaToForward(null);
     setMessageIdToForward(null);
   };
-
-  // Tải xuống media
 
   const downloadImage = async (url, filename) => {
     try {
@@ -134,7 +216,6 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
     }
   };
 
-  // Xử lý video trong fullScreenMedia
   useEffect(() => {
     if (fullScreenMedia && fullScreenMedia.type === "video" && videoRef.current) {
       videoRef.current.play().catch((error) => console.error("Lỗi khi phát video:", error));
@@ -203,6 +284,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId }) => {
             conversationId={conversationId}
             onClose={() => setIsOpen(false)}
             onDelete={handleDeleteFromStorage}
+            socket={socket}
           />
         )}
       </div>
