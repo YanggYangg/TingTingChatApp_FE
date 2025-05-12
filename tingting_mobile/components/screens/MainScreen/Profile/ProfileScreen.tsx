@@ -11,13 +11,14 @@ import {
   Alert,
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
+import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { Api_Profile } from "@/apis/api_profile";
 import axios from "axios";
-
-const API_BASE_URL = "http://192.168.1.171:3002/api/v1";
+import PostFeed from "./components/PostFeed";
+import { mockPosts } from "./data/mockData";
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
@@ -65,55 +66,33 @@ export default function ProfileScreen() {
         console.error("Error loading profile from localStorage:", error);
       }
     };
+    const groupPost = () => {};
+
+    groupPost();
 
     loadProfileFromLocal();
   }, []);
-  const handleLogout = async () => {
-    Alert.alert(
-      "Đăng xuất",
-      "Bạn có chắc chắn muốn đăng xuất?",
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-        },
-        {
-          text: "Đăng xuất",
-          onPress: async () => {
-            try {
-              const userId = await AsyncStorage.getItem("userId");
-              const response = await axios.post(
-                `${API_BASE_URL}/auth/sign-out`,
-                userId,
-                {
-                  headers: {
-                    Authorization: `Bearer ${await AsyncStorage.getItem(
-                      "token"
-                    )}`,
-                  },
-                  withCredentials: true,
-                }
-              );
-              console.log("Logout response:", response.data); // Log the response data
 
-              await AsyncStorage.removeItem("userId");
-              await AsyncStorage.removeItem("phone");
-              await AsyncStorage.removeItem("profile");
-              await AsyncStorage.removeItem("token");
-              navigation.replace("Welcome");
-            } catch (error) {
-              console.error("Logout failed:", error); // Log any errors
-            }
-          },
-          style: "destructive",
-        },
-      ],
-      { cancelable: true }
-    );
-  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.iconButton}
+        >
+          <Icon name="chevron-back" size={26} color="#fff" />
+        </TouchableOpacity>
+
+        {/* <Text style={styles.title}>{title}</Text> */}
+
+        <TouchableOpacity
+          onPress={() => console.log("Info pressed")}
+          style={styles.iconButton}
+        >
+          <Icon name="ellipsis-vertical" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView>
         {/* Profile Section */}
@@ -127,11 +106,7 @@ export default function ProfileScreen() {
                 "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
             }} // hoặc từ local như require("...")
             style={styles.backgroundImage}
-          >
-            <TouchableOpacity style={styles.logoutIcon} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={20} color="white" />
-            </TouchableOpacity>
-          </ImageBackground>
+          ></ImageBackground>
 
           {/* Profile Picture */}
           <View style={styles.profilePictureContainer}>
@@ -201,36 +176,10 @@ export default function ProfileScreen() {
             </View>
             <Text style={styles.eventText}>14 tháng 2 - Lễ Tình Nhân</Text>
           </View>
+        </View>
 
-          {/* ID Section */}
-          <View style={styles.idSection}>
-            <Text style={styles.idLabel}>ID</Text>
-            <Text style={styles.idEmail}>chautinh0512@gmail.com</Text>
-            <Text style={styles.idUsername}>Chautinh0512</Text>
-
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.likeButton}>
-                <Ionicons name="heart-outline" size={24} color="#616161" />
-                <Text style={styles.actionText}>Thích</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.commentButton}>
-                <Ionicons name="chatbubble-outline" size={24} color="#616161" />
-              </TouchableOpacity>
-
-              <View style={styles.lockIcon}>
-                <Ionicons name="lock-closed" size={20} color="#9E9E9E" />
-              </View>
-
-              <TouchableOpacity style={styles.moreButton}>
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={24}
-                  color="#616161"
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
+        <View>
+          <PostFeed posts={mockPosts} />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -238,27 +187,22 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  title: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
   container: {
     flex: 1,
     backgroundColor: "#F5F5F5",
   },
-  logoutIcon: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "rgba(0,0,0,0.4)", // nền trong suốt
-    borderRadius: 20,
-    padding: 12,
-    fontSize: 20,
-  },
-
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 15,
+
     paddingVertical: 10,
-    backgroundColor: "rgba(0,0,0,0.5)",
     position: "absolute",
     top: 0,
     left: 0,
@@ -436,16 +380,38 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingVertical: 5,
+  },
+  reactionButtons: {
+    width: 180,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignContent: "center",
   },
   likeButton: {
+    width: 90,
     flexDirection: "row",
     alignItems: "center",
+    borderRadius: 20,
+    backgroundColor: "#F5F5F5",
+    padding: 6,
   },
-  commentButton: {},
-  lockIcon: {},
-  moreButton: {},
+  commentButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 20,
+    backgroundColor: "#F5F5F5",
+    padding: 6,
+  },
+  lockIcon: {
+    width: 70,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   actionText: {
     marginLeft: 5,
     color: "#616161",
   },
+  moreButton: {},
 });

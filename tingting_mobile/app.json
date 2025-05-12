@@ -11,14 +11,17 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-      "NSPhotoLibraryUsageDescription": "Ứng dụng cần quyền truy cập ảnh"
-    }
+        "NSPhotoLibraryUsageDescription": "Ứng dụng cần quyền truy cập ảnh"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff",
-        "permissions": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+        "permissions": [
+          "READ_EXTERNAL_STORAGE",
+          "WRITE_EXTERNAL_STORAGE"
+        ]
       }
     },
     "web": {
@@ -37,7 +40,9 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-barcode-scanner"
+      "expo-barcode-scanner",
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
