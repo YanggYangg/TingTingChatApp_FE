@@ -74,6 +74,7 @@ function SettingsMenu({ isOpen, onClose, position }) {
       localStorage.removeItem("token");
       localStorage.removeItem("userId"); 
       localStorage.removeItem("phone");
+      localStorage.removeItem("profile");
     
       navigator('homepage');
     }catch (error) {
@@ -129,9 +130,10 @@ function SettingsMenu({ isOpen, onClose, position }) {
               icon={<FaSignOutAlt className="text-red-600" />}
               text="Đăng xuất"
               textClass="text-red-600"
+              onClick={handleLogout}
             />
 
-            <MenuItem icon={<FaTimes className="text-black" />} text="Thoát" onClick={handleLogout} />
+            {/* <MenuItem icon={<FaTimes className="text-black" />} text="Thoát" onClick={handleLogout} /> */}
           </ul>
         </div>
       )}

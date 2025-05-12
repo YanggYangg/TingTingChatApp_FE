@@ -25,18 +25,17 @@ function UpdateNewPass() {
     // Xử lý logic tìm tài khoản ở đây
     try {
       const data = { newPassword, phone };
-      if(newPassword !== confirmPass) {
+      if (newPassword !== confirmPass) {
         setMessageError("Mật khẩu không khớp, vui lòng nhập lại!");
         setIsError(true);
         return;
       }
-      const response = await Api_Auth.updateNewPassword(data); 
-      setIsSuccess(true);    
+      const response = await Api_Auth.updateNewPassword(data);
+      setIsSuccess(true);
     } catch (error) {
       setMessageError(error.response.data.message);
       setIsError(true);
     }
-    
   };
   const handleTryAgain = () => {
     setIsError(false);
@@ -44,7 +43,7 @@ function UpdateNewPass() {
   const handleSuccess = () => {
     setIsSuccess(false);
     navigator(config.routes.login);
-  }
+  };
 
   return (
     <div className={cx("body-container")}>
@@ -75,8 +74,8 @@ function UpdateNewPass() {
                 className="w-full p-2 rounded-md border-1 border-gray-400 mb-3"
                 placeholder="Nhập mật khẩu mới"
                 minLength={6}
-                pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$"
-                title="Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ cái và số"
+                pattern="^\S{6,}$"
+                title="Mật khẩu phải có ít nhất 6 ký tự và không chứa khoảng trắng"
                 required
               />
               <input
@@ -86,6 +85,8 @@ function UpdateNewPass() {
                 onChange={(e) => setConfirmPass(e.target.value)}
                 className="w-full p-2 rounded-md border-1 border-gray-400"
                 placeholder="Nhập lại mật khẩu mới"
+                pattern="^\S{6,}$"
+                title="Mật khẩu phải có ít nhất 6 ký tự và không chứa khoảng trắng"
                 minLength={6}
                 required
               />
@@ -113,21 +114,19 @@ function UpdateNewPass() {
           isNotification={true}
           title="Update Failed!"
           message={messageError}
-          
           onClose={handleTryAgain}
-         
         />
       )}
       {isSuccess && (
-              <Modal
-                valid={true}
-                title="Update New Password Successful!"
-                message="You may now login with new password"
-                isNotification={true}
-                onConfirm={handleSuccess}
-                onClose={() => console.log("close")}
-              />
-            )}
+        <Modal
+          valid={true}
+          title="Update New Password Successful!"
+          message="You may now login with new password"
+          isNotification={true}
+          onConfirm={handleSuccess}
+          onClose={() => console.log("close")}
+        />
+      )}
     </div>
   );
 }

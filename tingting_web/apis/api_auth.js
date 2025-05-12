@@ -30,6 +30,9 @@ export const Api_Auth = {
     },
     updateNewPassword: async (data) => {
         return ApiManager.post('authService','api/v1/auth/update-password', data);
+    },
+    changePassword: async (data) => {
+        return ApiManager.post('authService', `api/v1/auth/change-password`,data);
     }
 
 

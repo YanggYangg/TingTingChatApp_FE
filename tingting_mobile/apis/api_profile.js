@@ -1,7 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = "http://192.168.1.8:3001";
+const BASE_URL = "http://192.168.1.171:3001";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -65,7 +65,7 @@ export const Api_Profile = {
     return ApiManager.post(`api/v1/profile/${id}`, data);
   },
   uploadImage: async () => {
-    return ApiManager.post("api/v1/profile/upload");
+    return ApiManager.put("api/v1/profile/upload");
   },
   getProfiles: async () => {
     return ApiManager.get("api/v1/profile");

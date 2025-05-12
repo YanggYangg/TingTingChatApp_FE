@@ -39,7 +39,11 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     try {
       const response = await Api_Auth.login({ phone, password });
-      // if (response.success === true) {
+      // if (response.success === true && response.login === true) {
+      //   await AsyncStorage.setItem("token", response.token);
+      //   navigation.replace("Main");
+      // }
+      if (response.success === true) {
         navigation.navigate("VerificationCode", { phoneNumber: phone });
       // } else {
       //   Alert.alert("Lỗi 1", response.message || "Đăng nhập thất bại");

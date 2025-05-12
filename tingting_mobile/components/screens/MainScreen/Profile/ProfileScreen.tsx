@@ -3,6 +3,7 @@ import {
   Text,
   StyleSheet,
   Image,
+  ImageBackground,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
@@ -10,11 +11,14 @@ import {
   Alert,
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
+import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { Api_Profile } from "@/apis/api_profile";
 import axios from "axios";
+import PostFeed from "./components/PostFeed";
+import { mockPosts } from "./data/mockData";
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
@@ -33,74 +37,76 @@ export default function ProfileScreen() {
   });
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const loadProfileFromLocal = async () => {
       try {
-        const userId = await AsyncStorage.getItem("userId");
-        const token = await AsyncStorage.getItem("token");
+        const storedProfile = await AsyncStorage.getItem("profile");
+        if (!storedProfile) return;
 
-        if (!userId || !token) {
-          console.warn("Missing userId or token");
-          return;
-        }
+        const profile = JSON.parse(storedProfile);
+        const date = new Date(profile.dateOfBirth);
+        const day = date.getDate().toString();
+        const month = (date.getMonth() + 1).toString();
+        const year = date.getFullYear().toString();
 
-        console.log("User ID:", userId);
-
-        const response = await axios.get(
-          `http://192.168.1.8:3001/api/v1/profile/${userId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const user = response.data.data.user;
-        console.log("User Data:", user);
-
-        const date = new Date(user.dateOfBirth);
-        const day = String(date.getDate());
-        const month = String(date.getMonth() + 1);
-        const year = String(date.getFullYear());
-
-        setFormData({
-          firstname: user.firstname || "",
-          surname: user.surname || "",
-          phone: user.phone || "",
-          gender: user.gender || "female",
+        setFormData((prev) => ({
+          ...prev,
+          firstname: profile.firstname || "",
+          surname: profile.surname || "",
+          phone: profile.phone || "",
           avatar:
-            user.avatar ||
+            profile.avatar ||
             "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
-          coverPhoto:
-            user.coverPhoto ||
-            "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
+          coverPhoto: profile.coverPhoto || null,
+          gender: profile.gender || "female",
           day,
           month,
           year,
-        });
+        }));
       } catch (error) {
-        console.error("Lỗi khi lấy thông tin hồ sơ:", error.message);
+        console.error("Error loading profile from localStorage:", error);
       }
     };
+    const groupPost = () => {};
 
-    fetchProfile();
+    groupPost();
+
+    loadProfileFromLocal();
   }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.iconButton}
+        >
+          <Icon name="chevron-back" size={26} color="#fff" />
+        </TouchableOpacity>
+
+        {/* <Text style={styles.title}>{title}</Text> */}
+
+        <TouchableOpacity
+          onPress={() => console.log("Info pressed")}
+          style={styles.iconButton}
+        >
+          <Icon name="ellipsis-vertical" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView>
         {/* Profile Section */}
         <View style={styles.profileSection}>
           {/* Background Image */}
-          <Image
+
+          <ImageBackground
             source={{
               uri:
                 formData.coverPhoto ||
                 "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
-            }}
+            }} // hoặc từ local như require("...")
             style={styles.backgroundImage}
-          />
+          ></ImageBackground>
 
           {/* Profile Picture */}
           <View style={styles.profilePictureContainer}>
@@ -170,36 +176,10 @@ export default function ProfileScreen() {
             </View>
             <Text style={styles.eventText}>14 tháng 2 - Lễ Tình Nhân</Text>
           </View>
+        </View>
 
-          {/* ID Section */}
-          <View style={styles.idSection}>
-            <Text style={styles.idLabel}>ID</Text>
-            <Text style={styles.idEmail}>chautinh0512@gmail.com</Text>
-            <Text style={styles.idUsername}>Chautinh0512</Text>
-
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.likeButton}>
-                <Ionicons name="heart-outline" size={24} color="#616161" />
-                <Text style={styles.actionText}>Thích</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.commentButton}>
-                <Ionicons name="chatbubble-outline" size={24} color="#616161" />
-              </TouchableOpacity>
-
-              <View style={styles.lockIcon}>
-                <Ionicons name="lock-closed" size={20} color="#9E9E9E" />
-              </View>
-
-              <TouchableOpacity style={styles.moreButton}>
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={24}
-                  color="#616161"
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
+        <View>
+          <PostFeed posts={mockPosts} />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -207,6 +187,11 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  title: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
   container: {
     flex: 1,
     backgroundColor: "#F5F5F5",
@@ -216,8 +201,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 15,
+
     paddingVertical: 10,
-    backgroundColor: "rgba(0,0,0,0.5)",
     position: "absolute",
     top: 0,
     left: 0,
@@ -395,16 +380,38 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingVertical: 5,
+  },
+  reactionButtons: {
+    width: 180,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignContent: "center",
   },
   likeButton: {
+    width: 90,
     flexDirection: "row",
     alignItems: "center",
+    borderRadius: 20,
+    backgroundColor: "#F5F5F5",
+    padding: 6,
   },
-  commentButton: {},
-  lockIcon: {},
-  moreButton: {},
+  commentButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 20,
+    backgroundColor: "#F5F5F5",
+    padding: 6,
+  },
+  lockIcon: {
+    width: 70,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   actionText: {
     marginLeft: 5,
     color: "#616161",
   },
+  moreButton: {},
 });

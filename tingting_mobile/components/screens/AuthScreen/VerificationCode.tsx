@@ -100,12 +100,15 @@ const VerificationCode: React.FC<{ navigation: any; route: any }> = ({ navigatio
       
         const response = await Api_Auth.generate_token(data);
         await AsyncStorage.setItem("token", response.data.token);
-        Alert.alert("Xác thực thành công", response.data.token);
+       
         await AsyncStorage.setItem("phone", phoneNumber);
         await AsyncStorage.setItem("userId", response.data.user.userId);
+        await AsyncStorage.setItem("profile", JSON.stringify(response.data.profile.data.user));
+
         console.log("Response = ", response.data);
         console.log("Token = ", response.data.token);
         console.log("UserId = ", response.data.user.userId);
+        console.log("Profile = ", response.data.profile.data.user);
         
         // Navigate to next screen on success
         navigation.replace("Main")

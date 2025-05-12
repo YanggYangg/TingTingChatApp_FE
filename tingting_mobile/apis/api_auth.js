@@ -1,9 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// const BASE_URL = "http://192.168.139.71:3002";
-//
-const BASE_URL = "http://192.168.1.8:3002";
+const BASE_URL = "http://192.168.1.33:3002";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -14,22 +12,19 @@ const axiosInstance = axios.create({
   responseType: "json",
 });
 
-const request = async (method, url, data = null, params = null) => {
+const request = async (method, url, data = null, params = null, headers = {}) => {
   try {
-    console.log(`Making ${method.toUpperCase()} request to ${url}`);
-    if (data) console.log("Request data:", data);
-    if (params) console.log("Request params:", params);
-
     const response = await axiosInstance({
       method,
       url,
       data,
       params,
+      headers, 
     });
 
-    console.log("Response:", response.data);
     return response.data;
   } catch (error) {
+    console.log("Request Error:", error.response?.data || error.message);
     throw error;
   }
 };
@@ -69,7 +64,15 @@ export const Api_Auth = {
   updateNewPassword: async (data) => {
     return ApiManager.post("api/v1/auth/update-password", data);
   },
-  validateToken: async (data) => {
-    return ApiManager.post("api/v1/auth/validate-token", data);
-  },
+  validateToken: async (token) => {
+    return request(
+      "post",
+      "api/v1/auth/validate-token",
+      {}, // body rỗng
+      null, // no query params
+      {
+        Authorization: `Bearer ${token}`, // header chính xác
+      }
+    );
+  }
 };

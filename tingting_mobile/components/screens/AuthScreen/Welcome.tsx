@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import CustomButton from "../../../components/button/CustomButton";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Api_Auth } from "@/apis/api_auth";
 
 type RootStackParamList = {
   Main: undefined;
@@ -14,21 +15,41 @@ type RootStackParamList = {
 type WelcomeProps = NativeStackScreenProps<RootStackParamList, "Welcome">;
 
 const Welcome: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const navigate = useNavigation();
+  const handleLogin = async () => {
+    console.log("handleLogin");
+    try {
+      const token = await AsyncStorage.getItem("token");
+      console.log("Token from AsyncStorage:", token); // Log the token value
+      if (!token) {
+        navigation.navigate("Login");
+        return;
+      }
+      const response = await Api_Auth.validateToken(token);
+      console.log("Token validation response:", response); // Log the response data
+      if (response.success === true) {
+        navigation.navigate("Main");
+      }
+    } catch (error) {
+      console.error("Error validating token:", error);
+      navigation.navigate("Login");
+    }
+  };
 
-  
   return (
     <View style={styles.container}>
       <View style={styles.titleContainer}>
-        <Text style={styles.text}>Welcome to {'\n'} TingTingChatApp</Text>
-        <Image source={require('../../../assets/images/TingTing_Chat.png')} style={styles.image} />
+        <Text style={styles.text}>Welcome to {"\n"} TingTingChatApp</Text>
+        <Image
+          source={require("../../../assets/images/TingTing_Chat.png")}
+          style={styles.image}
+        />
       </View>
 
       <View style={styles.buttonContainer}>
         <CustomButton
           title="Đăng nhập"
           backgroundColor="#007AFF"
-          onPress={() => navigation.navigate("Login")}
+          onPress={() => handleLogin()}
         />
 
         <CustomButton
@@ -61,7 +82,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
   },
-  image:{
+  image: {
     width: 300,
     height: 300,
     borderRadius: 100,
