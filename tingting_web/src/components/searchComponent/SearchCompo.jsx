@@ -29,6 +29,27 @@ function Search() {
     console.log("🔔 Đã kết nối với socket server:", userId);
   }, []);
 
+  useEffect(() => {
+    const handleReceived = ({ fromUserId }) => {
+      console.log("📩 Nhận lời mời kết bạn từ:", fromUserId);
+      setRefreshTrigger(prev => prev + 1);
+    };
+  
+    const handleResponded = ({ toUserId, action }) => {
+      console.log(`✅ Người kia đã ${action} lời mời kết bạn`);
+      setRefreshTrigger(prev => prev + 1);
+    };
+  
+    socket.on("friend_request_received", handleReceived);
+    socket.on("friend_request_responded", handleResponded);
+  
+    return () => {
+      socket.off("friend_request_received", handleReceived);
+      socket.off("friend_request_responded", handleResponded);
+    };
+  }, []);
+  
+
 
   //Modal bb
   const toggleFriendsModal = () => {
@@ -269,6 +290,13 @@ function Search() {
       });
    
 
+      // socket.emit("respond_friend_request", {
+      //   fromUserId: selectedUser._id, // người gửi lời mời
+      //   toUserId: userId,             // người phản hồi
+      //   action, // "accepted" hoặc "rejected"
+      // });
+
+      
       if (action === "accepted") {
         setFriendRequests((prev) => ({
           ...prev,

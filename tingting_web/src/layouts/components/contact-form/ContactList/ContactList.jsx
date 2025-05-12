@@ -12,6 +12,8 @@ import { selectConversation, setSelectedMessage } from '../../../../redux/slices
 import Search from "../Search";
 import { Api_FriendRequest } from "../../../../../apis/api_friendRequest.js";
 import { Api_Conversation } from "../../../../../apis/Api_Conversation.js";
+import socket from "../../../../utils/socket.js";
+
 
 const ContactList = () => {
   const navigate = useNavigate();
@@ -40,6 +42,8 @@ const ContactList = () => {
       console.error("Error fetching friends:", error);
     }
   };
+
+  
 
   useEffect(() => {
     fetchFriends();
