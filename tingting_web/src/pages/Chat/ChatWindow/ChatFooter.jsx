@@ -48,7 +48,6 @@ function ChatFooter({
       isTypingRef.current = true;
     }
 
-    // Xóa timeout cũ (nếu có)
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
@@ -56,7 +55,7 @@ function ChatFooter({
     typingTimeoutRef.current = setTimeout(() => {
       console.log("Sending stopTyping for conversation:", conversationId);
       socket.emit("stopTyping", { conversationId });
-      isTypingRef.current = false; // Đặt lại trạng thái "đang gõ"
+      isTypingRef.current = false;
     }, 5000);
   };
 
@@ -69,6 +68,7 @@ function ChatFooter({
         ? "video"
         : "file",
       previewURL: URL.createObjectURL(file),
+      name: file.name, // Lưu tên file gốc
     }));
     setAttachedFiles((prev) => [...prev, ...newFiles]);
   };
@@ -84,13 +84,14 @@ function ChatFooter({
       }
     );
     const text = await res.text();
-    if (!res.ok) throw new Error("Upload failed");
+    if (!res.ok) throw new Error(`Upload failed: ${text}`);
     return JSON.parse(text).linkURL;
   };
 
   const handleSend = async () => {
     if (uploading || (!message.trim() && attachedFiles.length === 0)) return;
     setUploading(true);
+
     if (socket && conversationId && isTypingRef.current) {
       console.log("Sending stopTyping on message send:", conversationId);
       socket.emit("stopTyping", { conversationId });
@@ -111,9 +112,14 @@ function ChatFooter({
 
       if (uploadedLinks.length > 0) {
         const firstType = attachedFiles[0]?.type || "image";
+        // Tạo tên file hoặc nối các tên file nếu có nhiều file
+        const fileNames =
+          attachedFiles.length === 1
+            ? attachedFiles[0].name
+            : attachedFiles.map((item) => item.name).join(", ");
         const payload = {
           messageType: firstType,
-          content: message || null,
+          content: message.trim() || fileNames, // Sử dụng tên file nếu không có nội dung văn bản
           linkURL: uploadedLinks,
           ...(replyingTo && {
             messageType: "reply",
@@ -123,6 +129,7 @@ function ChatFooter({
             replyMessageSender: replyingTo.sender,
           }),
         };
+        console.log("ChatFooter: Sending file message", payload);
         sendMessage(payload);
       } else if (message.trim()) {
         const payload = {
@@ -135,6 +142,7 @@ function ChatFooter({
             replyMessageSender: replyingTo.sender,
           }),
         };
+        console.log("ChatFooter: Sending text message", payload);
         sendMessage(payload);
       }
 
@@ -150,16 +158,19 @@ function ChatFooter({
   };
 
   useEffect(() => {
+    // Thu hồi các URL preview khi component unmount
     return () => {
+      attachedFiles.forEach((item) => {
+        if (item.previewURL) URL.revokeObjectURL(item.previewURL);
+      });
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-
       if (socket && conversationId && isTypingRef.current) {
         socket.emit("stopTyping", { conversationId });
       }
     };
-  }, [socket, conversationId]);
+  }, [socket, conversationId, attachedFiles]);
 
   return (
     <div
@@ -215,7 +226,7 @@ function ChatFooter({
                 />
               ) : (
                 <p className="text-sm truncate text-gray-600">
-                  📎 {item.file.name}
+                  📎 {item.name}
                 </p>
               )}
               {!uploading && (
@@ -224,6 +235,7 @@ function ChatFooter({
                     setAttachedFiles((prev) =>
                       prev.filter((_, i) => i !== index)
                     );
+                    URL.revokeObjectURL(item.previewURL);
                   }}
                   className="absolute top-1 right-1 bg-white rounded-full p-1 text-red-500 hover:text-red-700"
                 >

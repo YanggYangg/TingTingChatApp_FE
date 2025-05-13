@@ -24,6 +24,9 @@ import {
   updateNotification,
   onError,
   offError,
+  getChatMedia,
+  getChatFiles,
+  getChatLinks,
 } from "../../../services/sockets/events/chatInfo";
 import {
   onConversations,
@@ -58,7 +61,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       return;
     }
 
-    // Định dạng dữ liệu nhóm cho selectedMessage
     const formattedMessage = {
       id: group._id,
       name: group.name || "Nhóm không tên",
@@ -70,12 +72,8 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     };
 
     console.log("ChatInfo: Chọn nhóm", formattedMessage);
-
-    // Tham gia phòng hội thoại
     joinConversation(socket, formattedMessage.id);
     console.log(`ChatInfo: Tham gia phòng: ${formattedMessage.id}`);
-
-    // Cập nhật Redux
     dispatch(setSelectedMessage(formattedMessage));
   };
 
@@ -89,6 +87,25 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     console.log("ChatInfo: Gửi yêu cầu getChatInfo", { conversationId });
     getChatInfo(socket, { conversationId });
+
+    // Lắng nghe sự kiện updateChatInfo từ server
+    const handleUpdateChatInfo = ({ conversationId: updatedConversationId, messageType }) => {
+      console.log("ChatInfo: Nhận sự kiện updateChatInfo", { updatedConversationId, messageType });
+      if (updatedConversationId === conversationId) {
+        if (messageType === "image" || messageType === "video") {
+          console.log("ChatInfo: Cập nhật media trong chatInfo");
+          getChatMedia(socket, { conversationId });
+        } else if (messageType === "file") {
+          console.log("ChatInfo: Cập nhật file trong chatInfo");
+          getChatFiles(socket, { conversationId });
+        } else if (messageType === "link") {
+          console.log("ChatInfo: Cập nhật link trong chatInfo");
+          getChatLinks(socket, { conversationId });
+        }
+      }
+    };
+
+    socket.on("updateChatInfo", handleUpdateChatInfo);
 
     const handleOnChatInfo = (newChatInfo) => {
       console.log("ChatInfo: Nhận thông tin chat", newChatInfo);
@@ -201,11 +218,17 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
     onError(socket, handleError);
 
+    // Tải danh sách media, file, link ban đầu
+    getChatMedia(socket, { conversationId });
+    getChatFiles(socket, { conversationId });
+    getChatLinks(socket, { conversationId });
+
     return () => {
       console.log("ChatInfo: Gỡ socket listeners");
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
+      socket.off("updateChatInfo", handleUpdateChatInfo);
     };
   }, [socket, conversationId, userId, hasMounted, dispatch]);
 

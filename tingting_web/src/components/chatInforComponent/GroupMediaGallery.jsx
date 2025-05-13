@@ -107,7 +107,6 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
       setError(error.message || "Lỗi khi tải media. Vui lòng thử lại.");
     });
 
-    // Lắng nghe sự kiện xóa lịch sử trò chuyện
     socket.on("deleteAllChatHistory", (data) => {
       console.log("GroupMediaGallery: Nhận sự kiện deleteAllChatHistory:", data);
       if (data.conversationId === conversationId) {
