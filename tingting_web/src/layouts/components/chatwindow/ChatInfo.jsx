@@ -92,9 +92,16 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     const handleOnChatInfo = (newChatInfo) => {
       console.log("ChatInfo: Nhận thông tin chat", newChatInfo);
-      setChatInfo(newChatInfo);
-
       const participant = newChatInfo.participants?.find((p) => p.userId === userId);
+      if (participant?.isHidden) {
+        console.log("ChatInfo: Hội thoại ẩn, không hiển thị thông tin");
+        toast.error("Hội thoại này đang ẩn. Vui lòng xác thực lại.");
+        dispatch(setSelectedMessage(null));
+        setLoading(false);
+        return;
+      }
+
+      setChatInfo(newChatInfo);
       if (participant) {
         console.log("ChatInfo: Cập nhật trạng thái participant", {
           isMuted: !!participant.mute,
@@ -150,6 +157,14 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         return;
       }
 
+      const participant = updatedInfo.participants?.find((p) => p.userId === userId);
+      if (participant?.isHidden) {
+        console.log("ChatInfo: Hội thoại ẩn sau khi cập nhật, không hiển thị thông tin");
+        toast.error("Hội thoại này đang ẩn. Vui lòng xác thực lại.");
+        dispatch(setSelectedMessage(null));
+        return;
+      }
+
       setChatInfo((prev) => {
         const newChatInfo = {
           ...prev,
@@ -161,7 +176,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         return newChatInfo;
       });
 
-      const participant = updatedInfo.participants?.find((p) => p.userId === userId);
       if (participant) {
         console.log("ChatInfo: Cập nhật trạng thái isMuted/isPinned/role", {
           isMuted: !!participant.mute,

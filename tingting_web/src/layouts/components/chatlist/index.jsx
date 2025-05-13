@@ -4,6 +4,7 @@ import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 import { useDispatch, useSelector } from "react-redux"; // Nhi thêm
+import PinVerificationModal from "../../../components/PinVerificationModal"; // Import modal
 import {
   setSelectedMessage,
   setLastMessageUpdate,
@@ -35,11 +36,14 @@ import { toast } from "react-toastify"; // Nhi thêm
 
 const cx = classNames.bind(styles);
 
-function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCreated
+function ChatList({ activeTab, onGroupCreated, onConversationSelected }) { // Nhi thêm: Thêm onGroupCreated
   const [messages, setMessages] = useState([]);
   const [selectedTab, setSelectedTab] = useState("priority");
   const [userCache, setUserCache] = useState({}); // Nhi thêm
   const [isSocketConnected, setIsSocketConnected] = useState(false); // Nhi thêm
+  const [searchResults, setSearchResults] = useState([]);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false); // State cho modal
+  const [selectedConversation, setSelectedConversation] = useState(null); // Lưu hội thoại cần xác thực
   const dispatch = useDispatch();
   const { socket, userId: currentUserId } = useSocket();
   const joinedRoomsRef = useRef(new Set()); // Nhi thêm
@@ -96,20 +100,64 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
 
   // Xử lý khi click vào tin nhắn
   const handleMessageClick = (message) => {
-    // Nhi thêm: Kiểm tra trạng thái socket
     if (!isSocketConnected) {
       console.warn("ChatList: Socket chưa kết nối, không thể chọn hội thoại");
+      toast.error("Socket chưa kết nối, vui lòng thử lại sau!");
       return;
     }
-    console.log(`ChatList: Chọn cuộc hội thoại: ${message.id}`); // Nhi thêm
-    if (message.id !== "my-cloud" && !joinedRoomsRef.current.has(message.id)) { // Nhi thêm: Kiểm tra joinedRoomsRef
-      joinConversation(socket, message.id);
-      joinedRoomsRef.current.add(message.id); // Nhi thêm
-      console.log(`ChatList: Tham gia phòng: ${message.id}`); // Nhi thêm
+
+    // Kiểm tra nếu cuộc trò chuyện bị ẩn
+    if (message.isHidden && message.id !== "my-cloud") {
+      console.log(`ChatList: Mở modal nhập PIN cho cuộc trò chuyện ẩn: ${message.id}`);
+      setSelectedConversation(message);
+      setIsPinModalOpen(true);
+      return;
     }
-    dispatch(setSelectedMessage(message));
+
+    // Nếu không ẩn, tiếp tục chọn hội thoại
+    proceedWithMessageSelection(message);
   };
 
+
+  // Hàm phụ để chọn hội thoại sau khi xác thực PIN hoặc nếu không cần PIN
+  const proceedWithMessageSelection = (message) => {
+    console.log(`ChatList: Chọn cuộc hội thoại: ${message.id}`);
+    if (message.id !== "my-cloud" && !joinedRoomsRef.current.has(message.id)) {
+      joinConversation(socket, message.id);
+      joinedRoomsRef.current.add(message.id);
+      console.log(`ChatList: Tham gia phòng: ${message.id}`);
+    }
+    dispatch(setSelectedMessage(message));
+    if (onConversationSelected) {
+      onConversationSelected(message);
+    }
+  };
+
+  // Xử lý khi xác thực PIN thành công
+  const handlePinVerified = () => {
+    if (selectedConversation) {
+      console.log(`ChatList: Xác thực PIN thành công, chọn hội thoại: ${selectedConversation.id}`);
+      // Cập nhật messages để đảm bảo hội thoại không còn bị ẩn
+      setMessages((prevMessages) => {
+        const updatedMessages = prevMessages.map((msg) =>
+          msg.id === selectedConversation.id
+            ? { ...msg, isHidden: false }
+            : msg
+        );
+        return sortMessages(updatedMessages);
+      });
+      proceedWithMessageSelection(selectedConversation);
+    }
+    setIsPinModalOpen(false);
+    setSelectedConversation(null);
+  };
+
+  // Đóng modal nhập PIN
+  const handleClosePinModal = () => {
+    console.log("ChatList: Đóng modal nhập PIN");
+    setIsPinModalOpen(false);
+    setSelectedConversation(null);
+  };
   // Nhi thêm: Kiểm tra giới hạn ghim hội thoại
   const checkPinnedLimit = () => {
     const pinnedCount = messages.filter((msg) => msg.isPinned && !msg.isCloud).length;
@@ -117,6 +165,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
   };
 
   // Nhi thêm: Xử lý ghim/bỏ ghim hội thoại
+ // Xử lý ghim/bỏ ghim hội thoại
   const handlePinConversation = (conversationId, isPinned) => {
     if (!isSocketConnected) {
       console.warn("ChatList: Socket chưa kết nối, không thể ghim/bỏ ghim");
@@ -144,8 +193,15 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
   };
 
   // Nhi thêm: Sắp xếp danh sách hội thoại
-  const sortMessages = (messages) => {
-    return messages.sort((a, b) => {
+ const sortMessages = (messages) => {
+    // Lọc các conversation mà người dùng hiện tại có isHidden: true
+    const filteredMessages = messages.filter((msg) => {
+      if (msg.isCloud) return true; // Giữ lại myCloudItem
+      const participant = msg.participants?.find((p) => p.userId === currentUserId);
+      return !participant?.isHidden; // Chỉ giữ các conversation không bị ẩn
+    });
+
+    return filteredMessages.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
       const timeA = new Date(a.updateAt || a.time || 0);
@@ -154,8 +210,9 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     });
   };
 
+
   // Nhi thêm: Thêm nhóm mới
-  const addNewGroup = async (newConversation) => {
+ const addNewGroup = async (newConversation) => {
     console.log("ChatList: Thêm nhóm mới:", newConversation);
     if (messages.some((msg) => msg.id === newConversation._id)) {
       console.log("ChatList: Nhóm đã tồn tại, bỏ qua:", newConversation._id);
@@ -209,7 +266,6 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
       console.log(`ChatList: Tham gia phòng nhóm mới: ${newConversation._id}`);
     }
 
-    // Nhi thêm: Gọi onGroupCreated nếu có
     if (onGroupCreated) {
       onGroupCreated(newConversation);
     }
@@ -220,6 +276,12 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     setSelectedTab(tab);
   };
 
+
+    // Xử lý kết quả tìm kiếm từ Search
+  const handleSearchResults = (results) => {
+    console.log("ChatList: Nhận kết quả tìm kiếm:", results);
+    setSearchResults(results);
+  };
   // Load and listen for conversations
   useEffect(() => {
     if (!socket || !currentUserId) {
@@ -229,11 +291,11 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
 
     console.log("ChatList: Đăng ký sự kiện socket", { socketId: socket?.id, currentUserId }); // Nhi thêm
 
-    const handleConversations = async (conversations) => {
+   const handleConversations = async (conversations) => {
       console.log("ChatList: Nhận danh sách hội thoại:", conversations);
-      // Nhi thêm: Tham gia tất cả các phòng hội thoại
       conversations.forEach((conversation) => {
-        if (!joinedRoomsRef.current.has(conversation._id)) {
+        const participant = conversation.participants?.find((p) => p.userId === currentUserId);
+        if (!participant?.isHidden && !joinedRoomsRef.current.has(conversation._id)) {
           console.log("ChatList: Tham gia phòng:", conversation._id);
           joinConversation(socket, conversation._id);
           joinedRoomsRef.current.add(conversation._id);
@@ -252,9 +314,8 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
         ),
       ];
 
-      const profiles = await Promise.all(
+    const profiles = await Promise.all(
         otherParticipantIds.map(async (userId) => {
-          // Nhi thêm: Sử dụng userCache
           if (userCache[userId]) {
             console.log("ChatList: Lấy thông tin từ cache:", userId);
             return userCache[userId];
@@ -287,52 +348,59 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
       setMessages(sortMessages(uniqueMessages));
     };
 
-    const handleConversationUpdate = (updatedConversation) => {
-      console.log("ChatList: Nhận sự kiện conversationUpdated:", updatedConversation); // Nhi thêm
+     const handleConversationUpdate = (updatedConversation) => {
+      console.log("ChatList: Nhận sự kiện conversationUpdated:", updatedConversation);
       setMessages((prevMessages) => {
-        const updatedConversationId = updatedConversation.conversationId?._id || updatedConversation.conversationId || updatedConversation._id; // Nhi thêm
+        const updatedConversationId = updatedConversation.conversationId?._id || updatedConversation.conversationId || updatedConversation._id;
         const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === updatedConversationId) {
             const updatedMsg = {
               ...msg,
-              lastMessage: updatedConversation.lastMessage?.content || msg.lastMessage || "", // Nhi thêm
-              lastMessageType: updatedConversation.lastMessage?.messageType || msg.lastMessageType || "text", // Nhi thêm
-              lastMessageSenderId: updatedConversation.lastMessage?.userId || msg.lastMessageSenderId || null, // Nhi thêm
+              lastMessage: updatedConversation.lastMessage?.content || msg.lastMessage || "",
+              lastMessageType: updatedConversation.lastMessage?.messageType || msg.lastMessageType || "text",
+              lastMessageSenderId: updatedConversation.lastMessage?.userId || msg.lastMessageSenderId || null,
               time: new Date(updatedConversation.lastMessage?.createdAt || updatedConversation.updatedAt).toLocaleTimeString(
                 [],
                 { hour: "2-digit", minute: "2-digit" }
-              ), // Nhi thêm: Sử dụng createdAt nếu có
-              updateAt: updatedConversation.lastMessage?.createdAt || updatedConversation.updatedAt, // Nhi thêm
+              ),
+              updateAt: updatedConversation.lastMessage?.createdAt || updatedConversation.updatedAt,
             };
-            console.log("ChatList: Message đã cập nhật từ conversationUpdated:", updatedMsg); // Nhi thêm
+            console.log("ChatList: Message đã cập nhật từ conversationUpdated:", updatedMsg);
             return updatedMsg;
           }
           return msg;
         });
 
-        const isNew = !updatedMessages.some((msg) => msg.id === updatedConversation._id); // Nhi thêm
+        const isNew = !updatedMessages.some((msg) => msg.id === updatedConversation._id);
         if (isNew && updatedConversation._id) {
           const newMessage = transformConversationsToMessages(
             [updatedConversation],
             currentUserId,
             []
           )[0];
-          console.log("ChatList: Thêm message mới:", newMessage); // Nhi thêm
-          updatedMessages.push(newMessage);
-          if (!joinedRoomsRef.current.has(updatedConversation._id)) {
-            joinConversation(socket, updatedConversation._id);
-            joinedRoomsRef.current.add(updatedConversation._id);
+          console.log("ChatList: Thêm message mới:", newMessage);
+          const participant = updatedConversation.participants?.find((p) => p.userId === currentUserId);
+          if (!participant?.isHidden) {
+            updatedMessages.push(newMessage);
+            if (!joinedRoomsRef.current.has(updatedConversation._id)) {
+              joinConversation(socket, updatedConversation._id);
+              joinedRoomsRef.current.add(updatedConversation._id);
+            }
           }
         }
 
-        return sortMessages(updatedMessages); // Nhi thêm
+        return sortMessages(updatedMessages);
       });
     };
 
+
     // Nhi thêm: Xử lý nhóm mới
-    const handleNewGroupConversation = (newConversation) => {
+ const handleNewGroupConversation = (newConversation) => {
       console.log("ChatList: Nhóm mới từ socket:", newConversation);
-      addNewGroup(newConversation);
+      const participant = newConversation.participants?.find((p) => p.userId === currentUserId);
+      if (!participant?.isHidden) {
+        addNewGroup(newConversation);
+      }
     };
 
     // Nhi thêm: Xử lý rời nhóm
@@ -351,7 +419,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
 
     // Nhi thêm: Xử lý xóa hội thoại
     // [Đã chỉnh sửa] Thêm toast thông báo khi bị xóa khỏi nhóm và đảm bảo rời phòng socket
-    const handleConversationRemoved = (data) => {
+   const handleConversationRemoved = (data) => {
       console.log("ChatList: Nhận sự kiện conversationRemoved:", data);
       setMessages((prev) => {
         const updatedMessages = prev.filter((msg) => msg.id !== data.conversationId);
@@ -359,13 +427,11 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
         return updatedMessages;
       });
       dispatch(setSelectedMessage(null));
-      // Bỏ tham gia phòng socket
       if (joinedRoomsRef.current.has(data.conversationId)) {
         joinedRoomsRef.current.delete(data.conversationId);
         socket.emit("leaveConversation", { conversationId: data.conversationId });
         console.log(`ChatList: Rời phòng ${data.conversationId}`);
       }
-      // [Thêm mới] Hiển thị thông báo khi bị xóa khỏi nhóm
       toast.info("Bạn đã bị xóa khỏi nhóm!");
     };
 
@@ -373,13 +439,14 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     // [Đã chỉnh sửa] Thêm logic rời phòng socket khi người dùng không còn trong nhóm
      const handleChatInfoUpdated = (updatedInfo) => {
       console.log("ChatList: Nhận sự kiện chatInfoUpdated:", updatedInfo);
-      if (!updatedInfo.participants.some((p) => p.userId === currentUserId)) {
-        console.log(`ChatList: User ${currentUserId} không còn trong nhóm ${updatedInfo._id}, xóa hội thoại`);
+      const participant = updatedInfo.participants?.find((p) => p.userId === currentUserId);
+      
+      if (!participant || participant.isHidden) {
+        console.log(`ChatList: User ${currentUserId} không còn trong nhóm hoặc conversation bị ẩn ${updatedInfo._id}, xóa hội thoại`);
         setMessages((prevMessages) =>
           prevMessages.filter((msg) => msg.id !== updatedInfo._id)
         );
         dispatch(setSelectedMessage(null));
-        // [Thêm mới] Rời phòng socket nếu không còn là thành viên
         if (joinedRoomsRef.current.has(updatedInfo._id)) {
           socket.emit("leaveConversation", { conversationId: updatedInfo._id });
           joinedRoomsRef.current.delete(updatedInfo._id);
@@ -391,7 +458,6 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
       setMessages((prevMessages) => {
         const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === updatedInfo._id) {
-            const participant = updatedInfo.participants?.find((p) => p.userId === currentUserId);
             const updatedMsg = {
               ...msg,
               participants: updatedInfo.participants || msg.participants,
@@ -445,13 +511,14 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
   useEffect(() => {
     if (chatInfoUpdate) {
       console.log("ChatList: Nhận chatInfoUpdate từ Redux:", chatInfoUpdate);
-      if (!chatInfoUpdate.participants.some((p) => p.userId === currentUserId)) {
-        console.log(`ChatList: User ${currentUserId} không còn trong nhóm ${chatInfoUpdate._id}, xóa hội thoại`);
+      const participant = chatInfoUpdate.participants?.find((p) => p.userId === currentUserId);
+
+      if (!participant || participant.isHidden) {
+        console.log(`ChatList: User ${currentUserId} không còn trong nhóm hoặc conversation bị ẩn ${chatInfoUpdate._id}, xóa hội thoại`);
         setMessages((prevMessages) =>
           prevMessages.filter((msg) => msg.id !== chatInfoUpdate._id)
         );
         dispatch(setSelectedMessage(null));
-        // [Thêm mới] Rời phòng socket nếu không còn là thành viên
         if (joinedRoomsRef.current.has(chatInfoUpdate._id)) {
           socket.emit("leaveConversation", { conversationId: chatInfoUpdate._id });
           joinedRoomsRef.current.delete(chatInfoUpdate._id);
@@ -463,7 +530,6 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
       setMessages((prevMessages) => {
         const updatedMessages = prevMessages.map((msg) => {
           if (msg.id === chatInfoUpdate._id) {
-            const participant = chatInfoUpdate.participants?.find((p) => p.userId === currentUserId) || {};
             const updatedMsg = {
               ...msg,
               participants: chatInfoUpdate.participants || msg.participants,
@@ -473,7 +539,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
               isPinned: participant.isPinned || false,
               mute: participant.mute || false,
             };
-            console.log("ChatList: Cập nhật message từ(). Redux (chatInfoUpdate):", updatedMsg);
+            console.log("ChatList: Cập nhật message từ Redux (chatInfoUpdate):", updatedMsg);
             return updatedMsg;
           }
           return msg;
@@ -481,10 +547,10 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
         return sortMessages(updatedMessages);
       });
     }
-  }, [chatInfoUpdate, currentUserId, dispatch]);
+  }, [chatInfoUpdate, currentUserId, dispatch, socket]);
 
   // Nhi thêm: Xử lý cập nhật tin nhắn cuối từ Redux
-  useEffect(() => {
+useEffect(() => {
     if (lastMessageUpdate) {
       console.log("ChatList: Nhận lastMessageUpdate từ Redux:", lastMessageUpdate);
       setMessages((prevMessages) => {
@@ -520,27 +586,29 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
       {/* Thanh tìm kiếm */}
       <div className="p-2 bg-white shadow-md">
-        <SearchCompo onGroupCreated={(groupData) => addNewGroup(groupData)} /> {/* Nhi thêm: Thêm onGroupCreated */}
+        <SearchCompo
+          onGroupCreated={(groupData) => addNewGroup(groupData)}
+          onSearchResults={handleSearchResults}
+          onConversationSelected={handleMessageClick}
+        />
       </div>
 
       {activeTab === "/chat" && (
         <div className="flex justify-start space-x-4 px-4 py-2 border-b">
           <button
-            className={`font-semibold px-2 ${
-              selectedTab === "priority"
+            className={`font-semibold px-2 ${selectedTab === "priority"
                 ? "text-blue-600 border-b-2 border-blue-600"
                 : "text-gray-600"
-            }`}
+              }`}
             onClick={() => handleTabClick("priority")}
           >
             Ưu tiên
           </button>
           <button
-            className={`font-semibold px-2 ${
-              selectedTab === "others"
+            className={`font-semibold px-2 ${selectedTab === "others"
                 ? "text-blue-600 border-b-2 border-blue-600"
                 : "text-gray-600"
-            }`}
+              }`}
             onClick={() => handleTabClick("others")}
           >
             Khác
@@ -556,18 +624,28 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
           </div>
         ) : (
           activeTab === "/chat" && (
-            <MessageList
-              messages={[myCloudItem, ...messages]}
+             <MessageList
+              messages={searchResults.length > 0 ? searchResults : [myCloudItem, ...messages]}
               onMessageClick={handleMessageClick}
-              onPinConversation={handlePinConversation} // Nhi thêm
+              onPinConversation={handlePinConversation}
               userId={currentUserId}
-              userCache={userCache} // Nhi thêm
+              userCache={userCache}
             />
           )
         )}
         {activeTab === "/contact" && <SibarContact />}
       </div>
+        {/* Modal xác thực PIN */}
+      <PinVerificationModal
+        isOpen={isPinModalOpen}
+        onClose={handleClosePinModal}
+        conversationId={selectedConversation?.id}
+        userId={currentUserId}
+        socket={socket}
+        onVerified={handlePinVerified}
+      />
     </div>
+
   );
 }
 
