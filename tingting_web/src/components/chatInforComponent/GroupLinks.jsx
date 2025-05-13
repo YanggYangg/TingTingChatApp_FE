@@ -55,7 +55,7 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
           });
 
           setLinks(sortedLinks.slice(0, 3));
-          setError(sortedLinks.length ? null : "Không có liên kết nào.");
+          // setError(sortedLinks.length ? null : "Không có liên kết nào.");
         } else {
           setLinks([]);
           setError("Dữ liệu không hợp lệ.");
@@ -95,7 +95,7 @@ const GroupLinks = ({ conversationId, onDeleteLink, onForwardLink, userId, socke
         });
 
         setLinks(sortedLinks.slice(0, 3));
-        setError(sortedLinks.length ? null : "Không có liên kết nào.");
+        // setError(sortedLinks.length ? null : "Không có liên kết nào.");
       } else {
         setLinks([]);
         setError("Dữ liệu cập nhật không hợp lệ.");

@@ -51,7 +51,7 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
             }))
           );
           setData({ files: sortedFiles });
-          setError(sortedFiles.length ? null : "Không có tệp nào.");
+          // setError(sortedFiles.length ? null : "Không có tệp nào.");
         } else {
           setFiles([]);
           setData({ files: [] });
@@ -85,7 +85,7 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
           }))
         );
         setData({ files: sortedFiles });
-        setError(sortedFiles.length ? null : "Không có tệp nào.");
+        // setError(sortedFiles.length ? null : "Không có tệp nào.");
       } else {
         setFiles([]);
         setData({ files: [] });
