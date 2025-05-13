@@ -57,7 +57,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
           })
           .filter((mediaItem) => mediaItem.src);
         setMedia(filteredMedia.length ? filteredMedia : []);
-        setError(filteredMedia.length ? null : "Không có ảnh nào.");
+        // setError(filteredMedia.length ? null : "Không có ảnh nào.");
       } else {
         setMedia([]);
         setError("Lỗi khi tải media. Vui lòng thử lại.");
@@ -94,7 +94,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
           })
           .filter((mediaItem) => mediaItem.src);
         setMedia(filteredMedia.length ? filteredMedia : []);
-        setError(filteredMedia.length ? null : "Không có ảnh nào.");
+        // setError(filteredMedia.length ? null : "Không có ảnh nào.");
       } else {
         setMedia([]);
         setError("Dữ liệu cập nhật không hợp lệ.");
@@ -244,7 +244,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
         {error ? (
           <p className="text-red-500 text-sm">{error}</p>
         ) : media.length === 0 ? (
-          <p className="text-gray-500 text-sm">Không có media để hiển thị.</p>
+          <p className="text-gray-500 text-sm">Không có media nào.</p>
         ) : (
           <div className="grid grid-cols-4 gap-2">
             {media.slice(0, 8).map((item, index) => (
