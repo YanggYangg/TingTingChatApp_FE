@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from "react";
 import Modal from "react-modal";
 import { Api_Profile } from "../../../apis/api_profile";
-import { removeParticipant, onError } from "../../services/sockets/events/chatInfo";
-import { onConversationUpdate, offConversationUpdate } from "../../services/sockets/events/conversation";
+import { Api_Conversation } from "../../../apis/Api_Conversation";
 import { FaTrash } from "react-icons/fa";
-import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
 import { setSelectedMessage } from "../../redux/slices/chatSlice";
-import { joinConversation } from "../../services/sockets/events/conversation";
+import { useNavigate } from "react-router-dom";
+import { removeParticipant, onError } from "../../services/sockets/events/chatInfo";
 
 const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onMemberRemoved }) => {
   const [memberDetails, setMemberDetails] = useState({});
@@ -15,13 +14,16 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
   const [errorDetails, setErrorDetails] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
+  // Thiết lập AppElement cho Modal
   useEffect(() => {
     if (document.getElementById("root")) {
       Modal.setAppElement("#root");
     }
   }, []);
 
+  // Kiểm tra trạng thái admin
   useEffect(() => {
     const checkAdminStatus = () => {
       if (chatInfo?.participants && currentUserId) {
@@ -36,32 +38,52 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
     checkAdminStatus();
   }, [chatInfo, currentUserId]);
 
+  // Lấy thông tin chi tiết thành viên
   useEffect(() => {
     const fetchMemberDetails = async () => {
-      if (chatInfo?.participants) {
-        setLoadingDetails(true);
-        setErrorDetails(null);
-        const details = {};
+      if (!chatInfo?.participants) {
+        setErrorDetails("Không có thông tin thành viên");
+        setLoadingDetails(false);
+        return;
+      }
+
+      setLoadingDetails(true);
+      setErrorDetails(null);
+      const details = {};
+
+      try {
         const fetchPromises = chatInfo.participants.map(async (member) => {
           try {
             const response = await Api_Profile.getProfile(member.userId);
             if (response?.data?.user) {
               details[member.userId] = {
-                name: `${response.data.user.firstname} ${response.data.user.surname}`.trim(),
-                avatar: response.data.user.avatar,
+                name: `${response.data.user.firstname || ""} ${response.data.user.surname || ""}`.trim() || "Không tên",
+                avatar: response.data.user.avatar || "https://via.placeholder.com/150",
                 role: member.role,
               };
             } else {
-              details[member.userId] = { name: "Không tìm thấy", avatar: null, role: member.role };
+              details[member.userId] = {
+                name: "Không tìm thấy",
+                avatar: "https://via.placeholder.com/150",
+                role: member.role,
+              };
             }
           } catch (error) {
-            console.error("Lỗi khi lấy thông tin người dùng:", error);
-            details[member.userId] = { name: "Lỗi tải", avatar: null, role: member.role };
+            console.error(`Lỗi khi lấy thông tin người dùng ${member.userId}:`, error);
+            details[member.userId] = {
+              name: "Lỗi tải",
+              avatar: "https://via.placeholder.com/150",
+              role: member.role,
+            };
           }
         });
 
         await Promise.all(fetchPromises);
         setMemberDetails(details);
+      } catch (error) {
+        setErrorDetails("Lỗi khi tải thông tin thành viên");
+        console.error("Lỗi khi lấy thông tin thành viên:", error);
+      } finally {
         setLoadingDetails(false);
       }
     };
@@ -70,129 +92,95 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
       fetchMemberDetails();
     } else {
       setMemberDetails({});
+      setLoadingDetails(false);
     }
   }, [isOpen, chatInfo]);
 
+  // Xử lý xóa thành viên
   const handleRemoveMember = async (memberIdToRemove) => {
     if (!socket) {
-      toast.error("Socket chưa kết nối, không thể xóa thành viên!");
+      console.error("Socket chưa kết nối, không thể xóa thành viên!");
       return;
     }
 
-    if (isAdmin && currentUserId !== memberIdToRemove) {
-      const confirmRemove = window.confirm(`Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?`);
-      if (confirmRemove) {
-        try {
-          removeParticipant(socket, { conversationId: chatInfo._id, userId: memberIdToRemove }, (response) => {
-            if (response.success) {
-              console.log(`MemberListModal: Đã xóa thành viên ${memberIdToRemove} khỏi nhóm ${chatInfo._id}`);
-              toast.success("Đã xóa thành viên khỏi nhóm!");
-              if (onMemberRemoved) {
-                onMemberRemoved(memberIdToRemove);
-              }
-            } else {
-              console.error("MemberListModal: Lỗi khi xóa thành viên:", response.message);
-              toast.error("Lỗi khi xóa thành viên: " + response.message);
-            }
-          });
+    if (!isAdmin) {
+      console.error("Bạn không có quyền xóa thành viên khỏi nhóm này.");
+      return;
+    }
 
-          onError(socket, (error) => {
-            console.error("MemberListModal: Lỗi từ server:", error);
-            toast.error("Lỗi khi xóa thành viên: " + error.message);
-          });
-        } catch (error) {
-          console.error("MemberListModal: Lỗi khi xóa thành viên:", error);
-          toast.error("Lỗi khi xóa thành viên. Vui lòng thử lại.");
+    if (currentUserId === memberIdToRemove) {
+      console.error("Bạn không thể tự xóa mình khỏi đây. Hãy rời nhóm từ trang thông tin nhóm.");
+      return;
+    }
+
+    const confirmRemove = window.confirm(`Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?`);
+    if (!confirmRemove) return;
+
+    try {
+      removeParticipant(socket, { conversationId: chatInfo._id, userId: memberIdToRemove }, (response) => {
+        if (response.success) {
+          console.log("Đã xóa thành viên khỏi nhóm!");
+          if (onMemberRemoved) {
+            onMemberRemoved(memberIdToRemove);
+          }
+        } else {
+          console.error("Lỗi khi xóa thành viên:", response.message);
         }
-      }
-    } else if (currentUserId === memberIdToRemove) {
-      toast.error("Bạn không thể tự xóa mình khỏi đây. Hãy rời nhóm từ trang thông tin nhóm.");
-    } else {
-      toast.error("Bạn không có quyền xóa thành viên khỏi nhóm này.");
+      });
+
+      onError(socket, (error) => {
+        console.error("Lỗi từ server khi xóa thành viên:", error);
+      });
+    } catch (error) {
+      console.error("Lỗi khi xóa thành viên:", error);
     }
   };
 
-  // Hàm xử lý khi nhấn vào thành viên để mở hội thoại cá nhân
+  // Xử lý khi nhấn vào thành viên để mở hội thoại cá nhân
   const handleMemberClick = async (memberId) => {
-    if (!socket) {
-      toast.error("Socket chưa kết nối, không thể mở hội thoại!");
-      return;
-    }
-
     if (memberId === currentUserId) {
-      toast.info("Bạn không thể trò chuyện với chính mình!");
+      console.log("Bạn không thể trò chuyện với chính mình!");
       return;
     }
 
     try {
-      // Gửi yêu cầu để lấy hoặc tạo hội thoại cá nhân
-      socket.emit("getOrCreatePrivateConversation", { userId1: currentUserId, userId2: memberId }, async (response) => {
-        if (response.success && response.conversation) {
-          console.log(`MemberListModal: Nhận hội thoại cá nhân`, response.conversation);
+      console.log("Gửi getOrCreateConversation:", { currentUserId, memberId });
+      const res = await Api_Conversation.getOrCreateConversation(currentUserId, memberId);
+      console.log("Nhận hội thoại cá nhân:", res);
 
-          // Lấy thông tin người dùng từ API
-          const profileResponse = await Api_Profile.getProfile(memberId);
-          const userData = profileResponse?.data?.user || {};
-          const name = `${userData.firstname || ""} ${userData.surname || ""}`.trim() || memberId;
-          const avatar = userData.avatar || "https://via.placeholder.com/150";
-
-          // Định dạng dữ liệu hội thoại
-          const formattedMessage = {
-            id: response.conversation._id,
-            name,
-            participants: response.conversation.participants || [{ userId: memberId }],
+      if (res?.conversationId) {
+        const conversationId = res.conversationId;
+        dispatch(
+          setSelectedMessage({
+            id: conversationId,
             isGroup: false,
-            avatar,
-            lastMessage: response.conversation.lastMessage?.content || "",
-            lastMessageType: response.conversation.lastMessage?.messageType || "text",
-            lastMessageSenderId: response.conversation.lastMessage?.userId || null,
-            time: response.conversation.lastMessage?.createdAt
-              ? new Date(response.conversation.lastMessage.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "",
-            updateAt: response.conversation.lastMessage?.createdAt || response.conversation.updatedAt,
-            isPinned: response.conversation.participants.find((p) => p.userId === currentUserId)?.isPinned || false,
-            mute: response.conversation.participants.find((p) => p.userId === currentUserId)?.mute || false,
-            isHidden: response.conversation.participants.find((p) => p.userId === currentUserId)?.isHidden || false,
-          };
-
-          // Tham gia phòng hội thoại
-          joinConversation(socket, formattedMessage.id);
-          console.log(`MemberListModal: Tham gia phòng hội thoại cá nhân: ${formattedMessage.id}`);
-
-          // Cập nhật Redux để chọn hội thoại
-          dispatch(setSelectedMessage(formattedMessage));
-          toast.success(`Đã mở hội thoại với ${name}`);
-
-          // Đóng modal
-          onClose();
-        } else {
-          console.error("MemberListModal: Lỗi khi lấy/tạo hội thoại cá nhân:", response.message);
-          toast.error("Không thể mở hội thoại: " + response.message);
-        }
-      });
-
-      // Lắng nghe lỗi từ server
-      onError(socket, (error) => {
-        console.error("MemberListModal: Lỗi từ server khi mở hội thoại:", error);
-        toast.error("Lỗi khi mở hội thoại: " + error.message);
-      });
+            participants: [
+              { userId: currentUserId },
+              { userId: memberId },
+            ],
+          })
+        );
+        console.log("Navigating to /chat");
+        navigate("/chat");
+        onClose();
+      } else {
+        console.error("Không thể lấy hoặc tạo hội thoại:", res?.message || "Không có conversationId");
+      }
     } catch (error) {
-      console.error("MemberListModal: Lỗi khi xử lý hội thoại cá nhân:", error);
-      toast.error("Lỗi khi mở hội thoại. Vui lòng thử lại.");
+      console.error("Lỗi khi bắt đầu trò chuyện:", error);
     }
   };
 
+  // Dọn dẹp sự kiện socket
   useEffect(() => {
     return () => {
-      offConversationUpdate(socket);
-      socket.off("error");
+      socket?.off("error");
     };
   }, [socket]);
 
-  if (!chatInfo?.participants) return null;
+  if (!chatInfo?.participants) {
+    return null;
+  }
 
   return (
     <Modal
@@ -219,7 +207,7 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
             >
               <div className="flex items-center">
                 <img
-                  src={memberDetails[member.userId]?.avatar || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTXq8MYeurVYm6Qhjyvzcgx99vXAlT-BGJ1ow&s"}
+                  src={memberDetails[member.userId]?.avatar || "https://via.placeholder.com/150"}
                   alt={memberDetails[member.userId]?.name || "Người dùng"}
                   className="w-10 h-10 rounded-full mr-3 object-cover"
                 />
@@ -231,7 +219,7 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
               {isAdmin && currentUserId !== member.userId && (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Ngăn sự kiện click trên li
+                    e.stopPropagation();
                     handleRemoveMember(member.userId);
                   }}
                   className="text-red-500 hover:text-red-700 focus:outline-none"

@@ -338,21 +338,20 @@ function ChatPage() {
 
     socket.on("deleteAllChatHistory", ({ conversationId, deletedBy }) => {
       console.log("ChatPage: Nhận deleteAllChatHistory", { conversationId, deletedBy }); // Nhi thêm
-      if (conversationId === selectedMessageId) {
-        if (deletedBy === currentUserId) {
-          dispatch(setMessages([]));
-          dispatch(clearSelectedMessage());
-          toast.success("Toàn bộ lịch sử trò chuyện đã được xóa!");
-        } else {
-          dispatch(
-            setMessages(
-              messages.filter(
-                (msg) => !msg.deletedBy?.includes(deletedBy)
-              )
+      if (conversationId === selectedMessageId && deletedBy === currentUserId) {
+        dispatch(setMessages([]));
+        dispatch(clearSelectedMessage());
+        toast.success("Toàn bộ lịch sử trò chuyện đã được xóa!");
+        console.log("ChatPage: Xóa lịch sử và chuyển về trang chính", { userId: currentUserId }); // Nhi thêm
+      } else if (conversationId === selectedMessageId) {
+        dispatch(
+          setMessages(
+            messages.filter(
+              (msg) => !msg.deletedBy?.includes(deletedBy)
             )
-          );
-          console.log("ChatPage: Giữ nguyên tin nhắn cho người không xóa", { userId: currentUserId }); // Nhi thêm
-        }
+          )
+        );
+        console.log("ChatPage: Giữ nguyên tin nhắn cho người không xóa", { userId: currentUserId }); // Nhi thêm
       }
     });
 
