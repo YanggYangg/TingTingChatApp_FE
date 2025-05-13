@@ -371,7 +371,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
 
     // Nhi thêm: Xử lý cập nhật thông tin chat
     // [Đã chỉnh sửa] Thêm logic rời phòng socket khi người dùng không còn trong nhóm
-    const handleChatInfoUpdated = (updatedInfo) => {
+     const handleChatInfoUpdated = (updatedInfo) => {
       console.log("ChatList: Nhận sự kiện chatInfoUpdated:", updatedInfo);
       if (!updatedInfo.participants.some((p) => p.userId === currentUserId)) {
         console.log(`ChatList: User ${currentUserId} không còn trong nhóm ${updatedInfo._id}, xóa hội thoại`);
