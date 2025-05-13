@@ -107,6 +107,16 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
           }));
         });
 
+        // Lắng nghe sự kiện xóa lịch sử trò chuyện
+        socket.on("deleteAllChatHistory", (data) => {
+          console.log("StoragePage: Nhận sự kiện deleteAllChatHistory:", data);
+          if (data.conversationId === conversationId) {
+            console.log("StoragePage: Xóa toàn bộ dữ liệu do lịch sử trò chuyện bị xóa");
+            setData({ images: [], files: [], links: [] });
+            setError("Lịch sử trò chuyện đã bị xóa.");
+          }
+        });
+
         onError(socket, (error) => {
           setError("Lỗi từ server: " + error.message);
         });
@@ -125,6 +135,7 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
       offChatFiles(socket);
       offChatLinks(socket);
       offMessageDeleted(socket);
+      socket.off("deleteAllChatHistory");
       socket.off("error");
     };
   }, [socket, conversationId]);

@@ -107,11 +107,22 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
       setError(error.message || "Lỗi khi tải media. Vui lòng thử lại.");
     });
 
+    // Lắng nghe sự kiện xóa lịch sử trò chuyện
+    socket.on("deleteAllChatHistory", (data) => {
+      console.log("GroupMediaGallery: Nhận sự kiện deleteAllChatHistory:", data);
+      if (data.conversationId === conversationId) {
+        console.log("GroupMediaGallery: Xóa media do lịch sử trò chuyện bị xóa");
+        setMedia([]);
+        setError("Lịch sử trò chuyện đã bị xóa.");
+      }
+    });
+
     fetchMedia();
 
     return () => {
       offChatMedia(socket);
       offError(socket);
+      socket.off("deleteAllChatHistory");
     };
   }, [conversationId, socket]);
 
@@ -127,7 +138,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
 
     if (newMedia.length !== media.length) {
       setMedia(newMedia);
-      setError(newMedia.length ? null : "Không có media hợpIPLE để hiển thị.");
+      setError(newMedia.length ? null : "Không có media hợp lệ để hiển thị.");
     } else {
       console.warn("Không thể cập nhật cục bộ, tải lại media...");
       fetchMedia();

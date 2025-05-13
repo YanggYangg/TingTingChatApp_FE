@@ -24,13 +24,15 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [fileToForward, setFileToForward] = useState(null);
   const [messageIdToForward, setMessageIdToForward] = useState(null);
+  const [error, setError] = useState(null);
 
   // Hàm lấy danh sách file bằng Socket.IO
   const fetchFiles = () => {
     if (!conversationId || !socket) {
-      console.warn("conversationId hoặc socket không được cung cấp.");
+      console.warn("GroupFile: conversationId hoặc socket không được cung cấp.");
       setFiles([]);
       setData({ files: [] });
+      setError("Thiếu thông tin để tải tệp.");
       return;
     }
 
@@ -49,15 +51,18 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
             }))
           );
           setData({ files: sortedFiles });
+          setError(sortedFiles.length ? null : "Không có tệp nào.");
         } else {
           setFiles([]);
           setData({ files: [] });
-          console.warn("Socket.IO không trả về mảng hợp lệ.");
+          setError("Dữ liệu không hợp lệ.");
+          console.warn("GroupFile: Socket.IO không trả về mảng hợp lệ.");
         }
       } else {
         setFiles([]);
         setData({ files: [] });
-        console.error("Lỗi khi lấy danh sách file:", response?.message);
+        setError("Lỗi khi tải tệp. Vui lòng thử lại.");
+        console.error("GroupFile: Lỗi khi lấy danh sách file:", response?.message);
       }
     });
   };
@@ -80,29 +85,46 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
           }))
         );
         setData({ files: sortedFiles });
+        setError(sortedFiles.length ? null : "Không có tệp nào.");
       } else {
         setFiles([]);
         setData({ files: [] });
-        console.warn("Dữ liệu cập nhật không hợp lệ:", updatedFiles);
+        setError("Dữ liệu cập nhật không hợp lệ.");
+        console.warn("GroupFile: Dữ liệu cập nhật không hợp lệ:", updatedFiles);
       }
     });
 
     onError(socket, (error) => {
       console.error("[Socket.IO] Lỗi:", error.message);
+      setError(error.message || "Lỗi khi tải tệp.");
+    });
+
+    // Lắng nghe sự kiện xóa lịch sử trò chuyện
+    socket.on("deleteAllChatHistory", (data) => {
+      console.log("GroupFile: Nhận sự kiện deleteAllChatHistory:", data);
+      if (data.conversationId === conversationId) {
+        console.log("GroupFile: Xóa files do lịch sử trò chuyện bị xóa");
+        setFiles([]);
+        setData({ files: [] });
+        setError("Lịch sử trò chuyện đã bị xóa.");
+      }
     });
 
     // Gọi fetch lần đầu tiên khi component mount
     fetchFiles();
 
     return () => {
+      console.log("GroupFile: Gỡ sự kiện socket");
       offChatFiles(socket);
       offError(socket);
+      socket.off("deleteAllChatHistory");
     };
   }, [conversationId, socket]);
 
   const handleDownload = (file) => {
     if (!file?.linkURL) {
-      console.error("Không có link file để tải.");
+      console.error("GroupFile: Không có link file để tải.");
+      setError("Không thể tải tệp: Thiếu URL.");
       return;
     }
     const link = document.createElement("a");
@@ -126,7 +148,7 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
     setFileToForward(fileItem);
     setMessageIdToForward(fileItem._id);
     setIsShareModalOpen(true);
-    console.log("Yêu cầu chuyển tiếp file:", fileItem, "messageId:", fileItem._id);
+    console.log("GroupFile: Yêu cầu chuyển tiếp file:", fileItem, "messageId:", fileItem._id);
   };
 
   const handleShareModalClose = () => {
@@ -137,15 +159,18 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
 
   const handleFileShared = (targetConversations, shareContent) => {
     if (!fileToForward?._id) {
-      console.error("Không có ID tin nhắn để chuyển tiếp.");
+      console.error("GroupFile: Không có ID tin nhắn để chuyển tiếp.");
+      setError("Không thể chuyển tiếp: Thiếu ID tin nhắn.");
       return;
     }
     if (!userId) {
-      console.error("Không có ID người dùng để chuyển tiếp.");
+      console.error("GroupFile: Không có ID người dùng để chuyển tiếp.");
+      setError("Không thể chuyển tiếp: Thiếu ID người dùng.");
       return;
     }
     if (!Array.isArray(targetConversations) || targetConversations.length === 0) {
-      console.warn("Không có cuộc trò chuyện nào được chọn để chuyển tiếp.");
+      console.warn("GroupFile: Không có cuộc trò chuyện nào được chọn để chuyển tiếp.");
+      setError("Vui lòng chọn ít nhất một cuộc trò chuyện.");
       return;
     }
 
@@ -159,7 +184,7 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
       },
       (response) => {
         if (response && response.success) {
-          console.log(`Đã chuyển tiếp tệp đến ${response.data.length} cuộc trò chuyện.`);
+          console.log(`GroupFile: Đã chuyển tiếp tệp đến ${response.data.length} cuộc trò chuyện.`);
           setIsShareModalOpen(false);
           setFileToForward(null);
           setMessageIdToForward(null);
@@ -167,7 +192,8 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
             onForwardFile(fileToForward, targetConversations, shareContent);
           }
         } else {
-          console.error("Lỗi khi chuyển tiếp:", response?.message);
+          console.error("GroupFile: Lỗi khi chuyển tiếp:", response?.message);
+          setError("Lỗi khi chuyển tiếp tệp: " + (response?.message || "Lỗi không xác định"));
         }
       }
     );
@@ -176,6 +202,7 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
   return (
     <div className="mb-4">
       <h3 className="text-md font-semibold mb-2">Tệp tin</h3>
+      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
       <div className="space-y-2">
         {files.length > 0 ? (
           files.map((file, index) => (
