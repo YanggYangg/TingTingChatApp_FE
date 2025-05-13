@@ -3,7 +3,7 @@ import Switch from "react-switch";
 import { FaTrash, FaDoorOpen, FaSignOutAlt, FaUserShield } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
-import { setChatInfoUpdate } from "../../redux/slices/chatSlice";
+import { setSelectedMessage, setChatInfoUpdate, setMessages } from "../../redux/slices/chatSlice"; // Thêm setMessages
 import { Api_Profile } from "../../../apis/api_profile";
 import {
   getChatInfo,
@@ -41,6 +41,7 @@ const SecuritySettings = ({
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [showDisbandConfirm, setShowDisbandConfirm] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDisbanding, setIsDisbanding] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -59,7 +60,6 @@ const SecuritySettings = ({
           const participant = data.participants.find((p) => p.userId === userId);
           setUserRoleInGroup(participant?.role || null);
 
-          // Lấy thông tin thành viên
           const members = data.participants.filter((p) => p.userId !== userId);
           Promise.all(
             members.map(async (p) => {
@@ -116,7 +116,6 @@ const SecuritySettings = ({
       setUserRoleInGroup(participant?.role || null);
       setChatInfo(data);
       dispatch(setChatInfoUpdate(data));
-      // Không cập nhật isHidden để giữ trạng thái ban đầu
     });
 
     onChatInfoUpdated(socket, (updatedInfo) => {
@@ -124,10 +123,9 @@ const SecuritySettings = ({
       if (updatedInfo._id !== conversationId) return;
 
       const participant = updatedInfo.participants.find((p) => p.userId === userId);
-      // Chỉ cập nhật isHidden nếu sự kiện liên quan đến xác thực PIN (isHidden thay đổi)
       if (participant && participant.isHidden !== isHidden) {
         setIsHidden(participant.isHidden);
-        console.log("SecuritySettings: Cập nhật isHidden từ sự kiện xác thực PIN", {
+        console.log("SecuritySettings: Cập nhật isHidden từ sự kiện", {
           isHidden: participant.isHidden,
         });
       }
@@ -140,7 +138,6 @@ const SecuritySettings = ({
       setUserRoleInGroup(participant?.role || null);
       setIsGroup(updatedInfo.isGroup);
 
-      // Cập nhật groupMembers
       const members = updatedInfo.participants.filter((p) => p.userId !== userId);
       Promise.all(
         members.map(async (p) => {
@@ -205,7 +202,6 @@ const SecuritySettings = ({
             setShowPinInput(false);
             setPin("");
             toast.success(hide ? "Đã ẩn trò chuyện!" : "Đã hiện trò chuyện!");
-            // Cập nhật chatInfo để đồng bộ với ChatList
             setChatInfo((prev) => ({
               ...prev,
               participants: prev.participants.map((p) =>
@@ -242,8 +238,12 @@ const SecuritySettings = ({
     handleHideChat(true, pin);
   }, [pin, handleHideChat]);
 
-  // Xóa toàn bộ lịch sử trò chuyện
-  const handleDeleteHistory = useCallback(async () => {
+  // Xử lý xóa lịch sử trò chuyện và thoát về trang chính
+  const handleDeleteHistory = useCallback(() => {
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const confirmDeleteHistory = useCallback(async () => {
     if (isProcessing) {
       console.log("SecuritySettings: Đang xử lý, bỏ qua deleteAllChatHistory");
       return;
@@ -251,21 +251,27 @@ const SecuritySettings = ({
     setIsProcessing(true);
     try {
       console.log("SecuritySettings: Gửi yêu cầu deleteAllChatHistory", { conversationId });
+      // Xóa tin nhắn cục bộ ngay lập tức
+      dispatch(setMessages([])); // Thêm: Xóa tin nhắn ngay lập tức
+      dispatch(setSelectedMessage(null)); // Thêm: Chuyển về trang chính ngay lập tức
+      toast.success("Đã xóa toàn bộ lịch sử trò chuyện!");
+
+      // Gửi yêu cầu xóa đến backend
       deleteAllChatHistory(socket, { conversationId }, (response) => {
         console.log("SecuritySettings: Phản hồi từ deleteAllChatHistory", response);
-        if (response.success) {
-          toast.success("Đã xóa toàn bộ lịch sử trò chuyện!");
-        } else {
-          toast.error("Lỗi khi xóa lịch sử: " + response.message);
+        if (!response.success) {
+          toast.error("Lỗi khi xóa lịch sử ở server: " + response.message);
         }
+        setShowDeleteConfirm(false);
         setIsProcessing(false);
       });
     } catch (error) {
       console.error("SecuritySettings: Lỗi khi xóa lịch sử:", error);
       toast.error("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
+      setShowDeleteConfirm(false);
       setIsProcessing(false);
     }
-  }, [socket, conversationId, isProcessing]);
+  }, [socket, conversationId, isProcessing, dispatch]);
 
   // Rời nhóm
   const handleLeaveGroup = useCallback(() => {
@@ -288,7 +294,6 @@ const SecuritySettings = ({
     }
   }, [isGroup, userId, isAdmin, groupMembers]);
 
-  // Xác nhận rời nhóm (cho thành viên không phải admin)
   const confirmLeaveGroup = useCallback(async () => {
     if (isProcessing) {
       console.log("SecuritySettings: Đang xử lý, bỏ qua confirmLeaveGroup");
@@ -312,6 +317,7 @@ const SecuritySettings = ({
               participants: chatInfo.participants.filter((p) => p.userId !== userId),
             })
           );
+          dispatch(setSelectedMessage(null));
         } else {
           toast.error("Lỗi khi rời nhóm: " + response.message);
         }
@@ -328,7 +334,6 @@ const SecuritySettings = ({
     }
   }, [socket, conversationId, userId, setChatInfo, chatInfo, dispatch, isProcessing]);
 
-  // Chuyển quyền trưởng nhóm và tự động rời nhóm (cho admin khi rời nhóm)
   const handleTransferAdminAndLeave = useCallback(async () => {
     if (!newAdminUserId) {
       toast.error("Vui lòng chọn một thành viên để chuyển quyền.");
@@ -372,6 +377,7 @@ const SecuritySettings = ({
               participants: chatInfo.participants.filter((p) => p.userId !== userId),
             })
           );
+          dispatch(setSelectedMessage(null));
         } else {
           toast.error("Lỗi khi rời nhóm: " + response.message);
         }
@@ -389,7 +395,6 @@ const SecuritySettings = ({
     }
   }, [socket, conversationId, userId, newAdminUserId, setChatInfo, chatInfo, dispatch, isProcessing]);
 
-  // Chuyển quyền trưởng nhóm (không rời nhóm)
   const handleTransferAdmin = useCallback(async () => {
     if (!newAdminUserId) {
       toast.error("Vui lòng chọn một thành viên để chuyển quyền.");
@@ -424,7 +429,6 @@ const SecuritySettings = ({
     }
   }, [socket, conversationId, newAdminUserId, isProcessing, dispatch]);
 
-  // Giải tán nhóm
   const handleDisbandGroup = useCallback(() => {
     if (!isGroup || !isAdmin) return;
     setShowDisbandConfirm(true);
@@ -443,6 +447,7 @@ const SecuritySettings = ({
         console.log("SecuritySettings: Phản hồi từ disbandGroup", response);
         if (response.success) {
           toast.success("Nhóm đã được giải tán thành công!");
+          dispatch(setSelectedMessage(null));
         } else {
           toast.error("Lỗi khi giải tán nhóm: " + response.message);
         }
@@ -457,9 +462,8 @@ const SecuritySettings = ({
       setShowDisbandConfirm(false);
       setIsProcessing(false);
     }
-  }, [socket, conversationId, isProcessing]);
+  }, [socket, conversationId, isProcessing, dispatch]);
 
-  // Đóng modal chuyển quyền
   const handleCloseTransferAdminModal = useCallback(() => {
     setShowTransferAdminModal(false);
     setNewAdminUserId("");
@@ -669,6 +673,33 @@ const SecuritySettings = ({
                 disabled={isLeaving || isProcessing}
               >
                 {isLeaving ? "Đang rời..." : "Rời nhóm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md">
+          <div className="bg-white p-6 rounded-md shadow-lg w-96">
+            <h2 className="text-lg font-semibold mb-4">Xác nhận</h2>
+            <p className="mb-4">
+              Toàn bộ nội dung trò chuyện sẽ bị xóa và bạn sẽ thoát ra trang chính. Bạn có chắc chắn muốn xóa?
+            </p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded mr-2"
+                disabled={isProcessing}
+              >
+                Không
+              </button>
+              <button
+                onClick={confirmDeleteHistory}
+                className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded disabled:bg-red-300"
+                disabled={isProcessing}
+              >
+                Xóa
               </button>
             </div>
           </div>
