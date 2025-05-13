@@ -29,13 +29,13 @@ import { CallManagerProvider } from "./contexts/CallManagerContext";
 import CallModal from "./components/Call/CallModal";
 
 //Notifications
-// import { generateToken, messaging  } from "./notifications/firebase";
-// import { useEffect } from "react";
-// import { onMessage } from "firebase/messaging";
-// import { ToastContainer } from 'react-toastify';
-// import 'react-toastify/dist/ReactToastify.css';
-// import { toast } from 'react-toastify';
-//import FCMHandler from "./utils/FCMHandler";
+import { generateToken, messaging  } from "./notifications/firebase";
+import { useEffect } from "react";
+import { onMessage } from "firebase/messaging";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
+import FCMHandler from "./utils/FCMHandler";
 
 function App() {
   
@@ -71,7 +71,7 @@ function App() {
         <CloudSocketProvider>
           <CallManagerProvider>
             <Router>
-            {/* <FCMHandler /> */}
+            <FCMHandler />
               <Routes>
                 <Route path="/" element={<DefaultLayout />}>
                   <Route index element={<h1>Chat window</h1>} />
@@ -103,7 +103,7 @@ function App() {
                 })}
               </Routes>
               <CallModal />
-              {/* <ToastContainer position="top-right" autoClose={3000} /> */}
+              <ToastContainer position="top-right" autoClose={3000} />
             </Router>
           </CallManagerProvider>
         </CloudSocketProvider>

@@ -6,7 +6,7 @@ import CreateGroup from "./CreateGroup";
 import { useSocket } from "../../contexts/SocketContext"; // Import socket from context or wherever it's defined
 
 //socket
-import socket from "../../utils/socket";
+import socket1 from "../../utils/socket";
 
 function Search({ onGroupCreated }) {
   const [isModalFriendsOpen, setIsModalFriendsOpen] = useState(false);
@@ -46,33 +46,62 @@ function Search({ onGroupCreated }) {
 
 
   //socket
-  // useEffect(() => {
-  //   const userId = localStorage.getItem("userId");
-  //   if (userId) socket.emit("add_user", userId);
-  //   console.log("🔔 Đã kết nối với socket server:", userId);
-  // }, []);
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    if (userId) socket1.emit("add_user", userId);
+    console.log("🔔 Đã kết nối với socket server:", userId);
+  }, []);
 
-  // useEffect(() => {
-  //   const handleReceived = ({ fromUserId }) => {
-  //     console.log("📩 Nhận lời mời kết bạn từ:", fromUserId);
-  //     setRefreshTrigger(prev => prev + 1);
-  //   };
-  
-  //   const handleResponded = ({ toUserId, action }) => {
-  //     console.log(`✅ Người kia đã ${action} lời mời kết bạn`);
-  //     setRefreshTrigger(prev => prev + 1);
-  //   };
-  
-  //   socket.on("friend_request_received", handleReceived);
-  //   socket.on("friend_request_responded", handleResponded);
-  
-  //   return () => {
-  //     socket.off("friend_request_received", handleReceived);
-  //     socket.off("friend_request_responded", handleResponded);
-  //   };
-  // }, []);
-  
+  useEffect(() => {
+  socket1.on("friend_request_received", ({ fromUserId }) => {
+    console.log("📩 Nhận lời mời kết bạn từ:", fromUserId);
 
+    // Cập nhật trạng thái trong state friendRequests
+    setFriendRequests((prev) => ({
+      ...prev,
+      [fromUserId]: {
+        status: "pending",
+        isRequester: false,
+        requestId: "temp", // có thể update bằng ID thực sau
+      },
+    }));
+
+    
+    // Nếu đang xem đúng người vừa gửi lời mời thì trigger UI update
+    if (selectedUser && selectedUser._id === fromUserId) {
+      setRefreshTrigger((prev) => prev + 1);
+    }
+  });
+
+  return () => {
+    socket1.off("friend_request_received");
+  };
+}, [selectedUser]);
+
+useEffect(() => {
+  socket1.on("friend_request_revoked", ({ fromUserId }) => {
+    console.log("🚫 Lời mời đã bị thu hồi từ:", fromUserId);
+    setFriendRequests((prev) => {
+      const updated = { ...prev };
+      delete updated[fromUserId];
+      return updated;
+    });
+
+    if (selectedUser && selectedUser._id === fromUserId) {
+      setRefreshTrigger((prev) => prev + 1);
+    }
+  });
+
+  return () => {
+    socket1.off("friend_request_revoked");
+  };
+}, [selectedUser]);
+ 
+
+
+
+
+  
   useEffect(() => {
     if (selectedUser) {
       handleSelectUser(selectedUser);
@@ -89,21 +118,21 @@ function Search({ onGroupCreated }) {
     // Cập nhật selected user trước
     setSelectedUser(user);
 
-    try {
-      await fetchFriendRequestsAndUpdate();
+    // try {
+    //   await fetchFriendRequestsAndUpdate();
 
-      // Kiểm tra trạng thái bạn bè thực sự
-      const res = await Api_FriendRequest.checkFriendStatus({
-        userIdA: currentUserId,
-        userIdB: user._id,
-      });
+    //   // Kiểm tra trạng thái bạn bè thực sự
+    //   const res = await Api_FriendRequest.checkFriendStatus({
+    //     userIdA: currentUserId,
+    //     userIdB: user._id,
+    //   });
 
-      console.log("Trạng thái bạn bè thực sự:", res.status);
-      setFriendStatus(res?.status || "not_friends");
-    } catch (error) {
-      console.error("Lỗi khi kiểm tra trạng thái bạn bè:", error);
-      setFriendStatus("not_friends");
-    }
+    //   console.log("Trạng thái bạn bè thực sự:", res.status);
+    //   setFriendStatus(res?.status || "not_friends");
+    // } catch (error) {
+    //   console.error("Lỗi khi kiểm tra trạng thái bạn bè:", error);
+    //   setFriendStatus("not_friends");
+    // }
   };
 
   //Modal groups
@@ -183,48 +212,48 @@ function Search({ onGroupCreated }) {
   }, [refreshTrigger]);
 
   //polling
-  useEffect(() => {
-    const currentUserId = localStorage.getItem("userId");
-    if (!selectedUser || !friendRequests[selectedUser._id]) return;
+  // useEffect(() => {
+  //   const currentUserId = localStorage.getItem("userId");
+  //   if (!selectedUser || !friendRequests[selectedUser._id]) return;
 
-    const isRequester = friendRequests[selectedUser._id]?.isRequester;
+  //   const isRequester = friendRequests[selectedUser._id]?.isRequester;
 
-    if (!isRequester) return;
+  //   if (!isRequester) return;
 
-    const intervalId = setInterval(async () => {
-      try {
-        const sentRes = await Api_FriendRequest.getSentRequests(currentUserId);
-        const matchedRequest = sentRes.data.find(
-          (req) => req.recipient?._id === selectedUser._id
-        );
+  //   const intervalId = setInterval(async () => {
+  //     try {
+  //       const sentRes = await Api_FriendRequest.getSentRequests(currentUserId);
+  //       const matchedRequest = sentRes.data.find(
+  //         (req) => req.recipient?._id === selectedUser._id
+  //       );
 
-        if (!matchedRequest) {
-          // đã bị từ chối
-          setFriendRequests((prev) => {
-            const updated = { ...prev };
-            delete updated[selectedUser._id];
-            return updated;
-          });
-          setRefreshTrigger((prev) => prev + 1);
-        } else if (matchedRequest.status === "accepted") {
-          // đã được chấp nhận
-          setFriendRequests((prev) => ({
-            ...prev,
-            [selectedUser._id]: {
-              status: "accepted",
-              requestId: matchedRequest._id,
-              isRequester: true,
-            },
-          }));
-          setRefreshTrigger((prev) => prev + 1);
-        }
-      } catch (err) {
-        console.error("Polling lỗi:", err);
-      }
-    }, 1000);
+  //       if (!matchedRequest) {
+  //         // đã bị từ chối
+  //         setFriendRequests((prev) => {
+  //           const updated = { ...prev };
+  //           delete updated[selectedUser._id];
+  //           return updated;
+  //         });
+  //         setRefreshTrigger((prev) => prev + 1);
+  //       } else if (matchedRequest.status === "accepted") {
+  //         // đã được chấp nhận
+  //         setFriendRequests((prev) => ({
+  //           ...prev,
+  //           [selectedUser._id]: {
+  //             status: "accepted",
+  //             requestId: matchedRequest._id,
+  //             isRequester: true,
+  //           },
+  //         }));
+  //         setRefreshTrigger((prev) => prev + 1);
+  //       }
+  //     } catch (err) {
+  //       console.error("Polling lỗi:", err);
+  //     }
+  //   }, 1000);
 
-    return () => clearInterval(intervalId);
-  }, [selectedUser, friendRequests]);
+  //   return () => clearInterval(intervalId);
+  // }, [selectedUser, friendRequests]);
 
   const handleSearch = () => {
     const cleanedInput = searchValue.replace(/\D/g, "");
@@ -235,118 +264,190 @@ function Search({ onGroupCreated }) {
     console.log(filtered);
   };
 
-  const handleFriendRequest = async () => {
-    const userId = localStorage.getItem("userId");
-    if (!userId || !selectedUser || !selectedUser._id) return;
+  // const handleFriendRequest = async () => {
+  //   const userId = localStorage.getItem("userId");
+  //   if (!userId || !selectedUser || !selectedUser._id) return;
 
 
-    const existingRequest = friendRequests[selectedUser._id];
+  //   const existingRequest = friendRequests[selectedUser._id];
 
 
-    try {
-      const userPhoneRes = await Api_Profile.getUserPhone(userId);
-      const currentUserPhone = userPhoneRes.phone;
+  //   try {
+  //     const userPhoneRes = await Api_Profile.getUserPhone(userId);
+  //     const currentUserPhone = userPhoneRes.phone;
 
-      if (
-        existingRequest &&
-        existingRequest.status === "pending" &&
-        existingRequest.isRequester
-      ) {
-        // Nếu đã gửi lời mời => thu hồi
-        await Api_FriendRequest.cancelFriendRequest({
-          requesterId: userId,
-          recipientId: selectedUser._id,
-        });
+  //     if (
+  //       existingRequest &&
+  //       existingRequest.status === "pending" &&
+  //       existingRequest.isRequester
+  //     ) {
+  //       // Nếu đã gửi lời mời => thu hồi
+  //       await Api_FriendRequest.cancelFriendRequest({
+  //         requesterId: userId,
+  //         recipientId: selectedUser._id,
+  //       });
 
 
-        // Xóa trạng thái lời mời khỏi state
-        setFriendRequests((prev) => {
-          const updated = { ...prev };
-          delete updated[selectedUser._id];
-          return updated;
-        });
-      } else {
-        // Gửi lời mời mới
-        await Api_FriendRequest.sendFriendRequest({
-          requesterPhone: currentUserPhone,
-          recipientPhone: selectedUser.phone,
-        });
+  //       // Xóa trạng thái lời mời khỏi state
+  //       setFriendRequests((prev) => {
+  //         const updated = { ...prev };
+  //         delete updated[selectedUser._id];
+  //         return updated;
+  //       });
+  //     } else {
+  //       // Gửi lời mời mới
+  //       await Api_FriendRequest.sendFriendRequest({
+  //         requesterPhone: currentUserPhone,
+  //         recipientPhone: selectedUser.phone,
+  //       });
 
-        //socket
-        // socket.emit("send_friend_request", {
-        //   fromUserId: userId,
-        //   toUserId: selectedUser._id
-        // });
+  //       setFriendRequests((prev) => ({
+  //         ...prev,
+  //         [selectedUser._id]: {
+  //           status: "pending",
+  //           requestId: "temp", // Bạn có thể thay bằng ID thực sau
+  //           isRequester: true,
+  //         },
+  //       }));
+  //     }
 
-        setFriendRequests((prev) => ({
-          ...prev,
-          [selectedUser._id]: {
-            status: "pending",
-            requestId: "temp", // Bạn có thể thay bằng ID thực sau
-            isRequester: true,
-          },
-        }));
+  //     await fetchFriendRequestsAndUpdate();
+  //     await handleSelectUser(selectedUser);
+  //     // Refresh dữ liệu
+  //     setRefreshTrigger((prev) => prev + 1);
+  //   } catch (err) {
+  //     console.error("Lỗi xử lý lời mời kết bạn:", err);
+  //   }
+  // };
+
+//   const handleFriendRequest = () => {
+//   const currentUserId = localStorage.getItem("userId");
+
+//   if (!currentUserId || !selectedUser || !selectedUser._id) return;
+
+//   // Gửi lời mời kết bạn qua socket
+// if (socket1 && selectedUser) {
+//   socket1.emit("send_friend_request", {
+//     fromUserId: currentUserId,
+//     toUserId: selectedUser._id,
+//   });
+// }
+
+// //setFriendStatus("pending"); // set tạm realtime
+//   // Cập nhật UI giả lập trạng thái chờ
+//   setFriendRequests((prev) => ({
+//     ...prev,
+//     [selectedUser._id]: {
+//       status: "pending",
+//       isRequester: true,
+//       requestId: "temp",
+//     },
+//   }));
+// };
+
+const handleFriendRequest = () => {
+  const currentUserId = localStorage.getItem("userId");
+
+  if (!currentUserId || !selectedUser || !selectedUser._id) return;
+
+  const existingRequest = friendRequests[selectedUser._id];
+
+  // Nếu đã gửi lời mời và đang chờ => thu hồi
+  if (existingRequest?.status === "pending" && existingRequest.isRequester) {
+    socket1.emit(
+      "send_friend_request",
+      {
+        fromUserId: currentUserId,
+        toUserId: selectedUser._id,
+      },
+      (response) => {
+        if (response.status === "revoked") {
+          console.log("🗑️ Thu hồi lời mời thành công");
+          setFriendRequests((prev) => {
+            const updated = { ...prev };
+            delete updated[selectedUser._id];
+            return updated;
+          });
+          setRefreshTrigger((prev) => prev + 1);
+        }
       }
+    );
+  } else {
+    // Chưa gửi thì gửi mới
+    socket1.emit(
+      "send_friend_request",
+      {
+        fromUserId: currentUserId,
+        toUserId: selectedUser._id,
+      },
+      (response) => {
+        if (response.status === "ok") {
+          console.log("✅ Gửi lời mời thành công");
+          setFriendRequests((prev) => ({
+            ...prev,
+            [selectedUser._id]: {
+              status: "pending",
+              isRequester: true,
+              requestId: response.requestId,
+            },
+          }));
+          setRefreshTrigger((prev) => prev + 1);
+        } else if (response.status === "exists") {
+          console.log("⚠️ Lời mời đã tồn tại");
+        }
+      }
+    );
+  }
+};
 
-      await fetchFriendRequestsAndUpdate();
-      await handleSelectUser(selectedUser);
-      // Refresh dữ liệu
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (err) {
-      console.error("Lỗi xử lý lời mời kết bạn:", err);
-    }
-  };
-
-  const handleRespondRequest = async (requestId, action) => {
-    try {
-      const userId = localStorage.getItem("userId");
-      const response = await Api_FriendRequest.respondToFriendRequest({
-        requestId,
-        action,
-        userId,
-      });
-   
-
-      // socket.emit("respond_friend_request", {
-      //   fromUserId: selectedUser._id, // người gửi lời mời
-      //   toUserId: userId,             // người phản hồi
-      //   action, // "accepted" hoặc "rejected"
-      // });
-
+  // const handleRespondRequest = async (requestId, action) => {
+  //   try {
+  //     const userId = localStorage.getItem("userId");
+  //     const response = await Api_FriendRequest.respondToFriendRequest({
+  //       requestId,
+  //       action,
+  //       userId,
+  //     });
+  
       
-      if (action === "accepted") {
-        setFriendRequests((prev) => ({
-          ...prev,
-          [selectedUser._id]: {
-            status: "accepted",
-            requestId,
-            isRequester: false, // bên nhận
-          },
-        }));
-        // Ép re-render lại component đang hiển thị selectedUser
-        setSelectedUser((prevUser) => ({ ...prevUser }));
+  //     if (action === "accepted") {
+  //       setFriendRequests((prev) => ({
+  //         ...prev,
+  //         [selectedUser._id]: {
+  //           status: "accepted",
+  //           requestId,
+  //           isRequester: false, // bên nhận
+  //         },
+  //       }));
+  //       // Ép re-render lại component đang hiển thị selectedUser
+  //       setSelectedUser((prevUser) => ({ ...prevUser }));
 
 
-      } else if (action === "rejected") {
-        // Xóa trạng thái lời mời đã bị từ chối
-        setFriendRequests((prev) => {
-          const updated = { ...prev };
-          delete updated[selectedUser._id];
-          return updated;
-        });
-        setSelectedUser((prevUser) => ({ ...prevUser }));
-      }
+  //     } else if (action === "rejected") {
+  //       // Xóa trạng thái lời mời đã bị từ chối
+  //       setFriendRequests((prev) => {
+  //         const updated = { ...prev };
+  //         delete updated[selectedUser._id];
+  //         return updated;
+  //       });
+  //       setSelectedUser((prevUser) => ({ ...prevUser }));
+  //     }
 
-      await fetchFriendRequestsAndUpdate();
-      await handleSelectUser(selectedUser);
-      setRefreshTrigger((prev) => prev + 1);
-      setTimeout(() => {
-        setRefreshTrigger((prev) => prev + 1);
-      }, 100); // 100ms sau tăng thêm lần nữa
-    } catch (err) {
-      console.error("Lỗi khi phản hồi lời mời kết bạn:", err);
-    }
-  };
+  //     await fetchFriendRequestsAndUpdate();
+  //     await handleSelectUser(selectedUser);
+  //     setRefreshTrigger((prev) => prev + 1);
+  //     setTimeout(() => {
+  //       setRefreshTrigger((prev) => prev + 1);
+  //     }, 100); // 100ms sau tăng thêm lần nữa
+  //   } catch (err) {
+  //     console.error("Lỗi khi phản hồi lời mời kết bạn:", err);
+  //   }
+  // };
+
+
+
+
+
 
   const fetchFriendRequestsAndUpdate = async () => {
     try {
