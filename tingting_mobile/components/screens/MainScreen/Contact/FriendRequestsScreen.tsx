@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { Api_FriendRequest } from "@/apis/api_friendRequest"
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import socket from "../../../../utils/socketFriendRequest"
 
 
 export default function FriendRequestsScreen() {
@@ -17,10 +18,44 @@ export default function FriendRequestsScreen() {
   const [sentRequests, setSentRequests] = useState([]);
   const [friendRequests, setFriendRequests] = useState({});
 
+  // useEffect(() => {
+  //   fetchReceivedRequests();
+  //   fetchSentRequests();
+  // }, [])
   useEffect(() => {
-    fetchReceivedRequests();
-    fetchSentRequests();
-  }, [])
+  let currentUserId = null;
+
+  const setupSocket = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      currentUserId = userId;
+      if (userId) {
+        socket.connect();
+        socket.emit("add_user", userId);
+        console.log("✅ Đã kết nối socket & add_user:", userId);
+      }
+
+      // 👂 Khi có lời mời mới được gửi đến user này
+      socket.on("friend_request_received", ({ fromUserId }) => {
+        console.log("📩 Nhận lời mời từ:", fromUserId);
+        // Cập nhật danh sách
+        fetchReceivedRequests();
+      });
+
+    } catch (error) {
+      console.error("Lỗi thiết lập socket:", error);
+    }
+  };
+
+  setupSocket();
+
+  return () => {
+    socket.off("friend_request_received");
+    socket.disconnect();
+    console.log("🛑 Socket ngắt kết nối");
+  };
+}, []);
+
 
   const fetchReceivedRequests = async () => {
     try{
@@ -44,27 +79,48 @@ export default function FriendRequestsScreen() {
     }
   }
 
-  const handleRespondRequest = async (requestId: any, action: "accepted" | "rejected") => {
-    try{
-      const userId = await AsyncStorage.getItem("userId");
-      const response = await Api_FriendRequest.respondToFriendRequest({
-        requestId,
-        action,
-        userId,
-      });
-      if (response.message.includes("accepted")) {
-        // Nếu accepted, xoá khỏi danh sách đã nhận
-        setReceivedRequests((prev) => prev.filter((req) => req._id !== requestId));
-      } else if (response.message.includes("rejected")) {
-        // Nếu rejected, cũng xoá khỏi danh sách
-        setReceivedRequests((prev) => prev.filter((req) => req._id !== requestId));
-      }
-    }catch(error){
-      console.error("Lỗi phản hồi lời mời kết bạn:", error);
-    }
-  };
+  // const handleRespondRequest = async (requestId: any, action: "accepted" | "rejected") => {
+  //   try{
+  //     const userId = await AsyncStorage.getItem("userId");
+  //     const response = await Api_FriendRequest.respondToFriendRequest({
+  //       requestId,
+  //       action,
+  //       userId,
+  //     });
+  //     if (response.message.includes("accepted")) {
+  //       // Nếu accepted, xoá khỏi danh sách đã nhận
+  //       setReceivedRequests((prev) => prev.filter((req) => req._id !== requestId));
+  //     } else if (response.message.includes("rejected")) {
+  //       // Nếu rejected, cũng xoá khỏi danh sách
+  //       setReceivedRequests((prev) => prev.filter((req) => req._id !== requestId));
+  //     }
+  //   }catch(error){
+  //     console.error("Lỗi phản hồi lời mời kết bạn:", error);
+  //   }
+  // };
 
-  
+  const handleRespondRequest = async (requestId: string, action: "accepted" | "rejected") => {
+  try {
+    const userId = await AsyncStorage.getItem("userId");
+    if (!userId) return;
+
+    // Gửi socket lên server
+    socket.emit(
+      "respond_friend_request",
+      { requestId, action, userId },
+      (response) => {
+        if (response.status === "accepted" || response.status === "rejected") {
+          // Xoá khỏi danh sách lời mời đã nhận
+          setReceivedRequests((prev) => prev.filter((req) => req._id !== requestId));
+        } else {
+          console.log("❌ Lỗi phản hồi:", response.message);
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Lỗi phản hồi lời mời kết bạn (socket):", error);
+  }
+};
 
 
 

@@ -42,6 +42,7 @@ const ContactList = () => {
       console.error("Error fetching friends:", error);
     }
   };
+  
 
   
 

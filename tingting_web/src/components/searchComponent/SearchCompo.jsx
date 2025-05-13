@@ -98,8 +98,58 @@ useEffect(() => {
 }, [selectedUser]);
  
 
+useEffect(() => {
+  socket1.on("friend_request_accepted", ({ fromUserId }) => {
+    console.log("✅ Lời mời đã được chấp nhận bởi:", fromUserId);
+    setFriendRequests((prev) => ({
+      ...prev,
+      [fromUserId]: {
+        ...prev[fromUserId],
+        status: "accepted",
+      },
+    }));
+    setRefreshTrigger((prev) => prev + 1);
+  });
 
+  socket1.on("friend_request_rejected", ({ fromUserId }) => {
+    console.log("❌ Lời mời bị từ chối bởi:", fromUserId);
+    setFriendRequests((prev) => {
+      const updated = { ...prev };
+      delete updated[fromUserId];
+      return updated;
+    });
+    setRefreshTrigger((prev) => prev + 1);
+  });
 
+  return () => {
+    socket1.off("friend_request_accepted");
+    socket1.off("friend_request_rejected");
+  };
+}, [selectedUser]);
+
+useEffect(() => {
+  socket1.on("friend_request_accepted", ({ fromUserId }) => {
+    console.log("📩 Lời mời kết bạn đã được chấp nhận bởi:", fromUserId);
+
+    setFriendRequests((prev) => ({
+      ...prev,
+      [fromUserId]: {
+        ...prev[fromUserId],
+        status: "accepted",
+      },
+    }));
+
+    // Nếu đang xem đúng user đó => update UI
+    if (selectedUser && selectedUser._id === fromUserId) {
+      setFriendStatus("accepted");
+      setRefreshTrigger((prev) => prev + 1);
+    }
+  });
+
+  return () => {
+    socket1.off("friend_request_accepted");
+  };
+}, [selectedUser]);
 
   
   useEffect(() => {
@@ -444,6 +494,63 @@ const handleFriendRequest = () => {
   //   }
   // };
 
+
+  //socket1
+// const handleRespondRequest = (requestId, action) => {
+//   const userId = localStorage.getItem("userId");
+//   socket1.emit("respond_friend_request", { requestId, action, userId }, (response) => {
+//     if (response.status === "accepted") {
+//       console.log("🎉 Đã chấp nhận lời mời");
+//       setFriendRequests((prev) => ({
+//         ...prev,
+//         [selectedUser._id]: {
+//           ...prev[selectedUser._id],
+//           status: "accepted",
+//         },
+//       }));
+//     } else if (response.status === "rejected") {
+//       console.log("⛔ Đã từ chối lời mời");
+//       setFriendRequests((prev) => {
+//         const updated = { ...prev };
+//         delete updated[selectedUser._id];
+//         return updated;
+//       });
+//     } else {
+//       console.error("Lỗi phản hồi:", response.message);
+//     }
+
+//     setRefreshTrigger((prev) => prev + 1);
+//   });
+// };
+const handleRespondRequest = (requestId, action) => {
+  const userId = localStorage.getItem("userId");
+
+  socket1.emit("respond_friend_request", { requestId, action, userId }, (response) => {
+    if (response.status === "accepted") {
+      console.log("🎉 Đã chấp nhận lời mời");
+      setFriendRequests((prev) => ({
+        ...prev,
+        [selectedUser._id]: {
+          ...prev[selectedUser._id],
+          status: "accepted",
+        },
+      }));
+      setFriendStatus("accepted"); // Cập nhật UI ngay
+    } else if (response.status === "rejected") {
+      console.log("⛔ Đã từ chối lời mời");
+      setFriendRequests((prev) => {
+        const updated = { ...prev };
+        delete updated[selectedUser._id];
+        return updated;
+      });
+      setFriendStatus("not_friends");
+    } else {
+      console.error("Lỗi phản hồi:", response.message);
+    }
+
+    setRefreshTrigger((prev) => prev + 1);
+  });
+};
 
 
 

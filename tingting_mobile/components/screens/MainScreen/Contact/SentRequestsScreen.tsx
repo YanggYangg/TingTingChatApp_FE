@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { Api_FriendRequest } from "@/apis/api_friendRequest"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
-
+import socket from "../../../../utils/socketFriendRequest"
 
 export default function SentRequestsScreen() {
   const navigation = useNavigation()
@@ -14,10 +14,54 @@ export default function SentRequestsScreen() {
   const [sentRequests, setSentRequests] = useState([]);
 
 
+  // useEffect(() => {
+  //   fetchReceivedRequests();
+  //   fetchSentRequests();
+  // }, [])
+
   useEffect(() => {
-    fetchReceivedRequests();
-    fetchSentRequests();
-  }, [])
+  let currentUserId = null;
+
+  const setupSocket = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      currentUserId = userId;
+
+      if (userId) {
+        socket.connect();
+        socket.emit("add_user", userId);
+        console.log("🔌 Socket connected (SentRequests):", userId);
+      }
+
+      // 👂 Lắng nghe khi người nhận chấp nhận lời mời
+      socket.on("friend_request_accepted", ({ fromUserId }) => {
+        if (fromUserId === currentUserId) {
+          console.log("✅ Lời mời đã được chấp nhận");
+          fetchSentRequests(); // cập nhật lại danh sách
+        }
+      });
+
+      // 👂 Lắng nghe khi người nhận từ chối lời mời
+      socket.on("friend_request_rejected", ({ fromUserId }) => {
+        if (fromUserId === currentUserId) {
+          console.log("❌ Lời mời bị từ chối");
+          fetchSentRequests(); // cập nhật lại danh sách
+        }
+      });
+    } catch (err) {
+      console.error("Lỗi socket (SentRequests):", err);
+    }
+  };
+
+  setupSocket();
+
+  return () => {
+    socket.off("friend_request_accepted");
+    socket.off("friend_request_rejected");
+    socket.disconnect();
+  };
+}, []);
+
 
   const fetchReceivedRequests = async () => {
     try{
@@ -39,27 +83,48 @@ export default function SentRequestsScreen() {
       console.error("Lỗi lấy danh sách lời mời kết bạn đã gửi:", error);
     }
   }
-  const handleCancelRequest = async (recipientId: string) => {
-    try {
-      const requesterId = await AsyncStorage.getItem("userId");
+  // const handleCancelRequest = async (recipientId: string) => {
+  //   try {
+  //     const requesterId = await AsyncStorage.getItem("userId");
   
-      const data = {
-        requesterId,
-        recipientId,
-      };
+  //     const data = {
+  //       requesterId,
+  //       recipientId,
+  //     };
   
-      console.log("Sending cancel request:", data);
+  //     console.log("Sending cancel request:", data);
       
-      await Api_FriendRequest.cancelFriendRequest(data);
+  //     await Api_FriendRequest.cancelFriendRequest(data);
   
-      console.log("Huỷ lời mời kết bạn thành công");
-      fetchSentRequests(); // Cập nhật lại danh sách
-    } catch (error) {
-      console.error("Lỗi khi thu hồi lời mời:", error.response?.data || error);
-    }
-  };
+  //     console.log("Huỷ lời mời kết bạn thành công");
+  //     fetchSentRequests(); // Cập nhật lại danh sách
+  //   } catch (error) {
+  //     console.error("Lỗi khi thu hồi lời mời:", error.response?.data || error);
+  //   }
+  // };
   
-  
+  const handleCancelRequest = async (recipientId: string) => {
+  try {
+    const requesterId = await AsyncStorage.getItem("userId");
+    if (!requesterId) return;
+
+    // Dùng socket để gửi yêu cầu thu hồi
+    socket.emit(
+      "send_friend_request", // dùng cùng event để huỷ (backend đã xử lý logic này)
+      { fromUserId: requesterId, toUserId: recipientId },
+      (response) => {
+        if (response.status === "revoked") {
+          console.log("🗑️ Đã huỷ lời mời kết bạn");
+          fetchSentRequests(); // Cập nhật danh sách
+        } else {
+          console.log("⚠️ Không thu hồi được:", response.message);
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Lỗi khi thu hồi lời mời:", error);
+  }
+};
   
 
 

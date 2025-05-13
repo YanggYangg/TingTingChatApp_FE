@@ -48,10 +48,12 @@ const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
       // } else {
       //   Alert.alert("Lỗi 1", response.message || "Đăng nhập thất bại");
       // }
+      }
     } catch (error: any) {
       Alert.alert("Lỗi", error.response?.data?.message || "Đã có lỗi xảy ra");
     }
   };
+  
   // const handleValidateToken = async () => {
   //   try {
   //     const token = await AsyncStorage.getItem("token");

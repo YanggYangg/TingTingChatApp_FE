@@ -9,7 +9,8 @@ importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-com
 // your app's Firebase config object.
 // https://firebase.google.com/docs/web/setup#config-object
 firebase.initializeApp({
-  
+
+
 });
 
 // Retrieve an instance of Firebase Messaging so that it can handle background

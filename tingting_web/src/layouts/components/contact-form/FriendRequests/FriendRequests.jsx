@@ -60,27 +60,6 @@ const FriendRequests = () => {
   //     socket1.off("friend_request_received"); // Dọn dẹp khi component unmount
   //   };
   // }, [userId]);
-useEffect(() => {
-  const handleReceived = (data) => {
-    console.log("📨 Nhận lời mời kết bạn từ", data.fromUserId);
-    fetchPendingRequests(); // cập nhật danh sách
-  };
-
-  const handleRevoked = (data) => {
-    console.log("🗑️ Lời mời bị thu hồi từ:", data.fromUserId);
-    fetchPendingRequests(); // cập nhật lại danh sách
-  };
-
-  socket1.on("friend_request_received", handleReceived);
-  socket1.on("friend_request_revoked", handleRevoked);
-
-  fetchPendingRequests();
-
-  return () => {
-    socket1.off("friend_request_received", handleReceived);
-    socket1.off("friend_request_revoked", handleRevoked);
-  };
-}, [userId]);
 
   const handleRespondToRequest = async (requestId, action) => {
     try {
