@@ -13,17 +13,18 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [errorDetails, setErrorDetails] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState(null);
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Thiết lập AppElement cho Modal
   useEffect(() => {
     if (document.getElementById("root")) {
       Modal.setAppElement("#root");
     }
   }, []);
 
-  // Kiểm tra trạng thái admin
   useEffect(() => {
     const checkAdminStatus = () => {
       if (chatInfo?.participants && currentUserId) {
@@ -38,7 +39,6 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
     checkAdminStatus();
   }, [chatInfo, currentUserId]);
 
-  // Lấy thông tin chi tiết thành viên
   useEffect(() => {
     const fetchMemberDetails = async () => {
       if (!chatInfo?.participants) {
@@ -96,7 +96,24 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
     }
   }, [isOpen, chatInfo]);
 
-  // Xử lý xóa thành viên
+  const openConfirmModal = (userId) => {
+    setMemberToRemove(userId);
+    setShowConfirmModal(true);
+  };
+
+  const confirmRemove = () => {
+    if (memberToRemove) {
+      handleRemoveMember(memberToRemove);
+      setShowConfirmModal(false);
+      setMemberToRemove(null);
+    }
+  };
+
+  const cancelRemove = () => {
+    setShowConfirmModal(false);
+    setMemberToRemove(null);
+  };
+
   const handleRemoveMember = async (memberIdToRemove) => {
     if (!socket) {
       console.error("Socket chưa kết nối, không thể xóa thành viên!");
@@ -112,9 +129,6 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
       console.error("Bạn không thể tự xóa mình khỏi đây. Hãy rời nhóm từ trang thông tin nhóm.");
       return;
     }
-
-    const confirmRemove = window.confirm(`Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?`);
-    if (!confirmRemove) return;
 
     try {
       removeParticipant(socket, { conversationId: chatInfo._id, userId: memberIdToRemove }, (response) => {
@@ -136,7 +150,6 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
     }
   };
 
-  // Xử lý khi nhấn vào thành viên để mở hội thoại cá nhân
   const handleMemberClick = async (memberId) => {
     if (memberId === currentUserId) {
       console.log("Bạn không thể trò chuyện với chính mình!");
@@ -144,9 +157,7 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
     }
 
     try {
-      console.log("Gửi getOrCreateConversation:", { currentUserId, memberId });
       const res = await Api_Conversation.getOrCreateConversation(currentUserId, memberId);
-      console.log("Nhận hội thoại cá nhân:", res);
 
       if (res?.conversationId) {
         const conversationId = res.conversationId;
@@ -160,7 +171,6 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
             ],
           })
         );
-        console.log("Navigating to /chat");
         navigate("/chat");
         onClose();
       } else {
@@ -171,16 +181,13 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
     }
   };
 
-  // Dọn dẹp sự kiện socket
   useEffect(() => {
     return () => {
       socket?.off("error");
     };
   }, [socket]);
 
-  if (!chatInfo?.participants) {
-    return null;
-  }
+  if (!chatInfo?.participants) return null;
 
   return (
     <Modal
@@ -220,7 +227,7 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleRemoveMember(member.userId);
+                    openConfirmModal(member.userId);
                   }}
                   className="text-red-500 hover:text-red-700 focus:outline-none"
                   aria-label={`Xóa ${memberDetails[member.userId]?.name}`}
@@ -239,6 +246,31 @@ const MemberListModal = ({ socket, isOpen, onClose, chatInfo, currentUserId, onM
       >
         Đóng
       </button>
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-opacity-70 z-[9999] flex items-center justify-center" overlayClassName="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-[1px]">
+          <div className="bg-white w-[300px] h-[200px] rounded-lg shadow-lg p-6 flex flex-col justify-between">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800">Xác nhận</h3>
+            <p className="mb-6 text-gray-700">
+              Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelRemove}
+                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmRemove}
+                className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 };
