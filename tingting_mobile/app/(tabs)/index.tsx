@@ -258,7 +258,7 @@ export default function App() {
   //       // console.log("Fetched userId from AsyncStorage:", userId1);
   //       // Gọi API để lấy thông tin người dùng
   //       const response = await axios.get(
-  //         `http://192.168.1.49:3001/api/v1/profile/${userId1}`,
+  //         `http://192.168.26.115:3001/api/v1/profile/${userId1}`,
   //         {
   //           headers: {
   //             "Content-Type": "application/json",
