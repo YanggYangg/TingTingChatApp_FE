@@ -5,7 +5,10 @@ import {
   addParticipant,
   onError,
   offError,
-} from "../../services/sockets/events/chatInfo"; // Import các hàm Socket.IO
+  onAddParticipantResponse,
+  offAddParticipantResponse,
+} from "../../services/sockets/events/chatInfo";
+import { toast } from "react-toastify";
 
 const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId, currentMembers, socket }) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -14,10 +17,6 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
   const [friendsList, setFriendsList] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [errorFriends, setErrorFriends] = useState("");
-
-  // console.log("userId trong AddMemberModal:", userId);
-  // console.log("conversationId trong AddMemberModal:", conversationId);
-  // console.log("currentMembers trong AddMemberModal:", currentMembers);
 
   useEffect(() => {
     const fetchFriends = async () => {
@@ -36,25 +35,15 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
           : response.data?.friends || response.data?.data || [];
 
         if (!Array.isArray(friends)) {
-          console.warn("Dữ liệu bạn bè không đúng định dạng:", response.data);
           setErrorFriends("Dữ liệu bạn bè không đúng định dạng. Vui lòng thử lại.");
           return;
         }
 
-        console.log("Danh sách bạn bè thô:", friends);
-        console.log("currentMembers để lọc:", currentMembers);
-
         const filteredFriends = friends.filter(
-          (friend) =>
-            !currentMembers?.some(
-              (memberId) => memberId === (friend._id || friend.id || friend.userID)
-            )
+          (friend) => !currentMembers?.some((memberId) => memberId === (friend._id || friend.id || friend.userID))
         );
-        console.log("Danh sách bạn bè sau khi lọc:", filteredFriends);
-
         setFriendsList(filteredFriends);
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách bạn bè:", error);
         setErrorFriends(
           error.message.includes("timeout")
             ? "Yêu cầu hết thời gian. Vui lòng thử lại."
@@ -68,18 +57,34 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
     fetchFriends();
   }, [isOpen, userId, conversationId, currentMembers]);
 
-  // Lắng nghe lỗi từ Socket.IO
   useEffect(() => {
     if (!socket || !isOpen) return;
 
     onError(socket, (error) => {
+      console.log("AddMemberModal: Nhận lỗi từ socket:", error);
       setError(error.message || "Có lỗi xảy ra. Vui lòng thử lại.");
+    });
+
+    onAddParticipantResponse(socket, (response) => {
+      console.log("AddMemberModal: Nhận addParticipantResponse:", response);
+      if (response.success) {
+        setSuccessMessage("Thêm thành viên thành công!");
+        toast.success("Thêm thành viên thành công!");
+        if (onMemberAdded) {
+          onMemberAdded();
+        }
+        onClose();
+      } else {
+        setError(response.message || "Không thể thêm thành viên.");
+        toast.error(response.message || "Không thể thêm thành viên.");
+      }
     });
 
     return () => {
       offError(socket);
+      offAddParticipantResponse(socket);
     };
-  }, [socket, isOpen]);
+  }, [socket, isOpen, onMemberAdded, onClose]);
 
   const filteredFriends = friendsList.filter((friend) =>
     friend.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -92,22 +97,17 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
       setError("Thiếu thông tin để thêm thành viên hoặc không có kết nối Socket.IO.");
       return;
     }
+    if (!socket.connected) {
+      setError("Socket chưa kết nối. Vui lòng thử lại.");
+      toast.error("Socket chưa kết nối. Vui lòng thử lại.");
+      return;
+    }
 
+    console.log("AddMemberModal: Gửi addParticipant", { conversationId, memberId, performerId: userId });
     setError("");
     setSuccessMessage("");
-
-    const participantData = { conversationId, userId: memberId, role: "member" };
-    addParticipant(socket, participantData, (response) => {
-      if (response && response.success) {
-        setFriendsList((prev) => prev.filter((friend) => getMemberId(friend) !== memberId));
-        setSuccessMessage("Thêm thành viên thành công!");
-        if (onMemberAdded) {
-          onMemberAdded();
-        }
-      } else {
-        setError(response?.message || "Không thể thêm thành viên. Phản hồi từ server không hợp lệ.");
-      }
-    });
+    const participantData = { conversationId, userId: memberId, role: "member", performerId: userId };
+    addParticipant(socket, participantData);
   };
 
   const getMemberId = (member) => member._id || member.id || member.userID;
@@ -125,7 +125,7 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
       <input
         type="text"
         placeholder="Nhập tên bạn bè..."
-        className="w-full p-2 border rounded-md mb-3"
+        className="w-full p-2 border rounded mb-3"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
       />
@@ -145,7 +145,7 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
               sortedFriends.map((friend) => {
                 const friendId = getMemberId(friend);
                 return (
-                  <li key={friendId} className="flex items-center gap-2 p-2 border rounded-md">
+                  <li key={friendId} className="flex items-center gap-2 p-2 border rounded">
                     <img
                       src={friend.avatar || "https://via.placeholder.com/30/007bff/FFFFFF?Text=User"}
                       alt={friend.name}
@@ -153,7 +153,7 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
                     />
                     <p className="flex-1 text-sm">{friend.name}</p>
                     <button
-                      className="bg-blue-500 text-white px-2 py-1 rounded-md text-xs"
+                      className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
                       onClick={() => addMember(friendId)}
                     >
                       Thêm
@@ -167,7 +167,7 @@ const AddMemberModal = ({ isOpen, onClose, conversationId, onMemberAdded, userId
       </div>
 
       <div className="mt-3 flex justify-end gap-2 border-t pt-3">
-        <button className="bg-gray-300 px-3 py-1 rounded-md text-sm" onClick={onClose}>
+        <button className="bg-gray-300 px-3 py-1 rounded text-sm" onClick={onClose}>
           Hủy
         </button>
       </div>

@@ -137,7 +137,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
 
     if (newMedia.length !== media.length) {
       setMedia(newMedia);
-      setError(newMedia.length ? null : "Không có media hợp lệ để hiển thị.");
+
     } else {
       console.warn("Không thể cập nhật cục bộ, tải lại media...");
       fetchMedia();

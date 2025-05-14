@@ -268,3 +268,17 @@ export const deleteAllChatHistory = (socket, data, callback) => {
 export const deleteMessageChatInfo = (socket, data, callback) => {
   socket.emit("deleteMessageChatInfo", data, callback);
 }
+
+// Lắng nghe phản hồi từ addParticipant
+export const onAddParticipantResponse = (socket, callback) => {
+  socket.on("addParticipantResponse", (data) => {
+    console.log("Socket: Nhận phản hồi addParticipantResponse", data);
+    callback(data);
+  });
+};
+
+// Gỡ lắng nghe phản hồi addParticipant
+export const offAddParticipantResponse = (socket) => {
+  console.log("Socket: Gỡ sự kiện addParticipantResponse");
+  socket.off("addParticipantResponse");
+};
