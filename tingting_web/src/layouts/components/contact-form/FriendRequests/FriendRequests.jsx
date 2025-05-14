@@ -47,38 +47,63 @@ const FriendRequests = () => {
     }
   };
 
-    // Lắng nghe sự kiện từ server khi có lời mời kết bạn mới
-  // useEffect(() => {
-  //   socket1.on("friend_request_received", (data) => {
-  //     console.log("Lời mời kết bạn mới từ", data.fromUserId);
-  //     fetchPendingRequests(); // Cập nhật lại danh sách mời kết bạn
-  //   });
+    //Lắng nghe sự kiện từ server khi có lời mời kết bạn mới
+  useEffect(() => {
+    socket1.on("friend_request_received", (data) => {
+      console.log("Lời mời kết bạn mới từ", data.fromUserId);
+      fetchPendingRequests(); // Cập nhật lại danh sách mời kết bạn
+    });
 
-  //   fetchPendingRequests(); // Lấy danh sách mời kết bạn ngay khi component mount
+     socket1.on("friend_request_revoked", (data) => {
+    console.log("🔄 Lời mời kết bạn đã bị thu hồi từ", data.fromUserId);
+    fetchPendingRequests(); // cập nhật lại danh sách lời mời
+  });
 
-  //   return () => {
-  //     socket1.off("friend_request_received"); // Dọn dẹp khi component unmount
-  //   };
-  // }, [userId]);
 
-  const handleRespondToRequest = async (requestId, action) => {
-    try {
-      await Api_FriendRequest.respondToFriendRequest({
-        requestId,
-        action,
-        userId,
-      });
-      //setPendingRequests(pendingRequests.filter((req) => req._id !== requestId));
-      await fetchPendingRequests(); //update ds lai tu BE
-    } catch (error) {
-      console.error(
-        `Lỗi khi ${
-          action === "accepted" ? "chấp nhận" : "từ chối"
-        } lời mời kết bạn:`,
-        error
-      );
+    fetchPendingRequests(); // Lấy danh sách mời kết bạn ngay khi component mount
+
+    return () => {
+      socket1.off("friend_request_received"); // Dọn dẹp khi component unmount
+      socket1.off("friend_request_revoked"); // Dọn dẹp khi component unmount
+    };
+  }, [userId]);
+
+  // const handleRespondToRequest = async (requestId, action) => {
+  //   try {
+  //     await Api_FriendRequest.respondToFriendRequest({
+  //       requestId,
+  //       action,
+  //       userId,
+  //     });
+  //     //setPendingRequests(pendingRequests.filter((req) => req._id !== requestId));
+  //     await fetchPendingRequests(); //update ds lai tu BE
+  //   } catch (error) {
+  //     console.error(
+  //       `Lỗi khi ${
+  //         action === "accepted" ? "chấp nhận" : "từ chối"
+  //       } lời mời kết bạn:`,
+  //       error
+  //     );
+  //   }
+  // };
+
+
+  const handleRespondToRequest = (requestId, action) => {
+  socket1.emit("respond_friend_request", {
+    requestId,
+    action,
+    userId,
+  }, (response) => {
+    if (response.status === "accepted" || response.status === "rejected") {
+      console.log(`✅ Đã ${action} lời mời`);
+      fetchPendingRequests(); // cập nhật lại danh sách
+    } else {
+      console.error("❌ Lỗi phản hồi lời mời:", response.message);
     }
-  };
+  });
+};
+
+
 
   return (
     <div className="w-full h-full bg-white text-black flex flex-col">

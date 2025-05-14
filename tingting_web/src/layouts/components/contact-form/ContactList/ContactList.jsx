@@ -12,7 +12,8 @@ import { selectConversation, setSelectedMessage } from '../../../../redux/slices
 import Search from "../Search";
 import { Api_FriendRequest } from "../../../../../apis/api_friendRequest.js";
 import { Api_Conversation } from "../../../../../apis/Api_Conversation.js";
-import socket from "../../../../utils/socket.js";
+
+import socket1 from "../../../../utils/socket.js";
 
 
 const ContactList = () => {
@@ -180,6 +181,23 @@ setGroupedFriends(groupedSorted);
       console.error("Lỗi khi bắt đầu trò chuyện:", error);
     }
   }
+
+  //socket 
+  useEffect(() => {
+  const userId = localStorage.getItem("userId");
+  if (userId) socket1.emit("add_user", userId); // đảm bảo đã add user
+
+  // Lắng nghe khi có lời mời được chấp nhận
+  socket1.on("friend_request_accepted", ({ fromUserId }) => {
+    console.log("👥 Ai đó đã chấp nhận lời mời, reload danh sách bạn bè");
+    fetchFriends(); // gọi lại để cập nhật danh sách
+  });
+
+  return () => {
+    socket1.off("friend_request_accepted");
+  };
+}, []);
+
 
   return (
     <div className="w-full h-full bg-white text-black flex flex-col ">

@@ -168,21 +168,21 @@ useEffect(() => {
     // Cập nhật selected user trước
     setSelectedUser(user);
 
-    // try {
-    //   await fetchFriendRequestsAndUpdate();
+    try {
+      await fetchFriendRequestsAndUpdate();
 
-    //   // Kiểm tra trạng thái bạn bè thực sự
-    //   const res = await Api_FriendRequest.checkFriendStatus({
-    //     userIdA: currentUserId,
-    //     userIdB: user._id,
-    //   });
+      // Kiểm tra trạng thái bạn bè thực sự
+      const res = await Api_FriendRequest.checkFriendStatus({
+        userIdA: currentUserId,
+        userIdB: user._id,
+      });
 
-    //   console.log("Trạng thái bạn bè thực sự:", res.status);
-    //   setFriendStatus(res?.status || "not_friends");
-    // } catch (error) {
-    //   console.error("Lỗi khi kiểm tra trạng thái bạn bè:", error);
-    //   setFriendStatus("not_friends");
-    // }
+      console.log("Trạng thái bạn bè thực sự:", res.status);
+      setFriendStatus(res?.status || "not_friends");
+    } catch (error) {
+      console.error("Lỗi khi kiểm tra trạng thái bạn bè:", error);
+      setFriendStatus("not_friends");
+    }
   };
 
   //Modal groups
