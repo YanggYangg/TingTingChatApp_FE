@@ -185,11 +185,13 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, socket, ot
       Alert.alert('Error', 'No message ID available for forwarding.');
       return;
     }
+
     if (!userId) {
       console.error('No user ID available for forwarding.');
       Alert.alert('Error', 'No user ID available for forwarding.');
       return;
     }
+
     if (!Array.isArray(targetConversations) || targetConversations.length === 0) {
       console.warn('No conversations selected for forwarding.');
       Alert.alert('Error', 'No conversations selected for forwarding.');
@@ -293,13 +295,16 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, socket, ot
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Hình ảnh/Video</Text>
+      <View style={styles.titleContainer}>
+        <Ionicons name="image-outline" size={20} color="#333" style={styles.titleIcon} />
+        <Text style={styles.title}>Hình ảnh/File/Link</Text>
+      </View>
       {media.length === 0 ? (
         <Text style={styles.noDataText}>Không có hình ảnh/video.</Text>
       ) : (
         <>
           <View style={styles.grid}>
-            {media.slice(0, 8).map((item, index) => (
+            {media.slice(0, 4).map((item, index) => (
               <TouchableOpacity key={item.id} onPress={() => setFullScreenMedia(item)}>
                 {item.type === 'image' ? (
                   <Image
@@ -319,17 +324,16 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, socket, ot
                       onError={(error) => console.error(`Error loading video ${item.id}:`, error)}
                     />
                     <View style={styles.playIconContainer}>
-                      <Ionicons name="play-circle-outline" size={30} color="#fff" />
+                      <Ionicons name="play-circle-outline" size={25} color="#fff" />
                     </View>
                   </View>
                 )}
               </TouchableOpacity>
             ))}
+            <TouchableOpacity style={styles.arrowButton} onPress={() => setIsOpen(true)}>
+              <Ionicons name="arrow-forward-outline" size={25} color="#007bff" />
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity style={styles.viewAllButton} onPress={() => setIsOpen(true)}>
-            <Text style={styles.viewAllText}>View All ({media.length})</Text>
-          </TouchableOpacity>
         </>
       )}
 
@@ -439,16 +443,6 @@ const GroupMediaGallery: React.FC<Props> = ({ conversationId, userId, socket, ot
           </View>
         )}
       </Modal>
-
-      {/* ShareModal component would need to be implemented for React Native */}
-      {/* <ShareModal
-        isOpen={isShareModalOpen}
-        onClose={handleShareModalClose}
-        onShare={handleMediaShared}
-        userId={userId}
-        messageId={messageIdToForward}
-        messageToForward={mediaToForward}
-      /> */}
     </View>
   );
 };
@@ -467,32 +461,39 @@ const styles = StyleSheet.create({
   },
   container: {
     marginBottom: 15,
+    padding: 5,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  titleIcon: {
+    marginRight: 8,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 5,
   },
   grid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
     gap: 5,
+    padding: 5,
+    paddingLeft: 15 
   },
   mediaItem: {
-    width: 80,
-    height: 80,
+    width: 60, // Reduced from 70
+    height: 60, // Reduced from 70
     borderRadius: 5,
   },
-  viewAllButton: {
-    backgroundColor: '#e0e0e0',
-    paddingVertical: 10,
+  arrowButton: {
+    width: 60,
+    height: 60, // Match reduced media item height
     borderRadius: 5,
+    backgroundColor: '#e0f0ff', // Light blue
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 5,
-  },
-  viewAllText: {
-    fontSize: 14,
-    color: '#333',
   },
   modal: {
     margin: 0,

@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { FaSearch, FaUserFriends, FaUsers } from "react-icons/fa";
+import { FaSearch, FaUserFriends, FaUsers, FaCamera } from "react-icons/fa";
 import { Api_Profile } from "../../../apis/api_profile";
 import { Api_FriendRequest } from "../../../apis/api_friendRequest";
 import CreateGroup from "./CreateGroup";
-import PinVerificationModal from "../PinVerificationModal"; // Import modal
+import PinVerificationModal from "../PinVerificationModal";
 import { useSocket } from "../../contexts/SocketContext";
 import { loadAndListenConversations } from "../../services/sockets/events/conversation";
 
 function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
   const [isModalFriendsOpen, setIsModalFriendsOpen] = useState(false);
   const [isModalCreateGroupOpen, setIsModalCreateGroupOpen] = useState(false);
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false); // State cho modal PIN
-  const [selectedConversation, setSelectedConversation] = useState(null); // Cuộc trò chuyện cần xác thực
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState(null);
   const [searchValue, setSearchValue] = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -35,7 +35,7 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
 
   // Toggle modal tạo nhóm
   const toggleCreateGroupModal = () => {
-    setIsModalCreateGroupOpen(!isModalCreateGroupModal);
+    setIsModalCreateGroupOpen(!isModalCreateGroupOpen);
   };
 
   // Xử lý khi chọn người dùng trong modal thêm bạn
@@ -237,9 +237,9 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
         lastMessageSenderId: conv.lastMessage?.userId || null,
         time: conv.lastMessage
           ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
+              hour: "2-digit",
+              minute: "2-digit",
+            })
           : "",
         updateAt: conv.lastMessage?.createdAt || conv.updatedAt,
         isPinned: conv.participants?.find((p) => p.userId === userId)?.isPinned || false,
@@ -385,6 +385,7 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
         size={20}
         onClick={toggleCreateGroupModal}
       />
+     
 
       {/* Modal tìm kiếm bạn bè */}
       {isModalFriendsOpen && (
@@ -528,6 +529,7 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
           </div>
         </div>
       )}
+
       {/* Modal tạo nhóm */}
       <CreateGroup
         isOpen={isModalCreateGroupOpen}

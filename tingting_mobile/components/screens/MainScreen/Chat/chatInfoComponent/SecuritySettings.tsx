@@ -9,7 +9,7 @@ import {
   onChatInfo,
   offChatInfo,
   hideChat,
-  deleteAllChatHistory, // Thay thế deleteChatHistoryForMe
+  deleteAllChatHistory,
   transferGroupAdmin,
   disbandGroup,
   leaveGroup,
@@ -458,7 +458,10 @@ const SecuritySettings: React.FC<Props> = ({
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Thiết lập bảo mật</Text>
+        <View style={styles.titleContainer}>
+          <Ionicons name="shield-outline" size={20} color="#000" style={styles.titleIcon} />
+          <Text style={styles.title}>Thiết lập bảo mật</Text>
+        </View>
         <Text style={styles.loadingText}>Đang tải...</Text>
       </View>
     );
@@ -467,7 +470,10 @@ const SecuritySettings: React.FC<Props> = ({
   if (error) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Thiết lập bảo mật</Text>
+        <View style={styles.titleContainer}>
+          <Ionicons name="shield-outline" size={20} color="#000" style={styles.titleIcon} />
+          <Text style={styles.title}>Thiết lập bảo mật</Text>
+        </View>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity onPress={fetchChatInfo}>
           <Text style={styles.retryText}>Thử lại</Text>
@@ -478,10 +484,16 @@ const SecuritySettings: React.FC<Props> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Thiết lập bảo mật</Text>
+      <View style={styles.titleContainer}>
+        <Ionicons name="shield-outline" size={20} color="#000" style={styles.titleIcon} />
+        <Text style={styles.title}>Thiết lập bảo mật</Text>
+      </View>
 
       <View style={styles.toggleContainer}>
-        <Text style={styles.toggleLabel}>Ẩn cuộc trò chuyện</Text>
+        <View style={styles.toggleLabelContainer}>
+          <Ionicons name="lock-closed-outline" size={16} color="#000" style={styles.toggleIcon} />
+          <Text style={styles.toggleLabel}>Ẩn cuộc trò chuyện</Text>
+        </View>
         <Switch
           value={isHidden}
           onValueChange={handleToggle}
@@ -493,7 +505,10 @@ const SecuritySettings: React.FC<Props> = ({
 
       {showPinInput && (
         <View style={styles.pinContainer}>
-          <Text style={styles.pinLabel}>Nhập PIN (4 chữ số)</Text>
+          <View style={styles.pinLabelContainer}>
+            <Ionicons name="key-outline" size={16} color="#000" style={styles.pinIcon} />
+            <Text style={styles.pinLabel}>Nhập PIN (4 chữ số)</Text>
+          </View>
           <TextInput
             style={styles.pinInput}
             value={pin}
@@ -501,6 +516,7 @@ const SecuritySettings: React.FC<Props> = ({
             maxLength={4}
             secureTextEntry
             placeholder="****"
+            placeholderTextColor="#666"
             textAlign="center"
             keyboardType="numeric"
             editable={!isProcessing}
@@ -510,6 +526,7 @@ const SecuritySettings: React.FC<Props> = ({
             onPress={handleSubmitPin}
             disabled={isProcessing}
           >
+            <Ionicons name="checkmark-circle-outline" size={16} color="#fff" style={styles.submitIcon} />
             <Text style={styles.submitButtonText}>{isProcessing ? 'Đang xử lý...' : 'Xác nhận'}</Text>
           </TouchableOpacity>
         </View>
@@ -520,8 +537,8 @@ const SecuritySettings: React.FC<Props> = ({
         onPress={handleDeleteHistory}
         disabled={isProcessing}
       >
-        <Ionicons name="trash" size={16} color="#ff0000" style={styles.actionIcon} />
-        <Text style={styles.actionText}>Xóa toàn bộ lịch sử trò chuyện</Text>
+        <Ionicons name="trash-outline" size={16} color="#ff0000" style={styles.actionIcon} />
+        <Text style={[styles.actionText, { color: '#ff0000' }]}>Xóa toàn bộ lịch sử trò chuyện</Text>
       </TouchableOpacity>
 
       {isGroup && (
@@ -531,7 +548,7 @@ const SecuritySettings: React.FC<Props> = ({
           disabled={isLeaving || isProcessing}
         >
           <Ionicons name="exit-outline" size={16} color="#ff0000" style={styles.actionIcon} />
-          <Text style={styles.actionText}>{isLeaving ? 'Đang rời nhóm...' : 'Rời khỏi nhóm'}</Text>
+          <Text style={[styles.actionText, { color: '#ff0000' }]}>{isLeaving ? 'Đang rời nhóm...' : 'Rời khỏi nhóm'}</Text>
         </TouchableOpacity>
       )}
 
@@ -552,7 +569,7 @@ const SecuritySettings: React.FC<Props> = ({
             disabled={isDisbanding || isProcessing}
           >
             <Ionicons name="close-circle-outline" size={16} color="#ff0000" style={styles.actionIcon} />
-            <Text style={styles.actionText}>{isDisbanding ? 'Đang giải tán...' : 'Giải tán nhóm'}</Text>
+            <Text style={[styles.actionText, { color: '#ff0000' }]}>{isDisbanding ? 'Đang giải tán...' : 'Giải tán nhóm'}</Text>
           </TouchableOpacity>
         </>
       )}
@@ -564,9 +581,12 @@ const SecuritySettings: React.FC<Props> = ({
         style={styles.modalOverlay}
       >
         <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>
-            {isLeaving ? 'Chuyển quyền trước khi rời nhóm' : 'Chuyển quyền trưởng nhóm'}
-          </Text>
+          <View style={styles.modalTitleContainer}>
+            <Ionicons name="swap-horizontal-outline" size={20} color="#000" style={styles.modalTitleIcon} />
+            <Text style={styles.modalTitle}>
+              {isLeaving ? 'Chuyển quyền trước khi rời nhóm' : 'Chuyển quyền trưởng nhóm'}
+            </Text>
+          </View>
           {loadingDetails ? (
             <Text style={styles.loadingText}>Đang tải thông tin thành viên...</Text>
           ) : errorDetails ? (
@@ -619,6 +639,7 @@ const SecuritySettings: React.FC<Props> = ({
               onPress={handleCloseTransferAdminModal}
               disabled={isProcessing}
             >
+              <Ionicons name="close-outline" size={16} color="#666" style={styles.modalButtonIcon} />
               <Text style={styles.modalCancelButtonText}>Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -626,6 +647,7 @@ const SecuritySettings: React.FC<Props> = ({
               onPress={isLeaving ? handleTransferAdminAndLeave : handleTransferAdmin}
               disabled={!newAdminUserId || isProcessing}
             >
+              <Ionicons name="checkmark-circle-outline" size={16} color="#fff" style={styles.modalButtonIcon} />
               <Text style={styles.modalActionButtonText}>
                 {isLeaving ? 'Chuyển quyền và rời nhóm' : 'Chuyển quyền'}
               </Text>
@@ -641,7 +663,10 @@ const SecuritySettings: React.FC<Props> = ({
         style={styles.modalOverlay}
       >
         <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Xác nhận giải tán nhóm</Text>
+          <View style={styles.modalTitleContainer}>
+            <Ionicons name="close-circle-outline" size={20} color="#000" style={styles.modalTitleIcon} />
+            <Text style={styles.modalTitle}>Xác nhận giải tán nhóm</Text>
+          </View>
           <Text style={styles.modalText}>
             Bạn có chắc chắn muốn giải tán nhóm này không? Tất cả thành viên sẽ bị xóa và lịch sử trò chuyện sẽ bị mất.
           </Text>
@@ -651,6 +676,7 @@ const SecuritySettings: React.FC<Props> = ({
               onPress={() => setShowDisbandConfirm(false)}
               disabled={isProcessing}
             >
+              <Ionicons name="close-outline" size={16} color="#666" style={styles.modalButtonIcon} />
               <Text style={styles.modalCancelButtonText}>Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -658,6 +684,7 @@ const SecuritySettings: React.FC<Props> = ({
               onPress={confirmDisbandGroup}
               disabled={isDisbanding || isProcessing}
             >
+              <Ionicons name="checkmark-circle-outline" size={16} color="#fff" style={styles.modalButtonIcon} />
               <Text style={styles.modalActionButtonText}>
                 {isDisbanding ? 'Đang giải tán...' : 'Giải tán'}
               </Text>
@@ -673,7 +700,10 @@ const SecuritySettings: React.FC<Props> = ({
         style={styles.modalOverlay}
       >
         <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Xác nhận rời nhóm</Text>
+          <View style={styles.modalTitleContainer}>
+            <Ionicons name="exit-outline" size={20} color="#000" style={styles.modalTitleIcon} />
+            <Text style={styles.modalTitle}>Xác nhận rời nhóm</Text>
+          </View>
           <Text style={styles.modalText}>
             Bạn có chắc chắn muốn rời khỏi nhóm này không? Bạn sẽ không thể truy cập nhóm sau khi rời.
           </Text>
@@ -683,6 +713,7 @@ const SecuritySettings: React.FC<Props> = ({
               onPress={() => setShowLeaveConfirm(false)}
               disabled={isProcessing}
             >
+              <Ionicons name="close-outline" size={16} color="#666" style={styles.modalButtonIcon} />
               <Text style={styles.modalCancelButtonText}>Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -690,6 +721,7 @@ const SecuritySettings: React.FC<Props> = ({
               onPress={confirmLeaveGroup}
               disabled={isLeaving || isProcessing}
             >
+              <Ionicons name="checkmark-circle-outline" size={16} color="#fff" style={styles.modalButtonIcon} />
               <Text style={styles.modalActionButtonText}>
                 {isLeaving ? 'Đang rời...' : 'Rời nhóm'}
               </Text>
@@ -704,12 +736,20 @@ const SecuritySettings: React.FC<Props> = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 15,
-    padding: 10,
+    padding: 5,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  titleIcon: {
+    marginRight: 8,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 10,
+    color: '#000',
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -717,8 +757,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  toggleLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  toggleIcon: {
+    marginRight: 8,
+  },
   toggleLabel: {
     fontSize: 14,
+    color: '#000',
   },
   pinContainer: {
     backgroundColor: '#f0f0f0',
@@ -726,10 +774,18 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 10,
   },
+  pinLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  pinIcon: {
+    marginRight: 8,
+  },
   pinLabel: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 5,
+    color: '#000',
   },
   pinInput: {
     borderWidth: 1,
@@ -738,15 +794,21 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     textAlign: 'center',
+    color: '#000',
   },
   submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#1e90ff',
     paddingVertical: 10,
     borderRadius: 5,
-    alignItems: 'center',
   },
   submitButtonDisabled: {
     backgroundColor: '#ccc',
+  },
+  submitIcon: {
+    marginRight: 8,
   },
   submitButtonText: {
     color: '#fff',
@@ -758,16 +820,15 @@ const styles = StyleSheet.create({
     gap: 10,
     marginVertical: 5,
   },
-  actionText: {
-    fontSize: 14,
-    color: '#ff0000',
-  },
   actionIcon: {
     marginRight: 8,
   },
+  actionText: {
+    fontSize: 14,
+  },
   loadingText: {
     fontSize: 14,
-    color: '#666',
+    color: '#000',
     textAlign: 'center',
   },
   errorText: {
@@ -793,19 +854,28 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     width: '80%',
   },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  modalTitleIcon: {
+    marginRight: 8,
+  },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
+    color: '#000',
   },
   modalText: {
     fontSize: 14,
+    color: '#000',
     marginBottom: 15,
     textAlign: 'center',
   },
   modalLabel: {
     fontSize: 14,
+    color: '#000',
     marginBottom: 8,
   },
   modalOption: {
@@ -825,14 +895,21 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalCancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 10,
     marginRight: 15,
+  },
+  modalButtonIcon: {
+    marginRight: 8,
   },
   modalCancelButtonText: {
     fontSize: 16,
     color: '#666',
   },
   modalActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#007bff',
     paddingVertical: 10,
     paddingHorizontal: 15,
@@ -848,7 +925,7 @@ const styles = StyleSheet.create({
   },
   noMembersText: {
     fontSize: 14,
-    color: '#666',
+    color: '#000',
     textAlign: 'center',
     marginVertical: 10,
   },
@@ -864,7 +941,7 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 16,
-    color: '#333',
+    color: '#000',
   },
 });
 

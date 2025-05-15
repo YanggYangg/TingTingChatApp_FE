@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MemberListModal from './MemberListModal';
 import CommonGroupsModal from './CommonGroupsModal';
-import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
+import { Api_chatInfo } from '../../../../../apis/Api_chatInfo'; // Adjust path as needed
 
 interface Participant {
   userId: string;
   role?: 'admin' | 'member';
-  isHidden?: boolean;
 }
 
 interface ChatInfoData {
@@ -17,101 +16,148 @@ interface ChatInfoData {
   participants: Participant[];
 }
 
-interface Props {
-  chatInfo: ChatInfoData;
-  conversationId: string;
-  userId: string;
-  onMemberRemoved?: (memberId: string) => void;
+interface CommonGroup {
+  _id: string;
+  name: string;
+  imageGroup?: string;
 }
 
-const GroupMemberList: React.FC<Props> = ({ chatInfo, conversationId, userId, onMemberRemoved }) => {
+interface Props {
+  chatInfo: ChatInfoData;
+  userId: string;
+  onMemberRemoved?: (memberId: string) => void;
+  socket: any;
+  onGroupSelect?: (group: CommonGroup) => void;
+}
+
+const GroupMemberList: React.FC<Props> = ({ chatInfo, userId, onMemberRemoved, socket, onGroupSelect }) => {
   const [isMemberModalOpen, setMemberModalOpen] = useState(false);
   const [isGroupModalOpen, setGroupModalOpen] = useState(false);
-  const [commonGroups, setCommonGroups] = useState<any[]>([]);
+  const [commonGroups, setCommonGroups] = useState<CommonGroup[]>([]);
+  const [otherUserId, setOtherUserId] = useState<string | null>(null);
 
+  // Fetch common groups and other user ID for non-group chats
   useEffect(() => {
     const fetchCommonGroups = async () => {
       if (!chatInfo?.isGroup && chatInfo?._id) {
+        // Set other user ID (assuming 1:1 chat has exactly 2 participants)
+        const otherParticipant = chatInfo.participants.find(p => p.userId !== userId);
+        if (otherParticipant) {
+          setOtherUserId(otherParticipant.userId);
+        } else {
+          setOtherUserId(null);
+          setCommonGroups([]);
+          return;
+        }
+
         try {
           const res = await Api_chatInfo.getCommonGroups(chatInfo._id);
-          console.log('Common groups API response:', res);
           setCommonGroups(res?.commonGroups || []);
         } catch (err) {
-          console.error('Lỗi khi lấy nhóm chung:', err);
+          console.error('Error fetching common groups:', err);
           setCommonGroups([]);
         }
       } else {
+        setOtherUserId(null);
         setCommonGroups([]);
       }
     };
 
     fetchCommonGroups();
-  }, [chatInfo]);
+  }, [chatInfo, userId]);
+
+  const handleOpenGroupModal = () => {
+    if (!commonGroups.length) {
+      Alert.alert('Thông báo', 'Không có nhóm chung nào!');
+      return;
+    }
+    if (!otherUserId) {
+      Alert.alert('Lỗi', 'Không thể xác định người dùng khác trong cuộc trò chuyện.');
+      return;
+    }
+    setGroupModalOpen(true);
+  };
 
   if (!chatInfo || !chatInfo.participants) {
     return null;
   }
 
-  // const visibleParticipants = chatInfo.participants.filter((p) => !p.isHidden); // Không cần dòng này nữa
-
-  console.log('GroupMemberList render - chatInfo being passed to MemberListModal:', chatInfo); // LOGGING
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>
-        {chatInfo.isGroup ? 'Thành viên' : 'Thông tin hội thoại'}
-      </Text>
-
+      <View style={styles.titleContainer}>
+        <Ionicons name="information-circle-outline" size={20} color="#000" style={styles.titleIcon} />
+        <Text style={styles.title}>Thông tin hội thoại</Text>
+      </View>
       {chatInfo.isGroup ? (
-        <TouchableOpacity style={styles.memberRow} onPress={() => setMemberModalOpen(true)}>
-          <Text style={styles.linkText}>{chatInfo.participants.length} thành viên</Text> {/* Sử dụng chatInfo.participants.length */}
-          <Ionicons name="chevron-forward" size={20} color="#666" />
+        <TouchableOpacity
+          style={styles.linkContainer}
+          onPress={() => setMemberModalOpen(true)}
+        >
+          <Ionicons name="people-outline" size={20} color="#1e90ff" style={styles.icon} />
+          <Text style={styles.linkText}>{chatInfo.participants.length} thành viên</Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity style={styles.memberRow} onPress={() => setGroupModalOpen(true)}>
+        <TouchableOpacity
+          style={styles.linkContainer}
+          onPress={handleOpenGroupModal}
+        >
+          <Ionicons name="chatbubbles-outline" size={20} color="#1e90ff" style={styles.icon} />
           <Text style={styles.linkText}>{commonGroups.length} nhóm chung</Text>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
         </TouchableOpacity>
       )}
-
       <MemberListModal
         isOpen={isMemberModalOpen}
         onClose={() => setMemberModalOpen(false)}
         chatInfo={chatInfo}
         currentUserId={userId}
         onMemberRemoved={onMemberRemoved}
+        socket={socket}
       />
-
-      <CommonGroupsModal
-        isOpen={isGroupModalOpen}
-        onClose={() => setGroupModalOpen(false)}
-        commonGroups={commonGroups}
-      />
+      {otherUserId && (
+        <CommonGroupsModal
+          isOpen={isGroupModalOpen}
+          onClose={() => setGroupModalOpen(false)}
+          commonGroups={commonGroups}
+          userId={userId}
+          otherUserId={otherUserId}
+          socket={socket}
+          onGroupSelect={onGroupSelect}
+        />
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    padding: 5,
     backgroundColor: '#fff',
-    borderRadius: 8,
-    marginVertical: 5,
-    padding: 10,
-    elevation: 2,
+    marginBottom: 16,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  titleIcon: {
+    marginRight: 8,
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 5,
+    color: '#000',
   },
-  memberRow: {
+  linkContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 4,
   },
   linkText: {
-    fontSize: 14,
     color: '#1e90ff',
+    fontSize: 14,
+  },
+  icon: {
+    marginRight: 8,
   },
 });
 

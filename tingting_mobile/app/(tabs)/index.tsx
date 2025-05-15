@@ -26,31 +26,19 @@ import Welcome from "../../components/screens/AuthScreen/Welcome";
 import ForgotPassword from "../../components/screens/AuthScreen/ForgotPassword";
 import ResetPassword from "@/components/screens/AuthScreen/ResetPassword";
 import EnterCodeForForgotPassword from "@/components/screens/AuthScreen/EnterCodeforForgotPassword";
-import VerificationCode from "@/components/screens/AuthScreen/VerificationCode";
-import VerificationCodeRegister from "@/components/screens/AuthScreen/VerificationCodeRegister";
+import Chat from "../../components/screens/MainScreen/ChatScreen";
 // Main Screens
 import ContactScreen from "../../components/screens/MainScreen/ContactScreen";
 import ChatSupportItems from "@/components/chatitems/ChatSupportItems";
 import MessageSupportScreen from "@/components/screens/MainScreen/Chat/MessageSupportScreen";
-import Chat from "../../components/screens/MainScreen/ChatScreen";
+
+import VerificationCode from "@/components/screens/AuthScreen/VerificationCode";
+import VerificationCodeRegister from "@/components/screens/AuthScreen/VerificationCodeRegister";
 
 // Socket cloud
 import { CloudSocketProvider } from "../../context/CloudSocketContext";
 
 import ChatInfo from "@/components/screens/MainScreen/Chat/ChatInfo";
-import ChatInfoCloud from "@/components/screens/MainScreen/Cloud/ChatInfoCloud";
-
-
-import { SocketProvider } from "../../contexts/SocketContext";
-import store from "../../redux/store";
-import { Provider } from "react-redux";
-import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import MenuProfileScreen from "@/components/screens/MainScreen/Profile/MenuProfileScreen";
-import SettingProfileScreen from "@/components/screens/MainScreen/Profile/SettingProfileScreen";
-import FeedScreen from "@/components/screens/MainScreen/Feed/FeedScreen";
-import CreatePostScreen from "@/components/screens/MainScreen/Feed/CreatePostScreen";
-import AddFriendScreen from "../../components/find/AddFriendScreen"; 
 
 type RootStackParamList = {
   Main: undefined;
@@ -78,9 +66,6 @@ type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { phoneNumber: string };
   VerificationCodeRegister: { phoneNumber: string };
-
-  //Profile
-  MenuProfileScreen: undefined;
   ProfileScreen: undefined;
   PersonalInfo: {
     formData: {
@@ -108,20 +93,13 @@ type RootStackParamList = {
       coverPhoto: string | null;
     };
   };
-
-  //Feed
-  FeedScreen: undefined;
-  CreatePostScreen: undefined;
-
   MessageSupportScreen: { userId?: string; username?: string };
-  AddFriendScreen: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 const ContactStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
-const FeedStack = createNativeStackNavigator();
 
 // Stack Navigator cho phần Contact/Friends
 function ContactStackNavigator() {
@@ -154,41 +132,7 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator
       screenOptions={{
         headerShown: false,
-        animation: "none", // Disable animations MenuProfileScreen
-      }}
-    >
-      <ProfileStack.Screen
-        name="MenuProfileScreen"
-        component={MenuProfileScreen}
-      />
-
-      {/* <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} /> */}
-      <ProfileStack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
-      <ProfileStack.Screen
-        name="EditPersonalInfo"
-        component={EditPersonalInfoScreen}
-      />
-    </ProfileStack.Navigator>
-  );
-}
-function FeedStackNavigator() {
-  return (
-    <FeedStack.Navigator
-      screenOptions={{
-        headerShown: false,
         animation: "none", // Disable animations
-      }}
-    >
-      <FeedStack.Screen name="FeedScreen" component={FeedScreen} />
-    </FeedStack.Navigator>
-  );
-}
-function InformationProfileStackNavigator() {
-  return (
-    <ProfileStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: "none", // Disable animations MenuProfileScreen
       }}
     >
       <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} />
@@ -200,6 +144,13 @@ function InformationProfileStackNavigator() {
     </ProfileStack.Navigator>
   );
 }
+
+import { SocketProvider } from "../../contexts/SocketContext";
+import store from "../../redux/store";
+import { Provider } from "react-redux";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 function MainTabNavigator() {
   return (
     <Tab.Navigator
@@ -225,7 +176,7 @@ function MainTabNavigator() {
       <Tab.Screen name="DiaryScreen" options={{ tabBarLabel: "Nhật ký" }}>
         {() => (
           <MainLayout>
-            <FeedStackNavigator />
+            <DiaryScreen />
           </MainLayout>
         )}
       </Tab.Screen>
@@ -258,7 +209,7 @@ export default function App() {
   //       // console.log("Fetched userId from AsyncStorage:", userId1);
   //       // Gọi API để lấy thông tin người dùng
   //       const response = await axios.get(
-  //         `http://192.168.1.49:3001/api/v1/profile/${userId1}`,
+  //         `http://192.168.1.33:3001/api/v1/profile/${userId1}`,
   //         {
   //           headers: {
   //             "Content-Type": "application/json",
@@ -296,15 +247,9 @@ export default function App() {
           >
             <Stack.Screen
               name="ChatInfo"
-              getComponent={ChatInfo}
+              component={ChatInfo}
               options={{ headerShown: false }}
             />
-            <Stack.Screen
-              name="ChatInfoCloud"
-              component={ChatInfoCloud}
-              options={{ headerShown: false }}
-            />
-
             <Stack.Screen
               name="Welcome"
               component={Welcome}
@@ -359,11 +304,6 @@ export default function App() {
             <Stack.Screen
               name="MessageSupportScreen"
               component={MessageSupportScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="AddFriendScreen"
-              component={AddFriendScreen}
               options={{ headerShown: false }}
             />
           </Stack.Navigator>
