@@ -105,6 +105,13 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     if (message.id !== "my-cloud" && !joinedRoomsRef.current.has(message.id)) { // Nhi thêm: Kiểm tra joinedRoomsRef
       joinConversation(socket, message.id);
       joinedRoomsRef.current.add(message.id); // Nhi thêm
+      
+      // Kiểm tra trạng thái người dùng trong cuộc trò chuyện
+      socket.emit("checkUserConversation", {
+        conversationId: message.id,
+        userId: currentUserId
+      });
+      
       console.log(`ChatList: Tham gia phòng: ${message.id}`); // Nhi thêm
     }
     dispatch(setSelectedMessage(message));
@@ -228,6 +235,20 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     }
 
     console.log("ChatList: Đăng ký sự kiện socket", { socketId: socket?.id, currentUserId }); // Nhi thêm
+
+    // Thêm xử lý sự kiện userInConversation
+    const handleUserInConversation = (data) => {
+      console.log("ChatList: Nhận thông tin trạng thái người dùng trong hội thoại:", data);
+      
+      if (data.userId === currentUserId) {
+        if (data.isInRequestedConversation) {
+          console.log(`ChatList: Người dùng đang trong cuộc trò chuyện ${data.requestedConversation}`);
+        } else if (data.currentConversation) {
+          toast.info(`Bạn đang trong một cuộc trò chuyện khác: ${data.currentConversation}`);
+          console.log(`ChatList: Người dùng đang trong cuộc trò chuyện khác: ${data.currentConversation}`);
+        }
+      }
+    };
 
     const handleConversations = async (conversations) => {
       console.log("ChatList: Nhận danh sách hội thoại:", conversations);
@@ -423,6 +444,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
     onConversationUpdate(socket, handleConversationUpdate);
     onChatInfoUpdated(socket, handleChatInfoUpdated); // Nhi thêm
     socket.on("newGroupConversation", handleNewGroupConversation); // Nhi thêm
+    socket.on("userInConversation", handleUserInConversation); // Thêm listener cho userInConversation
     onConversationRemoved(socket, handleConversationRemoved); // Nhi thêm
     onGroupLeft(socket, handleGroupLeft); // Nhi thêm
     // [Thêm mới] Lắng nghe sự kiện connect để tham gia lại phòng
@@ -434,6 +456,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
       offConversationUpdate(socket);
       offChatInfoUpdated(socket); // Nhi thêm
       socket.off("newGroupConversation", handleNewGroupConversation); // Nhi thêm
+      socket.off("userInConversation", handleUserInConversation); // Gỡ bỏ listener
       offConversationRemoved(socket); // Nhi thêm
       offGroupLeft(socket); // Nhi thêm
       // [Thêm mới] Gỡ bỏ lắng nghe sự kiện connect
@@ -515,6 +538,7 @@ function ChatList({ activeTab, onGroupCreated }) { // Nhi thêm: Thêm onGroupCr
   }, [lastMessageUpdate]);
 
   console.log("ChatList: Render với danh sách message:", messages); // Nhi thêm
+
 
   return (
     <div className="w-full h-screen bg-white border-r border-gray-300 flex flex-col">
