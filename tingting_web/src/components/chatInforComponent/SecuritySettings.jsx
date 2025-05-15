@@ -353,7 +353,7 @@ const SecuritySettings = ({
         transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
           console.log("SecuritySettings: Phản hồi từ transferGroupAdmin", response);
           if (response.success) {
-            toast.success("Quyền trưởng nhóm đã được chuyển!");
+           
             resolve();
           } else {
             toast.error("Lỗi khi chuyển quyền: " + response.message);
@@ -413,7 +413,7 @@ const SecuritySettings = ({
       transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
         console.log("SecuritySettings: Phản hồi từ transferGroupAdmin", response);
         if (response.success) {
-          toast.success("Quyền trưởng nhóm đã được chuyển!");
+          
           setShowTransferAdminModal(false);
           setNewAdminUserId("");
           dispatch(setChatInfoUpdate(response.data));
@@ -446,7 +446,7 @@ const SecuritySettings = ({
       disbandGroup(socket, { conversationId }, (response) => {
         console.log("SecuritySettings: Phản hồi từ disbandGroup", response);
         if (response.success) {
-          toast.success("Nhóm đã được giải tán thành công!");
+         
           dispatch(setSelectedMessage(null));
         } else {
           toast.error("Lỗi khi giải tán nhóm: " + response.message);

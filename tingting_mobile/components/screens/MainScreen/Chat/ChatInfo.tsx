@@ -452,7 +452,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
   };
 
   const handleCreateGroupSuccess = (newGroup: any) => {
-    Alert.alert("Thành công", "Tạo nhóm thành công!");
+  
     setIsCreateGroupModalOpen(false);
     navigation.navigate("Main", {
       screen: "ChatScreen",
@@ -467,7 +467,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       );
       updateNotification(socket, { conversationId, mute: null });
       setIsMuted(false);
-      Alert.alert("Thông báo", "Đã bật thông báo!");
+      // Alert.alert("Thông báo", "Đã bật thông báo!");
     } else {
       console.log(
         `ChatInfo instance ${instanceId} opening mute notification modal`
@@ -482,7 +482,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       muted
     );
     setIsMuted(muted);
-    Alert.alert("Thông báo", muted ? "Đã tắt thông báo!" : "Đã bật thông báo!");
+    // Alert.alert("Thông báo", muted ? "Đã tắt thông báo!" : "Đã bật thông báo!");
   };
 
   const handlePinChat = () => {
@@ -495,10 +495,10 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     );
     pinChat(socket, { conversationId, isPinned: newIsPinned });
     setIsPinned(newIsPinned);
-    Alert.alert(
-      "Thông báo",
-      newIsPinned ? "Đã ghim cuộc trò chuyện!" : "Đã bỏ ghim cuộc trò chuyện!"
-    );
+    // Alert.alert(
+    //   "Thông báo",
+    //   // newIsPinned ? "Đã ghim cuộc trò chuyện!" : "Đã bỏ ghim cuộc trò chuyện!"
+    // );
   };
 
   const handleAddMember = () => {

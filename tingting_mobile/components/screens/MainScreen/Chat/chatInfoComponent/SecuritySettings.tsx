@@ -191,7 +191,7 @@ const SecuritySettings: React.FC<Props> = ({
       setChatInfo(updatedInfo);
       console.log('SecuritySettings: Đã cập nhật chatInfo từ onChatInfoUpdated', updatedInfo);
       if (participant?.role === 'admin') {
-        Alert.alert('Thông báo', 'Bạn đã được chuyển quyền trưởng nhóm!');
+        // Alert.alert('Thông báo', 'Bạn đã được chuyển quyền trưởng nhóm!');
         fetchChatInfo();
       }
     });
