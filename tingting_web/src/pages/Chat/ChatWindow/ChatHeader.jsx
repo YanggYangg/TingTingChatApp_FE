@@ -28,6 +28,10 @@ const ChatHeader = ({
   const { socket } = useSocket();
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [isOnline, setIsOnline] = useState(false);
+  console.log("members", members);
+
+  
+
 
   useEffect(() => {
     if (!socket) return;
@@ -83,7 +87,7 @@ const ChatHeader = ({
         />
         <div>
           <h2 className="text-lg font-bold">{name}</h2>
-          {type === "group" ? (
+          {members > 0 ? (
             <p className="flex text-x text-gray-500">
               <User size={20} />
               {members} thành viên
