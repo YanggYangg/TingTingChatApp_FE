@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { FaSearch, FaUserFriends, FaUsers, FaCamera } from "react-icons/fa";
+import { FaSearch, FaUserFriends, FaUsers } from "react-icons/fa";
 import { Api_Profile } from "../../../apis/api_profile";
 import { Api_FriendRequest } from "../../../apis/api_friendRequest";
 import CreateGroup from "./CreateGroup";
+import PinVerificationModal from "../PinVerificationModal"; // Import modal
 import { useSocket } from "../../contexts/SocketContext";
 import { loadAndListenConversations } from "../../services/sockets/events/conversation";
 
-function Search({ onGroupCreated, onSearchResults }) {
+function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
   const [isModalFriendsOpen, setIsModalFriendsOpen] = useState(false);
   const [isModalCreateGroupOpen, setIsModalCreateGroupOpen] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false); // State cho modal PIN
+  const [selectedConversation, setSelectedConversation] = useState(null); // Cuộc trò chuyện cần xác thực
   const [searchValue, setSearchValue] = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -32,13 +35,49 @@ function Search({ onGroupCreated, onSearchResults }) {
 
   // Toggle modal tạo nhóm
   const toggleCreateGroupModal = () => {
-    setIsModalCreateGroupOpen(!isModalCreateGroupOpen);
+    setIsModalCreateGroupOpen(!isModalCreateGroupModal);
   };
 
-  // Xử lý khi chọn người dùng
+  // Xử lý khi chọn người dùng trong modal thêm bạn
   const handleSelectUser = (user) => {
     console.log("Search: User selected:", user);
     setSelectedUser(user);
+  };
+
+  // Xử lý khi chọn cuộc trò chuyện từ kết quả tìm kiếm
+  const handleSelectConversation = (conversation) => {
+    console.log("Search: Conversation selected:", conversation);
+    if (conversation.isHidden) {
+      console.log("Search: Cuộc trò chuyện ẩn, yêu cầu nhập PIN:", conversation.id);
+      setSelectedConversation(conversation);
+      setIsPinModalOpen(true);
+    } else {
+      onConversationSelected(conversation);
+    }
+  };
+
+  // Xử lý khi xác thực PIN thành công
+  const handlePinVerified = () => {
+    if (selectedConversation) {
+      console.log("Search: Xác thực PIN thành công cho conversation:", selectedConversation.id);
+      // Cập nhật searchResults để phản ánh trạng thái isHidden: false
+      const updatedResults = searchResults.map((result) =>
+        result.id === selectedConversation.id
+          ? { ...result, isHidden: false }
+          : result
+      );
+      onSearchResults(updatedResults);
+      onConversationSelected(selectedConversation);
+    }
+    setIsPinModalOpen(false);
+    setSelectedConversation(null);
+  };
+
+  // Đóng modal nhập PIN
+  const handleClosePinModal = () => {
+    console.log("Search: Đóng modal nhập PIN");
+    setIsPinModalOpen(false);
+    setSelectedConversation(null);
   };
 
   // Xử lý khi nhóm được tạo
@@ -198,9 +237,9 @@ function Search({ onGroupCreated, onSearchResults }) {
         lastMessageSenderId: conv.lastMessage?.userId || null,
         time: conv.lastMessage
           ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
+            hour: "2-digit",
+            minute: "2-digit",
+          })
           : "",
         updateAt: conv.lastMessage?.createdAt || conv.updatedAt,
         isPinned: conv.participants?.find((p) => p.userId === userId)?.isPinned || false,
@@ -346,7 +385,6 @@ function Search({ onGroupCreated, onSearchResults }) {
         size={20}
         onClick={toggleCreateGroupModal}
       />
-     
 
       {/* Modal tìm kiếm bạn bè */}
       {isModalFriendsOpen && (
@@ -374,7 +412,6 @@ function Search({ onGroupCreated, onSearchResults }) {
                 <input
                   type="text"
                   placeholder="Số điện thoại hoặc tên"
-_ssl_mode: None
                   className="flex-grow px-4 py-2 text-gray-700 focus:outline-none"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
@@ -433,7 +470,7 @@ _ssl_mode: None
               />
               <div>
                 <h2 className="text-lg font-semibold text-gray-800">
-                  {`${selectedUser.firstname || ""} ${user.surname || ""}`.trim() || selectedUser._id}
+                  {`${selectedUser.firstname || ""} ${selectedUser.surname || ""}`.trim() || selectedUser._id}
                 </h2>
               </div>
             </div>
@@ -491,7 +528,6 @@ _ssl_mode: None
           </div>
         </div>
       )}
-
       {/* Modal tạo nhóm */}
       <CreateGroup
         isOpen={isModalCreateGroupOpen}
@@ -499,6 +535,16 @@ _ssl_mode: None
         onGroupCreated={handleGroupCreated}
         userId={userId}
         socket={socket}
+      />
+
+      {/* Modal xác thực PIN */}
+      <PinVerificationModal
+        isOpen={isPinModalOpen}
+        onClose={handleClosePinModal}
+        conversationId={selectedConversation?.id}
+        userId={userId}
+        socket={socket}
+        onVerified={handlePinVerified}
       />
     </div>
   );
