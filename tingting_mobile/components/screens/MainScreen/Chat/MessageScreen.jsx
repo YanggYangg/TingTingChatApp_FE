@@ -277,7 +277,7 @@ const ChatScreen = ({ route, navigation }) => {
     onConversationRemoved(socket, (data) => {
       console.log("ChatScreen: Received conversationRemoved:", data);
       if (data.conversationId === selectedMessageId) {
-        Alert.alert("Thông báo", "Nhóm đã được giải tán.");
+      
         navigation.navigate("Main", { screen: "MessageScreen" });
       }
     });

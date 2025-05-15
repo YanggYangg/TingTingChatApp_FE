@@ -360,7 +360,7 @@ const SecuritySettings: React.FC<Props> = ({
     transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
       console.log('SecuritySettings: Phản hồi từ transferGroupAdmin', response);
       if (response.success) {
-        Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
+  
         fetchChatInfo();
         console.log('SecuritySettings: Gửi yêu cầu leaveGroup', { conversationId, userId });
         leaveGroup(socket, { conversationId, userId }, (leaveResponse) => {
@@ -406,7 +406,7 @@ const SecuritySettings: React.FC<Props> = ({
       console.log('SecuritySettings: Phản hồi từ disbandGroup', response);
       if (response.success) {
         setChatInfo(null);
-        Alert.alert('Thành công', 'Nhóm đã được giải tán!');
+      
         console.log('SecuritySettings: Đã xóa chatInfo và điều hướng đến MessageScreen');
         navigation.navigate('Main', { screen: 'MessageScreen' });
       } else {
@@ -434,7 +434,7 @@ const SecuritySettings: React.FC<Props> = ({
       console.log('SecuritySettings: Phản hồi từ transferGroupAdmin', response);
       if (response.success) {
         setIsAdmin(false);
-        Alert.alert('Thành công', 'Quyền trưởng nhóm đã được chuyển!');
+       
         fetchChatInfo();
         setTimeout(() => {
           fetchChatInfo();
