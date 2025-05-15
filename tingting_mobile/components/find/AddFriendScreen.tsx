@@ -69,6 +69,27 @@ const AddFriendScreen = ({ navigation }) => {
   };
 }, [searchResult]);
 
+useEffect(() => {
+  if (!userId) return;
+
+  socket.on("friend_request_sent", ({ toUserId }) => {
+    if (searchResult && toUserId === searchResult._id) {
+      setStatus("pending");
+    }
+  });
+
+  socket.on("friend_request_revoked_self", ({ toUserId }) => {
+    if (searchResult && toUserId === searchResult._id) {
+      setStatus("");
+    }
+  });
+
+  return () => {
+    socket.off("friend_request_sent");
+    socket.off("friend_request_revoked_self");
+  };
+}, [searchResult, userId]);
+
   
     // Lấy userId hiện tại từ AsyncStorage
     useEffect(() => {
@@ -98,10 +119,11 @@ const AddFriendScreen = ({ navigation }) => {
       if(!foundUser) {
         Alert.alert("Không tìm thấy người dùng ");
         setSearchResult(null);
+        setStatus(""); // reset status
         return;
       }
 
-      setSearchResult(foundUser);
+      // setSearchResult(foundUser);
 
       const statusRes = await Api_FriendRequest.checkFriendStatus(
         {
@@ -109,9 +131,16 @@ const AddFriendScreen = ({ navigation }) => {
           userIdB: foundUser._id,
         }
       );
-      setStatus(statusRes.data);
+      // setStatus(statusRes.data);
+      // setSearchResult(foundUser);//gán user sau cùng
+      // ✅ Chỉ lấy field status trong object
+setStatus(statusRes.status || "not_friends");
+setSearchResult(foundUser);// gán user sau cùng
+      console.log("Trạng thái kết bạn:", statusRes.status);
     }catch (err) {
       console.error("Lỗi tìm kiếm", err);
+        setSearchResult(null);
+    setStatus(""); // reset để tránh giữ lại kết quả sai
     }
   }
 
@@ -175,7 +204,7 @@ return (
             <Text style={styles.phone}>{searchResult.phone}</Text>
             <Text style={styles.status}>
               Trạng thái:{" "}
-              {status === "friend"
+              {status === "accepted"
                 ? "Đã là bạn bè"
                 : status === "pending"
                 ? "Đang chờ phản hồi"
@@ -183,7 +212,7 @@ return (
             </Text>
           </View>
 
-          {status !== "friend" && (
+          {status !== "accepted" && (
             <TouchableOpacity
               style={styles.addButton}
               onPress={handleSendOrRevokeRequest}

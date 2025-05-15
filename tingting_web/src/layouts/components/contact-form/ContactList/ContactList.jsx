@@ -31,6 +31,31 @@ const ContactList = () => {
   const [allFriends, setAllFriends] = useState([]);
   const [sortOrder, setSortOrder] = useState("asc"); // 'asc' hoặc 'desc'
 
+    //socket 
+  useEffect(() => {
+  const userId = localStorage.getItem("userId");
+  if (userId) socket1.emit("add_user", userId); // đảm bảo đã add user
+
+  // Lắng nghe khi có lời mời được chấp nhận
+  socket1.on("friend_request_accepted", ({ fromUserId }) => {
+    console.log("👥 Ai đó đã chấp nhận lời mời, reload danh sách bạn bè");
+    fetchFriends(); // gọi lại để cập nhật danh sách
+  });
+
+  // Khi bị huỷ kết bạn
+  socket1.on("unfriended", ({ byUserId }) => {
+    console.log("👋 Ai đó đã huỷ kết bạn với bạn:", byUserId);
+    fetchFriends(); // Cập nhật lại danh sách
+  });
+
+
+  return () => {
+    socket1.off("friend_request_accepted");
+    socket1.off("unfriended");
+  };
+}, []);
+
+
   const fetchFriends = async () => {
     try {
       const userId = localStorage.getItem("userId");
@@ -141,12 +166,21 @@ setGroupedFriends(groupedSorted);
     if (!confirmDelete) return;
     try {
       const currentUserId = localStorage.getItem("userId");
-      const response = await Api_FriendRequest.unfriend(
-        currentUserId,
-        friendId
-      );
-      console.log("====Xoa ban be====", response.data);
-      await fetchFriends();
+      // const response = await Api_FriendRequest.unfriend(
+      //   currentUserId,
+      //   friendId
+      // );
+      // console.log("====Xoa ban be====", response.data);
+      // await fetchFriends();
+      socket1.emit("unfriend", { userId1: currentUserId, userId2: friendId }, (response) => {
+  if (response.status === "ok") {
+    console.log("✅ Huỷ kết bạn thành công qua socket");
+    fetchFriends(); // Cập nhật danh sách
+  } else {
+    console.error("❌ Lỗi khi huỷ kết bạn:", response.message);
+  }
+});
+
     } catch (error) {
       console.error("Error deleting friend:", error);
     }
@@ -182,21 +216,6 @@ setGroupedFriends(groupedSorted);
     }
   }
 
-  //socket 
-  useEffect(() => {
-  const userId = localStorage.getItem("userId");
-  if (userId) socket1.emit("add_user", userId); // đảm bảo đã add user
-
-  // Lắng nghe khi có lời mời được chấp nhận
-  socket1.on("friend_request_accepted", ({ fromUserId }) => {
-    console.log("👥 Ai đó đã chấp nhận lời mời, reload danh sách bạn bè");
-    fetchFriends(); // gọi lại để cập nhật danh sách
-  });
-
-  return () => {
-    socket1.off("friend_request_accepted");
-  };
-}, []);
 
 
   return (

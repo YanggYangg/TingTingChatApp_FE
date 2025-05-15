@@ -42,6 +42,15 @@ export default function FriendRequestsScreen() {
         fetchReceivedRequests();
       });
 
+      socket.on("friend_request_revoked", ({ fromUserId }) => {
+  console.log("🗑️ Đã bị thu hồi lời mời từ:", fromUserId);
+  setReceivedRequests((prev) =>
+    prev.filter((r) => r.requester._id !== fromUserId)
+  );
+});
+
+      
+
     } catch (error) {
       console.error("Lỗi thiết lập socket:", error);
     }
@@ -51,6 +60,7 @@ export default function FriendRequestsScreen() {
 
   return () => {
     socket.off("friend_request_received");
+    socket.off("friend_request_revoked");
     socket.disconnect();
     console.log("🛑 Socket ngắt kết nối");
   };
