@@ -14,30 +14,20 @@ import AddMemberModal from "../../../components/chatInforComponent/AddMemberModa
 import EditNameModal from "../../../components/chatInforComponent/EditNameModal";
 import CreateGroupModal from "../../../components/chatInforComponent/CreateGroupModal";
 import {
-  getChatInfo,
-  onChatInfo,
-  offChatInfo,
-  onChatInfoUpdated,
-  offChatInfoUpdated,
-  updateChatName,
-  pinChat,
-  updateNotification,
-  onError,
-  offError,
-  getChatMedia,
-  getChatFiles,
-  getChatLinks,
+  getChatInfo, onChatInfo, offChatInfo, onChatInfoUpdated, offChatInfoUpdated,
+  updateChatName, pinChat, updateNotification, onError, offError,
+  getChatMedia, getChatFiles, getChatLinks,
 } from "../../../services/sockets/events/chatInfo";
 import {
-  onConversations,
-  offConversations,
-  onConversationUpdate,
-  offConversationUpdate,
-  loadAndListenConversations,
-  joinConversation,
+  onConversations, offConversations, onConversationUpdate, offConversationUpdate,
+  loadAndListenConversations, joinConversation,
 } from "../../../services/sockets/events/conversation";
 import { Api_Profile } from "../../../../apis/api_profile";
 import { toast } from "react-toastify";
+
+// Default avatar and group image for fallback
+const DEFAULT_AVATAR = "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
+const DEFAULT_GROUP_IMAGE = "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=";
 
 const ChatInfo = ({ userId, conversationId, socket }) => {
   const [chatInfo, setChatInfo] = useState(null);
@@ -51,293 +41,185 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const [conversations, setConversations] = useState([]);
   const [otherUser, setOtherUser] = useState(null);
   const [userRoleInGroup, setUserRoleInGroup] = useState(null);
-  const [hasMounted, setHasMounted] = useState(false);
   const [commonGroups, setCommonGroups] = useState([]);
   const dispatch = useDispatch();
 
+  // Select a group and join its conversation
   const handleGroupSelect = (group) => {
-    if (!socket) {
-      toast.error("Socket chưa kết nối, không thể chọn nhóm!");
-      return;
-    }
-
+    if (!socket) return toast.error("Socket chưa kết nối!");
     const formattedMessage = {
       id: group._id,
       name: group.name || "Nhóm không tên",
       participants: group.participants || [],
       isGroup: true,
-      imageGroup: group.imageGroup || "https://via.placeholder.com/150",
+      imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
       isPinned: false,
       mute: false,
     };
-
-    console.log("ChatInfo: Chọn nhóm", formattedMessage);
     joinConversation(socket, formattedMessage.id);
-    console.log(`ChatInfo: Tham gia phòng: ${formattedMessage.id}`);
     dispatch(setSelectedMessage(formattedMessage));
   };
 
+  // Fetch and listen for chat info updates
   useEffect(() => {
-    setHasMounted(true);
     if (!socket || !conversationId) {
-      console.warn("ChatInfo: Thiếu socket hoặc conversationId", { socket, conversationId });
       setLoading(false);
       return;
     }
 
-    console.log("ChatInfo: Gửi yêu cầu getChatInfo", { conversationId });
     getChatInfo(socket, { conversationId });
 
-    // Lắng nghe sự kiện updateChatInfo từ server
-    const handleUpdateChatInfo = ({ conversationId: updatedConversationId, messageType }) => {
-      console.log("ChatInfo: Nhận sự kiện updateChatInfo", { updatedConversationId, messageType });
-      if (updatedConversationId === conversationId) {
-        if (messageType === "image" || messageType === "video") {
-          console.log("ChatInfo: Cập nhật media trong chatInfo");
-          getChatMedia(socket, { conversationId });
-        } else if (messageType === "file") {
-          console.log("ChatInfo: Cập nhật file trong chatInfo");
-          getChatFiles(socket, { conversationId });
-        } else if (messageType === "link") {
-          console.log("ChatInfo: Cập nhật link trong chatInfo");
-          getChatLinks(socket, { conversationId });
-        }
-      }
+    const handleUpdateChatInfo = ({ conversationId: updatedId, messageType }) => {
+      if (updatedId !== conversationId) return;
+      if (messageType === "image" || messageType === "video") getChatMedia(socket, { conversationId });
+      else if (messageType === "file") getChatFiles(socket, { conversationId });
+      else if (messageType === "link") getChatLinks(socket, { conversationId });
     };
 
-    socket.on("updateChatInfo", handleUpdateChatInfo);
-
     const handleOnChatInfo = (newChatInfo) => {
-      console.log("ChatInfo: Nhận thông tin chat", newChatInfo);
       const participant = newChatInfo.participants?.find((p) => p.userId === userId);
       if (participant?.isHidden) {
-        console.log("ChatInfo: Hội thoại ẩn, không hiển thị thông tin");
-        toast.error("Hội thoại này đang ẩn. Vui lòng xác thực lại.");
         dispatch(setSelectedMessage(null));
         setLoading(false);
         return;
       }
 
       setChatInfo(newChatInfo);
-      if (participant) {
-        console.log("ChatInfo: Cập nhật trạng thái participant", {
-          isMuted: !!participant.mute,
-          isPinned: !!participant.isPinned,
-          role: participant.role || null,
-        });
-        setIsMuted(!!participant.mute);
-        setIsPinned(!!participant.isPinned);
-        setUserRoleInGroup(participant.role || null);
-      }
+      setIsMuted(!!participant?.mute);
+      setIsPinned(!!participant?.isPinned);
+      setUserRoleInGroup(participant?.role || null);
 
       if (!newChatInfo.isGroup) {
-        const otherParticipant = newChatInfo.participants?.find(
-          (p) => p.userId !== userId
-        );
+        const otherParticipant = newChatInfo.participants?.find((p) => p.userId !== userId);
         if (otherParticipant?.userId) {
-          console.log("ChatInfo: Lấy thông tin người dùng khác", { userId: otherParticipant.userId });
           Api_Profile.getProfile(otherParticipant.userId)
-            .then((response) => {
-              console.log("ChatInfo: Nhận thông tin người dùng", response?.data?.user);
-              setOtherUser(response?.data?.user);
-            })
-            .catch((error) => {
-              console.error("ChatInfo: Lỗi khi lấy thông tin người dùng khác", error);
-              setOtherUser({
-                firstname: "Không tìm thấy",
-                surname: "",
-              });
-            })
-            .finally(() => {
-              console.log("ChatInfo: Hoàn tất tải thông tin người dùng");
-              setLoading(false);
-            });
+            .then((response) => setOtherUser(response?.data?.user || { firstname: "Không tìm thấy", surname: "" }))
+            .catch(() => setOtherUser({ firstname: "Không tìm thấy", surname: "" }))
+            .finally(() => setLoading(false));
         } else {
-          console.log("ChatInfo: Không tìm thấy otherParticipant");
           setLoading(false);
         }
       } else {
-        console.log("ChatInfo: Đây là nhóm, không cần lấy thông tin người dùng");
         setLoading(false);
       }
-
       dispatch(setChatInfoUpdate(newChatInfo));
     };
 
     const handleOnChatInfoUpdated = (updatedInfo) => {
-      console.log("ChatInfo: Nhận sự kiện chatInfoUpdated", updatedInfo);
-      if (updatedInfo._id !== conversationId) {
-        console.log("ChatInfo: Bỏ qua cập nhật vì không khớp conversationId", {
-          updatedConversationId: updatedInfo._id,
-          currentConversationId: conversationId,
-        });
-        return;
-      }
-
+      if (updatedInfo._id !== conversationId) return;
       const participant = updatedInfo.participants?.find((p) => p.userId === userId);
       if (participant?.isHidden) {
-        console.log("ChatInfo: Hội thoại ẩn sau khi cập nhật, không hiển thị thông tin");
         toast.error("Hội thoại này đang ẩn. Vui lòng xác thực lại.");
         dispatch(setSelectedMessage(null));
         return;
       }
 
-      setChatInfo((prev) => {
-        const newChatInfo = {
-          ...prev,
-          ...updatedInfo,
-          participants: updatedInfo.participants || prev.participants,
-          name: updatedInfo.name || prev.name,
-        };
-        console.log("ChatInfo: Cập nhật chatInfo", newChatInfo);
-        return newChatInfo;
-      });
-
-      if (participant) {
-        console.log("ChatInfo: Cập nhật trạng thái isMuted/isPinned/role", {
-          isMuted: !!participant.mute,
-          isPinned: !!participant.isPinned,
-          role: participant.role || null,
-        });
-        setIsMuted(!!participant.mute);
-        setIsPinned(!!participant.isPinned);
-        setUserRoleInGroup(participant.role || null);
-      }
-
+      setChatInfo((prev) => ({ ...prev, ...updatedInfo }));
+      setIsMuted(!!participant?.mute);
+      setIsPinned(!!participant?.isPinned);
+      setUserRoleInGroup(participant?.role || null);
       dispatch(setChatInfoUpdate(updatedInfo));
     };
 
     const handleError = (error) => {
-      console.error("ChatInfo: Lỗi từ server", error);
       toast.error("Đã xảy ra lỗi: " + (error.message || "Không thể cập nhật thông tin."));
       setLoading(false);
     };
 
-    console.log("ChatInfo: Đăng ký socket listeners");
+    socket.on("updateChatInfo", handleUpdateChatInfo);
     onChatInfo(socket, handleOnChatInfo);
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
     onError(socket, handleError);
-
-    // Tải danh sách media, file, link ban đầu
     getChatMedia(socket, { conversationId });
     getChatFiles(socket, { conversationId });
     getChatLinks(socket, { conversationId });
 
     return () => {
-      console.log("ChatInfo: Gỡ socket listeners");
+      socket.off("updateChatInfo", handleUpdateChatInfo);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
-      socket.off("updateChatInfo", handleUpdateChatInfo);
     };
-  }, [socket, conversationId, userId, hasMounted, dispatch]);
+  }, [socket, conversationId, userId, dispatch]);
 
+  // Load and listen for conversation updates
   useEffect(() => {
-    if (!socket || !userId) {
-      console.warn("ChatInfo: Thiếu socket hoặc userId cho conversations");
-      return;
-    }
+    if (!socket || !userId) return;
 
-    console.log("ChatInfo: Đăng ký loadAndListenConversations");
-    const cleanupLoadConversations = loadAndListenConversations(socket, (conversationsData) => {
-      console.log("ChatInfo: Nhận conversations", conversationsData);
-      setConversations(conversationsData || []);
-    });
-
-    onConversations(socket, (conversationsData) => {
-      console.log("ChatInfo: Nhận sự kiện conversations", conversationsData);
-      setConversations(conversationsData || []);
-    });
-
+    const cleanup = loadAndListenConversations(socket, setConversations);
+    onConversations(socket, setConversations);
     onConversationUpdate(socket, (updatedConversation) => {
-      console.log("ChatInfo: Nhận sự kiện conversationUpdate", updatedConversation);
-      setConversations((prevConversations) =>
-        prevConversations.map((conv) =>
-          conv._id === updatedConversation._id ? updatedConversation : conv
-        )
+      setConversations((prev) =>
+        prev.map((conv) => (conv._id === updatedConversation._id ? updatedConversation : conv))
       );
     });
 
     return () => {
-      console.log("ChatInfo: Gỡ listeners conversations");
-      cleanupLoadConversations();
+      cleanup();
       offConversations(socket);
       offConversationUpdate(socket);
     };
   }, [socket, userId]);
 
+  // Calculate common groups between users
   useEffect(() => {
     if (!chatInfo || !conversations.length) {
-      console.log("ChatInfo: Thiếu chatInfo hoặc conversations để tính commonGroups");
       setCommonGroups([]);
       return;
     }
 
-    const otherParticipant = chatInfo.participants?.find((p) => p.userId !== userId);
-    const otherUserId = otherParticipant?.userId;
-
+    const otherUserId = chatInfo.participants?.find((p) => p.userId !== userId)?.userId;
     if (!otherUserId || chatInfo.isGroup) {
-      console.log("ChatInfo: Không có otherUserId hoặc là nhóm, đặt commonGroups rỗng");
       setCommonGroups([]);
       return;
     }
 
-    const commonGroups = conversations.filter((conversation) => {
-      return (
-        conversation.isGroup &&
-        conversation._id !== chatInfo._id &&
-        conversation.participants.some((p) => p.userId === userId) &&
-        conversation.participants.some((p) => p.userId === otherUserId)
-      );
-    });
-
-    console.log("ChatInfo: Tính commonGroups", commonGroups);
+    const commonGroups = conversations.filter(
+      (conv) =>
+        conv.isGroup &&
+        conv._id !== chatInfo._id &&
+        conv.participants.some((p) => p.userId === userId) &&
+        conv.participants.some((p) => p.userId === otherUserId)
+    );
     setCommonGroups(commonGroups);
   }, [chatInfo, conversations, userId]);
 
+  // Handle adding a new member to the group
   const handleMemberAdded = () => {
-    console.log("ChatInfo: Gửi yêu cầu getChatInfo sau khi thêm thành viên", { conversationId });
     getChatInfo(socket, { conversationId });
   };
 
+  // Handle removing a member from the group
   const handleMemberRemoved = (removedUserId) => {
-    console.log("ChatInfo: Xóa thành viên", { removedUserId });
-    setChatInfo((prevChatInfo) => {
+    setChatInfo((prev) => {
       const updatedChatInfo = {
-        ...prevChatInfo,
-        participants: prevChatInfo.participants.filter(
-          (p) => p.userId !== removedUserId
-        ),
+        ...prev,
+        participants: prev.participants.filter((p) => p.userId !== removedUserId),
       };
       dispatch(setChatInfoUpdate(updatedChatInfo));
       return updatedChatInfo;
     });
   };
 
+  // Toggle mute notification status
   const handleMuteNotification = () => {
     if (isMuted) {
-      console.log("ChatInfo: Bật thông báo", { conversationId });
       updateNotification(socket, { conversationId, mute: null });
       setIsMuted(false);
     } else {
-      console.log("ChatInfo: Mở modal tắt thông báo");
       setIsMuteModalOpen(true);
     }
   };
 
+  // Handle successful mute action
   const handleMuteSuccess = (muted) => {
-    console.log("ChatInfo: Cập nhật trạng thái mute", { muted });
     setIsMuted(muted);
   };
 
+  // Toggle pin chat status
   const handlePinChat = () => {
-    if (!chatInfo) {
-      console.warn("ChatInfo: Không thể pin chat, thiếu chatInfo");
-      return;
-    }
-
+    if (!chatInfo) return;
     const newIsPinned = !isPinned;
-    console.log("ChatInfo: Thay đổi trạng thái pin", { conversationId, newIsPinned });
     pinChat(socket, { conversationId, isPinned: newIsPinned });
     joinConversation(socket, conversationId);
     setIsPinned(newIsPinned);
@@ -351,113 +233,73 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     );
   };
 
+  // Copy group link to clipboard
   const copyToClipboard = () => {
-    console.log("ChatInfo: Sao chép link nhóm", { link: chatInfo?.linkGroup });
     navigator.clipboard.writeText(chatInfo?.linkGroup || "");
     toast.success("Đã sao chép link nhóm!");
   };
 
+  // Open modal to add a member
   const handleAddMember = () => {
-    console.log("ChatInfo: Mở modal thêm thành viên");
     setIsAddModalOpen(true);
     setIsCreateGroupModalOpen(false);
   };
 
+  // Open modal to create a new group
   const handleCreateGroupChat = () => {
-    console.log("ChatInfo: Mở modal tạo nhóm");
     setIsCreateGroupModalOpen(true);
     setIsAddModalOpen(false);
   };
 
+  // Close create group modal
   const handleCloseCreateGroupModal = () => {
-    console.log("ChatInfo: Đóng modal tạo nhóm");
     setIsCreateGroupModalOpen(false);
   };
 
+  // Handle successful group creation
   const handleCreateGroupSuccess = (newGroup) => {
-    console.log("ChatInfo: Tạo nhóm thành công", newGroup);
-    setConversations((prevConversations) => [...prevConversations, newGroup]);
+    setConversations((prev) => [...prev, newGroup]);
   };
 
+  // Open modal to edit group name
   const handleOpenEditNameModal = () => {
-    if (!chatInfo?.isGroup) {
-      toast.error("Chỉ nhóm mới có thể đổi tên!");
-      return;
-    }
-    console.log("ChatInfo: Mở modal chỉnh sửa tên");
+    if (!chatInfo?.isGroup) return toast.error("Chỉ nhóm mới có thể đổi tên!");
     setIsEditNameModalOpen(true);
   };
 
+  // Close edit name modal
   const handleCloseEditNameModal = () => {
-    console.log("ChatInfo: Đóng modal chỉnh sửa tên");
     setIsEditNameModalOpen(false);
   };
 
+  // Save new chat name
   const handleSaveChatName = (newName) => {
-    if (!chatInfo || !newName.trim()) {
-      console.warn("ChatInfo: Không thể lưu tên nhóm", {
-        chatInfo,
-        newName,
-      });
-      return;
-    }
-
+    if (!chatInfo || !newName.trim()) return;
     const originalName = chatInfo.name;
-    console.log("ChatInfo: Gửi yêu cầu cập nhật tên nhóm", {
-      conversationId,
-      newName: newName.trim(),
-    });
     setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
     updateChatName(socket, { conversationId, name: newName.trim() });
-
-    dispatch(
-      setChatInfoUpdate({
-        ...chatInfo,
-        _id: conversationId,
-        name: newName.trim(),
-      })
-    );
+    dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: newName.trim() }));
 
     const handleUpdateError = (error) => {
-      console.error("ChatInfo: Lỗi khi cập nhật tên nhóm", error);
       toast.error("Không thể cập nhật tên nhóm: " + (error.message || "Lỗi server."));
       setChatInfo((prev) => ({ ...prev, name: originalName }));
-      dispatch(
-        setChatInfoUpdate({
-          ...chatInfo,
-          _id: conversationId,
-          name: originalName,
-        })
-      );
+      dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: originalName }));
     };
     socket.once("error", handleUpdateError);
     setTimeout(() => socket.off("error", handleUpdateError), 5000);
-
     handleCloseEditNameModal();
   };
 
-  if (loading) {
-    console.log("ChatInfo: Đang tải thông tin chat...");
-    return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
-  }
-
-  if (!chatInfo) {
-    console.warn("ChatInfo: Không thể tải thông tin chat");
-    return <p className="text-center text-red-500">Không thể tải thông tin chat.</p>;
-  }
+  if (loading) return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
+  if (!chatInfo) return <p className="text-center text-red-500">Không thể tải thông tin chat.</p>;
 
   const chatTitle = chatInfo?.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại";
   const chatImage = chatInfo?.isGroup
-    ? chatInfo.imageGroup?.trim()
-      ? chatInfo.imageGroup
-      : "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA="
-    : otherUser?.avatar ||
-      "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
+    ? chatInfo.imageGroup?.trim() || DEFAULT_GROUP_IMAGE
+    : otherUser?.avatar || DEFAULT_AVATAR;
   const displayName = chatInfo?.isGroup
     ? chatInfo.name
     : `${otherUser?.firstname} ${otherUser?.surname}`.trim() || "Đang tải...";
-
-  console.log("ChatInfo: Render với", { chatTitle, displayName, chatImage });
 
   return (
     <div className="w-full bg-white p-2 rounded-lg h-screen flex flex-col">
@@ -525,21 +367,9 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
           </div>
         )}
 
-        <GroupMediaGallery
-          conversationId={conversationId}
-          userId={userId}
-          socket={socket}
-        />
-        <GroupFile
-          conversationId={conversationId}
-          userId={userId}
-          socket={socket}
-        />
-        <GroupLinks
-          conversationId={conversationId}
-          userId={userId}
-          socket={socket}
-        />
+        <GroupMediaGallery conversationId={conversationId} userId={userId} socket={socket} />
+        <GroupFile conversationId={conversationId} userId={userId} socket={socket} />
+        <GroupLinks conversationId={conversationId} userId={userId} socket={socket} />
         <SecuritySettings
           conversationId={conversationId}
           userId={userId}
@@ -579,9 +409,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         onClose={handleCloseCreateGroupModal}
         userId={userId}
         onGroupCreated={handleCreateGroupSuccess}
-        currentConversationParticipants={
-          chatInfo?.participants?.map((p) => p.userId) || []
-        }
+        currentConversationParticipants={chatInfo?.participants?.map((p) => p.userId) || []}
         socket={socket}
       />
     </div>

@@ -12,6 +12,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import { Ionicons } from "@expo/vector-icons";
 import Modal from "react-native-modal";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useDispatch } from "react-redux";
 import GroupMemberList from "./chatInfoComponent/GroupMemberList";
 import GroupMediaGallery from "./chatInfoComponent/GroupMediaGallery";
 import GroupFile from "./chatInfoComponent/GroupFile";
@@ -45,6 +46,7 @@ import {
   loadAndListenConversations,
 } from "../../../../services/sockets/events/conversation";
 import { useSocket } from "../../../../contexts/SocketContext";
+import { setChatInfoUpdate } from "../../../../redux/slices/chatSlice";
 
 interface Participant {
   userId: string;
@@ -97,6 +99,8 @@ const AddToGroupModal: React.FC<{
   otherUserId: string;
   onMemberAdded: () => void;
 }> = ({ isOpen, onClose, userGroups, socket, otherUserId, onMemberAdded }) => {
+  const dispatch = useDispatch();
+
   const handleSelectGroup = (group: UserGroup) => {
     if (!socket) {
       Alert.alert('Lỗi', 'Không thể kết nối đến server.');
@@ -105,6 +109,15 @@ const AddToGroupModal: React.FC<{
     socket.emit('addMemberToGroup', { conversationId: group._id, userId: otherUserId }, (response: any) => {
       if (response?.success) {
         onMemberAdded();
+        // Dispatch cập nhật thông tin nhóm
+        dispatch(setChatInfoUpdate({
+          _id: group._id,
+          name: group.name,
+          imageGroup: group.imageGroup,
+          isGroup: true,
+          participants: response.data.participants,
+          updatedAt: new Date().toISOString(),
+        }));
       } else {
         Alert.alert('Lỗi', `Thêm thành viên thất bại: ${response?.message || 'Lỗi không xác định'}`);
       }
@@ -149,6 +162,7 @@ const AddToGroupModal: React.FC<{
 const ChatInfo: React.FC<ChatInfoProps> = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const dispatch = useDispatch();
   const { userId, conversationId, socket: socketFromParams } = route.params || {};
   const { socket: socketFromContext, userId: contextUserId } = useSocket();
 
@@ -223,6 +237,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
         newChatInfo
       );
       setChatInfo(newChatInfo);
+      dispatch(setChatInfoUpdate(newChatInfo)); // Dispatch thông tin chat ban đầu
 
       const participant = newChatInfo.participants?.find(
         (p: Participant) => p.userId === finalUserId
@@ -290,11 +305,13 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
         const updatedParticipants = updatedInfo.participants
           ? updatedInfo.participants
           : prevChatInfo.participants;
-        return {
+        const newChatInfo = {
           ...prevChatInfo,
           ...updatedInfo,
           participants: updatedParticipants,
         };
+        dispatch(setChatInfoUpdate(newChatInfo)); // Dispatch cập nhật thông tin chat
+        return newChatInfo;
       });
       const participant = updatedInfo.participants?.find(
         (p: Participant) => p.userId === finalUserId
@@ -324,7 +341,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       offChatInfoUpdated(socket);
       offError(socket);
     };
-  }, [socket, conversationId, finalUserId, hasMounted]);
+  }, [socket, conversationId, finalUserId, hasMounted, dispatch]);
 
   useEffect(() => {
     if (!socket || !finalUserId || !hasMounted) return;
@@ -416,23 +433,26 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       `ChatInfo instance ${instanceId} requesting updated chat info after member added`
     );
     getChatInfo(socket, { conversationId });
-  
   };
 
- const handleMemberRemoved = (memberId: string) => {
-    removeParticipant(socket, { conversationId, userId: memberId });
-    setChatInfo((prevChatInfo) => ({
-      ...prevChatInfo,
-      participants:
-        prevChatInfo?.participants.filter(
+  const handleMemberRemoved = (memberId: string) => {
+    removeParticipant(socket, { conversationId, userId: memberId }, (response: any) => {
+      if (response?.success) {
+        const updatedParticipants = chatInfo?.participants.filter(
           (p) => p.userId !== memberId
-        ) || [],
-    }));
-    // Alert.alert("Thành công", "Đã xóa thành viên khỏi nhóm!"); // Đã xóa alert thành công
+        ) || [];
+        const updatedChatInfo = {
+          ...chatInfo,
+          participants: updatedParticipants,
+          updatedAt: new Date().toISOString(),
+        };
+        setChatInfo(updatedChatInfo);
+        dispatch(setChatInfoUpdate(updatedChatInfo)); // Dispatch cập nhật sau khi xóa thành viên
+      }
+    });
   };
 
   const handleCreateGroupSuccess = (newGroup: any) => {
-  
     setIsCreateGroupModalOpen(false);
     navigation.navigate("Main", {
       screen: "ChatScreen",
@@ -445,9 +465,20 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       console.log(
         `ChatInfo instance ${instanceId} requesting to unmute notifications`
       );
-      updateNotification(socket, { conversationId, mute: null });
-      setIsMuted(false);
-      // Alert.alert("Thông báo", "Đã bật thông báo!");
+      updateNotification(socket, { conversationId, mute: null }, (response: any) => {
+        if (response?.success) {
+          setIsMuted(false);
+          const updatedChatInfo = {
+            ...chatInfo,
+            participants: chatInfo?.participants.map((p) =>
+              p.userId === finalUserId ? { ...p, mute: null } : p
+            ),
+            updatedAt: new Date().toISOString(),
+          };
+          setChatInfo(updatedChatInfo);
+          dispatch(setChatInfoUpdate(updatedChatInfo)); // Dispatch cập nhật trạng thái mute
+        }
+      });
     } else {
       console.log(
         `ChatInfo instance ${instanceId} opening mute notification modal`
@@ -462,7 +493,15 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       muted
     );
     setIsMuted(muted);
-    // Alert.alert("Thông báo", muted ? "Đã tắt thông báo!" : "Đã bật thông báo!");
+    const updatedChatInfo = {
+      ...chatInfo,
+      participants: chatInfo?.participants.map((p) =>
+        p.userId === finalUserId ? { ...p, mute: muted ? "muted" : null } : p
+      ),
+      updatedAt: new Date().toISOString(),
+    };
+    setChatInfo(updatedChatInfo);
+    dispatch(setChatInfoUpdate(updatedChatInfo)); // Dispatch cập nhật trạng thái mute
   };
 
   const handlePinChat = () => {
@@ -473,12 +512,20 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       `ChatInfo instance ${instanceId} requesting to pin chat:`,
       newIsPinned
     );
-    pinChat(socket, { conversationId, isPinned: newIsPinned });
-    setIsPinned(newIsPinned);
-    // Alert.alert(
-    //   "Thông báo",
-    //   // newIsPinned ? "Đã ghim cuộc trò chuyện!" : "Đã bỏ ghim cuộc trò chuyện!"
-    // );
+    pinChat(socket, { conversationId, isPinned: newIsPinned }, (response: any) => {
+      if (response?.success) {
+        setIsPinned(newIsPinned);
+        const updatedChatInfo = {
+          ...chatInfo,
+          participants: chatInfo?.participants.map((p) =>
+            p.userId === finalUserId ? { ...p, isPinned: newIsPinned } : p
+          ),
+          updatedAt: new Date().toISOString(),
+        };
+        setChatInfo(updatedChatInfo);
+        dispatch(setChatInfoUpdate(updatedChatInfo)); // Dispatch cập nhật trạng thái pin
+      }
+    });
   };
 
   const handleAddMember = () => {
@@ -543,9 +590,18 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       `ChatInfo instance ${instanceId} requesting to update chat name:`,
       newName.trim()
     );
-    updateChatName(socket, { conversationId, name: newName.trim() });
-    setChatInfo({ ...chatInfo, name: newName.trim() });
-    Alert.alert("Thông báo", "Cập nhật tên thành công!");
+    updateChatName(socket, { conversationId, name: newName.trim() }, (response: any) => {
+      if (response?.success) {
+        const updatedChatInfo = {
+          ...chatInfo,
+          name: newName.trim(),
+          updatedAt: new Date().toISOString(),
+        };
+        setChatInfo(updatedChatInfo);
+        dispatch(setChatInfoUpdate(updatedChatInfo)); // Dispatch cập nhật tên nhóm
+        Alert.alert("Thông báo", "Cập nhật tên thành công!");
+      }
+    });
     handleCloseEditNameModal();
   };
 
@@ -716,18 +772,6 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
           socket={socket}
         />
 
-    
-
-        {/* <GroupFile
-          conversationId={conversationId}
-          userId={finalUserId}
-          socket={socket}
-        />
-        <GroupLinks
-          conversationId={conversationId}
-          userId={finalUserId}
-          socket={socket}
-        /> */}
         <SecuritySettings
           conversationId={conversationId}
           userId={finalUserId}
