@@ -12,7 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux"; // Thêm useDispatch
 import { useSocket } from "../../../../contexts/SocketContext";
 import MessageItem from "../../../chatitems/MessageItem";
 import ChatFooter from "./ChatFooter";
@@ -25,18 +25,18 @@ import {
   offConversationUpdate,
   joinConversation,
   onConversationRemoved,
-} from "../../../../services/sockets/events/conversation"; // Nhi thêm
+} from "../../../../services/sockets/events/conversation";
 import {
   onChatInfoUpdated,
   offChatInfoUpdated,
   onGroupLeft,
   offGroupLeft,
-} from "../../../../services/sockets/events/chatInfo"; // Nhi thêm
-
-
+} from "../../../../services/sockets/events/chatInfo";
+import { setChatInfoUpdate } from "../../../../redux/slices/chatSlice"; // Import setChatInfoUpdate
 
 const ChatScreen = ({ route, navigation }) => {
   const { socket, userId: currentUserId } = useSocket();
+  const dispatch = useDispatch(); // Thêm dispatch
   const flatListRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -46,7 +46,6 @@ const ChatScreen = ({ route, navigation }) => {
   const [isShareModalVisible, setIsShareModalVisible] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
   const [conversationInfo, setConversationInfo] = useState({
-    // Nhi thêm: Thêm state conversationInfo
     name: "",
     isGroup: false,
     participants: [],
@@ -54,12 +53,17 @@ const ChatScreen = ({ route, navigation }) => {
   });
   const [isOnline, setIsOnline] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const receiverId = Object.keys(userCache)[0];
+  const [typingUsers, setTypingUsers] = useState([]);
 
   const { message, user } = route?.params || {};
-
   const conversationId = message?.id || null;
   const userId = currentUserId || null;
+  const selectedMessageData = useSelector((state) => state.chat.selectedMessage);
+  const chatInfoUpdate = useSelector((state) => state.chat.chatInfoUpdate); // Lấy chatInfoUpdate từ Redux
+  const isGroupChat = message?.isGroup === true;
+  const memberCount = message?.members || 0;
+  const selectedMessageId = selectedMessageData?.id;
+  const receiverId = Object.keys(userCache)[0];
 
   console.log("ChatScreen params:", {
     userId,
@@ -69,17 +73,7 @@ const ChatScreen = ({ route, navigation }) => {
     routeParams: route.params,
   });
 
-  const selectedMessageData = useSelector((state) => state.chat.selectedMessage);
-  const isGroupChat = message?.isGroup === true;
-  const memberCount = message?.members || 0;
-
-  const [typingUsers, setTypingUsers] = useState([]);
-  
-
-  
-  const selectedMessageId = selectedMessageData?.id;
-
-  // Fetch user info using the Api_Profile.getProfile API
+  // Fetch user info
   const fetchUserInfo = async (userId) => {
     if (!userId) {
       console.warn("fetchUserInfo: userId is undefined or null");
@@ -145,19 +139,33 @@ const ChatScreen = ({ route, navigation }) => {
     }
   }, [messages, currentUserId]);
 
-  // Nhi thêm: Initialize conversation info
+  // Initialize conversation info
   useEffect(() => {
     if (message) {
       setConversationInfo({
-        name: message.name || "",
+        name: message.name || user?.name || "",
         isGroup: message.isGroup || false,
         participants: message.participants || [],
         imageGroup: message.imageGroup || null,
       });
     }
-  }, [message]);
+  }, [message, user]);
 
-  // Socket.IO setup for regular chat
+  // Đồng bộ conversationInfo với chatInfoUpdate từ Redux
+  useEffect(() => {
+    if (chatInfoUpdate && chatInfoUpdate._id === conversationId) {
+      console.log("Updating conversationInfo from chatInfoUpdate:", chatInfoUpdate);
+      setConversationInfo((prev) => ({
+        ...prev,
+        name: chatInfoUpdate.name || prev.name,
+        isGroup: chatInfoUpdate.isGroup ?? prev.isGroup,
+        participants: chatInfoUpdate.participants || prev.participants,
+        imageGroup: chatInfoUpdate.imageGroup || prev.imageGroup,
+      }));
+    }
+  }, [chatInfoUpdate, conversationId]);
+
+  // Socket.IO setup
   useEffect(() => {
     if (!socket || !selectedMessageId || !currentUserId) {
       console.warn("Socket setup skipped: missing socket, selectedMessageId, or currentUserId", {
@@ -168,14 +176,13 @@ const ChatScreen = ({ route, navigation }) => {
       return;
     }
 
-    // Nhi thêm: Kiểm tra và kết nối socket nếu chưa kết nối
     if (!socket.connected) {
       console.warn("Socket not connected, attempting to connect", { socketId: socket.id });
       socket.connect();
     }
 
     console.log("Joining conversation with ID:", selectedMessageId);
-    joinConversation(socket, selectedMessageId); // Nhi thêm: Sử dụng joinConversation thay vì socket.emit
+    joinConversation(socket, selectedMessageId);
 
     socket.on("loadMessages", (data) => {
       console.log("Received loadMessages:", data);
@@ -219,7 +226,6 @@ const ChatScreen = ({ route, navigation }) => {
       Alert.alert("Lỗi", error.message || "Không thể xóa tin nhắn");
     });
 
-    // Nhi thêm: Xử lý xóa toàn bộ lịch sử trò chuyện
     socket.on("deleteAllChatHistory", ({ conversationId: deletedConversationId, deletedBy }) => {
       console.log("ChatScreen: Nhận deleteAllChatHistory", { deletedConversationId, deletedBy });
       if (deletedConversationId === selectedMessageId) {
@@ -236,7 +242,6 @@ const ChatScreen = ({ route, navigation }) => {
       }
     });
 
-    // Nhi thêm: Cập nhật thông tin cuộc trò chuyện
     onConversationUpdate(socket, (updatedConversation) => {
       console.log("ChatScreen: Received conversationUpdate:", updatedConversation);
       setConversationInfo((prev) => ({
@@ -252,19 +257,21 @@ const ChatScreen = ({ route, navigation }) => {
       }));
     });
 
-    // Nhi thêm: Cập nhật thông tin nhóm
     onChatInfoUpdated(socket, (updatedInfo) => {
       console.log("ChatScreen: Received chatInfoUpdated:", updatedInfo);
-      setConversationInfo((prev) => ({
-        ...prev,
-        name: updatedInfo.name || prev.name,
-        isGroup: updatedInfo.isGroup ?? prev.isGroup,
-        participants: updatedInfo.participants || prev.participants,
-        imageGroup: updatedInfo.imageGroup || prev.imageGroup,
-      }));
+      if (updatedInfo._id === selectedMessageId) {
+        setConversationInfo((prev) => ({
+          ...prev,
+          name: updatedInfo.name || prev.name,
+          isGroup: updatedInfo.isGroup ?? prev.isGroup,
+          participants: updatedInfo.participants || prev.participants,
+          imageGroup: updatedInfo.imageGroup || prev.imageGroup,
+        }));
+        // Dispatch để cập nhật Redux
+        dispatch(setChatInfoUpdate(updatedInfo));
+      }
     });
 
-    // Nhi thêm: Xử lý rời nhóm
     onGroupLeft(socket, (data) => {
       console.log("ChatScreen: Received groupLeft:", data);
       if (data.conversationId === selectedMessageId) {
@@ -273,19 +280,17 @@ const ChatScreen = ({ route, navigation }) => {
       }
     });
 
-    // Nhi thêm: Xử lý giải tán nhóm
     onConversationRemoved(socket, (data) => {
       console.log("ChatScreen: Received conversationRemoved:", data);
       if (data.conversationId === selectedMessageId) {
-      
         navigation.navigate("Main", { screen: "MessageScreen" });
       }
     });
+
     socket.on("userTyping", async ({ userId, conversationId }) => {
       console.log("User typing:", userId, conversationId);
       if (conversationId === selectedMessageId && userId !== currentUserId) {
         const userInfo = await fetchUserInfo(userId);
-
         setTypingUsers((prev) => {
           if (!prev.some((user) => user.userId === userId)) {
             return [...prev, { userId, name: userInfo.name }];
@@ -309,30 +314,24 @@ const ChatScreen = ({ route, navigation }) => {
       socket.off("messageRevoked");
       socket.off("messageDeleted");
       socket.off("deleteMessageError");
-      socket.off("deleteAllChatHistory"); // Nhi thêm
-      offConversationUpdate(socket); // Nhi thêm
-      offChatInfoUpdated(socket); // Nhi thêm
-      offGroupLeft(socket); // Nhi thêm
-      onConversationRemoved(socket); // Nhi thêm
+      socket.off("deleteAllChatHistory");
+      offConversationUpdate(socket);
+      offChatInfoUpdated(socket);
+      offGroupLeft(socket);
+      onConversationRemoved(socket);
       socket.off("userTyping");
       socket.off("userStopTyping");
     };
-  }, [socket, selectedMessageId, currentUserId, navigation]);
+  }, [socket, selectedMessageId, currentUserId, navigation, dispatch]);
 
-  // Add socket listener for online status
+  // Online status
   useEffect(() => {
     if (!socket) return;
-    console.log("socket", socket);
 
-    // Request current online users when component mounts
     socket.emit("getOnlineUsers");
-
-    // Listen for online users updates
     socket.on("getOnlineUsers", (users) => {
       console.log("Received online users:", users);
-      console.log("Receiver ID:", receiverId);
       setOnlineUsers(users);
-      // Check if the receiver is online
       if (receiverId) {
         setIsOnline(users.includes(receiverId));
       }
@@ -522,7 +521,7 @@ const ChatScreen = ({ route, navigation }) => {
           </TouchableOpacity>
           <View style={styles.nameContainer}>
             <Text style={styles.headerText}>
-              {message?.name || userCache[user?.id]?.name || "Cuộc trò chuyện"}
+              {conversationInfo.name || userCache[user?.id]?.name || "Cuộc trò chuyện"}
             </Text>
             <View style={styles.statusContainer}>
               {isGroupChat ? (
@@ -573,7 +572,7 @@ const ChatScreen = ({ route, navigation }) => {
                 );
                 return;
               }
-              navigation.push("ChatInfo", { userId, conversationId, socket }); // Nhi thêm: Truyền socket
+              navigation.push("ChatInfo", { userId, conversationId, socket });
             }}
             style={{ marginLeft: 15 }}
           >
@@ -592,17 +591,13 @@ const ChatScreen = ({ route, navigation }) => {
           flatListRef.current?.scrollToEnd({ animated: true })
         }
       />
-      {
-        /* Typing indicator */
-        typingUsers.length > 0 && (
-          <View style={{ padding: 10 }}>
-            <Text style={{ fontSize: 14, color: "#555" }}>
-              {typingUsers.map((user) => user.name).join(", ")} đang gõ...
-            </Text>
-          </View>
-        )
-      }
-      {/* Typing indicator */}
+      {typingUsers.length > 0 && (
+        <View style={{ padding: 10 }}>
+          <Text style={{ fontSize: 14, color: "#555" }}>
+            {typingUsers.map((user) => user.name).join(", ")} đang gõ...
+          </Text>
+        </View>
+      )}
       <ChatFooter
         sendMessage={sendMessage}
         replyingTo={replyingTo}
