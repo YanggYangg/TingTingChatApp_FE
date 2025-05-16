@@ -1,15 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { View, FlatList, StyleSheet, Alert, Text } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
 import ChatItems from "@/components/chatitems/ChatItems";
 import ChatSupportItems from "@/components/chatitems/ChatSupportItems";
 import ChatCloudItems from "@/components/chatitems/ChatCloudItems";
 import PinVerificationModal from "@/components/screens/MainScreen/Chat/chatInfoComponent/PinVerificationModal";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  setSelectedMessage,
-  setChatInfoUpdate,
-  setLastMessageUpdate,
-} from "../../../redux/slices/chatSlice";
+import { setSelectedMessage, setChatInfoUpdate, setLastMessageUpdate } from "../../../redux/slices/chatSlice";
 import { useSocket } from "../../../contexts/SocketContext";
 import {
   loadAndListenConversations,
@@ -46,17 +42,17 @@ const myCloudItem = {
 };
 
 const ChatScreen = ({ navigation }) => {
-  const [messages, setMessages] = useState([]); // Danh sách hội thoại
-  const [userCache, setUserCache] = useState({}); // Cache thông tin người dùng
-  const [currentUserId, setCurrentUserId] = useState(null); // ID người dùng hiện tại
-  const [isSocketConnected, setIsSocketConnected] = useState(false); // Trạng thái kết nối socket
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false); // Modal xác thực PIN
-  const [selectedConversation, setSelectedConversation] = useState(null); // Hội thoại cần xác thực
+  const [messages, setMessages] = useState([myCloudItem]);
+  const [userCache, setUserCache] = useState({});
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState(null);
   const { socket, userId } = useSocket();
   const dispatch = useDispatch();
-  const joinedRoomsRef = useRef(new Set()); // Lưu danh sách phòng đã tham gia
-  const chatInfoUpdate = useSelector((state) => state.chat.chatInfoUpdate); // Cập nhật thông tin nhóm từ Redux
-  const lastMessageUpdate = useSelector((state) => state.chat.lastMessageUpdate); // Cập nhật tin nhắn cuối từ Redux
+  const joinedRoomsRef = useRef(new Set());
+  const chatInfoUpdate = useSelector((state) => state.chat.chatInfoUpdate);
+  const lastMessageUpdate = useSelector((state) => state.chat.lastMessageUpdate);
 
   // Kiểm tra hội thoại hợp lệ
   const validateConversation = (conversation) => {
@@ -64,8 +60,8 @@ const ChatScreen = ({ navigation }) => {
   };
 
   // Sắp xếp danh sách hội thoại
-  const sortMessages = (messages) => {
-    const filteredMessages = messages.filter((msg) => {
+  const sortMessages = (msgs) => {
+    const filteredMessages = msgs.filter((msg) => {
       if (msg.isCloud) return true;
       const participant = msg.participants?.find((p) => p.userId === currentUserId);
       return !participant?.isHidden;
@@ -80,15 +76,24 @@ const ChatScreen = ({ navigation }) => {
     });
   };
 
+  // Tối ưu hóa danh sách messages với useMemo
+  const sortedMessages = useMemo(() => sortMessages(messages), [messages]);
+
   // Kiểm tra giới hạn ghim hội thoại
   const checkPinnedLimit = () => {
     return messages.filter((msg) => msg.isPinned && !msg.isCloud).length >= 5;
   };
 
-  // Xử lý ghim/b bỏ ghim hội thoại
+  // Xử lý ghim/bỏ ghim hội thoại
   const handlePinConversation = (conversationId, isPinned) => {
-    if (!isSocketConnected) return Alert.alert("Lỗi", "Không thể kết nối đến server.");
-    if (!isPinned && checkPinnedLimit()) return Alert.alert("Thông báo", "Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!");
+    if (!isSocketConnected) {
+      Alert.alert("Lỗi", "Không thể kết nối đến server.");
+      return;
+    }
+    if (!isPinned && checkPinnedLimit()) {
+      Alert.alert("Thông báo", "Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!");
+      return;
+    }
 
     setMessages((prevMessages) => {
       const updatedMessages = prevMessages.map((msg) => {
@@ -103,7 +108,7 @@ const ChatScreen = ({ navigation }) => {
         }
         return msg;
       });
-      return sortMessages(updatedMessages);
+      return updatedMessages; // sortMessages sẽ được xử lý bởi useMemo
     });
 
     pinChat(socket, { conversationId, isPinned: !isPinned }, (response) => {
@@ -121,9 +126,15 @@ const ChatScreen = ({ navigation }) => {
             }
             return msg;
           });
-          return sortMessages(updatedMessages);
+          return updatedMessages;
         });
         Alert.alert("Lỗi", response?.message || "Không thể ghim cuộc trò chuyện.");
+      } else {
+        dispatch(setChatInfoUpdate({
+          _id: conversationId,
+          participants: response.data.participants,
+          updatedAt: new Date().toISOString(),
+        }));
       }
     });
 
@@ -135,7 +146,10 @@ const ChatScreen = ({ navigation }) => {
 
   // Xử lý bật/tắt thông báo hội thoại
   const handleMuteConversation = (conversationId, isMuted) => {
-    if (!isSocketConnected) return Alert.alert("Lỗi", "Không thể kết nối đến server.");
+    if (!isSocketConnected) {
+      Alert.alert("Lỗi", "Không thể kết nối đến server.");
+      return;
+    }
 
     setMessages((prevMessages) => {
       const updatedMessages = prevMessages.map((msg) => {
@@ -150,7 +164,7 @@ const ChatScreen = ({ navigation }) => {
         }
         return msg;
       });
-      return sortMessages(updatedMessages);
+      return updatedMessages;
     });
 
     updateNotification(socket, { conversationId, mute: !isMuted ? "muted" : null }, (response) => {
@@ -168,9 +182,15 @@ const ChatScreen = ({ navigation }) => {
             }
             return msg;
           });
-          return sortMessages(updatedMessages);
+          return updatedMessages;
         });
         Alert.alert("Lỗi", response?.message || "Không thể cập nhật trạng thái thông báo.");
+      } else {
+        dispatch(setChatInfoUpdate({
+          _id: conversationId,
+          participants: response.data.participants,
+          updatedAt: new Date().toISOString(),
+        }));
       }
     });
 
@@ -212,7 +232,7 @@ const ChatScreen = ({ navigation }) => {
     setMessages((prevMessages) => {
       const filteredMessages = prevMessages.filter((msg) => msg.id !== "my-cloud");
       const updatedMessages = [newMessage, ...filteredMessages];
-      return sortMessages([myCloudItem, ...updatedMessages]);
+      return [myCloudItem, ...updatedMessages];
     });
 
     if (!joinedRoomsRef.current.has(newConversation._id)) {
@@ -228,7 +248,7 @@ const ChatScreen = ({ navigation }) => {
         const updatedMessages = prevMessages.map((msg) =>
           msg.id === selectedConversation.id ? { ...msg, isHidden: false } : msg
         );
-        return sortMessages(updatedMessages);
+        return updatedMessages;
       });
       proceedWithMessageSelection(selectedConversation);
     }
@@ -257,7 +277,10 @@ const ChatScreen = ({ navigation }) => {
 
   // Xử lý khi nhấn vào hội thoại
   const handlePress = (item) => {
-    if (!isSocketConnected) return Alert.alert("Lỗi", "Socket chưa kết nối.");
+    if (!isSocketConnected) {
+      Alert.alert("Lỗi", "Socket chưa kết nối.");
+      return;
+    }
     if (item.isHidden && item.id !== "my-cloud") {
       setSelectedConversation(item);
       setIsPinModalOpen(true);
@@ -340,7 +363,7 @@ const ChatScreen = ({ navigation }) => {
       );
 
       const transformedMessages = transformConversationsToMessages(validConversations, currentUserId, profiles);
-      setMessages([myCloudItem, ...sortMessages(transformedMessages)]);
+      setMessages([myCloudItem, ...transformedMessages]);
     };
 
     const handleConversationUpdate = (updatedConversation) => {
@@ -378,7 +401,7 @@ const ChatScreen = ({ navigation }) => {
           }
         }
 
-        return [myCloudItem, ...sortMessages(updatedMessages)];
+        return [myCloudItem, ...updatedMessages];
       });
     };
 
@@ -404,6 +427,7 @@ const ChatScreen = ({ navigation }) => {
     };
 
     const handleChatInfoUpdated = (updatedInfo) => {
+      console.log('ChatScreen received chatInfoUpdated:', updatedInfo);
       const participant = updatedInfo.participants?.find((p) => p.userId === currentUserId);
       if (!participant || participant.isHidden) {
         setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== updatedInfo._id));
@@ -431,8 +455,10 @@ const ChatScreen = ({ navigation }) => {
           }
           return msg;
         });
-        return [myCloudItem, ...sortMessages(updatedMessages)];
+        return [myCloudItem, ...updatedMessages];
       });
+
+      dispatch(setChatInfoUpdate(updatedInfo));
     };
 
     const cleanupLoad = loadAndListenConversations(socket, handleConversations);
@@ -454,77 +480,78 @@ const ChatScreen = ({ navigation }) => {
 
   // Xử lý cập nhật thông tin nhóm từ Redux
   useEffect(() => {
-    if (chatInfoUpdate) {
-      const participant = chatInfoUpdate.participants?.find((p) => p.userId === currentUserId);
-      if (!participant || participant.isHidden) {
-        setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== chatInfoUpdate._id));
-        dispatch(setSelectedMessage(null));
-        if (joinedRoomsRef.current.has(chatInfoUpdate._id)) {
-          socket.emit("leaveConversation", { conversationId: chatInfoUpdate._id });
-          joinedRoomsRef.current.delete(chatInfoUpdate._id);
-        }
-        return;
-      }
+    if (!chatInfoUpdate) return;
 
-      setMessages((prevMessages) => {
-        const filteredMessages = prevMessages.filter((msg) => msg.id !== "my-cloud");
-        const updatedMessages = filteredMessages.map((msg) => {
-          if (msg.id === chatInfoUpdate._id) {
-            return {
-              ...msg,
-              participants: chatInfoUpdate.participants || msg.participants,
-              name: chatInfoUpdate.name || msg.name,
-              isGroup: chatInfoUpdate.isGroup ?? msg.isGroup,
-              imageGroup: chatInfoUpdate.imageGroup || msg.imageGroup,
-              isPinned: participant.isPinned || false,
-              mute: participant.mute || null,
-            };
-          }
-          return msg;
-        });
-        return [myCloudItem, ...sortMessages(updatedMessages)];
-      });
+    console.log('ChatScreen chatInfoUpdate from Redux:', chatInfoUpdate);
+    const participant = chatInfoUpdate.participants?.find((p) => p.userId === currentUserId);
+    if (!participant || participant.isHidden) {
+      setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== chatInfoUpdate._id));
+      dispatch(setSelectedMessage(null));
+      if (joinedRoomsRef.current.has(chatInfoUpdate._id)) {
+        socket.emit("leaveConversation", { conversationId: chatInfoUpdate._id });
+        joinedRoomsRef.current.delete(chatInfoUpdate._id);
+      }
+      return;
     }
+
+    setMessages((prevMessages) => {
+      const filteredMessages = prevMessages.filter((msg) => msg.id !== "my-cloud");
+      const updatedMessages = filteredMessages.map((msg) => {
+        if (msg.id === chatInfoUpdate._id) {
+          return {
+            ...msg,
+            participants: chatInfoUpdate.participants || msg.participants,
+            name: chatInfoUpdate.name || msg.name,
+            isGroup: chatInfoUpdate.isGroup ?? msg.isGroup,
+            imageGroup: chatInfoUpdate.imageGroup || msg.imageGroup,
+            isPinned: participant.isPinned || false,
+            mute: participant.mute || null,
+          };
+        }
+        return msg;
+      });
+      return [myCloudItem, ...updatedMessages];
+    });
   }, [chatInfoUpdate, currentUserId, dispatch, socket]);
 
   // Xử lý cập nhật tin nhắn cuối từ Redux
   useEffect(() => {
-    if (lastMessageUpdate) {
-      setMessages((prevMessages) => {
-        const filteredMessages = prevMessages.filter((msg) => msg.id !== "my-cloud");
-        const conversationId = lastMessageUpdate.conversationId?._id || lastMessageUpdate.conversationId;
-        const updatedMessages = filteredMessages.map((msg) => {
-          if (msg.id === conversationId) {
-            return {
-              ...msg,
-              lastMessage: lastMessageUpdate.lastMessage?.content || "",
-              lastMessageType: lastMessageUpdate.lastMessage?.messageType || msg.lastMessageType || "text",
-              lastMessageSenderId: lastMessageUpdate.lastMessage?.userId || msg.lastMessageSenderId || null,
-              time: lastMessageUpdate.lastMessage
-                ? new Date(lastMessageUpdate.lastMessage.createdAt).toLocaleTimeString(
-                    [],
-                    { hour: "2-digit", minute: "2-digit" }
-                  )
-                : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-              updateAt: lastMessageUpdate.lastMessage?.createdAt || new Date().toISOString(),
-            };
-          }
-          return msg;
-        });
-        return [myCloudItem, ...sortMessages(updatedMessages)];
+    if (!lastMessageUpdate) return;
+
+    setMessages((prevMessages) => {
+      const filteredMessages = prevMessages.filter((msg) => msg.id !== "my-cloud");
+      const conversationId = lastMessageUpdate.conversationId?._id || lastMessageUpdate.conversationId;
+      const updatedMessages = filteredMessages.map((msg) => {
+        if (msg.id === conversationId) {
+          return {
+            ...msg,
+            lastMessage: lastMessageUpdate.lastMessage?.content || "",
+            lastMessageType: lastMessageUpdate.lastMessage?.messageType || msg.lastMessageType || "text",
+            lastMessageSenderId: lastMessageUpdate.lastMessage?.userId || msg.lastMessageSenderId || null,
+            time: lastMessageUpdate.lastMessage
+              ? new Date(lastMessageUpdate.lastMessage.createdAt).toLocaleTimeString(
+                  [],
+                  { hour: "2-digit", minute: "2-digit" }
+                )
+              : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            updateAt: lastMessageUpdate.lastMessage?.createdAt || new Date().toISOString(),
+          };
+        }
+        return msg;
       });
-    }
+      return [myCloudItem, ...updatedMessages];
+    });
   }, [lastMessageUpdate]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={styles.container}>
       {!isSocketConnected ? (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Đang kết nối tới server, vui lòng chờ...</Text>
         </View>
       ) : (
         <FlatList
-          data={[myCloudItem, ...messages.filter((msg) => msg.id !== "my-cloud")]}
+          data={sortedMessages}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={
             <View>
@@ -571,6 +598,10 @@ const ChatScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
