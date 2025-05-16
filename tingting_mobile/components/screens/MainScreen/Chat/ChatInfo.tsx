@@ -416,39 +416,19 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       `ChatInfo instance ${instanceId} requesting updated chat info after member added`
     );
     getChatInfo(socket, { conversationId });
-    Alert.alert("Thành công", "Đã thêm thành viên vào nhóm!");
+  
   };
 
-  const handleMemberRemoved = (memberId: string) => {
-    Alert.alert(
-      "Xác nhận",
-      "Bạn có chắc chắn muốn xóa thành viên này?",
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-        },
-        {
-          text: "Xóa",
-          onPress: () => {
-            console.log(
-              `ChatInfo instance ${instanceId} requesting removal of member:`,
-              memberId
-            );
-            removeParticipant(socket, { conversationId, userId: memberId });
-            setChatInfo((prevChatInfo) => ({
-              ...prevChatInfo,
-              participants:
-                prevChatInfo?.participants.filter(
-                  (p) => p.userId !== memberId
-                ) || [],
-            }));
-            Alert.alert("Thành công", "Đã xóa thành viên khỏi nhóm!");
-          },
-        },
-      ],
-      { cancelable: false }
-    );
+ const handleMemberRemoved = (memberId: string) => {
+    removeParticipant(socket, { conversationId, userId: memberId });
+    setChatInfo((prevChatInfo) => ({
+      ...prevChatInfo,
+      participants:
+        prevChatInfo?.participants.filter(
+          (p) => p.userId !== memberId
+        ) || [],
+    }));
+    // Alert.alert("Thành công", "Đã xóa thành viên khỏi nhóm!"); // Đã xóa alert thành công
   };
 
   const handleCreateGroupSuccess = (newGroup: any) => {

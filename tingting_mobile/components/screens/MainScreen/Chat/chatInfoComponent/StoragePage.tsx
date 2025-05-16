@@ -203,7 +203,7 @@ const StoragePage: React.FC<Props> = ({
           messageId: item?._id,
           urlIndex,
           linkURL: url,
-          name: item?.content || `Media_${urlIndex + 1}`,
+          // name: item?.content || `Media_${urlIndex + 1}`,
           type:
             item?.messageType === 'video'
               ? 'video'
