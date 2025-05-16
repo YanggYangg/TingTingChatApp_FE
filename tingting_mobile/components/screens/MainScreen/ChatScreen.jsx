@@ -5,7 +5,14 @@ import ChatItems from "@/components/chatitems/ChatItems";
 import ChatSupportItems from "@/components/chatitems/ChatSupportItems";
 import ChatCloudItems from "@/components/chatitems/ChatCloudItems";
 import PinVerificationModal from "@/components/screens/MainScreen/Chat/chatInfoComponent/PinVerificationModal";
-import { setSelectedMessage, setChatInfoUpdate, setLastMessageUpdate } from "../../../redux/slices/chatSlice";
+import {
+  setSelectedMessage,
+  setChatInfoUpdate,
+  setLastMessageUpdate,
+  pinConversation,
+  unpinConversation,
+  setPinnedOrder
+} from "../../../redux/slices/chatSlice";
 import { useSocket } from "../../../contexts/SocketContext";
 import {
   loadAndListenConversations,
@@ -16,6 +23,7 @@ import {
   offConversationRemoved,
 } from "../../../services/sockets/events/conversation";
 import {
+  getChatInfo,
   onChatInfoUpdated,
   offChatInfoUpdated,
   onGroupLeft,
@@ -42,24 +50,25 @@ const myCloudItem = {
 };
 
 const ChatScreen = ({ navigation }) => {
-  const [messages, setMessages] = useState([myCloudItem]);
-  const [userCache, setUserCache] = useState({});
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [isSocketConnected, setIsSocketConnected] = useState(false);
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [messages, setMessages] = useState([myCloudItem]); // Danh sách hội thoại
+  const [userCache, setUserCache] = useState({}); // Cache thông tin người dùng
+  const [currentUserId, setCurrentUserId] = useState(null); // ID người dùng hiện tại
+  const [isSocketConnected, setIsSocketConnected] = useState(false); // Trạng thái kết nối socket
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false); // Modal xác thực PIN
+  const [selectedConversation, setSelectedConversation] = useState(null); // Hội thoại cần xác thực
   const { socket, userId } = useSocket();
   const dispatch = useDispatch();
-  const joinedRoomsRef = useRef(new Set());
-  const chatInfoUpdate = useSelector((state) => state.chat.chatInfoUpdate);
-  const lastMessageUpdate = useSelector((state) => state.chat.lastMessageUpdate);
+  const joinedRoomsRef = useRef(new Set()); // Danh sách phòng đã tham gia
+  const chatInfoUpdate = useSelector((state) => state.chat.chatInfoUpdate); // Cập nhật thông tin nhóm
+  const lastMessageUpdate = useSelector((state) => state.chat.lastMessageUpdate); // Cập nhật tin nhắn cuối
+  const pinnedOrder = useSelector((state) => state.chat.pinnedOrder); // Danh sách ID hội thoại được ghim
 
-  // Kiểm tra hội thoại hợp lệ
+  // Hàm kiểm tra hội thoại hợp lệ
   const validateConversation = (conversation) => {
     return conversation._id && conversation._id !== "my-cloud" && Array.isArray(conversation.participants);
   };
 
-  // Sắp xếp danh sách hội thoại
+  // Hàm sắp xếp danh sách hội thoại
   const sortMessages = (msgs) => {
     const filteredMessages = msgs.filter((msg) => {
       if (msg.isCloud) return true;
@@ -68,23 +77,28 @@ const ChatScreen = ({ navigation }) => {
     });
 
     return filteredMessages.sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
+      const aPinned = pinnedOrder.includes(a.id);
+      const bPinned = pinnedOrder.includes(b.id);
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      if (aPinned && bPinned) {
+        return pinnedOrder.indexOf(a.id) - pinnedOrder.indexOf(b.id);
+      }
       const timeA = new Date(a.updateAt || a.time || 0).getTime();
       const timeB = new Date(b.updateAt || b.time || 0).getTime();
       return timeB - timeA;
     });
   };
 
-  // Tối ưu hóa danh sách messages với useMemo
-  const sortedMessages = useMemo(() => sortMessages(messages), [messages]);
+  // Tối ưu hóa danh sách messages
+  const sortedMessages = useMemo(() => sortMessages(messages), [messages, pinnedOrder]);
 
-  // Kiểm tra giới hạn ghim hội thoại
+  // Hàm kiểm tra giới hạn ghim
   const checkPinnedLimit = () => {
-    return messages.filter((msg) => msg.isPinned && !msg.isCloud).length >= 5;
+    return pinnedOrder.length >= 5;
   };
 
-  // Xử lý ghim/bỏ ghim hội thoại
+  // Hàm xử lý ghim/bỏ ghim hội thoại
   const handlePinConversation = (conversationId, isPinned) => {
     if (!isSocketConnected) {
       Alert.alert("Lỗi", "Không thể kết nối đến server.");
@@ -95,46 +109,23 @@ const ChatScreen = ({ navigation }) => {
       return;
     }
 
-    setMessages((prevMessages) => {
-      const updatedMessages = prevMessages.map((msg) => {
-        if (msg.id === conversationId) {
-          return {
-            ...msg,
-            isPinned: !isPinned,
-            participants: msg.participants.map((p) =>
-              p.userId === currentUserId ? { ...p, isPinned: !isPinned } : p
-            ),
-          };
-        }
-        return msg;
-      });
-      return updatedMessages; // sortMessages sẽ được xử lý bởi useMemo
-    });
+    // Cập nhật Redux trước
+    dispatch(isPinned ? unpinConversation(conversationId) : pinConversation(conversationId));
 
+    // Gửi yêu cầu ghim đến server
     pinChat(socket, { conversationId, isPinned: !isPinned }, (response) => {
       if (!response?.success) {
-        setMessages((prevMessages) => {
-          const updatedMessages = prevMessages.map((msg) => {
-            if (msg.id === conversationId) {
-              return {
-                ...msg,
-                isPinned,
-                participants: msg.participants.map((p) =>
-                  p.userId === currentUserId ? { ...p, isPinned } : p
-                ),
-              };
-            }
-            return msg;
-          });
-          return updatedMessages;
-        });
+        // Hoàn tác nếu server trả về lỗi
+        dispatch(isPinned ? pinConversation(conversationId) : unpinConversation(conversationId));
         Alert.alert("Lỗi", response?.message || "Không thể ghim cuộc trò chuyện.");
       } else {
+        // Cập nhật thông tin hội thoại
         dispatch(setChatInfoUpdate({
           _id: conversationId,
           participants: response.data.participants,
           updatedAt: new Date().toISOString(),
         }));
+        getChatInfo(socket, { conversationId });
       }
     });
 
@@ -144,7 +135,7 @@ const ChatScreen = ({ navigation }) => {
     }
   };
 
-  // Xử lý bật/tắt thông báo hội thoại
+  // Hàm xử lý bật/tắt thông báo
   const handleMuteConversation = (conversationId, isMuted) => {
     if (!isSocketConnected) {
       Alert.alert("Lỗi", "Không thể kết nối đến server.");
@@ -191,6 +182,7 @@ const ChatScreen = ({ navigation }) => {
           participants: response.data.participants,
           updatedAt: new Date().toISOString(),
         }));
+        getChatInfo(socket, { conversationId });
       }
     });
 
@@ -200,7 +192,7 @@ const ChatScreen = ({ navigation }) => {
     }
   };
 
-  // Thêm nhóm mới
+  // Hàm thêm nhóm mới
   const addNewGroup = async (newConversation) => {
     if (!validateConversation(newConversation)) return;
     if (messages.some((msg) => msg.id === newConversation._id)) return;
@@ -241,7 +233,7 @@ const ChatScreen = ({ navigation }) => {
     }
   };
 
-  // Xử lý khi xác thực PIN thành công
+  // Hàm xử lý khi xác thực PIN thành công
   const handlePinVerified = () => {
     if (selectedConversation) {
       setMessages((prevMessages) => {
@@ -256,7 +248,7 @@ const ChatScreen = ({ navigation }) => {
     setSelectedConversation(null);
   };
 
-  // Chuyển hướng đến màn hình tin nhắn
+  // Hàm chuyển hướng đến màn hình tin nhắn
   const proceedWithMessageSelection = (item) => {
     if (item.id !== "my-cloud" && !joinedRoomsRef.current.has(item.id)) {
       joinConversation(socket, item.id);
@@ -275,7 +267,7 @@ const ChatScreen = ({ navigation }) => {
     });
   };
 
-  // Xử lý khi nhấn vào hội thoại
+  // Hàm xử lý khi nhấn vào hội thoại
   const handlePress = (item) => {
     if (!isSocketConnected) {
       Alert.alert("Lỗi", "Socket chưa kết nối.");
@@ -364,6 +356,12 @@ const ChatScreen = ({ navigation }) => {
 
       const transformedMessages = transformConversationsToMessages(validConversations, currentUserId, profiles);
       setMessages([myCloudItem, ...transformedMessages]);
+
+      // Cập nhật pinnedOrder từ dữ liệu server
+      const pinnedConversations = validConversations
+        .filter((conv) => conv.participants?.find((p) => p.userId === currentUserId)?.isPinned)
+        .map((conv) => conv._id);
+      dispatch(setPinnedOrder(pinnedConversations));
     };
 
     const handleConversationUpdate = (updatedConversation) => {
@@ -413,12 +411,14 @@ const ChatScreen = ({ navigation }) => {
     const handleGroupLeft = (data) => {
       if (data.userId === currentUserId) {
         setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== data.conversationId));
+        dispatch(setPinnedOrder(pinnedOrder.filter((id) => id !== data.conversationId)));
         dispatch(setSelectedMessage(null));
       }
     };
 
     const handleConversationRemoved = (data) => {
       setMessages((prev) => prev.filter((msg) => msg.id !== data.conversationId));
+      dispatch(setPinnedOrder(pinnedOrder.filter((id) => id !== data.conversationId)));
       dispatch(setSelectedMessage(null));
       if (joinedRoomsRef.current.has(data.conversationId)) {
         joinedRoomsRef.current.delete(data.conversationId);
@@ -427,10 +427,11 @@ const ChatScreen = ({ navigation }) => {
     };
 
     const handleChatInfoUpdated = (updatedInfo) => {
-      console.log('ChatScreen received chatInfoUpdated:', updatedInfo);
+      console.log("ChatScreen received chatInfoUpdated:", updatedInfo);
       const participant = updatedInfo.participants?.find((p) => p.userId === currentUserId);
       if (!participant || participant.isHidden) {
         setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== updatedInfo._id));
+        dispatch(setPinnedOrder(pinnedOrder.filter((id) => id !== updatedInfo._id)));
         dispatch(setSelectedMessage(null));
         if (joinedRoomsRef.current.has(updatedInfo._id)) {
           socket.emit("leaveConversation", { conversationId: updatedInfo._id });
@@ -458,6 +459,13 @@ const ChatScreen = ({ navigation }) => {
         return [myCloudItem, ...updatedMessages];
       });
 
+      // Cập nhật pinnedOrder nếu cần
+      if (participant?.isPinned && !pinnedOrder.includes(updatedInfo._id)) {
+        dispatch(pinConversation(updatedInfo._id));
+      } else if (!participant?.isPinned && pinnedOrder.includes(updatedInfo._id)) {
+        dispatch(unpinConversation(updatedInfo._id));
+      }
+
       dispatch(setChatInfoUpdate(updatedInfo));
     };
 
@@ -476,16 +484,17 @@ const ChatScreen = ({ navigation }) => {
       offConversationRemoved(socket);
       offGroupLeft(socket);
     };
-  }, [socket, userId, dispatch]);
+  }, [socket, userId, dispatch, pinnedOrder]);
 
   // Xử lý cập nhật thông tin nhóm từ Redux
   useEffect(() => {
     if (!chatInfoUpdate) return;
 
-    console.log('ChatScreen chatInfoUpdate from Redux:', chatInfoUpdate);
+    console.log("ChatScreen chatInfoUpdate from Redux:", chatInfoUpdate);
     const participant = chatInfoUpdate.participants?.find((p) => p.userId === currentUserId);
     if (!participant || participant.isHidden) {
       setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== chatInfoUpdate._id));
+      dispatch(setPinnedOrder(pinnedOrder.filter((id) => id !== chatInfoUpdate._id)));
       dispatch(setSelectedMessage(null));
       if (joinedRoomsRef.current.has(chatInfoUpdate._id)) {
         socket.emit("leaveConversation", { conversationId: chatInfoUpdate._id });
@@ -512,7 +521,14 @@ const ChatScreen = ({ navigation }) => {
       });
       return [myCloudItem, ...updatedMessages];
     });
-  }, [chatInfoUpdate, currentUserId, dispatch, socket]);
+
+    // Cập nhật pinnedOrder từ Redux
+    if (participant?.isPinned && !pinnedOrder.includes(chatInfoUpdate._id)) {
+      dispatch(pinConversation(chatInfoUpdate._id));
+    } else if (!participant?.isPinned && pinnedOrder.includes(chatInfoUpdate._id)) {
+      dispatch(unpinConversation(chatInfoUpdate._id));
+    }
+  }, [chatInfoUpdate, currentUserId, dispatch, socket, pinnedOrder]);
 
   // Xử lý cập nhật tin nhắn cuối từ Redux
   useEffect(() => {
@@ -576,9 +592,9 @@ const ChatScreen = ({ navigation }) => {
                 missed={item.missed}
                 type={item.isGroup ? "group" : "private"}
                 members={item.participants?.length || 0}
-                isPinned={item.participants?.find((p) => p.userId === currentUserId)?.isPinned || false}
+                isPinned={pinnedOrder.includes(item.id)}
                 isMuted={!!item.participants?.find((p) => p.userId === currentUserId)?.mute}
-                onPinConversation={() => handlePinConversation(item.id, item.participants?.find((p) => p.userId === currentUserId)?.isPinned || false)}
+                onPinConversation={() => handlePinConversation(item.id, pinnedOrder.includes(item.id))}
                 onMuteConversation={() => handleMuteConversation(item.id, !!item.participants?.find((p) => p.userId === currentUserId)?.mute)}
               />
             );
