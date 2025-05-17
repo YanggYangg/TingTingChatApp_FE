@@ -164,88 +164,57 @@ const MemberListModal: React.FC<Props> = ({
     }, [socket]);
 
     const openConfirmModal = (userId: string) => {
-        console.log('Opening confirm modal for user:', userId);
         setMemberToRemove(userId);
         setShowConfirmModal(true);
     };
 
-    const confirmRemove = useCallback(async () => {
-        if (!memberToRemove) {
-            console.warn('No member to remove');
-            setShowConfirmModal(false);
-            return;
-        }
-
-        if (!socket) {
-            Alert.alert('Lỗi', 'Socket chưa kết nối, không thể xóa thành viên!');
-            console.error('Socket not connected');
-            setShowConfirmModal(false);
-            setMemberToRemove(null);
-            return;
-        }
-
-        if (!isAdmin) {
-            Alert.alert('Lỗi', 'Bạn không có quyền xóa thành viên khỏi nhóm này.');
-            console.warn('User is not admin');
-            setShowConfirmModal(false);
-            setMemberToRemove(null);
-            return;
-        }
-
-        if (currentUserId === memberToRemove) {
-            Alert.alert(
-                'Lỗi',
-                'Bạn không thể tự xóa mình khỏi đây. Hãy rời nhóm từ trang thông tin nhóm.'
-            );
-            console.warn('Cannot remove self');
-            setShowConfirmModal(false);
-            setMemberToRemove(null);
-            return;
-        }
-
-        setRemoving(true); // Set loading state
-
-        try {
-            console.log('Removing member:', { conversationId: chatInfo._id, userId: memberToRemove });
-            removeParticipant(socket, { conversationId: chatInfo._id, userId: memberToRemove }, (response: SocketResponse) => {
-                console.log('Remove participant response:', response);
-                setRemoving(false);
-                if (response?.success) {
-                    console.log('Member removed successfully:', memberToRemove);
-                    if (onMemberRemoved) {
-                        onMemberRemoved(memberToRemove);
-                    }
-                    // Update local memberDetails to reflect removal
-                    setMemberDetails((prev) => {
-                        const updated = { ...prev };
-                        delete updated[memberToRemove];
-                        return updated;
-                    });
-                    Alert.alert('Thành công', 'Đã xóa thành viên khỏi nhóm.');
-                } else {
-                    const errorMessage =
-                        typeof response?.message === 'string'
-                            ? response.message
-                            : response?.message?.message || 'Không thể xóa thành viên.';
-                    console.error('Error in response:', errorMessage);
-                    Alert.alert('Lỗi', errorMessage);
-                }
-            });
-        } catch (error) {
-            console.error('Exception when removing member:', error);
-            setRemoving(false);
-            const errorMessage = typeof error === 'string' ? error : error?.message || 'Lỗi khi xóa thành viên.';
-            Alert.alert('Lỗi', errorMessage);
-        } finally {
+    const confirmRemove = () => {
+        if (memberToRemove) {
+            handleRemoveMember(memberToRemove);
             setShowConfirmModal(false);
             setMemberToRemove(null);
         }
-    }, [chatInfo._id, currentUserId, isAdmin, memberToRemove, onMemberRemoved, socket]);
-
+    };
     const cancelRemove = () => {
         console.log('Cancel remove');
         setShowConfirmModal(false);
         setMemberToRemove(null);
+    };
+
+    const handleRemoveMember = async (memberIdToRemove) => {
+        if (!socket) {
+            console.error("Socket chưa kết nối, không thể xóa thành viên!");
+            return;
+        }
+
+        if (!isAdmin) {
+            console.error("Bạn không có quyền xóa thành viên khỏi nhóm này.");
+            return;
+        }
+
+        if (currentUserId === memberIdToRemove) {
+            console.error("Bạn không thể tự xóa mình khỏi đây. Hãy rời nhóm từ trang thông tin nhóm.");
+            return;
+        }
+
+        try {
+            removeParticipant(socket, { conversationId: chatInfo._id, userId: memberIdToRemove }, (response) => {
+                if (response.success) {
+                    console.log("Đã xóa thành viên khỏi nhóm!");
+                    if (onMemberRemoved) {
+                        onMemberRemoved(memberIdToRemove);
+                    }
+                } else {
+                    console.error("Lỗi khi xóa thành viên:", response.message);
+                }
+            });
+
+            onError(socket, (error) => {
+                console.error("Lỗi từ server khi xóa thành viên:", error);
+            });
+        } catch (error) {
+            console.error("Lỗi khi xóa thành viên:", error);
+        }
     };
 
     const handleMemberClick = async (memberId: string) => {
@@ -270,13 +239,15 @@ const MemberListModal: React.FC<Props> = ({
 
                 dispatch(setSelectedMessage(messageData));
 
+                // navigation.navigate('MessageScreen', {
+                //     message: messageData,
+                // });
+
                 navigation.navigate('MessageScreen', {
                     message: messageData,
+                    conversationId: res.conversationId,
                 });
 
-                setTimeout(() => {
-                    socket?.emit('joinConversation', { conversationId: res.conversationId });
-                }, 1000);
 
                 onClose();
             } else {
