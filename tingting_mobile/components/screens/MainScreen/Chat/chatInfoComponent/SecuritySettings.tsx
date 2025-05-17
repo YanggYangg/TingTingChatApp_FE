@@ -216,35 +216,41 @@ const SecuritySettings: React.FC<Props> = ({
   }, [groupMembers, fetchProfileDetails]);
 
   // Handle hiding/unhiding chat
-  const handleHideChat = useCallback(
-    async (hide: boolean, currentPin: string | null) => {
-      if (isProcessing) {
-        console.log('SecuritySettings: Đang xử lý, bỏ qua hideChat');
-        return;
-      }
-      setIsProcessing(true);
-      try {
-        console.log('SecuritySettings: Gửi yêu cầu hideChat', { conversationId, isHidden: hide, pin: currentPin });
-        hideChat(socket, { conversationId, isHidden: hide, pin: currentPin }, (response) => {
-          console.log('SecuritySettings: Phản hồi từ hideChat', response);
-          if (response.success) {
-            setIsHidden(hide);
-            setShowPinInput(false);
-            setPin('');
-            Alert.alert('Thành công', `Cuộc trò chuyện đã ${hide ? 'được ẩn' : 'được hiện'}!`);
-          } else {
-            Alert.alert('Lỗi', `Cuộc trò chuyện ${hide ? 'ẩn' : 'hiện'} thất bại: ${response.message}`);
+const handleHideChat = useCallback(
+  async (hide: boolean, currentPin: string | null) => {
+    if (isProcessing) {
+      console.log('SecuritySettings: Đang xử lý, bỏ qua hideChat');
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      console.log('SecuritySettings: Gửi yêu cầu hideChat', { conversationId, isHidden: hide, pin: currentPin });
+      hideChat(socket, { conversationId, isHidden: hide, pin: currentPin }, (response) => {
+        console.log('SecuritySettings: Phản hồi từ hideChat', response);
+        if (response.success) {
+          setIsHidden(hide);
+          setShowPinInput(false);
+          setPin('');
+          Alert.alert('Thành công', `Cuộc trò chuyện đã ${hide ? 'được ẩn' : 'được hiện'}!`);
+          
+          if (hide) {
+            // Khi ẩn cuộc trò chuyện, xóa chatInfo và điều hướng về ChatScreen
+            setChatInfo(null);
+            navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
           }
-          setIsProcessing(false);
-        });
-      } catch (error) {
-        console.error('SecuritySettings: Lỗi khi ẩn/hiện trò chuyện:', error);
-        Alert.alert('Lỗi', 'Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.');
+        } else {
+          Alert.alert('Lỗi', `Cuộc trò chuyện ${hide ? 'ẩn' : 'hiện'} thất bại: ${response.message}`);
+        }
         setIsProcessing(false);
-      }
-    },
-    [socket, conversationId, isProcessing]
-  );
+      });
+    } catch (error) {
+      console.error('SecuritySettings: Lỗi khi ẩn/hiện trò chuyện:', error);
+      Alert.alert('Lỗi', 'Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.');
+      setIsProcessing(false);
+    }
+  },
+  [socket, conversationId, isProcessing, setChatInfo, navigation]
+);
 
   // Handle toggle switch change
   const handleToggle = useCallback(

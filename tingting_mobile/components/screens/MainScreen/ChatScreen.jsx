@@ -73,11 +73,11 @@ const ChatScreen = ({ navigation }) => {
 
   const sortMessages = (msgs) => {
     const filteredMessages = msgs.filter((msg) => {
-      if (msg.isCloud) return true;
+      if (msg.isCloud) return true; // Luôn giữ mục "Cloud của tôi"
       const participant = msg.participants?.find(
         (p) => p.userId === currentUserId
       );
-      return !participant?.isHidden;
+      return participant && !participant.isHidden; // Chỉ giữ các cuộc trò chuyện không ẩn
     });
 
     return filteredMessages.sort((a, b) => {
@@ -221,6 +221,11 @@ const ChatScreen = ({ navigation }) => {
     if (!validateConversation(newConversation)) return;
     if (messages.some((msg) => msg.id === newConversation._id)) return;
 
+    const participant = newConversation.participants?.find(
+      (p) => p.userId === currentUserId
+    );
+    if (!participant || participant.isHidden) return; // Bỏ qua nếu cuộc trò chuyện bị ẩn
+
     const participantIds = newConversation.participants
       .filter((p) => p.userId !== currentUserId)
       .map((p) => p.userId);
@@ -268,7 +273,13 @@ const ChatScreen = ({ navigation }) => {
       setMessages((prevMessages) => {
         const updatedMessages = prevMessages.map((msg) =>
           msg.id === selectedConversation.id
-            ? { ...msg, isHidden: false }
+            ? {
+              ...msg,
+              isHidden: false,
+              participants: msg.participants.map((p) =>
+                p.userId === currentUserId ? { ...p, isHidden: false } : p
+              ),
+            }
             : msg
         );
         return updatedMessages;
@@ -348,11 +359,16 @@ const ChatScreen = ({ navigation }) => {
     const handleConversations = async (conversations) => {
       const validConversations = conversations.filter(validateConversation);
 
-      validConversations.forEach((conversation) => {
+      // Lọc các cuộc trò chuyện không ẩn
+      const visibleConversations = validConversations.filter((conversation) => {
         const participant = conversation.participants?.find(
           (p) => p.userId === currentUserId
         );
-        if (!participant?.isHidden && !joinedRoomsRef.current.has(conversation._id)) {
+        return participant && !participant.isHidden;
+      });
+
+      visibleConversations.forEach((conversation) => {
+        if (!joinedRoomsRef.current.has(conversation._id)) {
           joinConversation(socket, conversation._id);
           joinedRoomsRef.current.add(conversation._id);
         }
@@ -360,7 +376,7 @@ const ChatScreen = ({ navigation }) => {
 
       const otherParticipantIds = [
         ...new Set(
-          validConversations
+          visibleConversations
             .map((conversation) =>
               conversation.participants.find((p) => p.userId !== currentUserId)
                 ?.userId
@@ -389,14 +405,15 @@ const ChatScreen = ({ navigation }) => {
         })
       );
 
+
       const transformedMessages = transformConversationsToMessages(
-        validConversations,
+        visibleConversations,
         currentUserId,
         profiles
       );
       setMessages([myCloudItem, ...transformedMessages]);
 
-      const pinnedConversations = validConversations
+      const pinnedConversations = visibleConversations
         .filter((conv) =>
           conv.participants?.find((p) => p.userId === currentUserId)?.isPinned
         )
@@ -406,6 +423,11 @@ const ChatScreen = ({ navigation }) => {
 
     const handleConversationUpdate = (updatedConversation) => {
       if (!validateConversation(updatedConversation)) return;
+
+      const participant = updatedConversation.participants?.find(
+        (p) => p.userId === currentUserId
+      );
+      if (!participant || participant.isHidden) return; // Bỏ qua nếu cuộc trò chuyện bị ẩn
 
       setMessages((prevMessages) => {
         const filteredMessages = prevMessages.filter(
@@ -450,15 +472,10 @@ const ChatScreen = ({ navigation }) => {
             currentUserId,
             []
           )[0];
-          const participant = updatedConversation.participants?.find(
-            (p) => p.userId === currentUserId
-          );
-          if (!participant?.isHidden) {
-            updatedMessages.push(newMessage);
-            if (!joinedRoomsRef.current.has(updatedConversation._id)) {
-              joinConversation(socket, updatedConversation._id);
-              joinedRoomsRef.current.add(updatedConversation._id);
-            }
+          updatedMessages.push(newMessage);
+          if (!joinedRoomsRef.current.has(updatedConversation._id)) {
+            joinConversation(socket, updatedConversation._id);
+            joinedRoomsRef.current.add(updatedConversation._id);
           }
         }
 
@@ -470,7 +487,8 @@ const ChatScreen = ({ navigation }) => {
       const participant = newConversation.participants?.find(
         (p) => p.userId === currentUserId
       );
-      if (!participant?.isHidden) addNewGroup(newConversation);
+      if (!participant || participant.isHidden) return; // Bỏ qua nếu cuộc trò chuyện bị ẩn
+      addNewGroup(newConversation);
     };
 
     const handleGroupLeft = (data) => {
@@ -481,7 +499,8 @@ const ChatScreen = ({ navigation }) => {
         dispatch(
           setPinnedOrder(pinnedOrder.filter((id) => id !== data.conversationId))
         );
-        dispatch(setSelectedMessage(null));
+        dispatch(setSelectedMessage(null)
+        );
         Alert.alert("Thông báo", "Bạn đã rời khỏi nhóm.");
       }
     };
@@ -517,12 +536,9 @@ const ChatScreen = ({ navigation }) => {
           socket.emit("leaveConversation", { conversationId: updatedInfo._id });
           joinedRoomsRef.current.delete(updatedInfo._id);
         }
-        Alert.alert("Thông báo", "Bạn đã bị xóa khỏi nhóm hoặc nhóm bị ẩn.");
         return;
       }
 
-      // [SỬA ĐỔI] Cập nhật tên nhóm ngay lập tức trong messages
-      // Đảm bảo giữ nguyên các thuộc tính khác như lastMessage, time
       setMessages((prevMessages) => {
         const filteredMessages = prevMessages.filter(
           (msg) => msg.id !== "my-cloud"
@@ -532,12 +548,11 @@ const ChatScreen = ({ navigation }) => {
             return {
               ...msg,
               participants: updatedInfo.participants || msg.participants,
-              name: updatedInfo.name || msg.name, // [SỬA ĐỔI] Ưu tiên tên mới từ updatedInfo
+              name: updatedInfo.name || msg.name,
               isGroup: updatedInfo.isGroup ?? msg.isGroup,
               imageGroup: updatedInfo.imageGroup || msg.imageGroup,
               isPinned: participant?.isPinned || false,
               mute: participant?.mute || null,
-              // [SỬA ĐỔI] Đảm bảo các thuộc tính khác không bị ghi đè
               lastMessage: msg.lastMessage,
               lastMessageType: msg.lastMessageType,
               lastMessageSenderId: msg.lastMessageSenderId,
@@ -600,7 +615,6 @@ const ChatScreen = ({ navigation }) => {
       return;
     }
 
-    // [SỬA ĐỔI] Đồng bộ tên nhóm từ chatInfoUpdate và giữ nguyên các thuộc tính khác
     setMessages((prevMessages) => {
       const filteredMessages = prevMessages.filter(
         (msg) => msg.id !== "my-cloud"
@@ -610,12 +624,11 @@ const ChatScreen = ({ navigation }) => {
           return {
             ...msg,
             participants: chatInfoUpdate.participants || msg.participants,
-            name: chatInfoUpdate.name || msg.name, // [SỬA ĐỔI] Ưu tiên tên mới từ chatInfoUpdate
+            name: chatInfoUpdate.name || msg.name,
             isGroup: chatInfoUpdate.isGroup ?? msg.isGroup,
             imageGroup: chatInfoUpdate.imageGroup || msg.imageGroup,
             isPinned: participant.isPinned || false,
             mute: participant.mute || null,
-            // [SỬA ĐỔI] Đảm bảo các thuộc tính khác không bị ghi đè
             lastMessage: msg.lastMessage,
             lastMessageType: msg.lastMessageType,
             lastMessageSenderId: msg.lastMessageSenderId,
