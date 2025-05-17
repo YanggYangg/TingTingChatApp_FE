@@ -16,8 +16,6 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
 import GroupMemberList from "./chatInfoComponent/GroupMemberList";
 import GroupMediaGallery from "./chatInfoComponent/GroupMediaGallery";
-import GroupFile from "./chatInfoComponent/GroupFile";
-import GroupLinks from "./chatInfoComponent/GroupLinks";
 import SecuritySettings from "./chatInfoComponent/SecuritySettings";
 import MuteNotificationModal from "./chatInfoComponent/MuteNotificationModal";
 import AddMemberModal from "./chatInfoComponent/AddMemberModal";
@@ -561,16 +559,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
           userId={finalUserId}
           socket={socket}
         />
-        <GroupFile
-          conversationId={conversationId}
-          userId={finalUserId}
-          socket={socket}
-        />
-        <GroupLinks
-          conversationId={conversationId}
-          userId={finalUserId}
-          socket={socket}
-        />
+      
         <SecuritySettings
           conversationId={conversationId}
           userId={finalUserId}
