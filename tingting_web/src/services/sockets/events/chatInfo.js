@@ -1,5 +1,18 @@
+// Gửi yêu cầu đăng ký userId
+export const registerUser = (socket, userId) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
+  socket.emit("registerUser", { userId });
+};
+
 // Gửi yêu cầu lấy thông tin chat
 export const getChatInfo = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("getChatInfo", data, callback);
 };
 
@@ -15,7 +28,6 @@ export const offChatInfo = (socket) => {
 
 // Lắng nghe cập nhật thông tin chat
 export const onChatInfoUpdated = (socket, callback) => {
-  // console.log("Registering chatInfoUpdated event");
   socket.on("chatInfoUpdated", callback);
 };
 
@@ -26,31 +38,55 @@ export const offChatInfoUpdated = (socket) => {
 
 // Gửi yêu cầu cập nhật tên chat
 export const updateChatName = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("updateChatName", data, callback);
 };
 
 // Gửi yêu cầu thêm thành viên vào nhóm
 export const addParticipant = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("addParticipant", data, callback);
 };
 
 // Gửi yêu cầu xóa thành viên khỏi nhóm
 export const removeParticipant = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("removeParticipant", data, callback);
 };
 
 // Gửi yêu cầu thay đổi vai trò thành viên
 export const changeParticipantRole = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("changeParticipantRole", data, callback);
 };
 
 // Gửi yêu cầu chuyển giao quyền admin nhóm
 export const transferGroupAdmin = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("transferGroupAdmin", data, callback);
 };
 
 // Gửi yêu cầu lấy danh sách media của chat
 export const getChatMedia = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("getChatMedia", data, callback);
 };
 
@@ -66,6 +102,10 @@ export const offChatMedia = (socket) => {
 
 // Gửi yêu cầu lấy danh sách file của chat
 export const getChatFiles = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("getChatFiles", data, callback);
 };
 
@@ -81,6 +121,10 @@ export const offChatFiles = (socket) => {
 
 // Gửi yêu cầu lấy danh sách link của chat
 export const getChatLinks = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("getChatLinks", data, callback);
 };
 
@@ -96,6 +140,10 @@ export const offChatLinks = (socket) => {
 
 // Gửi yêu cầu lấy dung lượng lưu trữ của chat
 export const getChatStorage = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("getChatStorage", data, callback);
 };
 
@@ -111,26 +159,37 @@ export const offChatStorage = (socket) => {
 
 // Gửi yêu cầu ghim chat
 export const pinChat = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("pinChat", data, callback);
 };
 
 // Gửi yêu cầu cập nhật thông báo (mute/unmute)
 export const updateNotification = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("updateNotification", data, callback);
 };
 
 // Gửi yêu cầu ẩn chat
 export const hideChat = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("hideChat", data, callback);
-};
-
-// Gửi yêu cầu xóa lịch sử chat (cho bản thân)
-export const deleteChatHistoryForMe = (socket, data, callback) => {
-  socket.emit("deleteChatHistoryForMe", data, callback);
 };
 
 // Gửi yêu cầu lấy danh sách nhóm chung
 export const getCommonGroups = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("getCommonGroups", data, callback);
 };
 
@@ -146,6 +205,10 @@ export const offCommonGroups = (socket) => {
 
 // Gửi yêu cầu tìm kiếm tin nhắn trong chat
 export const findMessages = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("findMessages", data, callback);
 };
 
@@ -161,11 +224,19 @@ export const offFoundMessages = (socket) => {
 
 // Gửi yêu cầu tạo nhóm
 export const createConversation = (socket, groupData, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("createConversation", groupData, callback);
 };
 
 // Gửi yêu cầu chuyển tiếp tin nhắn
 export const forwardMessage = (socket, forwardData, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("forwardMessage", forwardData, callback);
 };
 
@@ -181,6 +252,10 @@ export const offMessageForwarded = (socket) => {
 
 // Gửi yêu cầu xóa tin nhắn
 export const deleteMessage = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("deleteMessage", data, callback);
 };
 
@@ -224,8 +299,12 @@ export const offError = (socket) => {
   socket.off("error");
 };
 
-// Gửi yêu cầu giải tán nhóm (đã có trong mã của bạn)
+// Gửi yêu cầu giải tán nhóm
 export const disbandGroup = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("disbandGroup", data, callback);
 };
 
@@ -238,47 +317,62 @@ export const onGroupDisbanded = (socket, callback) => {
 export const offGroupDisbanded = (socket) => {
   socket.off("groupDisbanded");
 };
-  // Thêm hàm leaveGroup
+
+// Gửi yêu cầu rời nhóm
 export const leaveGroup = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("leaveGroup", data, callback);
 };
 
-// Thêm sự kiện onGroupLeft
+// Lắng nghe sự kiện rời nhóm
 export const onGroupLeft = (socket, callback) => {
   socket.on("groupLeft", callback);
 };
 
-// New function to emit updateGroupImage event
-export const updateGroupImage = (socket, data) => {
-  socket.emit("updateGroupImage", data, (response) => {
-    console.log("updateGroupImage response:", response);
-  });
-};
-
-// Thêm sự kiện offGroupLeft
+// Ngừng lắng nghe sự kiện rời nhóm
 export const offGroupLeft = (socket) => {
   socket.off("groupLeft");
 };
 
+// Gửi yêu cầu cập nhật ảnh nhóm
+export const updateGroupImage = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
+  socket.emit("updateGroupImage", data, callback || ((response) => {
+    console.log("updateGroupImage response:", response);
+  }));
+};
+
+// Gửi yêu cầu xóa toàn bộ lịch sử chat
 export const deleteAllChatHistory = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("deleteAllChatHistory", data, callback);
 };
 
-// Xóa trong storage
+// Gửi yêu cầu xóa tin nhắn trong storage
 export const deleteMessageChatInfo = (socket, data, callback) => {
+  if (!socket.connected) {
+    console.error("Socket is not connected");
+    return;
+  }
   socket.emit("deleteMessageChatInfo", data, callback);
-}
+};
 
 // Lắng nghe phản hồi từ addParticipant
 export const onAddParticipantResponse = (socket, callback) => {
-  socket.on("addParticipantResponse", (data) => {
-    console.log("Socket: Nhận phản hồi addParticipantResponse", data);
-    callback(data);
-  });
+  socket.on("addParticipantResponse", callback);
 };
 
 // Gỡ lắng nghe phản hồi addParticipant
 export const offAddParticipantResponse = (socket) => {
-  console.log("Socket: Gỡ sự kiện addParticipantResponse");
   socket.off("addParticipantResponse");
 };
+
