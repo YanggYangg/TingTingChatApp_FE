@@ -1,13 +1,17 @@
-import React from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Modal from 'react-native-modal';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
+import { setSelectedMessage } from '../../../../../redux/slices/chatSlice';
 
 interface CommonGroup {
   _id: string;
   name: string;
   imageGroup?: string;
+  participants?: { userId: string }[];
+  isGroup?: boolean;
 }
 
 interface Props {
@@ -20,24 +24,55 @@ interface Props {
   onGroupSelect?: (group: CommonGroup) => void;
 }
 
-const CommonGroupsModal: React.FC<Props> = ({ isOpen, onClose, commonGroups, userId, otherUserId, socket, onGroupSelect }) => {
+const CommonGroupsModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  commonGroups,
+  userId,
+  otherUserId,
+  socket,
+  onGroupSelect,
+}) => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
 
-  const handleGroupSelect = (group: CommonGroup) => {
-    if (onGroupSelect) {
-      onGroupSelect(group);
-    } else {
-      navigation.navigate('ChatScreen', { conversationId: group._id });
-    }
-    onClose();
-  };
+  const handleGroupSelect = useCallback(
+    (group: CommonGroup) => {
+      try {
+        // Gọi onGroupSelect nếu được cung cấp
+        if (onGroupSelect) {
+          onGroupSelect(group);
+        }
+
+        // Tạo messageData từ thông tin nhóm
+        const messageData = {
+          id: group._id,
+          isGroup: true,
+          name: group.name,
+          imageGroup: group.imageGroup,
+          participants: group.participants || [{ userId }, { userId: otherUserId }],
+        };
+
+        // Dispatch messageData vào Redux
+        dispatch(setSelectedMessage(messageData));
+
+        // Điều hướng đến MessageScreen
+        navigation.navigate('MessageScreen', {
+          message: messageData,
+          conversationId: group._id,
+        });
+
+        onClose();
+      } catch (error) {
+        console.error('Error navigating to group conversation:', error);
+        Alert.alert('Lỗi', 'Không thể mở cuộc trò chuyện nhóm. Vui lòng thử lại.');
+      }
+    },
+    [dispatch, navigation, userId, otherUserId, onGroupSelect, onClose]
+  );
 
   return (
-    <Modal
-      isVisible={isOpen}
-      onBackdropPress={onClose}
-      style={styles.modal}
-    >
+    <Modal isVisible={isOpen} onBackdropPress={onClose} style={styles.modal}>
       <View style={styles.modalContainer}>
         <View style={styles.modalTitleContainer}>
           <Ionicons name="chatbubbles-outline" size={20} color="#333" style={styles.modalTitleIcon} />
@@ -50,10 +85,7 @@ const CommonGroupsModal: React.FC<Props> = ({ isOpen, onClose, commonGroups, use
             data={commonGroups}
             keyExtractor={(item) => item._id}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.groupItem}
-                onPress={() => handleGroupSelect(item)}
-              >
+              <TouchableOpacity style={styles.groupItem} onPress={() => handleGroupSelect(item)}>
                 <Image
                   source={{
                     uri: item.imageGroup || 'https://via.placeholder.com/40',
@@ -66,10 +98,7 @@ const CommonGroupsModal: React.FC<Props> = ({ isOpen, onClose, commonGroups, use
             style={styles.list}
           />
         )}
-        <TouchableOpacity
-          onPress={onClose}
-          style={styles.closeIconWrapper}
-        >
+        <TouchableOpacity onPress={onClose} style={styles.closeIconWrapper}>
           <Ionicons name="close-outline" size={24} color="#333" />
         </TouchableOpacity>
       </View>

@@ -431,7 +431,7 @@ const ChatScreen = ({ navigation }) => {
                 null,
               time: new Date(
                 updatedConversation.lastMessage?.createdAt ||
-                  updatedConversation.updatedAt
+                updatedConversation.updatedAt
               ).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -521,6 +521,8 @@ const ChatScreen = ({ navigation }) => {
         return;
       }
 
+      // [SỬA ĐỔI] Cập nhật tên nhóm ngay lập tức trong messages
+      // Đảm bảo giữ nguyên các thuộc tính khác như lastMessage, time
       setMessages((prevMessages) => {
         const filteredMessages = prevMessages.filter(
           (msg) => msg.id !== "my-cloud"
@@ -530,11 +532,17 @@ const ChatScreen = ({ navigation }) => {
             return {
               ...msg,
               participants: updatedInfo.participants || msg.participants,
-              name: updatedInfo.name || msg.name,
+              name: updatedInfo.name || msg.name, // [SỬA ĐỔI] Ưu tiên tên mới từ updatedInfo
               isGroup: updatedInfo.isGroup ?? msg.isGroup,
               imageGroup: updatedInfo.imageGroup || msg.imageGroup,
               isPinned: participant?.isPinned || false,
               mute: participant?.mute || null,
+              // [SỬA ĐỔI] Đảm bảo các thuộc tính khác không bị ghi đè
+              lastMessage: msg.lastMessage,
+              lastMessageType: msg.lastMessageType,
+              lastMessageSenderId: msg.lastMessageSenderId,
+              time: msg.time,
+              updateAt: msg.updateAt,
             };
           }
           return msg;
@@ -592,6 +600,7 @@ const ChatScreen = ({ navigation }) => {
       return;
     }
 
+    // [SỬA ĐỔI] Đồng bộ tên nhóm từ chatInfoUpdate và giữ nguyên các thuộc tính khác
     setMessages((prevMessages) => {
       const filteredMessages = prevMessages.filter(
         (msg) => msg.id !== "my-cloud"
@@ -601,11 +610,17 @@ const ChatScreen = ({ navigation }) => {
           return {
             ...msg,
             participants: chatInfoUpdate.participants || msg.participants,
-            name: chatInfoUpdate.name || msg.name,
+            name: chatInfoUpdate.name || msg.name, // [SỬA ĐỔI] Ưu tiên tên mới từ chatInfoUpdate
             isGroup: chatInfoUpdate.isGroup ?? msg.isGroup,
             imageGroup: chatInfoUpdate.imageGroup || msg.imageGroup,
             isPinned: participant.isPinned || false,
             mute: participant.mute || null,
+            // [SỬA ĐỔI] Đảm bảo các thuộc tính khác không bị ghi đè
+            lastMessage: msg.lastMessage,
+            lastMessageType: msg.lastMessageType,
+            lastMessageSenderId: msg.lastMessageSenderId,
+            time: msg.time,
+            updateAt: msg.updateAt,
           };
         }
         return msg;
@@ -648,15 +663,15 @@ const ChatScreen = ({ navigation }) => {
               null,
             time: lastMessageUpdate.lastMessage
               ? new Date(
-                  lastMessageUpdate.lastMessage.createdAt
-                ).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
+                lastMessageUpdate.lastMessage.createdAt
+              ).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
               : new Date().toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
             updateAt:
               lastMessageUpdate.lastMessage?.createdAt ||
               new Date().toISOString(),
