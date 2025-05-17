@@ -21,6 +21,7 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as IntentLauncher from 'expo-intent-launcher';
 import debounce from 'lodash/debounce';
+import {Api_Profile} from '../../../../../apis/api_profile';
 
 interface Media {
   id: string;
@@ -32,6 +33,13 @@ interface Media {
   date: string;
   sender: string;
   userId: string;
+}
+
+interface UserProfile {
+  _id: string;
+  firstname: string;
+  surname: string;
+  avatar: string | null;
 }
 
 interface Props {
@@ -60,15 +68,18 @@ const StoragePage: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'images' | 'files' | 'links'>('images');
   const [filterSender, setFilterSender] = useState<string>('All');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
+  const [showDateSuggestions, setShowDateSuggestions] = useState<boolean>(false);
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Media[]>([]);
   const [searchText, setSearchText] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
   const gridVideoRefs = useRef<Record<string, Video>>({});
   const fullScreenVideoRef = useRef<Video>(null);
 
@@ -81,6 +92,33 @@ const StoragePage: React.FC<Props> = ({
     files: [],
     links: [],
   });
+
+  /**
+   * Fetch user profile from API
+   */
+  const fetchUserProfile = useCallback(async (userId: string) => {
+    if (userProfiles[userId]) {
+      return userProfiles[userId];
+    }
+    try {
+      const response = await Api_Profile.getProfile(userId);
+      const user = response?.data?.user as UserProfile;
+      const profile = user || { _id: userId, firstname: "Không tìm thấy", surname: "", avatar: null };
+      setUserProfiles((prev) => ({
+        ...prev,
+        [userId]: profile,
+      }));
+      return profile;
+    } catch (error) {
+      console.error(`Error fetching user ${userId}:`, error);
+      const profile = { _id: userId, firstname: "Không tìm thấy", surname: "", avatar: null };
+      setUserProfiles((prev) => ({
+        ...prev,
+        [userId]: profile,
+      }));
+      return profile;
+    }
+  }, [userProfiles]);
 
   /**
    * Fetch media, files, and links from the server.
@@ -102,63 +140,52 @@ const StoragePage: React.FC<Props> = ({
 
     let completed = 0;
     requests.forEach(({ event, key, type }) => {
-      socket.emit(event, { conversationId }, (response: any) => {
-        if (response?.success) {
+      socket.emit(event, { conversationId }, async (response: any) => {
+        if (response?.success && Array.isArray(response.data)) {
+          const formattedData = await Promise.all(
+            response.data.flatMap((item: any) =>
+              (Array.isArray(item?.linkURL) ? item.linkURL : [item?.linkURL])
+                .filter((url: string) => url && typeof url === 'string' && url.startsWith('http'))
+                .map(async (url: string, urlIndex: number) => {
+                  const senderProfile = item.userId === userId
+                    ? { firstname: 'Bạn', surname: '' }
+                    : await fetchUserProfile(item.userId);
+                  return {
+                    id: `${item?._id}_${urlIndex}`,
+                    messageId: item?._id,
+                    urlIndex,
+                    linkURL: url,
+                    name: item?.content || `${type}_${urlIndex + 1}`,
+                    type:
+                      item?.messageType === 'video'
+                        ? 'video'
+                        : type === 'file'
+                        ? 'file'
+                        : type === 'link'
+                        ? 'link'
+                        : 'image',
+                    date: item?.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : 'Unknown',
+                    sender: item.userId === userId
+                      ? 'Bạn'
+                      : `${senderProfile.firstname} ${senderProfile.surname}`.trim() || 'Người dùng',
+                    userId: item?.userId || 'unknown',
+                  };
+                })
+            )
+          );
           setData((prev) => ({
             ...prev,
-            [key]: formatData(response.data, type),
+            [key]: formattedData.filter((item) => item.linkURL),
           }));
         } else {
+          console.error(`Lỗi tải ${key}:`, response?.message || 'Dữ liệu không hợp lệ');
           Alert.alert('Lỗi', `Không thể tải ${key}: ${response?.message || 'Lỗi không xác định'}`);
         }
         completed++;
         if (completed === requests.length) setLoading(false);
       });
     });
-  }, [conversationId, socket]);
-
-  /**
-   * Format raw server data into Media objects.
-   */
-  const formatData = useCallback(
-    (items: any[], dataType: string): Media[] => {
-      if (!Array.isArray(items)) return [];
-
-      return items
-        .flatMap((item) => {
-          const urls = Array.isArray(item?.linkURL)
-            ? item.linkURL.filter((url: string) => url && typeof url === 'string')
-            : typeof item?.linkURL === 'string'
-            ? [item.linkURL]
-            : [];
-          return urls.map((url: string, urlIndex: number) => ({
-            id: `${item?._id}_${urlIndex}`,
-            messageId: item?._id,
-            urlIndex,
-            linkURL: url,
-            name: item?.content || `${dataType}_${urlIndex + 1}`,
-            type:
-              item?.messageType === 'video'
-                ? 'video'
-                : dataType === 'file'
-                ? 'file'
-                : dataType === 'link'
-                ? 'link'
-                : 'image',
-            date: item?.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : 'Unknown',
-            sender:
-              otherUser && item?.userId !== userId
-                ? `${otherUser.firstname} ${otherUser.surname}`.trim()
-                : item?.userId === userId
-                ? 'Bạn'
-                : 'Unknown',
-            userId: item?.userId || 'unknown',
-          }));
-        })
-        .filter((item) => item.linkURL);
-    },
-    [otherUser, userId]
-  );
+  }, [conversationId, socket, userId, fetchUserProfile]);
 
   /**
    * Handle socket events and data updates.
@@ -168,10 +195,41 @@ const StoragePage: React.FC<Props> = ({
 
     fetchData();
 
-    const handleDataUpdate = (key: 'images' | 'files' | 'links', type: string) => (items: any[]) => {
+    const handleDataUpdate = (key: 'images' | 'files' | 'links', type: string) => async (items: any[]) => {
+      const formattedData = await Promise.all(
+        items.flatMap((item) =>
+          (Array.isArray(item?.linkURL) ? item.linkURL : [item?.linkURL])
+            .filter((url: string) => url && typeof url === 'string' && url.startsWith('http'))
+            .map(async (url: string, urlIndex: number) => {
+              const senderProfile = item.userId === userId
+                ? { firstname: 'Bạn', surname: '' }
+                : await fetchUserProfile(item.userId);
+              return {
+                id: `${item?._id}_${urlIndex}`,
+                messageId: item?._id,
+                urlIndex,
+                linkURL: url,
+                name: item?.content || `${type}_${urlIndex + 1}`,
+                type:
+                  item?.messageType === 'video'
+                    ? 'video'
+                    : type === 'file'
+                    ? 'file'
+                    : type === 'link'
+                    ? 'link'
+                    : 'image',
+                date: item?.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : 'Unknown',
+                sender: item.userId === userId
+                  ? 'Bạn'
+                  : `${senderProfile.firstname} ${senderProfile.surname}`.trim() || 'Người dùng',
+                userId: item?.userId || 'unknown',
+              };
+            })
+        )
+      );
       setData((prev) => ({
         ...prev,
-        [key]: formatData(items, type),
+        [key]: formattedData.filter((item) => item.linkURL),
       }));
       if (onDataUpdated) onDataUpdated();
     };
@@ -217,7 +275,7 @@ const StoragePage: React.FC<Props> = ({
       socket.off('messageDeleted');
       socket.off('error');
     };
-  }, [socket, conversationId, isVisible, fetchData, onDelete, onDataUpdated, formatData]);
+  }, [socket, conversationId, isVisible, fetchData, onDelete, onDataUpdated]);
 
   /**
    * Pause videos when switching full-screen mode.
@@ -380,8 +438,8 @@ const StoragePage: React.FC<Props> = ({
     return currentData
       .filter((item) => {
         if (filterSender !== 'All' && item.sender !== filterSender) return false;
-        if (startDate && new Date(item.date) < new Date(startDate)) return false;
-        if (endDate && new Date(item.date) > new Date(endDate)) return false;
+        if (startDate && new Date(item.date) < startDate) return false;
+        if (endDate && new Date(item.date) > endDate) return false;
         if (searchText && !item.name.toLowerCase().includes(searchText.toLowerCase())) return false;
         return true;
       })
@@ -394,7 +452,7 @@ const StoragePage: React.FC<Props> = ({
   const uniqueSenders = useMemo(() => {
     const senders = new Set<string>();
     [...data.images, ...data.files, ...data.links].forEach((item) => senders.add(item.sender));
-    return ['All', ...Array.from(senders)];
+    return ['All', ...Array.from(senders).sort()];
   }, [data]);
 
   /**
@@ -406,6 +464,56 @@ const StoragePage: React.FC<Props> = ({
         ? prev.filter((selected) => selected.id !== item.id)
         : [...prev, item]
     );
+  }, []);
+
+  /**
+   * Select or deselect all items.
+   */
+  const toggleSelectAll = useCallback(() => {
+    if (selectedItems.length === filteredData.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems([...filteredData]);
+    }
+  }, [filteredData, selectedItems]);
+
+  /**
+   * Handle date filter suggestions.
+   */
+  const handleDateFilter = useCallback((days: number) => {
+    const today = new Date();
+    const pastDate = new Date(today);
+    pastDate.setDate(today.getDate() - days);
+    setStartDate(pastDate);
+    setEndDate(today);
+    setShowDateSuggestions(false);
+  }, []);
+
+  /**
+   * Handle date input change.
+   */
+  const handleDateInput = useCallback((text: string, isStartDate: boolean) => {
+    if (!text) {
+      if (isStartDate) setStartDate(null);
+      else setEndDate(null);
+      return;
+    }
+
+    // Validate date format (YYYY-MM-DD)
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(text)) return;
+
+    const date = new Date(text);
+    if (isNaN(date.getTime())) {
+      Alert.alert('Lỗi', 'Ngày không hợp lệ. Vui lòng nhập theo định dạng YYYY-MM-DD.');
+      return;
+    }
+
+    if (isStartDate) {
+      setStartDate(date);
+    } else {
+      setEndDate(date);
+    }
   }, []);
 
   /**
@@ -449,17 +557,24 @@ const StoragePage: React.FC<Props> = ({
         </View>
 
         <View style={styles.tabContainer}>
-          {['images', 'files', 'links'].map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab && styles.activeTab]}
-              onPress={() => setActiveTab(tab as 'images' | 'files' | 'links')}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                {tab === 'images' ? 'Hình ảnh/Video' : tab === 'files' ? 'Tệp' : 'Liên kết'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'images' && styles.activeTab]}
+            onPress={() => setActiveTab('images')}
+          >
+            <Text style={[styles.tabText, activeTab === 'images' && styles.activeTabText]}>Hình ảnh/Video</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'files' && styles.activeTab]}
+            onPress={() => setActiveTab('files')}
+          >
+            <Text style={[styles.tabText, activeTab === 'files' && styles.activeTabText]}>Files</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'links' && styles.activeTab]}
+            onPress={() => setActiveTab('links')}
+          >
+            <Text style={[styles.tabText, activeTab === 'links' && styles.activeTabText]}>Links</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.filterContainer}>
@@ -467,16 +582,17 @@ const StoragePage: React.FC<Props> = ({
             <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Tìm kiếm theo tên..."
+              placeholder="Tìm kiếm..."
               value={searchText}
               onChangeText={handleSearch}
             />
           </View>
+
           <View style={styles.filterRow}>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={filterSender}
-                onValueChange={setFilterSender}
+                onValueChange={(value) => setFilterSender(value)}
                 style={styles.picker}
               >
                 {uniqueSenders.map((sender) => (
@@ -489,28 +605,71 @@ const StoragePage: React.FC<Props> = ({
               onPress={() => setShowDateFilter(!showDateFilter)}
             >
               <Ionicons name="calendar-outline" size={20} color="#007bff" />
-              <Text style={styles.dateFilterText}>Lọc theo ngày</Text>
+              <Text style={styles.dateFilterText}>Chọn ngày</Text>
             </TouchableOpacity>
           </View>
+
           {showDateFilter && (
             <View style={styles.dateFilterContainer}>
-              <TextInput
-                style={styles.dateInput}
-                placeholder="Ngày bắt đầu (YYYY-MM-DD)"
-                value={startDate}
-                onChangeText={setStartDate}
-              />
-              <TextInput
-                style={styles.dateInput}
-                placeholder="Ngày kết thúc (YYYY-MM-DD)"
-                value={endDate}
-                onChangeText={setEndDate}
-              />
+              <TouchableOpacity
+                style={styles.dateSuggestionButton}
+                onPress={() => setShowDateSuggestions(!showDateSuggestions)}
+              >
+                <Text style={styles.dateSuggestionText}>Gợi ý thời gian</Text>
+              </TouchableOpacity>
+              {showDateSuggestions && (
+                <View style={styles.dateSuggestionList}>
+                  {[7, 30, 90].map((days) => (
+                    <TouchableOpacity
+                      key={days}
+                      style={styles.dateSuggestionItem}
+                      onPress={() => handleDateFilter(days)}
+                    >
+                      <Text style={styles.dateSuggestionItemText}>{days} ngày trước</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <Text style={styles.dateRangeLabel}>Chọn khoảng thời gian</Text>
+              <View style={styles.dateInputContainer}>
+                <View style={styles.dateInputWrapper}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={16}
+                    color="#666"
+                    style={styles.dateInputIcon}
+                  />
+                  <TextInput
+                    style={styles.dateInput}
+                    placeholder="YYYY-MM-DD"
+                    value={startDate ? startDate.toISOString().split('T')[0] : ''}
+                    onChangeText={(text) => handleDateInput(text, true)}
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                </View>
+                <View style={styles.dateInputWrapper}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={16}
+                    color="#666"
+                    style={styles.dateInputIcon}
+                  />
+                  <TextInput
+                    style={styles.dateInput}
+                    placeholder="YYYY-MM-DD"
+                    value={endDate ? endDate.toISOString().split('T')[0] : ''}
+                    onChangeText={(text) => handleDateInput(text, false)}
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                </View>
+              </View>
               <TouchableOpacity
                 style={styles.clearDateButton}
                 onPress={() => {
-                  setStartDate('');
-                  setEndDate('');
+                  setStartDate(null);
+                  setEndDate(null);
                 }}
               >
                 <Text style={styles.clearDateText}>Xóa</Text>
@@ -529,6 +688,16 @@ const StoragePage: React.FC<Props> = ({
           >
             <Text style={styles.actionButtonText}>{isSelecting ? 'Hủy' : 'Chọn'}</Text>
           </TouchableOpacity>
+          {isSelecting && (
+            <TouchableOpacity
+              style={[styles.actionButton, selectedItems.length === filteredData.length && styles.actionButtonActive]}
+              onPress={toggleSelectAll}
+            >
+              <Text style={styles.actionButtonText}>
+                {selectedItems.length === filteredData.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+              </Text>
+            </TouchableOpacity>
+          )}
           {isSelecting && selectedItems.length > 0 && (
             <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteSelected}>
               <Text style={styles.deleteButtonText}>Xóa ({selectedItems.length})</Text>
@@ -536,9 +705,9 @@ const StoragePage: React.FC<Props> = ({
           )}
         </View>
 
-        <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 20 }}>
+        <ScrollView style={styles.contentContainer}>
           {filteredData.length === 0 ? (
-            <Text style={styles.noDataText}>Không có {activeTab === 'images' ? 'hình ảnh/video' : activeTab === 'files' ? 'tệp' : 'liên kết'}.</Text>
+            <Text style={styles.noDataText}>No {activeTab} available.</Text>
           ) : (
             <View style={activeTab === 'images' ? styles.grid : styles.list}>
               {filteredData.map((item) => (
@@ -556,24 +725,37 @@ const StoragePage: React.FC<Props> = ({
                     </TouchableOpacity>
                   )}
                   {activeTab === 'images' && (
-                    <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
+                    <>
                       {item.type === 'image' ? (
-                        <Image source={{ uri: item.linkURL }} style={styles.mediaItem} />
-                      ) : (
-                        <>
+                        <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
+                          <Image
+                            source={{ uri: item.linkURL }}
+                            style={styles.mediaItem}
+                            onError={(e) => console.error(`Error loading image ${item.id}:`, e)}
+                          />
+                        </TouchableOpacity>
+                      ) : item.linkURL && item.linkURL.startsWith('http') ? (
+                        <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
                           <Video
                             ref={(ref) => (gridVideoRefs.current[item.id] = ref)}
                             source={{ uri: item.linkURL }}
                             style={styles.mediaItem}
+                            useNativeControls={false}
                             isMuted={true}
                             resizeMode="cover"
+                            onError={(e) => {
+                              console.error(`Error loading video ${item.id}:`, e);
+                              setVideoError('Could not load video.');
+                            }}
                           />
                           <View style={styles.playIconContainer}>
                             <Ionicons name="play-circle-outline" size={30} color="#fff" />
                           </View>
-                        </>
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.errorText}>Video không hợp lệ</Text>
                       )}
-                    </TouchableOpacity>
+                    </>
                   )}
                   {activeTab === 'files' && (
                     <View style={styles.fileItem}>
@@ -599,7 +781,7 @@ const StoragePage: React.FC<Props> = ({
                         <TouchableOpacity onPress={() => handleOpenLink(item.linkURL)}>
                           <Text style={styles.linkUrl}>{item.linkURL}</Text>
                         </TouchableOpacity>
-                        <Text style={styles.linkMeta}>
+                        <Text style={styles.fileMeta}>
                           {item.sender} • {item.date}
                         </Text>
                       </View>
@@ -639,6 +821,7 @@ const StoragePage: React.FC<Props> = ({
                 onIndexChanged={handleSwipe}
                 loop={false}
                 showsPagination={false}
+                scrollEnabled={true}
               >
                 {filteredData
                   .filter((item) => item.type !== 'file' && item.type !== 'link')
@@ -650,14 +833,22 @@ const StoragePage: React.FC<Props> = ({
                           style={styles.fullScreenMedia}
                           resizeMode="contain"
                         />
+                      ) : item.linkURL && item.linkURL.startsWith('http') ? (
+                        <View style={styles.fullScreenVideoContainer}>
+                          <Video
+                            ref={item.id === fullScreenMedia.id ? fullScreenVideoRef : null}
+                            source={{ uri: item.linkURL }}
+                            style={styles.fullScreenMedia}
+                            useNativeControls
+                            resizeMode="contain"
+                            onError={(e) => {
+                              console.error(`Error loading full-screen video ${item.id}:`, e);
+                              setVideoError('Could not load video.');
+                            }}
+                          />
+                        </View>
                       ) : (
-                        <Video
-                          ref={item.id === fullScreenMedia.id ? fullScreenVideoRef : null}
-                          source={{ uri: item.linkURL }}
-                          style={styles.fullScreenMedia}
-                          useNativeControls
-                          resizeMode="contain"
-                        />
+                        <Text style={styles.errorText}>Video không hợp lệ</Text>
                       )}
                       <Text style={styles.mediaName}>{item.name}</Text>
                     </View>
@@ -672,64 +863,363 @@ const StoragePage: React.FC<Props> = ({
 };
 
 const styles = StyleSheet.create({
-  modal: { margin: 0, justifyContent: 'flex-end' },
-  container: { flex: 1, backgroundColor: '#fff', borderTopLeftRadius: 10, borderTopRightRadius: 10, maxHeight: '90%' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  headerTitle: { fontSize: 18, fontWeight: '600' },
-  tabContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  tab: { flex: 1, paddingVertical: 15, alignItems: 'center' },
-  activeTab: { borderBottomWidth: 2, borderBottomColor: '#007bff' },
-  tabText: { fontSize: 14, color: '#666' },
-  activeTabText: { color: '#007bff', fontWeight: '600' },
-  filterContainer: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', borderRadius: 5, paddingHorizontal: 10, marginBottom: 10 },
-  searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, height: 40, fontSize: 14 },
-  filterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pickerContainer: { flex: 1, borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 5, marginRight: 10 },
-  picker: { height: 40, fontSize: 14 },
-  dateFilterButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0f0ff', padding: 10, borderRadius: 5 },
-  dateFilterText: { marginLeft: 5, color: '#007bff', fontSize: 14 },
-  dateFilterContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 10 },
-  dateInput: { flex: 1, padding: 10, borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 5, fontSize: 14 },
-  clearDateButton: { padding: 10, backgroundColor: '#f0f0f0', borderRadius: 5 },
-  clearDateText: { color: '#333', fontSize: 14 },
-  actionContainer: { flexDirection: 'row', padding: 15, borderBottomWidth: 1, borderBottomColor: '#e0e0e0', justifyContent: 'space-between' },
-  actionButton: { padding: 10, backgroundColor: '#e0e0e0', borderRadius: 5 },
-  actionButtonActive: { backgroundColor: '#007bff' },
-  actionButtonText: { color: '#333', fontSize: 14 },
-  deleteButton: { padding: 10, backgroundColor: '#ff4444', borderRadius: 5 },
-  deleteButtonText: { color: '#fff', fontSize: 14 },
-  contentContainer: { flex: 1, padding: 15 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  list: { gap: 10 },
-  gridItem: { width: '30%', position: 'relative' },
-  listItem: { position: 'relative' },
-  mediaItem: { width: '100%', height: 100, borderRadius: 5 },
-  fileItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', padding: 10, borderRadius: 5 },
-  fileIcon: { marginRight: 10 },
-  fileInfo: { flex: 1 },
-  fileName: { fontSize: 14, fontWeight: '600' },
-  fileMeta: { fontSize: 12, color: '#666' },
-  downloadButton: { padding: 5 },
-  linkItem: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#f0f0f0', padding: 10, borderRadius: 5 },
-  linkInfo: { flex: 1 },
-  linkName: { fontSize: 14, fontWeight: '600' },
-  linkUrl: { fontSize: 12, color: '#007bff' },
-  linkMeta: { fontSize: 12, color: '#666' },
-  linkActionButton: { padding: 5 },
-  selectCheckbox: { position: 'absolute', top: 5, left: 5, zIndex: 10 },
-  playIconContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
-  fullScreenModal: { margin: 0 },
-  fullScreenContainer: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-  fullScreenMedia: { width: '100%', height: '90%' },
-  closeButton: { position: 'absolute', top: 16, left: 16, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
-  downloadButton: { position: 'absolute', top: 16, right: 16, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
-  swiperSlide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  mediaName: { color: '#fff', fontSize: 16, marginTop: 10, textAlign: 'center', position: 'absolute', bottom: 20 },
-  noDataText: { fontSize: 14, color: '#666', textAlign: 'center', marginTop: 20 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, fontSize: 16, color: '#555' },
+  modal: {
+    margin: 0,
+    justifyContent: 'flex-end',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    maxHeight: '100%',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#007bff',
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  activeTabText: {
+    color: '#007bff',
+    fontWeight: '600',
+  },
+  filterContainer: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 14,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pickerContainer: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  picker: {
+    height: 40,
+    fontSize: 14,
+  },
+  dateFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e0f0ff',
+    padding: 10,
+    borderRadius: 5,
+  },
+  dateFilterText: {
+    marginLeft: 5,
+    color: '#007bff',
+    fontSize: 14,
+  },
+  dateFilterContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    elevation: 2,
+  },
+  dateSuggestionButton: {
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+  },
+  dateSuggestionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  dateSuggestionList: {
+    marginTop: 5,
+  },
+  dateSuggestionItem: {
+    padding: 10,
+    borderRadius: 5,
+  },
+  dateSuggestionItemText: {
+    fontSize: 12,
+    color: '#333',
+  },
+  dateRangeLabel: {
+    fontSize: 12,
+    color: '#333',
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  dateInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    paddingHorizontal: 8,
+  },
+  dateInputIcon: {
+    marginRight: 5,
+  },
+  dateInput: {
+    flex: 1,
+    height: 32,
+    fontSize: 12,
+    color: '#333',
+  },
+  dateInputText: {
+    fontSize: 12,
+    color: '#333',
+  },
+  clearDateButton: {
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  clearDateText: {
+    color: '#333',
+    fontSize: 14,
+  },
+  actionContainer: {
+    flexDirection: 'row',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  actionButton: {
+    padding: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    flex: 1,
+    alignItems: 'center',
+  },
+  actionButtonActive: {
+    backgroundColor: '#007bff',
+  },
+  actionButtonText: {
+    color: '#333',
+    fontSize: 14,
+  },
+  deleteButton: {
+    padding: 10,
+    backgroundColor: '#ff4444',
+    borderRadius: 5,
+    flex: 1,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  contentContainer: {
+    flex: 1,
+    padding: 15,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  list: {
+    gap: 10,
+  },
+  gridItem: {
+    width: '30%',
+    position: 'relative',
+  },
+  listItem: {
+    position: 'relative',
+  },
+  mediaItem: {
+    width: '100%',
+    height: 100,
+    borderRadius: 5,
+  },
+  fileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 5,
+  },
+  fileIcon: {
+    marginRight: 10,
+  },
+  fileInfo: {
+    flex: 1,
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  fileMeta: {
+    fontSize: 12,
+    color: '#666',
+  },
+  downloadButton: {
+    padding: 5,
+  },
+  linkItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 5,
+  },
+  linkInfo: {
+    flex: 1,
+  },
+  linkName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  linkUrl: {
+    fontSize: 12,
+    color: '#007bff',
+  },
+  linkMeta: {
+    fontSize: 12,
+    color: '#666',
+  },
+  linkActionButton: {
+    padding: 5,
+  },
+  selectCheckbox: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    zIndex: 10,
+  },
+  playIconContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenModal: {
+    margin: 0,
+  },
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenMedia: {
+    width: '100%',
+    height: '90%',
+  },
+  fullScreenVideoContainer: {
+    width: '100%',
+    height: '90%',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  downloadButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 100,
+    // backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  swiperSlide: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaName: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 10,
+    textAlign: 'center',
+    position: 'absolute',
+    bottom: 20,
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#555',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#ff0000',
+    textAlign: 'center',
+  },
 });
 
 export default StoragePage;
