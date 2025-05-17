@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   Linking,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +20,7 @@ import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as IntentLauncher from 'expo-intent-launcher';
+import debounce from 'lodash/debounce';
 
 interface Media {
   id: string;
@@ -35,15 +37,17 @@ interface Media {
 interface Props {
   conversationId: string;
   userId: string;
-  socket: any; // Replace with proper Socket.IO type if available
+  socket: any;
   otherUser?: { firstname: string; surname: string; avatar?: string } | null;
   isVisible: boolean;
   onClose: () => void;
-  onDelete?: (items: { messageId: string; urlIndex: number }[]) => void;
-  onDataUpdated?: () => void; // Added for consistency with other components
+  onDelete?: (items: { messageId: string; urlIndex: number; isMessageDeleted: boolean }[]) => void;
+  onDataUpdated?: () => void;
 }
 
-
+/**
+ * Component for displaying and managing media storage (images, videos, files, links).
+ */
 const StoragePage: React.FC<Props> = ({
   conversationId,
   userId,
@@ -56,20 +60,17 @@ const StoragePage: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'images' | 'files' | 'links'>('images');
   const [filterSender, setFilterSender] = useState<string>('All');
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
-  const [showStartDatePicker, setShowStartDatePicker] = useState<boolean>(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState<boolean>(false);
   const [fullScreenMedia, setFullScreenMedia] = useState<Media | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<Media[]>([]);
-  const [videoError, setVideoError] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
   const gridVideoRefs = useRef<Record<string, Video>>({});
   const fullScreenVideoRef = useRef<Video>(null);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [searchText, setSearchText] = useState<string>('');
 
   const [data, setData] = useState<{
     images: Media[];
@@ -81,95 +82,133 @@ const StoragePage: React.FC<Props> = ({
     links: [],
   });
 
-  const fetchData = () => {
+  /**
+   * Fetch media, files, and links from the server.
+   */
+  const fetchData = useCallback(() => {
     if (!conversationId || !socket) {
-      console.warn('conversationId or socket not provided.');
       setData({ images: [], files: [], links: [] });
+      setLoading(false);
+      Alert.alert('Lỗi', 'Thiếu thông tin để tải dữ liệu.');
       return;
     }
 
-    socket.emit('getChatMedia', { conversationId }, (response: any) => {
-      if (response && response.success) {
-        setData((prev) => ({
-          ...prev,
-          images: formatData(response.data, 'media'),
-        }));
-        console.log('Media data:', formatData(response.data, 'media'));
-      } else {
-        console.error('Error fetching media:', response?.message);
-        Alert.alert('Error', 'Could not load media. Please try again.');
-      }
-    });
+    setLoading(true);
+    const requests = [
+      { event: 'getChatMedia', key: 'images', type: 'media' },
+      { event: 'getChatFiles', key: 'files', type: 'file' },
+      { event: 'getChatLinks', key: 'links', type: 'link' },
+    ];
 
-    socket.emit('getChatFiles', { conversationId }, (response: any) => {
-      if (response && response.success) {
-        setData((prev) => ({
-          ...prev,
-          files: formatData(response.data, 'file'),
-        }));
-        console.log('Files data:', formatData(response.data, 'file'));
-      } else {
-        console.error('Error fetching files:', response?.message);
-        Alert.alert('Error', 'Could not load files. Please try again.');
-      }
+    let completed = 0;
+    requests.forEach(({ event, key, type }) => {
+      socket.emit(event, { conversationId }, (response: any) => {
+        if (response?.success) {
+          setData((prev) => ({
+            ...prev,
+            [key]: formatData(response.data, type),
+          }));
+        } else {
+          Alert.alert('Lỗi', `Không thể tải ${key}: ${response?.message || 'Lỗi không xác định'}`);
+        }
+        completed++;
+        if (completed === requests.length) setLoading(false);
+      });
     });
+  }, [conversationId, socket]);
 
-    socket.emit('getChatLinks', { conversationId }, (response: any) => {
-      if (response && response.success) {
-        setData((prev) => ({
-          ...prev,
-          links: formatData(response.data, 'link'),
-        }));
-        console.log('Links data:', formatData(response.data, 'link'));
-      } else {
-        console.error('Error fetching links:', response?.message);
-        Alert.alert('Error', 'Could not load links. Please try again.');
-      }
-    });
-  };
+  /**
+   * Format raw server data into Media objects.
+   */
+  const formatData = useCallback(
+    (items: any[], dataType: string): Media[] => {
+      if (!Array.isArray(items)) return [];
 
+      return items
+        .flatMap((item) => {
+          const urls = Array.isArray(item?.linkURL)
+            ? item.linkURL.filter((url: string) => url && typeof url === 'string')
+            : typeof item?.linkURL === 'string'
+            ? [item.linkURL]
+            : [];
+          return urls.map((url: string, urlIndex: number) => ({
+            id: `${item?._id}_${urlIndex}`,
+            messageId: item?._id,
+            urlIndex,
+            linkURL: url,
+            name: item?.content || `${dataType}_${urlIndex + 1}`,
+            type:
+              item?.messageType === 'video'
+                ? 'video'
+                : dataType === 'file'
+                ? 'file'
+                : dataType === 'link'
+                ? 'link'
+                : 'image',
+            date: item?.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : 'Unknown',
+            sender:
+              otherUser && item?.userId !== userId
+                ? `${otherUser.firstname} ${otherUser.surname}`.trim()
+                : item?.userId === userId
+                ? 'Bạn'
+                : 'Unknown',
+            userId: item?.userId || 'unknown',
+          }));
+        })
+        .filter((item) => item.linkURL);
+    },
+    [otherUser, userId]
+  );
+
+  /**
+   * Handle socket events and data updates.
+   */
   useEffect(() => {
     if (!socket || !conversationId || !isVisible) return;
 
-    socket.on('chatMedia', (media: any[]) => {
+    fetchData();
+
+    const handleDataUpdate = (key: 'images' | 'files' | 'links', type: string) => (items: any[]) => {
       setData((prev) => ({
         ...prev,
-        images: formatData(media, 'media'),
+        [key]: formatData(items, type),
       }));
       if (onDataUpdated) onDataUpdated();
-    });
+    };
 
-    socket.on('chatFiles', (files: any[]) => {
-      setData((prev) => ({
-        ...prev,
-        files: formatData(files, 'file'),
-      }));
-      if (onDataUpdated) onDataUpdated();
-    });
+    socket.on('chatMedia', handleDataUpdate('images', 'media'));
+    socket.on('chatFiles', handleDataUpdate('files', 'file'));
+    socket.on('chatLinks', handleDataUpdate('links', 'link'));
 
-    socket.on('chatLinks', (links: any[]) => {
-      setData((prev) => ({
-        ...prev,
-        links: formatData(links, 'link'),
-      }));
-      if (onDataUpdated) onDataUpdated();
-    });
-
-    socket.on('messageDeleted', (data: any) => {
-      setData((prev) => ({
-        images: prev.images.filter((item) => item.messageId !== data.messageId),
-        files: prev.files.filter((item) => item.messageId !== data.messageId),
-        links: prev.links.filter((item) => item.messageId !== data.messageId),
-      }));
+    socket.on('messageDeleted', ({ messageId, urlIndex, isMessageDeleted }: any) => {
+      setData((prev) => {
+        const newData = { ...prev };
+        if (isMessageDeleted) {
+          newData.images = newData.images.filter((item) => item.messageId !== messageId);
+          newData.files = newData.files.filter((item) => item.messageId !== messageId);
+          newData.links = newData.links.filter((item) => item.messageId !== messageId);
+        } else {
+          newData.images = newData.images.filter(
+            (item) => !(item.messageId === messageId && item.urlIndex === urlIndex)
+          );
+          newData.files = newData.files.filter(
+            (item) => !(item.messageId === messageId && item.urlIndex === urlIndex)
+          );
+          newData.links = newData.links.filter(
+            (item) => !(item.messageId === messageId && item.urlIndex === urlIndex)
+          );
+        }
+        return newData;
+      });
+      if (onDelete) {
+        onDelete([{ messageId, urlIndex, isMessageDeleted }]);
+      }
       if (onDataUpdated) onDataUpdated();
     });
 
     socket.on('error', (error: any) => {
-      console.error('[Socket.IO] Error:', error.message);
-      Alert.alert('Error', 'An error occurred. Please try again.');
+      Alert.alert('Lỗi', error.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
     });
-
-    fetchData();
 
     return () => {
       socket.off('chatMedia');
@@ -178,241 +217,223 @@ const StoragePage: React.FC<Props> = ({
       socket.off('messageDeleted');
       socket.off('error');
     };
-  }, [socket, conversationId, isVisible, onDataUpdated]);
+  }, [socket, conversationId, isVisible, fetchData, onDelete, onDataUpdated, formatData]);
 
-  const formatData = (items: any[], dataType: string): Media[] => {
-    if (!Array.isArray(items)) {
-      console.warn(`Data ${dataType} is not an array:`, items);
-      return [];
-    }
-
-    return items
-      .flatMap((item: any) => {
-        const urls = Array.isArray(item?.linkURL)
-          ? item.linkURL.filter((url: string) => url && typeof url === 'string')
-          : typeof item?.linkURL === 'string'
-          ? [item.linkURL]
-          : [];
-        if (urls.length === 0) {
-          console.warn(`Message ${item._id} lacks valid linkURL:`, item);
-          return [];
-        }
-
-        return urls.map((url: string, urlIndex: number) => ({
-          id: `${item?._id}_${urlIndex}`,
-          messageId: item?._id,
-          urlIndex,
-          linkURL: url,
-          // name: item?.content || `Media_${urlIndex + 1}`,
-          type:
-            item?.messageType === 'video'
-              ? 'video'
-              : item?.messageType === 'file'
-              ? 'file'
-              : item?.messageType === 'link'
-              ? 'link'
-              : 'image',
-          date: item?.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : 'Unknown',
-          sender:
-            otherUser && item?.userId !== userId
-              ? `${otherUser.firstname} ${otherUser.surname}`.trim()
-              : item?.userId === userId
-              ? 'You'
-              : item?.userId || 'Unknown sender',
-          userId: item?.userId || 'unknown',
-        }));
-      })
-      .filter((item) => item.linkURL);
-  };
-
+  /**
+   * Pause videos when switching full-screen mode.
+   */
   useEffect(() => {
     if (fullScreenMedia) {
-      Object.values(gridVideoRefs.current).forEach((ref) => {
-        ref?.pauseAsync().catch(() => {});
-      });
+      Object.values(gridVideoRefs.current).forEach((ref) => ref?.pauseAsync().catch(() => {}));
     } else {
       fullScreenVideoRef.current?.pauseAsync().catch(() => {});
-      Object.values(gridVideoRefs.current).forEach((ref) => {
-        ref?.pauseAsync().catch(() => {});
-      });
     }
   }, [fullScreenMedia]);
 
-  const handleDeleteSelected = () => {
+  /**
+   * Delete selected items using socket event.
+   */
+  const handleDeleteSelected = async () => {
     if (selectedItems.length === 0) {
-      Alert.alert('Error', 'No items selected for deletion.');
+      Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một mục để xóa.');
       return;
     }
 
-    Alert.alert(
-      'Confirm Delete',
-      `Are you sure you want to delete ${selectedItems.length} item(s)?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            const itemsToDelete = selectedItems.map((item) => ({
-              messageId: item.messageId,
-              urlIndex: item.urlIndex,
-            }));
-
-            socket.emit('deleteMessage', { messageIds: itemsToDelete.map((item) => item.messageId) }, (response: any) => {
-              if (response && response.success) {
-                console.log('Items deleted successfully:', response.data);
-                setData((prev) => ({
-                  images: prev.images.filter(
-                    (item) => !itemsToDelete.some((d) => d.messageId === item.messageId && d.urlIndex === item.urlIndex)
-                  ),
-                  files: prev.files.filter(
-                    (item) => !itemsToDelete.some((d) => d.messageId === item.messageId && d.urlIndex === item.urlIndex)
-                  ),
-                  links: prev.links.filter(
-                    (item) => !itemsToDelete.some((d) => d.messageId === item.messageId && d.urlIndex === item.urlIndex)
-                  ),
-                }));
-                setSelectedItems([]);
-                setIsSelecting(false);
-                if (onDelete) {
-                  onDelete(itemsToDelete);
-                }
-                Alert.alert('Success', 'Items deleted successfully.');
-              } else {
-                console.error('Error deleting items:', response?.message);
-                Alert.alert('Error', 'Could not delete items. Please try again.');
-              }
-            });
-          },
-        },
-      ]
-    );
-  };
-
-  const downloadMedia = async (url: string, type: string) => {
     try {
-      const fileName = url.split('/').pop() || (type === 'image' ? 'downloaded_image.jpg' : type === 'video' ? 'downloaded_video.mp4' : 'downloaded_file');
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      const { uri } = await FileSystem.downloadAsync(url, fileUri);
-      if (type === 'image' || type === 'video') {
-        const permission = await MediaLibrary.requestPermissionsAsync();
-        if (permission.granted) {
-          await MediaLibrary.createAssetAsync(uri);
-          Alert.alert('Success', `${type === 'image' ? 'Image' : 'Video'} has been saved to gallery!`);
-        } else {
-          Alert.alert('Error', 'No permission to access gallery for saving.');
-        }
+      const previousData = { ...data };
+      const deletedItemsSet = new Set<{ messageId: string; urlIndex: number; isMessageDeleted: boolean }>();
+
+      // Optimistic update
+      const newData = { ...data };
+      selectedItems.forEach((item) => {
+        newData[activeTab] = newData[activeTab].filter((i) => i.id !== item.id);
+        deletedItemsSet.add({ messageId: item.messageId, urlIndex: item.urlIndex, isMessageDeleted: false });
+      });
+      setData(newData);
+
+      const deletionPromises = selectedItems.map((item) =>
+        new Promise((resolve) => {
+          socket.emit(
+            'deleteMessageChatInfo',
+            { messageId: item.messageId, urlIndex: item.urlIndex },
+            (response: any) => {
+              if (response?.success) {
+                resolve({
+                  success: true,
+                  item,
+                  isMessageDeleted: response.data?.isMessageDeleted || false,
+                });
+              } else {
+                resolve({ success: false, message: response?.message || `Không thể xóa mục ${item.id}` });
+              }
+            }
+          );
+        })
+      );
+
+      const results = await Promise.all(deletionPromises);
+      const failedDeletions = results.filter((result: any) => !result.success);
+
+      if (failedDeletions.length > 0) {
+        const errorMessages = failedDeletions.map((result: any) => result.message).join('; ');
+        Alert.alert('Lỗi', `Không thể xóa một số mục: ${errorMessages}`);
+        setData(previousData);
       } else {
-        Alert.alert('Success', `File "${fileName}" has been downloaded. Check your Files app.`);
-        openFile(uri, fileName);
+        if (onDelete) {
+          const deletedItems = Array.from(deletedItemsSet).map((item) => ({
+            messageId: item.messageId,
+            urlIndex: item.urlIndex,
+            isMessageDeleted: results.find((r: any) => r.item.messageId === item.messageId && r.item.urlIndex === item.urlIndex)?.isMessageDeleted || false,
+          }));
+          onDelete(deletedItems);
+        }
+        setSelectedItems([]);
+        setIsSelecting(false);
+        Alert.alert('Thành công', `Đã xóa ${selectedItems.length} mục thành công.`);
       }
     } catch (error: any) {
-      console.error(`Download ${type} failed:`, error.message || error);
-      Alert.alert('Error', `Could not download ${type}. Please try again.`);
+      Alert.alert('Lỗi', `Không thể xóa mục: ${error.message || 'Lỗi không xác định'}`);
+      setData(previousData);
     }
   };
 
-  const openFile = async (fileUri: string, fileName: string) => {
+  /**
+   * Download media or file to the device.
+   */
+  const downloadMedia = useCallback(async (url: string, type: string, filename?: string) => {
+    try {
+      const fileName = filename || url.split('/').pop() || (type === 'image' ? 'image.jpg' : type === 'video' ? 'video.mp4' : 'file');
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const { uri } = await FileSystem.downloadAsync(url, fileUri);
+
+      if (type === 'image' || type === 'video') {
+        const permission = await MediaLibrary.requestPermissionsAsync();
+        if (!permission.granted) throw new Error('Không có quyền truy cập thư viện.');
+        await MediaLibrary.createAssetAsync(uri);
+        Alert.alert('Thành công', `${type === 'image' ? 'Hình ảnh' : 'Video'} đã được lưu!`);
+      } else {
+        Alert.alert('Thành công', `Tệp "${fileName}" đã được tải xuống.`);
+        await openFile(uri, fileName);
+      }
+    } catch (error: any) {
+      Alert.alert('Lỗi', `Không thể tải ${type}: ${error.message || 'Lỗi không xác định'}`);
+    }
+  }, []);
+
+  /**
+   * Open a downloaded file on the device.
+   */
+  const openFile = useCallback(async (fileUri: string, fileName: string) => {
     if (Platform.OS === 'android') {
       try {
         const contentUri = await FileSystem.getContentUriAsync(fileUri);
-        const mimeType = getMimeTypeFromExtension(fileName);
         await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
           data: contentUri,
           flags: 1,
-          type: mimeType || 'application/octet-stream',
+          type: getMimeTypeFromExtension(fileName) || 'application/octet-stream',
         });
       } catch (error: any) {
-        console.error('Error opening file on Android:', error);
-        Alert.alert('Error', `Could not open file "${fileName}".`);
+        Alert.alert('Lỗi', `Không thể mở tệp "${fileName}": ${error.message}`);
       }
-    } else if (Platform.OS === 'ios') {
-      Alert.alert('Open File', `File "${fileName}" has been downloaded. Check your Files app.`);
+    } else {
+      Alert.alert('Thành công', `Tệp "${fileName}" đã được tải xuống. Kiểm tra ứng dụng Tệp.`);
     }
-  };
+  }, []);
 
-  const getMimeTypeFromExtension = (fileName: string): string | null => {
+  /**
+   * Get MIME type based on file extension.
+   */
+  const getMimeTypeFromExtension = useCallback((fileName: string): string | null => {
     const extension = fileName.split('.').pop()?.toLowerCase();
-    switch (extension) {
-      case 'doc':
-        return 'application/msword';
-      case 'docx':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case 'pdf':
-        return 'application/pdf';
-      case 'ppt':
-        return 'application/vnd.ms-powerpoint';
-      case 'pptx':
-        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-      case 'xls':
-        return 'application/vnd.ms-excel';
-      case 'xlsx':
-        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'mp4':
-        return 'video/mp4';
-      default:
-        return 'application/octet-stream';
-    }
-  };
+    const mimeTypes: { [key: string]: string } = {
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      pdf: 'application/pdf',
+      ppt: 'application/vnd.ms-powerpoint',
+      pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      xls: 'application/vnd.ms-excel',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      mp4: 'video/mp4',
+    };
+    return mimeTypes[extension!] || null;
+  }, []);
 
-  const handleOpenLink = (linkURL: string) => {
+  /**
+   * Open a URL in the browser.
+   */
+  const handleOpenLink = useCallback((linkURL: string) => {
     if (!linkURL || linkURL === '#') {
-      Alert.alert('Error', 'Invalid link.');
+      Alert.alert('Lỗi', 'Liên kết không hợp lệ.');
       return;
     }
-    Linking.openURL(linkURL).catch((err) => Alert.alert('Error', 'Could not open link: ' + err.message));
-  };
+    Linking.openURL(linkURL).catch(() => Alert.alert('Lỗi', 'Không thể mở liên kết.'));
+  }, []);
 
+  /**
+   * Filter and sort data based on active tab, sender, date, and search.
+   */
   const filteredData = useMemo(() => {
     const currentData = activeTab === 'images' ? data.images : activeTab === 'files' ? data.files : data.links;
-
     return currentData
       .filter((item) => {
-        if (filterSender !== 'All' && item.sender !== filterSender) {
-          return false;
-        }
-        if (startDate && new Date(item.date) < startDate) {
-          return false;
-        }
-        if (endDate && new Date(item.date) > endDate) {
-          return false;
-        }
-        if (isSearching && searchText && !item.name.toLowerCase().includes(searchText.toLowerCase())) {
-          return false;
-        }
+        if (filterSender !== 'All' && item.sender !== filterSender) return false;
+        if (startDate && new Date(item.date) < new Date(startDate)) return false;
+        if (endDate && new Date(item.date) > new Date(endDate)) return false;
+        if (searchText && !item.name.toLowerCase().includes(searchText.toLowerCase())) return false;
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [activeTab, data, filterSender, startDate, endDate, searchText, isSearching]);
+  }, [activeTab, data, filterSender, startDate, endDate, searchText]);
 
+  /**
+   * Get unique senders for filtering.
+   */
   const uniqueSenders = useMemo(() => {
     const senders = new Set<string>();
     [...data.images, ...data.files, ...data.links].forEach((item) => senders.add(item.sender));
     return ['All', ...Array.from(senders)];
   }, [data]);
 
-  const toggleSelectItem = (item: Media) => {
-    if (selectedItems.some((selected) => selected.id === item.id)) {
-      setSelectedItems(selectedItems.filter((selected) => selected.id !== item.id));
-    } else {
-      setSelectedItems([...selectedItems, item]);
-    }
-  };
+  /**
+   * Toggle selection of an item.
+   */
+  const toggleSelectItem = useCallback((item: Media) => {
+    setSelectedItems((prev) =>
+      prev.some((selected) => selected.id === item.id)
+        ? prev.filter((selected) => selected.id !== item.id)
+        : [...prev, item]
+    );
+  }, []);
 
-  const handleSwipe = (index: number) => {
+  /**
+   * Handle swiper index change.
+   */
+  const handleSwipe = useCallback((index: number) => {
     setCurrentIndex(index);
     setFullScreenMedia(filteredData[index]);
-  };
+  }, [filteredData]);
 
-  const handleSearch = (text: string) => {
-    setSearchText(text);
-    setIsSearching(text.length > 0);
-  };
+  /**
+   * Debounced search handler.
+   */
+  const handleSearch = useCallback(
+    debounce((text: string) => {
+      setSearchText(text);
+    }, 300),
+    []
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text style={styles.loadingText}>Đang tải...</Text>
+      </View>
+    );
+  }
 
   return (
     <Modal isVisible={isVisible} onBackdropPress={onClose} onBackButtonPress={onClose} style={styles.modal}>
@@ -428,24 +449,17 @@ const StoragePage: React.FC<Props> = ({
         </View>
 
         <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'images' && styles.activeTab]}
-            onPress={() => setActiveTab('images')}
-          >
-            <Text style={[styles.tabText, activeTab === 'images' && styles.activeTabText]}>Images/Videos</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'files' && styles.activeTab]}
-            onPress={() => setActiveTab('files')}
-          >
-            <Text style={[styles.tabText, activeTab === 'files' && styles.activeTabText]}>Files</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'links' && styles.activeTab]}
-            onPress={() => setActiveTab('links')}
-          >
-            <Text style={[styles.tabText, activeTab === 'links' && styles.activeTabText]}>Links</Text>
-          </TouchableOpacity>
+          {['images', 'files', 'links'].map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              onPress={() => setActiveTab(tab as 'images' | 'files' | 'links')}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+                {tab === 'images' ? 'Hình ảnh/Video' : tab === 'files' ? 'Tệp' : 'Liên kết'}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <View style={styles.filterContainer}>
@@ -453,17 +467,16 @@ const StoragePage: React.FC<Props> = ({
             <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by name..."
+              placeholder="Tìm kiếm theo tên..."
               value={searchText}
               onChangeText={handleSearch}
             />
           </View>
-
           <View style={styles.filterRow}>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={filterSender}
-                onValueChange={(value) => setFilterSender(value)}
+                onValueChange={setFilterSender}
                 style={styles.picker}
               >
                 {uniqueSenders.map((sender) => (
@@ -476,32 +489,31 @@ const StoragePage: React.FC<Props> = ({
               onPress={() => setShowDateFilter(!showDateFilter)}
             >
               <Ionicons name="calendar-outline" size={20} color="#007bff" />
-              <Text style={styles.dateFilterText}>Date Filter</Text>
+              <Text style={styles.dateFilterText}>Lọc theo ngày</Text>
             </TouchableOpacity>
           </View>
-
           {showDateFilter && (
             <View style={styles.dateFilterContainer}>
-              <TouchableOpacity
-                style={styles.datePickerButton}
-                onPress={() => setShowStartDatePicker(true)}
-              >
-                <Text>{startDate ? startDate.toISOString().split('T')[0] : 'Start Date'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.datePickerButton}
-                onPress={() => setShowEndDatePicker(true)}
-              >
-                <Text>{endDate ? endDate.toISOString().split('T')[0] : 'End Date'}</Text>
-              </TouchableOpacity>
+              <TextInput
+                style={styles.dateInput}
+                placeholder="Ngày bắt đầu (YYYY-MM-DD)"
+                value={startDate}
+                onChangeText={setStartDate}
+              />
+              <TextInput
+                style={styles.dateInput}
+                placeholder="Ngày kết thúc (YYYY-MM-DD)"
+                value={endDate}
+                onChangeText={setEndDate}
+              />
               <TouchableOpacity
                 style={styles.clearDateButton}
                 onPress={() => {
-                  setStartDate(null);
-                  setEndDate(null);
+                  setStartDate('');
+                  setEndDate('');
                 }}
               >
-                <Text style={styles.clearDateText}>Clear</Text>
+                <Text style={styles.clearDateText}>Xóa</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -524,9 +536,9 @@ const StoragePage: React.FC<Props> = ({
           )}
         </View>
 
-        <ScrollView style={styles.contentContainer}>
+        <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: 20 }}>
           {filteredData.length === 0 ? (
-            <Text style={styles.noDataText}>No {activeTab} available.</Text>
+            <Text style={styles.noDataText}>Không có {activeTab === 'images' ? 'hình ảnh/video' : activeTab === 'files' ? 'tệp' : 'liên kết'}.</Text>
           ) : (
             <View style={activeTab === 'images' ? styles.grid : styles.list}>
               {filteredData.map((item) => (
@@ -544,35 +556,24 @@ const StoragePage: React.FC<Props> = ({
                     </TouchableOpacity>
                   )}
                   {activeTab === 'images' && (
-                    <>
+                    <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
                       {item.type === 'image' ? (
-                        <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
-                          <Image
-                            source={{ uri: item.linkURL }}
-                            style={styles.mediaItem}
-                            onError={(e) => console.error(`Error loading image ${item.id}:`, e)}
-                          />
-                        </TouchableOpacity>
+                        <Image source={{ uri: item.linkURL }} style={styles.mediaItem} />
                       ) : (
-                        <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
+                        <>
                           <Video
                             ref={(ref) => (gridVideoRefs.current[item.id] = ref)}
                             source={{ uri: item.linkURL }}
                             style={styles.mediaItem}
-                            useNativeControls={false}
                             isMuted={true}
                             resizeMode="cover"
-                            onError={(e) => {
-                              console.error(`Error loading video ${item.id}:`, e);
-                              setVideoError('Could not load video.');
-                            }}
                           />
                           <View style={styles.playIconContainer}>
                             <Ionicons name="play-circle-outline" size={30} color="#fff" />
                           </View>
-                        </TouchableOpacity>
+                        </>
                       )}
-                    </>
+                    </TouchableOpacity>
                   )}
                   {activeTab === 'files' && (
                     <View style={styles.fileItem}>
@@ -585,7 +586,7 @@ const StoragePage: React.FC<Props> = ({
                       </View>
                       <TouchableOpacity
                         style={styles.downloadButton}
-                        onPress={() => downloadMedia(item.linkURL, 'file')}
+                        onPress={() => downloadMedia(item.linkURL, 'file', item.name)}
                       >
                         <Ionicons name="download-outline" size={24} color="#007bff" />
                       </TouchableOpacity>
@@ -629,7 +630,7 @@ const StoragePage: React.FC<Props> = ({
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.downloadButton}
-                onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type)}
+                onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type, fullScreenMedia.name)}
               >
                 <Ionicons name="download-outline" size={24} color="#fff" />
               </TouchableOpacity>
@@ -638,7 +639,6 @@ const StoragePage: React.FC<Props> = ({
                 onIndexChanged={handleSwipe}
                 loop={false}
                 showsPagination={false}
-                scrollEnabled={true}
               >
                 {filteredData
                   .filter((item) => item.type !== 'file' && item.type !== 'link')
@@ -651,19 +651,13 @@ const StoragePage: React.FC<Props> = ({
                           resizeMode="contain"
                         />
                       ) : (
-                        <View style={styles.fullScreenVideoContainer}>
-                          <Video
-                            ref={item.id === fullScreenMedia.id ? fullScreenVideoRef : null}
-                            source={{ uri: item.linkURL }}
-                            style={styles.fullScreenMedia}
-                            useNativeControls
-                            resizeMode="contain"
-                            onError={(e) => {
-                              console.error(`Error loading full-screen video ${item.id}:`, e);
-                              setVideoError('Could not load video.');
-                            }}
-                          />
-                        </View>
+                        <Video
+                          ref={item.id === fullScreenMedia.id ? fullScreenVideoRef : null}
+                          source={{ uri: item.linkURL }}
+                          style={styles.fullScreenMedia}
+                          useNativeControls
+                          resizeMode="contain"
+                        />
                       )}
                       <Text style={styles.mediaName}>{item.name}</Text>
                     </View>
@@ -678,293 +672,64 @@ const StoragePage: React.FC<Props> = ({
 };
 
 const styles = StyleSheet.create({
-  modal: {
-    margin: 0,
-    justifyContent: 'flex-end',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#007bff',
-  },
-  tabText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  activeTabText: {
-    color: '#007bff',
-    fontWeight: '600',
-  },
-  filterContainer: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    fontSize: 14,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pickerContainer: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-    marginRight: 10,
-  },
-  picker: {
-    height: 40,
-    fontSize: 14,
-  },
-  dateFilterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e0f0ff',
-    padding: 10,
-    borderRadius: 5,
-  },
-  dateFilterText: {
-    marginLeft: 5,
-    color: '#007bff',
-    fontSize: 14,
-  },
-  dateFilterContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    gap: 10,
-  },
-  datePickerButton: {
-    flex: 1,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  clearDateButton: {
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 5,
-  },
-  clearDateText: {
-    color: '#333',
-    fontSize: 14,
-  },
-  actionContainer: {
-    flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    justifyContent: 'space-between',
-  },
-  actionButton: {
-    padding: 10,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 5,
-  },
-  actionButtonActive: {
-    backgroundColor: '#007bff',
-  },
-  actionButtonText: {
-    color: '#333',
-    fontSize: 14,
-  },
-  deleteButton: {
-    padding: 10,
-    backgroundColor: '#ff4444',
-    borderRadius: 5,
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  contentContainer: {
-    flex: 1,
-    padding: 15,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  list: {
-    gap: 10,
-  },
-  gridItem: {
-    width: '30%',
-    position: 'relative',
-  },
-  listItem: {
-    position: 'relative',
-  },
-  mediaItem: {
-    width: '100%',
-    height: 100,
-    borderRadius: 5,
-  },
-  fileItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    padding: 10,
-    borderRadius: 5,
-  },
-  fileIcon: {
-    marginRight: 10,
-  },
-  fileInfo: {
-    flex: 1,
-  },
-  fileName: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  fileMeta: {
-    fontSize: 12,
-    color: '#666',
-  },
-  downloadButton: {
-    padding: 5,
-  },
-  linkItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#f0f0f0',
-    padding: 10,
-    borderRadius: 5,
-  },
-  linkInfo: {
-    flex: 1,
-  },
-  linkName: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  linkUrl: {
-    fontSize: 12,
-    color: '#007bff',
-  },
-  linkMeta: {
-    fontSize: 12,
-    color: '#666',
-  },
-  linkActionButton: {
-    padding: 5,
-  },
-  selectCheckbox: {
-    position: 'absolute',
-    top: 5,
-    left: 5,
-    zIndex: 10,
-  },
-  playIconContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullScreenModal: {
-    margin: 0,
-  },
-  fullScreenContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullScreenMedia: {
-    width: '100%',
-    height: '90%',
-  },
-  fullScreenVideoContainer: {
-    width: '100%',
-    height: '90%',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
-    padding: 8,
-  },
-  downloadButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
-    padding: 8,
-  },
-  swiperSlide: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mediaName: {
-    color: '#fff',
-    fontSize: 16,
-    marginTop: 10,
-    textAlign: 'center',
-    position: 'absolute',
-    bottom: 20,
-  },
-  noDataText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 20,
-  },
+  modal: { margin: 0, justifyContent: 'flex-end' },
+  container: { flex: 1, backgroundColor: '#fff', borderTopLeftRadius: 10, borderTopRightRadius: 10, maxHeight: '90%' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  headerTitle: { fontSize: 18, fontWeight: '600' },
+  tabContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  tab: { flex: 1, paddingVertical: 15, alignItems: 'center' },
+  activeTab: { borderBottomWidth: 2, borderBottomColor: '#007bff' },
+  tabText: { fontSize: 14, color: '#666' },
+  activeTabText: { color: '#007bff', fontWeight: '600' },
+  filterContainer: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', borderRadius: 5, paddingHorizontal: 10, marginBottom: 10 },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, height: 40, fontSize: 14 },
+  filterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pickerContainer: { flex: 1, borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 5, marginRight: 10 },
+  picker: { height: 40, fontSize: 14 },
+  dateFilterButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0f0ff', padding: 10, borderRadius: 5 },
+  dateFilterText: { marginLeft: 5, color: '#007bff', fontSize: 14 },
+  dateFilterContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 10 },
+  dateInput: { flex: 1, padding: 10, borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 5, fontSize: 14 },
+  clearDateButton: { padding: 10, backgroundColor: '#f0f0f0', borderRadius: 5 },
+  clearDateText: { color: '#333', fontSize: 14 },
+  actionContainer: { flexDirection: 'row', padding: 15, borderBottomWidth: 1, borderBottomColor: '#e0e0e0', justifyContent: 'space-between' },
+  actionButton: { padding: 10, backgroundColor: '#e0e0e0', borderRadius: 5 },
+  actionButtonActive: { backgroundColor: '#007bff' },
+  actionButtonText: { color: '#333', fontSize: 14 },
+  deleteButton: { padding: 10, backgroundColor: '#ff4444', borderRadius: 5 },
+  deleteButtonText: { color: '#fff', fontSize: 14 },
+  contentContainer: { flex: 1, padding: 15 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  list: { gap: 10 },
+  gridItem: { width: '30%', position: 'relative' },
+  listItem: { position: 'relative' },
+  mediaItem: { width: '100%', height: 100, borderRadius: 5 },
+  fileItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', padding: 10, borderRadius: 5 },
+  fileIcon: { marginRight: 10 },
+  fileInfo: { flex: 1 },
+  fileName: { fontSize: 14, fontWeight: '600' },
+  fileMeta: { fontSize: 12, color: '#666' },
+  downloadButton: { padding: 5 },
+  linkItem: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#f0f0f0', padding: 10, borderRadius: 5 },
+  linkInfo: { flex: 1 },
+  linkName: { fontSize: 14, fontWeight: '600' },
+  linkUrl: { fontSize: 12, color: '#007bff' },
+  linkMeta: { fontSize: 12, color: '#666' },
+  linkActionButton: { padding: 5 },
+  selectCheckbox: { position: 'absolute', top: 5, left: 5, zIndex: 10 },
+  playIconContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
+  fullScreenModal: { margin: 0 },
+  fullScreenContainer: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+  fullScreenMedia: { width: '100%', height: '90%' },
+  closeButton: { position: 'absolute', top: 16, left: 16, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
+  downloadButton: { position: 'absolute', top: 16, right: 16, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
+  swiperSlide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  mediaName: { color: '#fff', fontSize: 16, marginTop: 10, textAlign: 'center', position: 'absolute', bottom: 20 },
+  noDataText: { fontSize: 14, color: '#666', textAlign: 'center', marginTop: 20 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 10, fontSize: 16, color: '#555' },
 });
 
 export default StoragePage;
