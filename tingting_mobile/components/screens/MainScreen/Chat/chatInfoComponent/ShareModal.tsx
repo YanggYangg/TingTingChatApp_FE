@@ -167,7 +167,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
       const response = await Api_chatInfo.forwardMessage(data);
       console.log("Forwarded messages:", response);
-      alert("Chuyển tiếp tin nhắn thành công!");
+
       onShare(selectedConversations, content);
       onClose();
     } catch (err: any) {

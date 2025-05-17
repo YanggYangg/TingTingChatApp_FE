@@ -21,7 +21,8 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as IntentLauncher from 'expo-intent-launcher';
 import debounce from 'lodash/debounce';
-import {Api_Profile} from '../../../../../apis/api_profile';
+import { Api_Profile } from '../../../../../apis/api_profile';
+import ShareModal from './ShareModal';
 
 interface Media {
   id: string;
@@ -53,9 +54,6 @@ interface Props {
   onDataUpdated?: () => void;
 }
 
-/**
- * Component for displaying and managing media storage (images, videos, files, links).
- */
 const StoragePage: React.FC<Props> = ({
   conversationId,
   userId,
@@ -80,8 +78,10 @@ const StoragePage: React.FC<Props> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [userProfiles, setUserProfiles] = useState<Record<string, UserProfile>>({});
+  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
   const gridVideoRefs = useRef<Record<string, Video>>({});
   const fullScreenVideoRef = useRef<Video>(null);
+  const [mediaToForward, setMediaToForward] = useState<Media | null>(null);
 
   const [data, setData] = useState<{
     images: Media[];
@@ -93,36 +93,27 @@ const StoragePage: React.FC<Props> = ({
     links: [],
   });
 
-  /**
-   * Fetch user profile from API
-   */
-  const fetchUserProfile = useCallback(async (userId: string) => {
-    if (userProfiles[userId]) {
-      return userProfiles[userId];
-    }
-    try {
-      const response = await Api_Profile.getProfile(userId);
-      const user = response?.data?.user as UserProfile;
-      const profile = user || { _id: userId, firstname: "Không tìm thấy", surname: "", avatar: null };
-      setUserProfiles((prev) => ({
-        ...prev,
-        [userId]: profile,
-      }));
-      return profile;
-    } catch (error) {
-      console.error(`Error fetching user ${userId}:`, error);
-      const profile = { _id: userId, firstname: "Không tìm thấy", surname: "", avatar: null };
-      setUserProfiles((prev) => ({
-        ...prev,
-        [userId]: profile,
-      }));
-      return profile;
-    }
-  }, [userProfiles]);
+  // Fetch user profile
+  const fetchUserProfile = useCallback(
+    async (userId: string) => {
+      if (userProfiles[userId]) return userProfiles[userId];
+      try {
+        const response = await Api_Profile.getProfile(userId);
+        const user = response?.data?.user as UserProfile;
+        const profile = user || { _id: userId, firstname: 'Không tìm thấy', surname: '', avatar: null };
+        setUserProfiles((prev) => ({ ...prev, [userId]: profile }));
+        return profile;
+      } catch (error) {
+        console.error(`Error fetching user ${userId}:`, error);
+        const profile = { _id: userId, firstname: 'Không tìm thấy', surname: '', avatar: null };
+        setUserProfiles((prev) => ({ ...prev, [userId]: profile }));
+        return profile;
+      }
+    },
+    [userProfiles]
+  );
 
-  /**
-   * Fetch media, files, and links from the server.
-   */
+  // Fetch media, files, and links
   const fetchData = useCallback(() => {
     if (!conversationId || !socket) {
       setData({ images: [], files: [], links: [] });
@@ -147,27 +138,29 @@ const StoragePage: React.FC<Props> = ({
               (Array.isArray(item?.linkURL) ? item.linkURL : [item?.linkURL])
                 .filter((url: string) => url && typeof url === 'string' && url.startsWith('http'))
                 .map(async (url: string, urlIndex: number) => {
-                  const senderProfile = item.userId === userId
-                    ? { firstname: 'Bạn', surname: '' }
-                    : await fetchUserProfile(item.userId);
+                  const senderProfile =
+                    item.userId === userId
+                      ? { firstname: 'Bạn', surname: '' }
+                      : await fetchUserProfile(item.userId);
                   return {
                     id: `${item?._id}_${urlIndex}`,
                     messageId: item?._id,
                     urlIndex,
                     linkURL: url,
-                    name: item?.content || `${type}_${urlIndex + 1}`,
+                    // name: item?.content || `${type}_${urlIndex + 1}`,
                     type:
                       item?.messageType === 'video'
                         ? 'video'
                         : type === 'file'
-                        ? 'file'
-                        : type === 'link'
-                        ? 'link'
-                        : 'image',
+                          ? 'file'
+                          : type === 'link'
+                            ? 'link'
+                            : 'image',
                     date: item?.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : 'Unknown',
-                    sender: item.userId === userId
-                      ? 'Bạn'
-                      : `${senderProfile.firstname} ${senderProfile.surname}`.trim() || 'Người dùng',
+                    sender:
+                      item.userId === userId
+                        ? 'Bạn'
+                        : `${senderProfile.firstname} ${senderProfile.surname}`.trim() || 'Người dùng',
                     userId: item?.userId || 'unknown',
                   };
                 })
@@ -178,7 +171,7 @@ const StoragePage: React.FC<Props> = ({
             [key]: formattedData.filter((item) => item.linkURL),
           }));
         } else {
-          console.error(`Lỗi tải ${key}:`, response?.message || 'Dữ liệu không hợp lệ');
+          console.error(`Error loading ${key}:`, response?.message || 'Invalid data');
           Alert.alert('Lỗi', `Không thể tải ${key}: ${response?.message || 'Lỗi không xác định'}`);
         }
         completed++;
@@ -187,9 +180,7 @@ const StoragePage: React.FC<Props> = ({
     });
   }, [conversationId, socket, userId, fetchUserProfile]);
 
-  /**
-   * Handle socket events and data updates.
-   */
+  // Handle socket events
   useEffect(() => {
     if (!socket || !conversationId || !isVisible) return;
 
@@ -201,27 +192,27 @@ const StoragePage: React.FC<Props> = ({
           (Array.isArray(item?.linkURL) ? item.linkURL : [item?.linkURL])
             .filter((url: string) => url && typeof url === 'string' && url.startsWith('http'))
             .map(async (url: string, urlIndex: number) => {
-              const senderProfile = item.userId === userId
-                ? { firstname: 'Bạn', surname: '' }
-                : await fetchUserProfile(item.userId);
+              const senderProfile =
+                item.userId === userId ? { firstname: 'Bạn', surname: '' } : await fetchUserProfile(item.userId);
               return {
                 id: `${item?._id}_${urlIndex}`,
                 messageId: item?._id,
                 urlIndex,
                 linkURL: url,
-                name: item?.content || `${type}_${urlIndex + 1}`,
+                // name: item?.content || `${type}_${urlIndex + 1}`,
                 type:
                   item?.messageType === 'video'
                     ? 'video'
                     : type === 'file'
-                    ? 'file'
-                    : type === 'link'
-                    ? 'link'
-                    : 'image',
+                      ? 'file'
+                      : type === 'link'
+                        ? 'link'
+                        : 'image',
                 date: item?.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : 'Unknown',
-                sender: item.userId === userId
-                  ? 'Bạn'
-                  : `${senderProfile.firstname} ${senderProfile.surname}`.trim() || 'Người dùng',
+                sender:
+                  item.userId === userId
+                    ? 'Bạn'
+                    : `${senderProfile.firstname} ${senderProfile.surname}`.trim() || 'Người dùng',
                 userId: item?.userId || 'unknown',
               };
             })
@@ -277,20 +268,16 @@ const StoragePage: React.FC<Props> = ({
     };
   }, [socket, conversationId, isVisible, fetchData, onDelete, onDataUpdated]);
 
-  /**
-   * Pause videos when switching full-screen mode.
-   */
+  // Pause videos when switching full-screen mode
   useEffect(() => {
     if (fullScreenMedia) {
-      Object.values(gridVideoRefs.current).forEach((ref) => ref?.pauseAsync().catch(() => {}));
+      Object.values(gridVideoRefs.current).forEach((ref) => ref?.pauseAsync().catch(() => { }));
     } else {
-      fullScreenVideoRef.current?.pauseAsync().catch(() => {});
+      fullScreenVideoRef.current?.pauseAsync().catch(() => { });
     }
   }, [fullScreenMedia]);
 
-  /**
-   * Delete selected items using socket event.
-   */
+  // Delete selected items
   const handleDeleteSelected = async () => {
     if (selectedItems.length === 0) {
       Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một mục để xóa.');
@@ -309,24 +296,25 @@ const StoragePage: React.FC<Props> = ({
       });
       setData(newData);
 
-      const deletionPromises = selectedItems.map((item) =>
-        new Promise((resolve) => {
-          socket.emit(
-            'deleteMessageChatInfo',
-            { messageId: item.messageId, urlIndex: item.urlIndex },
-            (response: any) => {
-              if (response?.success) {
-                resolve({
-                  success: true,
-                  item,
-                  isMessageDeleted: response.data?.isMessageDeleted || false,
-                });
-              } else {
-                resolve({ success: false, message: response?.message || `Không thể xóa mục ${item.id}` });
+      const deletionPromises = selectedItems.map(
+        (item) =>
+          new Promise((resolve) => {
+            socket.emit(
+              'deleteMessageChatInfo',
+              { messageId: item.messageId, urlIndex: item.urlIndex },
+              (response: any) => {
+                if (response?.success) {
+                  resolve({
+                    success: true,
+                    item,
+                    isMessageDeleted: response.data?.isMessageDeleted || false,
+                  });
+                } else {
+                  resolve({ success: false, message: response?.message || `Không thể xóa mục ${item.id}` });
+                }
               }
-            }
-          );
-        })
+            );
+          })
       );
 
       const results = await Promise.all(deletionPromises);
@@ -341,7 +329,10 @@ const StoragePage: React.FC<Props> = ({
           const deletedItems = Array.from(deletedItemsSet).map((item) => ({
             messageId: item.messageId,
             urlIndex: item.urlIndex,
-            isMessageDeleted: results.find((r: any) => r.item.messageId === item.messageId && r.item.urlIndex === item.urlIndex)?.isMessageDeleted || false,
+            isMessageDeleted:
+              results.find(
+                (r: any) => r.item.messageId === item.messageId && r.item.urlIndex === item.urlIndex
+              )?.isMessageDeleted || false,
           }));
           onDelete(deletedItems);
         }
@@ -355,32 +346,63 @@ const StoragePage: React.FC<Props> = ({
     }
   };
 
-  /**
-   * Download media or file to the device.
-   */
-  const downloadMedia = useCallback(async (url: string, type: string, filename?: string) => {
-    try {
-      const fileName = filename || url.split('/').pop() || (type === 'image' ? 'image.jpg' : type === 'video' ? 'video.mp4' : 'file');
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      const { uri } = await FileSystem.downloadAsync(url, fileUri);
-
-      if (type === 'image' || type === 'video') {
-        const permission = await MediaLibrary.requestPermissionsAsync();
-        if (!permission.granted) throw new Error('Không có quyền truy cập thư viện.');
-        await MediaLibrary.createAssetAsync(uri);
-        Alert.alert('Thành công', `${type === 'image' ? 'Hình ảnh' : 'Video'} đã được lưu!`);
-      } else {
-        Alert.alert('Thành công', `Tệp "${fileName}" đã được tải xuống.`);
-        await openFile(uri, fileName);
-      }
-    } catch (error: any) {
-      Alert.alert('Lỗi', `Không thể tải ${type}: ${error.message || 'Lỗi không xác định'}`);
+  // Handle forward action
+  const handleForwardSelected = () => {
+    if (selectedItems.length === 0) {
+      Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một mục để chuyển tiếp.');
+      return;
     }
+    setIsShareModalOpen(true);
+  };
+
+  // Handle share modal close
+  const handleShareModalClose = () => {
+    setIsShareModalOpen(false);
+    setSelectedItems([]);
+    setIsSelecting(false);
+  };
+
+  // Handle share action from ShareModal
+  const handleShare = (conversationIds: string[], content?: string) => {
+    Alert.alert('Thành công', `Đã chuyển tiếp ${selectedItems.length} mục thành công!`);
+    setSelectedItems([]);
+    setIsSelecting(false);
+    setIsShareModalOpen(false);
+  };
+
+  const handleForwardClick = useCallback((item: Media) => {
+    setMediaToForward(item);
+    setIsShareModalOpen(true);
   }, []);
 
-  /**
-   * Open a downloaded file on the device.
-   */
+  // Download media or file
+  const downloadMedia = useCallback(
+    async (url: string, type: string, filename?: string) => {
+      try {
+        const fileName =
+          filename ||
+          url.split('/').pop() ||
+          (type === 'image' ? 'image.jpg' : type === 'video' ? 'video.mp4' : 'file');
+        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+        const { uri } = await FileSystem.downloadAsync(url, fileUri);
+
+        if (type === 'image' || type === 'video') {
+          const permission = await MediaLibrary.requestPermissionsAsync();
+          if (!permission.granted) throw new Error('Không có quyền truy cập thư viện.');
+          await MediaLibrary.createAssetAsync(uri);
+          Alert.alert('Thành công', `${type === 'image' ? 'Hình ảnh' : 'Video'} đã được lưu!`);
+        } else {
+          Alert.alert('Thành công', `Tệp "${fileName}" đã được tải xuống.`);
+          await openFile(uri, fileName);
+        }
+      } catch (error: any) {
+        Alert.alert('Lỗi', `Không thể tải ${type}: ${error.message || 'Lỗi không xác định'}`);
+      }
+    },
+    [openFile]
+  );
+
+  // Open a downloaded file
   const openFile = useCallback(async (fileUri: string, fileName: string) => {
     if (Platform.OS === 'android') {
       try {
@@ -398,9 +420,7 @@ const StoragePage: React.FC<Props> = ({
     }
   }, []);
 
-  /**
-   * Get MIME type based on file extension.
-   */
+  // Get MIME type
   const getMimeTypeFromExtension = useCallback((fileName: string): string | null => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     const mimeTypes: { [key: string]: string } = {
@@ -419,9 +439,7 @@ const StoragePage: React.FC<Props> = ({
     return mimeTypes[extension!] || null;
   }, []);
 
-  /**
-   * Open a URL in the browser.
-   */
+  // Open a URL
   const handleOpenLink = useCallback((linkURL: string) => {
     if (!linkURL || linkURL === '#') {
       Alert.alert('Lỗi', 'Liên kết không hợp lệ.');
@@ -430,9 +448,7 @@ const StoragePage: React.FC<Props> = ({
     Linking.openURL(linkURL).catch(() => Alert.alert('Lỗi', 'Không thể mở liên kết.'));
   }, []);
 
-  /**
-   * Filter and sort data based on active tab, sender, date, and search.
-   */
+  // Filter and sort data
   const filteredData = useMemo(() => {
     const currentData = activeTab === 'images' ? data.images : activeTab === 'files' ? data.files : data.links;
     return currentData
@@ -446,18 +462,14 @@ const StoragePage: React.FC<Props> = ({
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [activeTab, data, filterSender, startDate, endDate, searchText]);
 
-  /**
-   * Get unique senders for filtering.
-   */
+  // Get unique senders
   const uniqueSenders = useMemo(() => {
     const senders = new Set<string>();
     [...data.images, ...data.files, ...data.links].forEach((item) => senders.add(item.sender));
     return ['All', ...Array.from(senders).sort()];
   }, [data]);
 
-  /**
-   * Toggle selection of an item.
-   */
+  // Toggle selection
   const toggleSelectItem = useCallback((item: Media) => {
     setSelectedItems((prev) =>
       prev.some((selected) => selected.id === item.id)
@@ -466,9 +478,7 @@ const StoragePage: React.FC<Props> = ({
     );
   }, []);
 
-  /**
-   * Select or deselect all items.
-   */
+  // Select or deselect all
   const toggleSelectAll = useCallback(() => {
     if (selectedItems.length === filteredData.length) {
       setSelectedItems([]);
@@ -477,9 +487,7 @@ const StoragePage: React.FC<Props> = ({
     }
   }, [filteredData, selectedItems]);
 
-  /**
-   * Handle date filter suggestions.
-   */
+  // Handle date filter
   const handleDateFilter = useCallback((days: number) => {
     const today = new Date();
     const pastDate = new Date(today);
@@ -489,9 +497,7 @@ const StoragePage: React.FC<Props> = ({
     setShowDateSuggestions(false);
   }, []);
 
-  /**
-   * Handle date input change.
-   */
+  // Handle date input
   const handleDateInput = useCallback((text: string, isStartDate: boolean) => {
     if (!text) {
       if (isStartDate) setStartDate(null);
@@ -499,7 +505,6 @@ const StoragePage: React.FC<Props> = ({
       return;
     }
 
-    // Validate date format (YYYY-MM-DD)
     const regex = /^\d{4}-\d{2}-\d{2}$/;
     if (!regex.test(text)) return;
 
@@ -516,17 +521,16 @@ const StoragePage: React.FC<Props> = ({
     }
   }, []);
 
-  /**
-   * Handle swiper index change.
-   */
-  const handleSwipe = useCallback((index: number) => {
-    setCurrentIndex(index);
-    setFullScreenMedia(filteredData[index]);
-  }, [filteredData]);
+  // Handle swiper index change
+  const handleSwipe = useCallback(
+    (index: number) => {
+      setCurrentIndex(index);
+      setFullScreenMedia(filteredData[index]);
+    },
+    [filteredData]
+  );
 
-  /**
-   * Debounced search handler.
-   */
+  // Debounced search handler
   const handleSearch = useCallback(
     debounce((text: string) => {
       setSearchText(text);
@@ -544,321 +548,398 @@ const StoragePage: React.FC<Props> = ({
   }
 
   return (
-    <Modal isVisible={isVisible} onBackdropPress={onClose} onBackButtonPress={onClose} style={styles.modal}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Kho lưu trữ</Text>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color="#333" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'images' && styles.activeTab]}
-            onPress={() => setActiveTab('images')}
-          >
-            <Text style={[styles.tabText, activeTab === 'images' && styles.activeTabText]}>Hình ảnh/Video</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'files' && styles.activeTab]}
-            onPress={() => setActiveTab('files')}
-          >
-            <Text style={[styles.tabText, activeTab === 'files' && styles.activeTabText]}>Files</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'links' && styles.activeTab]}
-            onPress={() => setActiveTab('links')}
-          >
-            <Text style={[styles.tabText, activeTab === 'links' && styles.activeTabText]}>Links</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.filterContainer}>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Tìm kiếm..."
-              value={searchText}
-              onChangeText={handleSearch}
-            />
-          </View>
-
-          <View style={styles.filterRow}>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={filterSender}
-                onValueChange={(value) => setFilterSender(value)}
-                style={styles.picker}
-              >
-                {uniqueSenders.map((sender) => (
-                  <Picker.Item key={sender} label={sender} value={sender} />
-                ))}
-              </Picker>
-            </View>
-            <TouchableOpacity
-              style={styles.dateFilterButton}
-              onPress={() => setShowDateFilter(!showDateFilter)}
-            >
-              <Ionicons name="calendar-outline" size={20} color="#007bff" />
-              <Text style={styles.dateFilterText}>Chọn ngày</Text>
+    <>
+      <Modal isVisible={isVisible} onBackdropPress={onClose} onBackButtonPress={onClose} style={styles.modal}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Kho lưu trữ</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
 
-          {showDateFilter && (
-            <View style={styles.dateFilterContainer}>
-              <TouchableOpacity
-                style={styles.dateSuggestionButton}
-                onPress={() => setShowDateSuggestions(!showDateSuggestions)}
-              >
-                <Text style={styles.dateSuggestionText}>Gợi ý thời gian</Text>
-              </TouchableOpacity>
-              {showDateSuggestions && (
-                <View style={styles.dateSuggestionList}>
-                  {[7, 30, 90].map((days) => (
-                    <TouchableOpacity
-                      key={days}
-                      style={styles.dateSuggestionItem}
-                      onPress={() => handleDateFilter(days)}
-                    >
-                      <Text style={styles.dateSuggestionItemText}>{days} ngày trước</Text>
-                    </TouchableOpacity>
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'images' && styles.activeTab]}
+              onPress={() => setActiveTab('images')}
+            >
+              <Text style={[styles.tabText, activeTab === 'images' && styles.activeTabText]}>Hình ảnh/Video</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'files' && styles.activeTab]}
+              onPress={() => setActiveTab('files')}
+            >
+              <Text style={[styles.tabText, activeTab === 'files' && styles.activeTabText]}>Files</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'links' && styles.activeTab]}
+              onPress={() => setActiveTab('links')}
+            >
+              <Text style={[styles.tabText, activeTab === 'links' && styles.activeTabText]}>Links</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.filterContainer}>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Tìm kiếm..."
+                value={searchText}
+                onChangeText={handleSearch}
+              />
+            </View>
+
+            <View style={styles.filterRow}>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={filterSender}
+                  onValueChange={(value) => setFilterSender(value)}
+                  style={styles.picker}
+                >
+                  {uniqueSenders.map((sender) => (
+                    <Picker.Item key={sender} label={sender} value={sender} />
                   ))}
-                </View>
-              )}
-              <Text style={styles.dateRangeLabel}>Chọn khoảng thời gian</Text>
-              <View style={styles.dateInputContainer}>
-                <View style={styles.dateInputWrapper}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={16}
-                    color="#666"
-                    style={styles.dateInputIcon}
-                  />
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="YYYY-MM-DD"
-                    value={startDate ? startDate.toISOString().split('T')[0] : ''}
-                    onChangeText={(text) => handleDateInput(text, true)}
-                    keyboardType="numeric"
-                    maxLength={10}
-                  />
-                </View>
-                <View style={styles.dateInputWrapper}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={16}
-                    color="#666"
-                    style={styles.dateInputIcon}
-                  />
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="YYYY-MM-DD"
-                    value={endDate ? endDate.toISOString().split('T')[0] : ''}
-                    onChangeText={(text) => handleDateInput(text, false)}
-                    keyboardType="numeric"
-                    maxLength={10}
-                  />
-                </View>
+                </Picker>
               </View>
               <TouchableOpacity
-                style={styles.clearDateButton}
-                onPress={() => {
-                  setStartDate(null);
-                  setEndDate(null);
-                }}
+                style={styles.dateFilterButton}
+                onPress={() => setShowDateFilter(!showDateFilter)}
               >
-                <Text style={styles.clearDateText}>Xóa</Text>
+                <Ionicons name="calendar-outline" size={20} color="#007bff" />
+                <Text style={styles.dateFilterText}>Chọn ngày</Text>
               </TouchableOpacity>
             </View>
-          )}
-        </View>
 
-        <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, isSelecting && styles.actionButtonActive]}
-            onPress={() => {
-              setIsSelecting(!isSelecting);
-              setSelectedItems([]);
-            }}
-          >
-            <Text style={styles.actionButtonText}>{isSelecting ? 'Hủy' : 'Chọn'}</Text>
-          </TouchableOpacity>
-          {isSelecting && (
+            {showDateFilter && (
+              <View style={styles.dateFilterContainer}>
+                <TouchableOpacity
+                  style={styles.dateSuggestionButton}
+                  onPress={() => setShowDateSuggestions(!showDateSuggestions)}
+                >
+                  <Text style={styles.dateSuggestionText}>Gợi ý thời gian</Text>
+                </TouchableOpacity>
+                {showDateSuggestions && (
+                  <View style={styles.dateSuggestionList}>
+                    {[7, 30, 90].map((days) => (
+                      <TouchableOpacity
+                        key={days}
+                        style={styles.dateSuggestionItem}
+                        onPress={() => handleDateFilter(days)}
+                      >
+                        <Text style={styles.dateSuggestionItemText}>{days} ngày trước</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                <Text style={styles.dateRangeLabel}>Chọn khoảng thời gian</Text>
+                <View style={styles.dateInputContainer}>
+                  <View style={styles.dateInputWrapper}>
+                    <Ionicons name="calendar-outline" size={16} color="#666" style={styles.dateInputIcon} />
+                    <TextInput
+                      style={styles.dateInput}
+                      placeholder="YYYY-MM-DD"
+                      value={startDate ? startDate.toISOString().split('T')[0] : ''}
+                      onChangeText={(text) => handleDateInput(text, true)}
+                      keyboardType="numeric"
+                      maxLength={10}
+                    />
+                  </View>
+                  <View style={styles.dateInputWrapper}>
+                    <Ionicons name="calendar-outline" size={16} color="#666" style={styles.dateInputIcon} />
+                    <TextInput
+                      style={styles.dateInput}
+                      placeholder="YYYY-MM-DD"
+                      value={endDate ? endDate.toISOString().split('T')[0] : ''}
+                      onChangeText={(text) => handleDateInput(text, false)}
+                      keyboardType="numeric"
+                      maxLength={10}
+                    />
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.clearDateButton}
+                  onPress={() => {
+                    setStartDate(null);
+                    setEndDate(null);
+                  }}
+                >
+                  <Text style={styles.clearDateText}>Xóa</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.actionContainer}>
             <TouchableOpacity
-              style={[styles.actionButton, selectedItems.length === filteredData.length && styles.actionButtonActive]}
-              onPress={toggleSelectAll}
+              style={[styles.actionButton, isSelecting && styles.actionButtonActive]}
+              onPress={() => {
+                setIsSelecting(!isSelecting);
+                setSelectedItems([]);
+              }}
             >
-              <Text style={styles.actionButtonText}>
-                {selectedItems.length === filteredData.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-              </Text>
+              <Text style={styles.actionButtonText}>{isSelecting ? 'Hủy' : 'Chọn'}</Text>
             </TouchableOpacity>
-          )}
-          {isSelecting && selectedItems.length > 0 && (
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteSelected}>
-              <Text style={styles.deleteButtonText}>Xóa ({selectedItems.length})</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+            {isSelecting && (
+              <TouchableOpacity
+                style={[styles.actionButton, selectedItems.length === filteredData.length && styles.actionButtonActive]}
+                onPress={toggleSelectAll}
+              >
+                <Text style={styles.actionButtonText}>
+                  {selectedItems.length === filteredData.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {mediaToForward && (
+              <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => {
+                  setIsShareModalOpen(false);
+                  setMediaToForward(null);
+                }}
+                onShare={(conversationIds: string[], content?: string) => {
+                  socket.emit(
+                    'forwardMessage',
+                    {
+                      messageId: mediaToForward.messageId,
+                      targetConversationIds: conversationIds,
+                      userId,
+                      content: content || '',
+                    },
+                    (response: any) => {
+                      if (response?.success) {
+                        Alert.alert('Thành công', 'Đã chuyển tiếp thành công!');
+                        setIsShareModalOpen(false);
+                        setMediaToForward(null);
+                      } else {
+                        Alert.alert('Lỗi', `Không thể chuyển tiếp: ${response?.message || 'Lỗi không xác định'}`);
+                      }
+                    }
+                  );
+                }}
+                messageToForward={mediaToForward.linkURL || mediaToForward.name}
+                userId={userId}
+                messageId={mediaToForward.messageId}
+              />
+            )}
+            {isSelecting && selectedItems.length > 0 && (
+              <>
+                <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteSelected}>
+                  <Text style={styles.deleteButtonText}>Xóa ({selectedItems.length})</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.forwardButton} onPress={handleForwardSelected}>
+                  <Text style={styles.forwardButtonText}>Chuyển tiếp ({selectedItems.length})</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {mediaToForward && (
+              <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => {
+                  setIsShareModalOpen(false);
+                  setMediaToForward(null);
+                }}
+                onShare={(conversationIds: string[], content?: string) => {
+                  socket.emit(
+                    'forwardMessage',
+                    {
+                      messageId: mediaToForward.messageId,
+                      targetConversationIds: conversationIds,
+                      userId,
+                      content: content || '',
+                    },
+                    (response: any) => {
+                      if (response?.success) {
+                        Alert.alert('Thành công', 'Đã chuyển tiếp thành công!');
+                        setIsShareModalOpen(false);
+                        setMediaToForward(null);
+                      } else {
+                        Alert.alert('Lỗi', `Không thể chuyển tiếp: ${response?.message || 'Lỗi không xác định'}`);
+                      }
+                    }
+                  );
+                }}
+                messageToForward={mediaToForward.linkURL || mediaToForward.name}
+                userId={userId}
+                messageId={mediaToForward.messageId}
+              />
+            )}
+          </View>
 
-        <ScrollView style={styles.contentContainer}>
-          {filteredData.length === 0 ? (
-            <Text style={styles.noDataText}>No {activeTab} available.</Text>
-          ) : (
-            <View style={activeTab === 'images' ? styles.grid : styles.list}>
-              {filteredData.map((item) => (
-                <View key={item.id} style={activeTab === 'images' ? styles.gridItem : styles.listItem}>
-                  {isSelecting && (
-                    <TouchableOpacity
-                      style={styles.selectCheckbox}
-                      onPress={() => toggleSelectItem(item)}
-                    >
-                      <Ionicons
-                        name={selectedItems.some((selected) => selected.id === item.id) ? 'checkbox' : 'square-outline'}
-                        size={24}
-                        color={selectedItems.some((selected) => selected.id === item.id) ? '#007bff' : '#666'}
-                      />
-                    </TouchableOpacity>
-                  )}
-                  {activeTab === 'images' && (
-                    <>
-                      {item.type === 'image' ? (
-                        <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
+          <ScrollView style={styles.contentContainer}>
+            {filteredData.length === 0 ? (
+              <Text style={styles.noDataText}>Không có {activeTab} nào.</Text>
+            ) : (
+              <View style={activeTab === 'images' ? styles.grid : styles.list}>
+                {filteredData.map((item) => (
+                  <View key={item.id} style={activeTab === 'images' ? styles.gridItem : styles.listItem}>
+                    {isSelecting && (
+                      <TouchableOpacity style={styles.selectCheckbox} onPress={() => toggleSelectItem(item)}>
+                        <Ionicons
+                          name={selectedItems.some((selected) => selected.id === item.id) ? 'checkbox' : 'square-outline'}
+                          size={24}
+                          color={selectedItems.some((selected) => selected.id === item.id) ? '#007bff' : '#666'}
+                        />
+                      </TouchableOpacity>
+                    )}
+                    {activeTab === 'images' && (
+                      <>
+                        {item.type === 'image' ? (
+                          <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
+                            <Image
+                              source={{ uri: item.linkURL }}
+                              style={styles.mediaItem}
+                              onError={(e) => console.error(`Error loading image ${item.id}:`, e)}
+                            />
+                          </TouchableOpacity>
+                        ) : item.linkURL && item.linkURL.startsWith('http') ? (
+                          <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
+                            <Video
+                              ref={(ref) => {
+                                if (ref) gridVideoRefs.current[item.id] = ref;
+                              }}
+                              source={{ uri: item.linkURL }}
+                              style={styles.mediaItem}
+                              useNativeControls={false}
+                              isMuted={true}
+                              resizeMode="cover"
+                              onError={(e) => {
+                                console.error(`Error loading video ${item.id}:`, e);
+                                setVideoError('Không thể tải video.');
+                              }}
+                            />
+                            <View style={styles.playIconContainer}>
+                              <Ionicons name="play-circle-outline" size={30} color="#fff" />
+                            </View>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={styles.errorText}>Video không hợp lệ</Text>
+                        )}
+                      </>
+                    )}
+                    {activeTab === 'files' && (
+                      <View style={styles.fileItem}>
+                        <Ionicons name="document-outline" size={24} color="#007bff" style={styles.fileIcon} />
+                        <View style={styles.fileInfo}>
+                          <Text style={styles.fileName}>{item.name}</Text>
+                          <Text style={styles.fileMeta}>
+                            {item.sender} • {item.date}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.downloadButton}
+                          onPress={() => downloadMedia(item.linkURL, 'file', item.name)}
+                        >
+                          <Ionicons name="download-outline" size={24} color="#007bff" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {activeTab === 'links' && (
+                      <View style={styles.linkItem}>
+                        <View style={styles.linkInfo}>
+                          <Text style={styles.linkName}>{item.name}</Text>
+                          <TouchableOpacity onPress={() => handleOpenLink(item.linkURL)}>
+                            <Text style={styles.linkUrl}>{item.linkURL}</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.fileMeta}>
+                            {item.sender} • {item.date}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.linkActionButton}
+                          onPress={() => handleOpenLink(item.linkURL)}
+                        >
+                          <Ionicons name="link" size={24} color="#007bff" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+
+          <Modal
+            isVisible={!!fullScreenMedia}
+            onBackdropPress={() => setFullScreenMedia(null)}
+            onBackButtonPress={() => setFullScreenMedia(null)}
+            style={styles.fullScreenModal}
+          >
+            {fullScreenMedia && (
+              <View style={styles.fullScreenContainer}>
+                <TouchableOpacity style={styles.closeButton} onPress={() => setFullScreenMedia(null)}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.forwardButton1, { top: 16, right: 60 }]} // Di chuyển icon chuyển tiếp sang trái
+                  onPress={() => handleForwardClick(fullScreenMedia)}
+                >
+                  <Ionicons name="share-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.downloadButton, { top: 16, right: 16 }]} // Đặt icon tải xuống bên phải
+                  onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type, fullScreenMedia.name)}
+                >
+                  <Ionicons name="download-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <Swiper
+                  index={currentIndex}
+                  onIndexChanged={handleSwipe}
+                  loop={false}
+                  showsPagination={false}
+                  scrollEnabled={true}
+                >
+                  {filteredData
+                    .filter((item) => item.type !== 'file' && item.type !== 'link')
+                    .map((item) => (
+                      <View key={item.id} style={styles.swiperSlide}>
+                        {item.type === 'image' ? (
                           <Image
                             source={{ uri: item.linkURL }}
-                            style={styles.mediaItem}
-                            onError={(e) => console.error(`Error loading image ${item.id}:`, e)}
-                          />
-                        </TouchableOpacity>
-                      ) : item.linkURL && item.linkURL.startsWith('http') ? (
-                        <TouchableOpacity onPress={() => setFullScreenMedia(item)}>
-                          <Video
-                            ref={(ref) => (gridVideoRefs.current[item.id] = ref)}
-                            source={{ uri: item.linkURL }}
-                            style={styles.mediaItem}
-                            useNativeControls={false}
-                            isMuted={true}
-                            resizeMode="cover"
-                            onError={(e) => {
-                              console.error(`Error loading video ${item.id}:`, e);
-                              setVideoError('Could not load video.');
-                            }}
-                          />
-                          <View style={styles.playIconContainer}>
-                            <Ionicons name="play-circle-outline" size={30} color="#fff" />
-                          </View>
-                        </TouchableOpacity>
-                      ) : (
-                        <Text style={styles.errorText}>Video không hợp lệ</Text>
-                      )}
-                    </>
-                  )}
-                  {activeTab === 'files' && (
-                    <View style={styles.fileItem}>
-                      <Ionicons name="document-outline" size={24} color="#007bff" style={styles.fileIcon} />
-                      <View style={styles.fileInfo}>
-                        <Text style={styles.fileName}>{item.name}</Text>
-                        <Text style={styles.fileMeta}>
-                          {item.sender} • {item.date}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.downloadButton}
-                        onPress={() => downloadMedia(item.linkURL, 'file', item.name)}
-                      >
-                        <Ionicons name="download-outline" size={24} color="#007bff" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  {activeTab === 'links' && (
-                    <View style={styles.linkItem}>
-                      <View style={styles.linkInfo}>
-                        <Text style={styles.linkName}>{item.name}</Text>
-                        <TouchableOpacity onPress={() => handleOpenLink(item.linkURL)}>
-                          <Text style={styles.linkUrl}>{item.linkURL}</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.fileMeta}>
-                          {item.sender} • {item.date}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.linkActionButton}
-                        onPress={() => handleOpenLink(item.linkURL)}
-                      >
-                        <Ionicons name="link" size={24} color="#007bff" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-
-        <Modal
-          isVisible={!!fullScreenMedia}
-          onBackdropPress={() => setFullScreenMedia(null)}
-          onBackButtonPress={() => setFullScreenMedia(null)}
-          style={styles.fullScreenModal}
-        >
-          {fullScreenMedia && (
-            <View style={styles.fullScreenContainer}>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setFullScreenMedia(null)}>
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.downloadButton}
-                onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type, fullScreenMedia.name)}
-              >
-                <Ionicons name="download-outline" size={24} color="#fff" />
-              </TouchableOpacity>
-              <Swiper
-                index={currentIndex}
-                onIndexChanged={handleSwipe}
-                loop={false}
-                showsPagination={false}
-                scrollEnabled={true}
-              >
-                {filteredData
-                  .filter((item) => item.type !== 'file' && item.type !== 'link')
-                  .map((item) => (
-                    <View key={item.id} style={styles.swiperSlide}>
-                      {item.type === 'image' ? (
-                        <Image
-                          source={{ uri: item.linkURL }}
-                          style={styles.fullScreenMedia}
-                          resizeMode="contain"
-                        />
-                      ) : item.linkURL && item.linkURL.startsWith('http') ? (
-                        <View style={styles.fullScreenVideoContainer}>
-                          <Video
-                            ref={item.id === fullScreenMedia.id ? fullScreenVideoRef : null}
-                            source={{ uri: item.linkURL }}
                             style={styles.fullScreenMedia}
-                            useNativeControls
                             resizeMode="contain"
-                            onError={(e) => {
-                              console.error(`Error loading full-screen video ${item.id}:`, e);
-                              setVideoError('Could not load video.');
-                            }}
                           />
-                        </View>
-                      ) : (
-                        <Text style={styles.errorText}>Video không hợp lệ</Text>
-                      )}
-                      <Text style={styles.mediaName}>{item.name}</Text>
-                    </View>
-                  ))}
-              </Swiper>
-            </View>
-          )}
-        </Modal>
-      </View>
-    </Modal>
+                        ) : item.type === 'video' && item.linkURL && item.linkURL.startsWith('http') ? (
+                          <View style={styles.fullScreenVideoContainer}>
+                            <Video
+                              ref={item.id === fullScreenMedia.id ? fullScreenVideoRef : null}
+                              source={{ uri: item.linkURL }}
+                              style={styles.fullScreenMedia}
+                              useNativeControls
+                              resizeMode="contain"
+                              onError={(e) => {
+                                console.error(`Error loading full-screen video ${item.id}:`, e);
+                                setVideoError('Không thể tải video.');
+                              }}
+                            />
+                          </View>
+                        ) : (
+                          <Text style={styles.errorText}>Video không hợp lệ</Text>
+                        )}
+                        <Text style={styles.mediaName}>{item.name}</Text>
+                      </View>
+                    ))}
+                </Swiper>
+              </View>
+            )}
+          </Modal>
+        </View>
+      </Modal>
+
+      {selectedItems.length > 0 && (
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={handleShareModalClose}
+          onShare={handleShare}
+          messageToForward={selectedItems[0]?.linkURL || selectedItems[0]?.name}
+          userId={userId}
+          messageId={selectedItems[0]?.messageId}
+        />
+      )}
+    </>
   );
 };
 
@@ -1015,10 +1096,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
   },
-  dateInputText: {
-    fontSize: 12,
-    color: '#333',
-  },
   clearDateButton: {
     padding: 10,
     backgroundColor: '#f0f0f0',
@@ -1060,6 +1137,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteButtonText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  forwardButton: {
+    padding: 10,
+    backgroundColor: '#28a745',
+    borderRadius: 5,
+    flex: 1,
+    alignItems: 'center',
+  },
+  forwardButtonText: {
     color: '#fff',
     fontSize: 14,
   },
@@ -1109,7 +1197,12 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   downloadButton: {
-    padding: 5,
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 100,
+    borderRadius: 20,
+    padding: 8,
   },
   linkItem: {
     flexDirection: 'row',
@@ -1128,10 +1221,6 @@ const styles = StyleSheet.create({
   linkUrl: {
     fontSize: 12,
     color: '#007bff',
-  },
-  linkMeta: {
-    fontSize: 12,
-    color: '#666',
   },
   linkActionButton: {
     padding: 5,
@@ -1177,15 +1266,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
   },
-  downloadButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 100,
-    // backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
-    padding: 8,
-  },
   swiperSlide: {
     flex: 1,
     justifyContent: 'center',
@@ -1219,6 +1299,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#ff0000',
     textAlign: 'center',
+  },
+  forwardButton1: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    zIndex: 100,
+    borderRadius: 20,
+    padding: 8,
   },
 });
 

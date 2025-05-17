@@ -15,12 +15,13 @@ import Swiper from 'react-native-swiper';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import StoragePage from './StoragePage';
+import ShareModal from './ShareModal';
 
 interface Media {
   id: string;
   messageId: string;
   urlIndex: number;
-  linkastructure: string;
+  linkURL: string;
   name: string;
   type: 'image' | 'video';
   userId: string;
@@ -87,7 +88,7 @@ const GroupMediaGallery: React.FC<Props> = ({
 
     setLoading(true);
     socket.emit('getChatMedia', { conversationId }, (response: any) => {
-      if (response?.success) {
+      if (response?.success && Array.isArray(response.data)) {
         const mediaData = formatData(response.data);
         setMedia(mediaData);
       } else {
@@ -101,31 +102,28 @@ const GroupMediaGallery: React.FC<Props> = ({
   /**
    * Format raw server data into Media objects.
    */
-  const formatData = useCallback(
-    (items: any[]): Media[] => {
-      if (!Array.isArray(items)) return [];
+  const formatData = useCallback((items: any[]): Media[] => {
+    if (!Array.isArray(items)) return [];
 
-      return items
-        .flatMap((item) => {
-          const urls = Array.isArray(item?.linkURL)
-            ? item.linkURL.filter((url: string) => url && typeof url === 'string')
-            : typeof item?.linkURL === 'string'
+    return items
+      .flatMap((item) => {
+        const urls = Array.isArray(item?.linkURL)
+          ? item.linkURL.filter((url: string) => url && typeof url === 'string' && url.startsWith('http'))
+          : typeof item?.linkURL === 'string' && item.linkURL.startsWith('http')
             ? [item.linkURL]
             : [];
-          return urls.map((url: string, urlIndex: number) => ({
-            id: `${item?._id}_${urlIndex}`,
-            messageId: item?._id,
-            urlIndex,
-            linkURL: url,
-            name: item?.content || `Media_${urlIndex + 1}`,
-            type: item?.messageType === 'video' ? 'video' : 'image',
-            userId: item?.userId || 'unknown',
-          }));
-        })
-        .filter((item) => item.linkURL);
-    },
-    []
-  );
+        return urls.map((url: string, urlIndex: number) => ({
+          id: `${item?._id}_${urlIndex}`,
+          messageId: item?._id,
+          urlIndex,
+          linkURL: url,
+          // name: item?.content || `Media_${urlIndex + 1}`,
+          type: item?.messageType === 'video' ? 'video' : 'image',
+          userId: item?.userId || 'unknown',
+        }));
+      })
+      .filter((item) => item.linkURL);
+  }, []);
 
   /**
    * Handle socket events and media updates.
@@ -145,7 +143,10 @@ const GroupMediaGallery: React.FC<Props> = ({
           ? prev.filter((item) => item.messageId !== messageId)
           : prev.filter((item) => !(item.messageId === messageId && item.urlIndex === urlIndex))
       );
-      if (fullScreenMedia?.messageId === messageId && (isMessageDeleted || fullScreenMedia.urlIndex === urlIndex)) {
+      if (
+        fullScreenMedia?.messageId === messageId &&
+        (isMessageDeleted || fullScreenMedia.urlIndex === urlIndex)
+      ) {
         setFullScreenMedia(null);
         setIsPlaying(false);
       }
@@ -178,7 +179,9 @@ const GroupMediaGallery: React.FC<Props> = ({
       if (
         fullScreenMedia &&
         deletedItems.some(
-          (d) => d.messageId === fullScreenMedia.messageId && (d.isMessageDeleted || d.urlIndex === fullScreenMedia.urlIndex)
+          (d) =>
+            d.messageId === fullScreenMedia.messageId &&
+            (d.isMessageDeleted || d.urlIndex === fullScreenMedia.urlIndex)
         )
       ) {
         setFullScreenMedia(null);
@@ -221,7 +224,6 @@ const GroupMediaGallery: React.FC<Props> = ({
             if (onForward) {
               onForward(mediaToForward, targetConversations, shareContent);
             }
-            Alert.alert('Thành công', 'Media đã được chuyển tiếp.');
           } else {
             Alert.alert('Lỗi', `Không thể chuyển tiếp: ${response?.message || 'Lỗi không xác định'}`);
           }
@@ -247,7 +249,7 @@ const GroupMediaGallery: React.FC<Props> = ({
       if (isPlaying) {
         videoRef.current.playAsync().catch(() => Alert.alert('Lỗi', 'Không thể phát video.'));
       } else {
-        videoRef.current.pauseAsync().catch(() => {});
+        videoRef.current.pauseAsync().catch(() => { });
       }
     }
   }, [fullScreenMedia, isPlaying]);
@@ -261,18 +263,21 @@ const GroupMediaGallery: React.FC<Props> = ({
       if (index !== -1) setCurrentIndex(index);
     } else {
       setIsPlaying(false);
-      Object.values(gridVideoRefs.current).forEach((ref) => ref?.pauseAsync().catch(() => {}));
+      Object.values(gridVideoRefs.current).forEach((ref) => ref?.pauseAsync().catch(() => { }));
     }
   }, [fullScreenMedia, media]);
 
   /**
    * Handle swiper index change.
    */
-  const handleSwipe = useCallback((index: number) => {
-    setCurrentIndex(index);
-    setFullScreenMedia(media[index]);
-    setIsPlaying(false);
-  }, [media]);
+  const handleSwipe = useCallback(
+    (index: number) => {
+      setCurrentIndex(index);
+      setFullScreenMedia(media[index]);
+      setIsPlaying(false);
+    },
+    [media]
+  );
 
   /**
    * Handle media loading states.
@@ -335,7 +340,9 @@ const GroupMediaGallery: React.FC<Props> = ({
                 ) : (
                   <>
                     <Video
-                      ref={(ref) => (gridVideoRefs.current[item.id] = ref)}
+                      ref={(ref) => {
+                        if (ref) gridVideoRefs.current[item.id] = ref;
+                      }}
                       source={{ uri: item.linkURL }}
                       style={styles.mediaItem}
                       isMuted={true}
@@ -471,16 +478,14 @@ const GroupMediaGallery: React.FC<Props> = ({
         )}
       </Modal>
 
-      {isShareModalOpen && (
-        <StoragePage
-          conversationId={conversationId}
-          userId={userId}
-          otherUser={otherUser}
-          socket={socket}
-          isVisible={isShareModalOpen}
+      {isShareModalOpen && mediaToForward && (
+        <ShareModal
+          isOpen={isShareModalOpen}
           onClose={handleShareModalClose}
           onShare={handleMediaShared}
-          isShareMode={true}
+          messageToForward={mediaToForward.linkURL || mediaToForward.name}
+          userId={userId}
+          messageId={mediaToForward.messageId}
         />
       )}
     </View>
@@ -497,23 +502,85 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', justifyContent: 'flex-start', gap: 5, padding: 5, paddingLeft: 15 },
   mediaItemContainer: { position: 'relative' },
   mediaItem: { width: 60, height: 60, borderRadius: 5 },
-  arrowButton: { width: 60, height: 60, borderRadius: 5, backgroundColor: '#e0f0ff', justifyContent: 'center', alignItems: 'center' },
+  arrowButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 5,
+    backgroundColor: '#e0f0ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modal: { margin: 0 },
   fullScreenContainer: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
   fullScreenMedia: { width: '100%', height: '90%' },
   fullScreenVideoContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%', height: '90%' },
   fullScreenVideo: { width: '100%', height: '100%' },
-  closeButton: { position: 'absolute', top: 16, left: 16, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
-  downloadButton: { position: 'absolute', top: 16, right: 16, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
-  forwardButton: { position: 'absolute', top: 60, right: 16, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  downloadButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  forwardButton: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
   swiperSlide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  mediaName: { color: '#fff', fontSize: 16, marginTop: 10, textAlign: 'center', position: 'absolute', bottom: 20, left: 0, right: 0 },
+  mediaName: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 10,
+    textAlign: 'center',
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+  },
   noDataText: { fontSize: 14, color: '#666', textAlign: 'center' },
-  videoContainer: { position: 'relative' },
-  playIconContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
-  loadingIndicator: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+  playIconContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
   errorText: { color: 'red', fontSize: 14, textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 5 },
-  playPauseButton: { position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -30 }, { translateY: -30 }], zIndex: 10 },
+  playPauseButton: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -30 }, { translateY: -30 }],
+    zIndex: 10,
+  },
 });
 
 export default GroupMediaGallery;
