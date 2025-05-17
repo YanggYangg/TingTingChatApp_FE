@@ -427,7 +427,7 @@ const ChatScreen = ({ navigation }) => {
     };
 
     const handleChatInfoUpdated = (updatedInfo) => {
-      console.log("ChatScreen received chatInfoUpdated:", updatedInfo);
+      // console.log("ChatScreen received chatInfoUpdated:", updatedInfo);
       const participant = updatedInfo.participants?.find((p) => p.userId === currentUserId);
       if (!participant || participant.isHidden) {
         setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== updatedInfo._id));
@@ -490,7 +490,7 @@ const ChatScreen = ({ navigation }) => {
   useEffect(() => {
     if (!chatInfoUpdate) return;
 
-    console.log("ChatScreen chatInfoUpdate from Redux:", chatInfoUpdate);
+    // console.log("ChatScreen chatInfoUpdate from Redux:", chatInfoUpdate);
     const participant = chatInfoUpdate.participants?.find((p) => p.userId === currentUserId);
     if (!participant || participant.isHidden) {
       setMessages((prevMessages) => prevMessages.filter((msg) => msg.id !== chatInfoUpdate._id));

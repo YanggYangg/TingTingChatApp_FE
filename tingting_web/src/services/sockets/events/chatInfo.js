@@ -15,7 +15,7 @@ export const offChatInfo = (socket) => {
 
 // Lắng nghe cập nhật thông tin chat
 export const onChatInfoUpdated = (socket, callback) => {
-  console.log("Registering chatInfoUpdated event");
+  // console.log("Registering chatInfoUpdated event");
   socket.on("chatInfoUpdated", callback);
 };
 

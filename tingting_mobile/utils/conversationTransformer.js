@@ -3,8 +3,8 @@ export const transformConversationsToMessages = (
   currentUserId,
   profiles
 ) => {
-  console.log("Transforming conversations:", conversations);
-  console.log("profiles", profiles);
+  // console.log("Transforming conversations:", conversations);
+  // console.log("profiles", profiles);
 
   return conversations.map((conversation) => {
     // Tìm ID người còn lại (nếu không phải group)
