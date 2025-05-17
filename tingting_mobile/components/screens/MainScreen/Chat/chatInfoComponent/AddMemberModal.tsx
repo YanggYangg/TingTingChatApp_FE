@@ -12,7 +12,13 @@ import {
 import Modal from 'react-native-modal';
 import NetInfo from '@react-native-community/netinfo';
 import { Api_FriendRequest } from '../../../../../apis/api_friendRequest';
-import { Api_chatInfo } from '../../../../../apis/Api_chatInfo';
+import {
+  addParticipant,
+  onError,
+  offError,
+  onAddParticipantResponse,
+  offAddParticipantResponse,
+} from '../../../../../services/sockets/events/chatInfo';
 
 interface Member {
   _id: string;
@@ -28,6 +34,7 @@ interface Props {
   userId?: string;
   currentMembers?: string[];
   onMemberAdded: () => void;
+  socket: any; // Socket.IO client instance
 }
 
 const AddMemberModal: React.FC<Props> = ({
@@ -37,6 +44,7 @@ const AddMemberModal: React.FC<Props> = ({
   userId,
   currentMembers = [],
   onMemberAdded,
+  socket,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [friendsList, setFriendsList] = useState<Member[]>([]);
@@ -45,8 +53,6 @@ const AddMemberModal: React.FC<Props> = ({
   const [successMessage, setSuccessMessage] = useState('');
   const [errorFriends, setErrorFriends] = useState('');
   const [addingMember, setAddingMember] = useState(false);
-
-  console.log('AddMemberModal Props:', { isOpen, conversationId, userId, currentMembers });
 
   useEffect(() => {
     const fetchFriends = async () => {
@@ -66,8 +72,6 @@ const AddMemberModal: React.FC<Props> = ({
       setErrorFriends('');
       try {
         const response = await Api_FriendRequest.getFriendsList(userId);
-        console.log('Raw friends list response:', response);
-
         let friends: Member[] = [];
         if (Array.isArray(response.data)) {
           friends = response.data;
@@ -76,20 +80,16 @@ const AddMemberModal: React.FC<Props> = ({
         } else if (response.data?.data && Array.isArray(response.data.data)) {
           friends = response.data.data;
         } else {
-          console.warn('Unexpected response structure:', response);
           setErrorFriends('Dữ liệu bạn bè không đúng định dạng. Vui lòng thử lại.');
           return;
         }
 
-        console.log('currentMembers:', currentMembers);
         const filteredFriends = friends.filter(
           (friend: Member) =>
             !currentMembers.includes(friend._id || friend.id || friend.userID)
         );
-        console.log('Filtered friends:', filteredFriends);
         setFriendsList(filteredFriends);
       } catch (error) {
-        console.error('Lỗi khi lấy danh sách bạn bè:', error);
         setErrorFriends(
           error.message.includes('timeout')
             ? 'Yêu cầu hết thời gian. Máy chủ mất quá nhiều thời gian để phản hồi.'
@@ -103,6 +103,32 @@ const AddMemberModal: React.FC<Props> = ({
     fetchFriends();
   }, [isOpen, userId, conversationId, currentMembers]);
 
+  useEffect(() => {
+    if (!socket || !isOpen) return;
+
+    const handleError = (error: { message?: string }) => {
+      setError(error.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+    };
+
+    const handleAddParticipantResponse = (response: { success: boolean; message?: string }) => {
+      if (response.success) {
+        setSuccessMessage('Thêm thành viên thành công!');
+        onMemberAdded();
+        onClose();
+      } else {
+        setError(response.message || 'Không thể thêm thành viên.');
+      }
+    };
+
+    onError(socket, handleError);
+    onAddParticipantResponse(socket, handleAddParticipantResponse);
+
+    return () => {
+      offError(socket);
+      offAddParticipantResponse(socket);
+    };
+  }, [socket, isOpen, onMemberAdded, onClose]);
+
   const retryFetchFriends = () => {
     setErrorFriends('');
     setLoadingFriends(true);
@@ -114,8 +140,6 @@ const AddMemberModal: React.FC<Props> = ({
           return;
         }
         const response = await Api_FriendRequest.getFriendsList(userId!);
-        console.log('Retry raw friends list response:', response);
-
         let friends: Member[] = [];
         if (Array.isArray(response.data)) {
           friends = response.data;
@@ -124,20 +148,16 @@ const AddMemberModal: React.FC<Props> = ({
         } else if (response.data?.data && Array.isArray(response.data.data)) {
           friends = response.data.data;
         } else {
-          console.warn('Unexpected response structure:', response);
           setErrorFriends('Dữ liệu bạn bè không đúng định dạng. Vui lòng thử lại.');
           return;
         }
 
-        console.log('currentMembers:', currentMembers);
         const filteredFriends = friends.filter(
           (friend: Member) =>
             !currentMembers.includes(friend._id || friend.id || friend.userID)
         );
-        console.log('Filtered friends:', filteredFriends);
         setFriendsList(filteredFriends);
       } catch (error) {
-        console.error('Lỗi khi thử lại lấy danh sách bạn bè:', error);
         setErrorFriends(
           error.message.includes('timeout')
             ? 'Yêu cầu hết thời gian. Máy chủ mất quá nhiều thời gian để phản hồi.'
@@ -150,50 +170,26 @@ const AddMemberModal: React.FC<Props> = ({
     fetchFriends();
   };
 
-  console.log('searchTerm:', searchTerm);
   const filteredFriends = friendsList
     .filter((friend) => friend.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name));
-  console.log('Final filteredFriends for FlatList:', filteredFriends);
 
   const addMember = async (memberId: string) => {
-    if (!conversationId || !memberId) {
-      setError('Thiếu thông tin để thêm thành viên.');
+    if (!conversationId || !memberId || !socket) {
+      setError('Thiếu thông tin để thêm thành viên hoặc không có kết nối Socket.IO.');
+      return;
+    }
+    if (!socket.connected) {
+      setError('Socket chưa kết nối. Vui lòng thử lại.');
       return;
     }
 
     setAddingMember(true);
     setError('');
-    setSuccessMessage(''); // Reset thông báo trước khi gọi API
-    try {
-      const participantData = { userId: memberId, role: 'member' };
-      const response = await Api_chatInfo.addParticipant(conversationId, participantData);
-      console.log('Response from addParticipant:', response);
-
-      // Kiểm tra phản hồi API kỹ lưỡng
-      if (
-        response &&
-        response._id === conversationId &&
-        Array.isArray(response.participants) &&
-        response.participants.some(p => p.userId === memberId)
-      ) {
-        setFriendsList((prev) => prev.filter((friend) => friend._id !== memberId));
-        setSuccessMessage('Thêm thành viên thành công!');
-        onMemberAdded();
-      } else {
-        console.warn('Phản hồi API không hợp lệ:', response);
-        setError('Không thể thêm thành viên. Phản hồi từ server không hợp lệ.');
-      }
-    } catch (error) {
-      console.error('Lỗi khi thêm thành viên:', error);
-      setError(
-        error.message.includes('timeout')
-          ? 'Yêu cầu hết thời gian. Vui lòng thử lại.'
-          : error.message || 'Không thể thêm thành viên. Vui lòng thử lại!'
-      );
-    } finally {
-      setAddingMember(false);
-    }
+    setSuccessMessage('');
+    const participantData = { conversationId, userId: memberId, role: 'member', performerId: userId };
+    addParticipant(socket, participantData);
+    setAddingMember(false);
   };
 
   const renderFriend = ({ item }: { item: Member }) => (
