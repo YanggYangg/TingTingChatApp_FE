@@ -7,7 +7,7 @@ import {
 import { AiFillFileText } from "react-icons/ai";
 import { HiDownload } from "react-icons/hi";
 import { MdCall, MdVideocam } from "react-icons/md";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const MessageItem = ({
   msg,
@@ -17,12 +17,16 @@ const MessageItem = ({
   onDelete,
   onRevoke,
   messages,
+  isLastMessage,
+  participants,
+  userCache,
+  markMessageAsRead,
 }) => {
   // Nhi thêm: Kiểm tra nếu tin nhắn đã bị xóa bởi người dùng hiện tại
   if (msg.deletedBy?.includes(currentUserId)) {
     return null;
   }
-
+  console.log("userCache", userCache)
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
 
@@ -89,9 +93,109 @@ const MessageItem = ({
     });
   };
 
+  // Function to get message status text
+  const getMessageStatus = () => {
+    if (!isCurrentUser || !isLastMessage) return null;
+
+    console.log("Message status check:", {
+      messageId: msg._id,
+      participants,
+      currentUserId,
+      userCache
+    });
+
+    // If no read status or empty readBy array
+    if (!msg.status?.readBy || msg.status.readBy.length === 0) {
+      return "Đã gửi";
+    }
+
+    // For group chat (more than 2 participants)
+    if (participants && participants.length > 2) {
+      console.log("Group chat read check:", {
+        readBy: msg.status.readBy,
+        participants,
+        currentUserId,
+        userCache
+      });
+
+      // Get all other members (excluding current user)
+      const otherMembers = participants.filter(p => p.userId !== currentUserId);
+      const totalOtherMembers = otherMembers.length;
+
+      // Check both object format (_id) and direct ID format
+      const readMembers = msg.status.readBy.filter(user => {
+        const userId = typeof user === 'object' ? user._id : user;
+        return userId !== currentUserId;
+      });
+
+      console.log("Group read status:", {
+        readMembers,
+        totalOtherMembers,
+        otherMembers,
+        userCache
+      });
+
+      if (readMembers.length === totalOtherMembers) {
+        return "Tất cả đã xem";
+      }
+
+      // Get names of users who have read from userCache
+      const readNames = readMembers.map(userId => {
+        const cachedUser = userCache[userId];
+        return cachedUser?.name || "Unknown";
+      }).join(", ");
+
+      return readNames ? `Đã xem: ${readNames}` : "Đã gửi";
+    }
+
+    // For personal chat (2 participants)
+    const receiverId = participants?.find(p => p.userId !== currentUserId)?.userId;
+    console.log("Personal chat read check:", {
+      receiverId,
+      readBy: msg.status.readBy,
+      isRead: msg.status.readBy.some(user => user._id === receiverId || user === receiverId)
+    });
+
+    // Check both object format (_id) and direct ID format
+    const isRead = msg.status.readBy.some(user => 
+      (typeof user === 'object' && user._id === receiverId) || 
+      (typeof user === 'string' && user === receiverId)
+    );
+
+    return isRead ? "Đã xem" : "Đã gửi";
+  };
+
+  // Add useEffect to mark message as read when it becomes visible
+  useEffect(() => {
+    if (msg && !isCurrentUser && markMessageAsRead) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting && (!msg.status?.readBy || !msg.status.readBy.includes(currentUserId))) {
+              markMessageAsRead(msg._id);
+            }
+          });
+        },
+        { threshold: 0.5 }
+      );
+
+      const messageElement = document.getElementById(`message-${msg._id}`);
+      if (messageElement) {
+        observer.observe(messageElement);
+      }
+
+      return () => {
+        if (messageElement) {
+          observer.unobserve(messageElement);
+        }
+      };
+    }
+  }, [msg, isCurrentUser, currentUserId, markMessageAsRead]);
+
   return (
     <>
       <div
+        id={`message-${msg._id}`}
         className={`flex ${
           isCurrentUser ? "justify-end" : "justify-start"
         } mb-4 relative`}
@@ -211,8 +315,27 @@ const MessageItem = ({
             </>
           )}
 
-          {/* Thời gian */}
+          {/* Message time */}
           <p className="text-xs text-gray-500 text-right mt-1">{msg.time}</p>
+
+          {/* Message status - only show for last message of current user */}
+          {isCurrentUser && isLastMessage && (
+            <div className="absolute -bottom-5 right-2">
+              {participants && participants.length > 2 && msg.status?.readBy?.length > 0 ? (
+                <span className="text-xs text-gray-500 whitespace-nowrap">
+                  {msg.status.readBy
+                    .filter(user => {
+                      const userId = typeof user === 'object' ? user._id : user;
+                      return userId !== currentUserId;
+                    })
+                    .map(userId => userCache[userId]?.name || "Unknown")
+                    .join(", ")} đã xem
+                </span>
+              ) : (
+                <span className="text-xs text-gray-500">{getMessageStatus()}</span>
+              )}
+            </div>
+          )}
 
           {/* Nút hành động khi hover */}
           {!msg.isRevoked && (
