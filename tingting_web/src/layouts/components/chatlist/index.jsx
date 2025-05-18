@@ -4,6 +4,7 @@ import styles from "./chatlist.module.scss";
 import MessageList from "../../../components/MessageList";
 import SearchCompo from "../../../components/searchComponent/SearchCompo";
 import PinVerificationModal from "../../../components/PinVerificationModal";
+import PinLimitModal from "../../../components/chatInforComponent/PinLimitModal";
 import { useDispatch, useSelector } from "react-redux";
 import {
   setSelectedMessage,
@@ -30,27 +31,24 @@ import { Api_Profile } from "../../../../apis/api_profile";
 import SibarContact from "../contact-form/SideBarContact/SideBarContact";
 import { toast } from "react-toastify";
 
-// Khởi tạo classNames để sử dụng CSS modules
 const cx = classNames.bind(styles);
 
 function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
-  // Khởi tạo các state
-  const [messages, setMessages] = useState([]); // Danh sách các hội thoại
-  const [selectedTab, setSelectedTab] = useState("priority"); // Tab hiện tại (ưu tiên hoặc khác)
-  const [userCache, setUserCache] = useState({}); // Cache thông tin người dùng
-  const [isSocketConnected, setIsSocketConnected] = useState(false); // Trạng thái kết nối socket
-  const [searchResults, setSearchResults] = useState([]); // Kết quả tìm kiếm
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false); // Trạng thái modal xác thực PIN
-  const [selectedConversation, setSelectedConversation] = useState(null); // Hội thoại đang được chọn để xác thực PIN
+  const [messages, setMessages] = useState([]);
+  const [selectedTab, setSelectedTab] = useState("priority");
+  const [userCache, setUserCache] = useState({});
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isPinLimitModalOpen, setIsPinLimitModalOpen] = useState(false); // State cho modal giới hạn ghim
+  const [selectedConversation, setSelectedConversation] = useState(null);
 
-  // Redux hooks
   const dispatch = useDispatch();
-  const { socket, userId: currentUserId } = useSocket(); // Lấy socket và userId từ context
-  const joinedRoomsRef = useRef(new Set()); // Lưu danh sách các phòng đã tham gia
-  const chatInfoUpdate = useSelector((state) => state.chat.chatInfoUpdate); // Cập nhật thông tin hội thoại từ Redux
-  const lastMessageUpdate = useSelector((state) => state.chat.lastMessageUpdate); // Cập nhật tin nhắn cuối từ Redux
+  const { socket, userId: currentUserId } = useSocket();
+  const joinedRoomsRef = useRef(new Set());
+  const chatInfoUpdate = useSelector((state) => state.chat.chatInfoUpdate);
+  const lastMessageUpdate = useSelector((state) => state.chat.lastMessageUpdate);
 
-  // Định nghĩa mục "Cloud của tôi" cho danh sách hội thoại
   const myCloudItem = {
     id: "my-cloud",
     name: "Cloud của tôi",
@@ -63,7 +61,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     isPinned: false,
   };
 
-  // Xử lý kết nối socket
   useEffect(() => {
     if (!socket) {
       setIsSocketConnected(false);
@@ -98,7 +95,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     };
   }, [socket, currentUserId]);
 
-  // Xử lý sự kiện click vào một hội thoại
   const handleMessageClick = (message) => {
     if (!isSocketConnected) {
       console.warn("ChatList: Socket chưa kết nối, không thể chọn hội thoại");
@@ -113,7 +109,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
       return;
     }
 
-    // Xóa isNew khi người dùng chọn hội thoại
     if (message.isNew) {
       setMessages((prevMessages) =>
         prevMessages.map((msg) =>
@@ -125,7 +120,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     proceedWithMessageSelection(message);
   };
 
-  // Hàm chọn hội thoại
   const proceedWithMessageSelection = (message) => {
     console.log(`ChatList: Chọn cuộc hội thoại: ${message.id}`);
     if (message.id !== "my-cloud" && !joinedRoomsRef.current.has(message.id)) {
@@ -139,7 +133,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     }
   };
 
-  // Xử lý khi xác thực PIN thành công
   const handlePinVerified = () => {
     if (selectedConversation) {
       console.log(`ChatList: Xác thực PIN thành công, chọn hội thoại: ${selectedConversation.id}`);
@@ -155,20 +148,17 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     setSelectedConversation(null);
   };
 
-  // Đóng modal xác thực PIN
   const handleClosePinModal = () => {
     console.log("ChatList: Đóng modal nhập PIN");
     setIsPinModalOpen(false);
     setSelectedConversation(null);
   };
 
-  // Kiểm tra giới hạn số lượng hội thoại được ghim
   const checkPinnedLimit = () => {
     const pinnedCount = messages.filter((msg) => msg.isPinned && !msg.isCloud).length;
     return pinnedCount >= 5;
   };
 
-  // Xử lý ghim hoặc bỏ ghim hội thoại
   const handlePinConversation = (conversationId, isPinned) => {
     if (!isSocketConnected) {
       console.warn("ChatList: Socket chưa kết nối, không thể ghim/bỏ ghim");
@@ -177,7 +167,7 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     }
 
     if (!isPinned && checkPinnedLimit()) {
-      toast.error("Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!");
+      setIsPinLimitModalOpen(true); // Hiển thị modal khi vượt quá giới hạn
       return;
     }
 
@@ -195,7 +185,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     }
   };
 
-  // Sắp xếp danh sách hội thoại
   const sortMessages = (messages) => {
     const filteredMessages = messages.filter((msg) => {
       if (msg.isCloud) return true;
@@ -216,7 +205,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     });
   };
 
-  // Thêm nhóm mới vào danh sách hội thoại
   const addNewGroup = async (newConversation) => {
     console.log("ChatList: Thêm nhóm mới:", newConversation);
     if (messages.some((msg) => msg.id === newConversation._id)) {
@@ -293,7 +281,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     setSearchResults(results);
   };
 
-  // Load và lắng nghe các hội thoại
   useEffect(() => {
     if (!socket || !currentUserId) {
       console.warn("ChatList: Thiếu socket hoặc userId", { socket, currentUserId });
@@ -479,7 +466,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     };
   }, [socket, currentUserId, dispatch]);
 
-  // Xử lý cập nhật thông tin nhóm từ Redux
   useEffect(() => {
     if (chatInfoUpdate) {
       console.log("ChatList: Nhận chatInfoUpdate từ Redux:", chatInfoUpdate);
@@ -514,7 +500,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     }
   }, [chatInfoUpdate, currentUserId, dispatch, socket]);
 
-  // Xử lý cập nhật tin nhắn cuối từ Redux
   useEffect(() => {
     if (lastMessageUpdate) {
       console.log("ChatList: Nhận lastMessageUpdate từ Redux:", lastMessageUpdate);
@@ -597,6 +582,10 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
         userId={currentUserId}
         socket={socket}
         onVerified={handlePinVerified}
+      />
+      <PinLimitModal
+        isOpen={isPinLimitModalOpen}
+        onClose={() => setIsPinLimitModalOpen(false)}
       />
     </div>
   );

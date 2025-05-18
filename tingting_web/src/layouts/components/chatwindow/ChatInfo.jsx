@@ -13,6 +13,7 @@ import MuteNotificationModal from "../../../components/chatInforComponent/MuteNo
 import AddMemberModal from "../../../components/chatInforComponent/AddMemberModal";
 import EditNameModal from "../../../components/chatInforComponent/EditNameModal";
 import CreateGroupModal from "../../../components/chatInforComponent/CreateGroupModal";
+import PinLimitModal from "../../../components/chatInforComponent/PinLimitModal";
 import {
   getChatInfo, onChatInfo, offChatInfo, onChatInfoUpdated, offChatInfoUpdated,
   updateChatName, pinChat, updateNotification, onError, offError,
@@ -35,7 +36,9 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [muteValue, setMuteValue] = useState(null);
   const [isPinned, setIsPinned] = useState(false);
+  const [isPinLimitModalOpen, setIsPinLimitModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
@@ -54,7 +57,8 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       isGroup: true,
       imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
       isPinned: false,
-      mute: false,
+      mute: null,
+      updatedAt: group.updatedAt || new Date().toISOString(),
     };
     joinConversation(socket, formattedMessage.id);
     dispatch(setSelectedMessage(formattedMessage));
@@ -67,6 +71,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       return;
     }
 
+    joinConversation(socket, conversationId);
     getChatInfo(socket, { conversationId });
 
     const handleUpdateChatInfo = ({ conversationId: updatedId, messageType }) => {
@@ -86,6 +91,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
       setChatInfo(newChatInfo);
       setIsMuted(!!participant?.mute);
+      setMuteValue(participant?.mute || null);
       setIsPinned(!!participant?.isPinned);
       setUserRoleInGroup(participant?.role || null);
 
@@ -108,22 +114,27 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     const handleOnChatInfoUpdated = (updatedInfo) => {
       if (updatedInfo._id !== conversationId) return;
       const participant = updatedInfo.participants?.find((p) => p.userId === userId);
-      if (participant?.isHidden) {
+      if (!participant || participant.isHidden) {
         toast.error("Hội thoại này đang ẩn. Vui lòng xác thực lại.");
         dispatch(setSelectedMessage(null));
+        socket.emit("leaveConversation", { conversationId });
         return;
       }
 
       setChatInfo((prev) => ({ ...prev, ...updatedInfo }));
       setIsMuted(!!participant?.mute);
+      setMuteValue(participant?.mute || null);
       setIsPinned(!!participant?.isPinned);
       setUserRoleInGroup(participant?.role || null);
       dispatch(setChatInfoUpdate(updatedInfo));
     };
 
     const handleError = (error) => {
-      toast.error("Đã xảy ra lỗi: " + (error.message || "Không thể cập nhật thông tin."));
-      setLoading(false);
+      if (error.message === "Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!") {
+        setIsPinLimitModalOpen(true);
+      } else {
+        toast.error("Đã xảy ra lỗi: " + (error.message || "Không thể cập nhật thông tin."));
+      }
     };
 
     socket.on("updateChatInfo", handleUpdateChatInfo);
@@ -204,33 +215,52 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   // Toggle mute notification status
   const handleMuteNotification = () => {
     if (isMuted) {
-      updateNotification(socket, { conversationId, mute: null });
-      setIsMuted(false);
+      updateNotification(socket, { conversationId, mute: null }, (response) => {
+        if (!response.success) {
+          toast.error(response.message || "Không thể bật thông báo!");
+        } else {
+          setIsMuted(false);
+          setMuteValue(null);
+        }
+      });
     } else {
       setIsMuteModalOpen(true);
     }
   };
 
   // Handle successful mute action
-  const handleMuteSuccess = (muted) => {
-    setIsMuted(muted);
+  const handleMuteSuccess = (mute) => {
+    setIsMuted(!!mute);
+    setMuteValue(mute);
+    setIsMuteModalOpen(false);
   };
 
   // Toggle pin chat status
   const handlePinChat = () => {
-    if (!chatInfo) return;
+    if (!chatInfo || !socket) return toast.error("Không thể ghim hội thoại!");
     const newIsPinned = !isPinned;
-    pinChat(socket, { conversationId, isPinned: newIsPinned });
+    setIsPinned(newIsPinned); // Optimistic update
+    pinChat(socket, { conversationId, isPinned: newIsPinned }, (response) => {
+      if (!response.success) {
+        setIsPinned(!newIsPinned); // Revert on failure
+        if (response.message === "Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!") {
+          setIsPinLimitModalOpen(true);
+        } else {
+          toast.error(response.message || "Không thể ghim/bỏ ghim hội thoại!");
+        }
+      } else {
+        dispatch(
+          setChatInfoUpdate({
+            ...chatInfo,
+            participants: chatInfo.participants.map((p) =>
+              p.userId === userId ? { ...p, isPinned: newIsPinned } : p
+            ),
+            updatedAt: new Date().toISOString(),
+          })
+        );
+      }
+    });
     joinConversation(socket, conversationId);
-    setIsPinned(newIsPinned);
-    dispatch(
-      setChatInfoUpdate({
-        ...chatInfo,
-        participants: chatInfo.participants.map((p) =>
-          p.userId === userId ? { ...p, isPinned: newIsPinned } : p
-        ),
-      })
-    );
   };
 
   // Copy group link to clipboard
@@ -277,16 +307,14 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     if (!chatInfo || !newName.trim()) return;
     const originalName = chatInfo.name;
     setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
-    updateChatName(socket, { conversationId, name: newName.trim() });
-    dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: newName.trim() }));
-
-    const handleUpdateError = (error) => {
-      toast.error("Không thể cập nhật tên nhóm: " + (error.message || "Lỗi server."));
-      setChatInfo((prev) => ({ ...prev, name: originalName }));
-      dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: originalName }));
-    };
-    socket.once("error", handleUpdateError);
-    setTimeout(() => socket.off("error", handleUpdateError), 5000);
+    updateChatName(socket, { conversationId, name: newName.trim() }, (response) => {
+      if (!response.success) {
+        toast.error(response.message || "Không thể cập nhật tên nhóm!");
+        setChatInfo((prev) => ({ ...prev, name: originalName }));
+        dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: originalName }));
+      }
+    });
+    dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: newName.trim(), updatedAt: new Date().toISOString() }));
     handleCloseEditNameModal();
   };
 
@@ -355,7 +383,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         {chatInfo?.linkGroup && (
           <div className="flex items-center justify-between mt-2 p-2 bg-white rounded-md shadow-sm">
             <p className="text-sm font-semibold">Link tham gia nhóm</p>
-            <a href={chatInfo.linkGroup} className="text-blue-500 text-sm">
+            <a href={chatInfo.linkGroup} className="text-blue-500 text-sm truncate">
               {chatInfo.linkGroup}
             </a>
             <button
@@ -411,6 +439,10 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         onGroupCreated={handleCreateGroupSuccess}
         currentConversationParticipants={chatInfo?.participants?.map((p) => p.userId) || []}
         socket={socket}
+      />
+      <PinLimitModal
+        isOpen={isPinLimitModalOpen}
+        onClose={() => setIsPinLimitModalOpen(false)}
       />
     </div>
   );
