@@ -16,8 +16,8 @@ import GroupsScreen from "@/components/screens/MainScreen/Contact/GroupsScreen";
 import OAScreen from "@/components/screens/MainScreen/Contact/OAScreen";
 import PersonalInfoScreen from "@/components/screens/MainScreen/Profile/PersonalInfoScreen";
 import EditPersonalInfoScreen from "@/components/screens/MainScreen/Profile/EditPersonalInfoScreen";
-import { View, Text, Image, StyleSheet, Platform } from "react-native";
-import React, { useEffect, useState } from "react";
+import { View, Text, Image, StyleSheet, Platform, Alert } from "react-native";
+
 import { NavigationContainer } from "@react-navigation/native";
 // Auth Screens
 import Login from "../../components/screens/AuthScreen/Login";
@@ -39,6 +39,14 @@ import VerificationCodeRegister from "@/components/screens/AuthScreen/Verificati
 import { CloudSocketProvider } from "../../context/CloudSocketContext";
 
 import ChatInfo from "@/components/screens/MainScreen/Chat/ChatInfo";
+
+import React,  { useEffect, useState } from "react";
+//Notification
+import Toast from 'react-native-toast-message';
+import { io } from "socket.io-client";
+import { useNavigationState } from "@react-navigation/native";
+
+
 
 type RootStackParamList = {
   Main: undefined;
@@ -234,6 +242,54 @@ export default function App() {
   //   fetchUserProfile();
   // }, []);
 
+  //const navState = useNavigationState((state) => state);
+  //const currentRoute = navState.routes[navState.index]?.name;
+  useEffect(() => {
+  const setupSocket = async () => {
+    const userId = await AsyncStorage.getItem("userId");
+    if (!userId) return;
+
+    const socket = io("http://192.168.1.8:5000", {
+      query: { userId },
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      console.log("Socket connected");
+    });
+
+    socket.on("new_notification", (data) => {
+      console.log("📥 New Notification Received:", data);
+
+      if (data.typeNotice === "new_message") {
+        Toast.show({
+          type: "info",
+          text1: "Tin nhắn mới",
+          text2: data.content,
+          visibilityTime: 3000,
+          position: "top",
+        });
+      }
+
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Socket disconnected");
+    });
+  };
+
+  setupSocket();
+}, []);
+
+useEffect(() => {
+  Toast.show({
+    type: "success",
+    text1: "Chạy thử toast",
+    text2: "Nó hoạt động rồi nè!",
+    visibilityTime: 1000,
+  });
+}, []);
+
   return (
     <Provider store={store}>
       <SocketProvider>
@@ -307,9 +363,12 @@ export default function App() {
               options={{ headerShown: false }}
             />
           </Stack.Navigator>
+          <Toast />
+
         </CloudSocketProvider>
       </SocketProvider>
     </Provider>
+    
   );
 }
 

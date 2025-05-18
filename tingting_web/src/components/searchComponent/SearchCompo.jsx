@@ -1,147 +1,312 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FaSearch, FaUserFriends, FaUsers, FaCamera } from "react-icons/fa";
 import { Api_Profile } from "../../../apis/api_profile";
 import { Api_FriendRequest } from "../../../apis/api_friendRequest";
+import { Api_Conversation } from "../../../apis/Api_Conversation";
 import CreateGroup from "./CreateGroup";
-import PinVerificationModal from "../PinVerificationModal";
-import { useSocket } from "../../contexts/SocketContext";
-import { loadAndListenConversations } from "../../services/sockets/events/conversation";
+import { useSocket } from "../../contexts/SocketContext"; // Import socket from context or wherever it's defined
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { setSelectedMessage } from "../../redux/slices/chatSlice";
+//socket
+import socket1 from "../../utils/socket";
 
-function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
+function Search({ onGroupCreated }) {
   const [isModalFriendsOpen, setIsModalFriendsOpen] = useState(false);
   const [isModalCreateGroupOpen, setIsModalCreateGroupOpen] = useState(false);
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [phone, setPhone] = useState("");
   const [searchValue, setSearchValue] = useState("");
   const [allUsers, setAllUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [filteredResults, setFilteredResults] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [friendRequests, setFriendRequests] = useState({});
+  const [targetUserId, setTargetUserId] = useState("id_user_being_viewed");
+  //const [friendStatus, setFriendStatus] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [conversations, setConversations] = useState([]);
-  const [userCache, setUserCache] = useState({});
+  const [friendStatus, setFriendStatus] = useState("not_friends");
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+
+  //Input ngoai cung
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
   const inputRef = useRef(null);
+  const modalRef = useRef(null);
+  
 
-  const { socket } = useSocket();
-  const userId = localStorage.getItem("userId");
+  // Xử lý click bên ngoài modal
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        inputRef.current &&
+        !inputRef.current.contains(event.target) &&
+        modalRef.current &&
+        !modalRef.current.contains(event.target)
+      ) {
+        setShowSearchModal(false);
+      }
+    };
 
-  // Toggle modal tìm kiếm bạn bè
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // const handleTopSearch = () => {
+  //   const keyword = phone.trim().toLowerCase();
+  //   if (!keyword) {
+  //     setSearchResults([]);
+  //     setShowSearchModal(true); // nếu rỗng thì hiện modal
+  //     return;
+  //   }
+
+  //   // Lọc theo tên từ `allUsers` chẳng hạn
+  //   const filtered = allUsers.filter((user) =>
+  //     `${user.firstname} ${user.surname}`.toLowerCase().includes(keyword)
+  //   );
+  //   setSearchResults(filtered);
+  //   setShowSearchModal(filtered.length === 0);
+  // };
+
+
+  const handleTopSearch = async () => {
+  const keyword = phone.trim();
+  const userId = localStorage.getItem("userId"); // Lấy từ local nếu cần
+
+  console.log("🔍 UserId:", userId, "Keyword:", keyword);
+
+
+  
+  // if (!keyword) {
+  //   toast.warning("Vui lòng nhập tên cuộc trò chuyện");
+  //   return;
+  // }
+
+   if (!keyword) {
+    // Nếu đã từng tìm → hiển thị modal trống
+    if (searchResults.length > 0 || showSearchModal) {
+      setSearchResults([]);            // clear kết quả
+      setShowSearchModal(true);        // bật lại modal rỗng
+    } else {
+      toast.warning("Vui lòng nhập tên cuộc trò chuyện");
+    }
+    return;
+  }
+
+
+  if (!userId) {
+    console.error("User ID không tồn tại");
+    return;
+  }
+
+  try {
+    const res = await Api_Conversation.searchConversationsByUserId(userId, keyword);
+    const result = res;
+    console.log("Kết quả tìm kiếm input ngoài:", result);
+    console.log("Kết quả tìm kiếm (res) :", res);
+
+    if (Array.isArray(result) && result.length > 0) {
+      setSearchResults(result);
+      setShowSearchModal(true);//luon mo khung khi co kq or ko
+    } else {
+      setSearchResults([]);//ko co kq
+      setShowSearchModal(true); //mo modal bao ko co 
+    }
+  } catch (error) {
+    console.error("Lỗi khi tìm kiếm conversation:", error);
+    setSearchResults([]);
+    setShowSearchModal(true);
+  }
+};
+
+
+
+
+  const { socket } = useSocket(); // Get socket from context
   const toggleFriendsModal = () => {
     setIsModalFriendsOpen(!isModalFriendsOpen);
     setSearchValue("");
-    setFilteredUsers([]);
+    setFilteredResults([]);
     setSelectedUser(null);
   };
 
-  // Toggle modal tạo nhóm
+  // Toggle CreateGroup modal
   const toggleCreateGroupModal = () => {
     setIsModalCreateGroupOpen(!isModalCreateGroupOpen);
   };
-
-  // Xử lý khi chọn người dùng trong modal thêm bạn
-  const handleSelectUser = (user) => {
-    console.log("Search: User selected:", user);
-    setSelectedUser(user);
-  };
-
-  // Xử lý khi chọn cuộc trò chuyện từ kết quả tìm kiếm
-  const handleSelectConversation = (conversation) => {
-    console.log("Search: Conversation selected:", conversation);
-    if (conversation.isHidden) {
-      console.log("Search: Cuộc trò chuyện ẩn, yêu cầu nhập PIN:", conversation.id);
-      setSelectedConversation(conversation);
-      setIsPinModalOpen(true);
-    } else {
-      onConversationSelected(conversation);
-    }
-  };
-
-  // Xử lý khi xác thực PIN thành công
-  const handlePinVerified = () => {
-    if (selectedConversation) {
-      console.log("Search: Xác thực PIN thành công cho conversation:", selectedConversation.id);
-      // Cập nhật searchResults để phản ánh trạng thái isHidden: false
-      const updatedResults = searchResults.map((result) =>
-        result.id === selectedConversation.id
-          ? { ...result, isHidden: false }
-          : result
-      );
-      onSearchResults(updatedResults);
-      onConversationSelected(selectedConversation);
-    }
-    setIsPinModalOpen(false);
-    setSelectedConversation(null);
-  };
-
-  // Đóng modal nhập PIN
-  const handleClosePinModal = () => {
-    console.log("Search: Đóng modal nhập PIN");
-    setIsPinModalOpen(false);
-    setSelectedConversation(null);
-  };
-
-  // Xử lý khi nhóm được tạo
+  // Callback for when a group is created (optional)
   const handleGroupCreated = (groupData) => {
-    console.log("Search: Group created:", groupData);
-    onGroupCreated(groupData);
+    console.log("Group created:", groupData);
+    onGroupCreated(groupData); // Gọi prop để truyền nhóm mới lên ChatList
   };
 
-  // Tải danh sách người dùng và cập nhật userCache
+  //socket
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    if (userId) socket1.emit("add_user", userId);
+    console.log("🔔 Đã kết nối với socket server:", userId);
+  }, []);
+
+  useEffect(() => {
+    socket1.on("friend_request_received", ({ fromUserId }) => {
+      console.log("📩 Nhận lời mời kết bạn từ:", fromUserId);
+
+      // Cập nhật trạng thái trong state friendRequests
+      setFriendRequests((prev) => ({
+        ...prev,
+        [fromUserId]: {
+          status: "pending",
+          isRequester: false,
+          requestId: "temp", // có thể update bằng ID thực sau
+        },
+      }));
+
+      // Nếu đang xem đúng người vừa gửi lời mời thì trigger UI update
+      if (selectedUser && selectedUser._id === fromUserId) {
+        setRefreshTrigger((prev) => prev + 1);
+      }
+    });
+
+    return () => {
+      socket1.off("friend_request_received");
+    };
+  }, [selectedUser]);
+
+  useEffect(() => {
+    socket1.on("friend_request_revoked", ({ fromUserId }) => {
+      console.log("🚫 Lời mời đã bị thu hồi từ:", fromUserId);
+      setFriendRequests((prev) => {
+        const updated = { ...prev };
+        delete updated[fromUserId];
+        return updated;
+      });
+
+      if (selectedUser && selectedUser._id === fromUserId) {
+        setRefreshTrigger((prev) => prev + 1);
+      }
+    });
+
+    return () => {
+      socket1.off("friend_request_revoked");
+    };
+  }, [selectedUser]);
+
+  useEffect(() => {
+    socket1.on("friend_request_accepted", ({ fromUserId }) => {
+      console.log("✅ Lời mời đã được chấp nhận bởi:", fromUserId);
+      setFriendRequests((prev) => ({
+        ...prev,
+        [fromUserId]: {
+          ...prev[fromUserId],
+          status: "accepted",
+        },
+      }));
+      setRefreshTrigger((prev) => prev + 1);
+    });
+
+    socket1.on("friend_request_rejected", ({ fromUserId }) => {
+      console.log("❌ Lời mời bị từ chối bởi:", fromUserId);
+      setFriendRequests((prev) => {
+        const updated = { ...prev };
+        delete updated[fromUserId];
+        return updated;
+      });
+      setRefreshTrigger((prev) => prev + 1);
+    });
+
+    return () => {
+      socket1.off("friend_request_accepted");
+      socket1.off("friend_request_rejected");
+    };
+  }, [selectedUser]);
+
+  useEffect(() => {
+    socket1.on("friend_request_accepted", ({ fromUserId }) => {
+      console.log("📩 Lời mời kết bạn đã được chấp nhận bởi:", fromUserId);
+
+      setFriendRequests((prev) => ({
+        ...prev,
+        [fromUserId]: {
+          ...prev[fromUserId],
+          status: "accepted",
+        },
+      }));
+
+      // Nếu đang xem đúng user đó => update UI
+      if (selectedUser && selectedUser._id === fromUserId) {
+        setFriendStatus("accepted");
+        setRefreshTrigger((prev) => prev + 1);
+      }
+    });
+
+    return () => {
+      socket1.off("friend_request_accepted");
+    };
+  }, [selectedUser]);
+
+  useEffect(() => {
+    if (selectedUser) {
+      handleSelectUser(selectedUser);
+    }
+  }, [refreshTrigger]);
+
+  //Chon ng dung
+  const handleSelectUser = async (user) => {
+    const currentUserId = localStorage.getItem("userId");
+    if (!currentUserId) return;
+
+    // Cập nhật selected user trước
+    setSelectedUser(user);
+
+    try {
+      await fetchFriendRequestsAndUpdate();
+
+      // Kiểm tra trạng thái bạn bè thực sự
+      const res = await Api_FriendRequest.checkFriendStatus({
+        userIdA: currentUserId,
+        userIdB: user._id,
+      });
+
+      console.log("Trạng thái bạn bè thực sự:", res.status);
+      setFriendStatus(res?.status || "not_friends");
+    } catch (error) {
+      console.error("Lỗi khi kiểm tra trạng thái bạn bè:", error);
+      setFriendStatus("not_friends");
+    }
+  };
+
+  //Modal groups
+  const toggleGroupsModal = () => {
+    setIsModalGroupsOpen(!isModalGroupsOpen);
+  };
+
+  //Lay ds ng dung
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await Api_Profile.getProfiles();
-        console.log("Search: Dữ liệu người dùng từ API:", response.data);
         if (Array.isArray(response.data.users)) {
           setAllUsers(response.data.users);
-          const newCache = {};
-          response.data.users.forEach((user) => {
-            newCache[user._id] = {
-              name: `${user.firstname || ""} ${user.surname || ""}`.trim() || user._id,
-              avatar: user.avatar || "https://via.placeholder.com/150",
-            };
-          });
-          setUserCache(newCache);
-          console.log("Search: Cập nhật userCache:", newCache);
         } else {
-          console.error("Search: Dữ liệu người dùng không phải mảng:", response.data.users);
+          console.error("Dữ liệu nhận không phải mảng:", response.data.users);
         }
       } catch (error) {
-        console.error("Search: Lỗi khi lấy danh sách người dùng:", error);
+        console.error("Lỗi khi lấy danh sách người dùng:", error);
       }
     };
 
     fetchUsers();
   }, []);
 
-  // Tải danh sách hội thoại
   useEffect(() => {
-    if (!socket || !userId) {
-      console.warn("Search: Thiếu socket hoặc userId", { socket, userId });
-      return;
-    }
-
-    const handleConversations = (conversationsData) => {
-      console.log("Search: Nhận danh sách hội thoại:", conversationsData);
-      setConversations(conversationsData || []);
-    };
-
-    const cleanupLoad = loadAndListenConversations(socket, handleConversations);
-
-    return () => {
-      cleanupLoad();
-    };
-  }, [socket, userId]);
-
-  // Tải danh sách lời mời kết bạn
-  useEffect(() => {
+    console.log("Cập nhật trạng thái bạn bèeeee:", friendRequests);
     const fetchFriendRequests = async () => {
       try {
         const userId = localStorage.getItem("userId");
-        if (!userId) {
-          console.warn("Search: Thiếu userId");
-          return;
-        }
+        if (!userId) return;
 
         const [sentRes, receivedRes] = await Promise.all([
           Api_FriendRequest.getSentRequests(userId),
@@ -158,10 +323,9 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
               isRequester: true,
             };
           } else {
-            console.warn("Search: Dữ liệu recipient bị thiếu:", req);
+            console.warn("Dữ liệu recipient bị thiếu:", req);
           }
         });
-
         receivedRes.data.forEach((req) => {
           if (req.requester && req.requester._id) {
             newRequestStatus[req.requester._id] = {
@@ -170,195 +334,390 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
               isRequester: false,
             };
           } else {
-            console.warn("Search: Dữ liệu requester bị thiếu:", req);
+            console.warn("Dữ liệu requester bị thiếu:", req);
           }
         });
 
         setFriendRequests(newRequestStatus);
-        console.log("Search: Cập nhật friendRequests:", newRequestStatus);
+        console.log("Dữ liệu trạng thái kết bạn:", newRequestStatus);
       } catch (error) {
-        console.error("Search: Lỗi khi lấy danh sách lời mời:", error);
+        console.error("Lỗi khi lấy danh sách lời mời:", error);
       }
     };
 
     fetchFriendRequests();
   }, [refreshTrigger]);
 
-  // Lọc kết quả tìm kiếm hội thoại
-  const searchResults = useMemo(() => {
-    if (!searchValue.trim()) {
-      console.log("Search: SearchValue rỗng, trả về mảng rỗng");
-      return [];
-    }
-
-    const searchQuery = searchValue.toLowerCase();
-    console.log("Search: Bắt đầu lọc hội thoại với searchQuery:", searchQuery);
-
-    const filteredConversations = conversations.filter((conv) => {
-      try {
-        if (conv.isGroup) {
-          const matches = conv.name?.toLowerCase().includes(searchQuery);
-          console.log(`Search: Kiểm tra nhóm ${conv.name}:`, matches);
-          return matches;
-        } else {
-          const otherParticipant = conv.participants?.find((p) => p.userId !== userId);
-          if (otherParticipant) {
-            const userName = userCache[otherParticipant.userId]?.name || otherParticipant.userId;
-            const matches = userName.toLowerCase().includes(searchQuery);
-            console.log(`Search: Kiểm tra hội thoại 1:1 với ${userName}:`, matches);
-            return matches;
-          }
-          console.warn("Search: Không tìm thấy otherParticipant trong hội thoại:", conv);
-          return false;
-        }
-      } catch (error) {
-        console.error("Search: Lỗi khi lọc hội thoại:", conv, error);
-        return false;
-      }
-    });
-
-    const results = filteredConversations.map((conv) => {
-      const otherParticipant = conv.participants?.find((p) => p.userId !== userId);
-      return {
-        id: conv._id,
-        name: conv.isGroup
-          ? conv.name
-          : userCache[otherParticipant?.userId]?.name || otherParticipant?.userId || "Unknown",
-        avatar:
-          conv.imageGroup ||
-          userCache[otherParticipant?.userId]?.avatar ||
-          "https://via.placeholder.com/150",
-        isHidden: conv.participants?.find((p) => p.userId === userId)?.isHidden || false,
-        participants: conv.participants || [],
-        isGroup: conv.isGroup || false,
-        imageGroup: conv.imageGroup,
-        lastMessage: conv.lastMessage?.content || "",
-        lastMessageType: conv.lastMessage?.messageType || "text",
-        lastMessageSenderId: conv.lastMessage?.userId || null,
-        time: conv.lastMessage
-          ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "",
-        updateAt: conv.lastMessage?.createdAt || conv.updatedAt,
-        isPinned: conv.participants?.find((p) => p.userId === userId)?.isPinned || false,
-      };
-    });
-
-    console.log("Search: Kết quả tìm kiếm hội thoại:", results);
-    return results;
-  }, [searchValue, conversations, userId, userCache]);
-
-  // Truyền kết quả tìm kiếm
   useEffect(() => {
-    onSearchResults(searchResults);
-  }, [searchResults, onSearchResults]);
-
-  // Lọc người dùng cho modal thêm bạn
-  useEffect(() => {
-    if (!isModalFriendsOpen || !searchValue.trim()) {
-      setFilteredUsers([]);
-      return;
+    if (selectedUser) {
+      handleSelectUser(selectedUser);
     }
+  }, [refreshTrigger]);
 
-    const searchQuery = searchValue.toLowerCase();
-    const filtered = allUsers.filter(
-      (user) =>
-        user.phone.includes(searchQuery) ||
-        `${user.firstname || ""} ${user.surname || ""}`.toLowerCase().includes(searchQuery)
+  //polling
+  // useEffect(() => {
+  //   const currentUserId = localStorage.getItem("userId");
+  //   if (!selectedUser || !friendRequests[selectedUser._id]) return;
+
+  //   const isRequester = friendRequests[selectedUser._id]?.isRequester;
+
+  //   if (!isRequester) return;
+
+  //   const intervalId = setInterval(async () => {
+  //     try {
+  //       const sentRes = await Api_FriendRequest.getSentRequests(currentUserId);
+  //       const matchedRequest = sentRes.data.find(
+  //         (req) => req.recipient?._id === selectedUser._id
+  //       );
+
+  //       if (!matchedRequest) {
+  //         // đã bị từ chối
+  //         setFriendRequests((prev) => {
+  //           const updated = { ...prev };
+  //           delete updated[selectedUser._id];
+  //           return updated;
+  //         });
+  //         setRefreshTrigger((prev) => prev + 1);
+  //       } else if (matchedRequest.status === "accepted") {
+  //         // đã được chấp nhận
+  //         setFriendRequests((prev) => ({
+  //           ...prev,
+  //           [selectedUser._id]: {
+  //             status: "accepted",
+  //             requestId: matchedRequest._id,
+  //             isRequester: true,
+  //           },
+  //         }));
+  //         setRefreshTrigger((prev) => prev + 1);
+  //       }
+  //     } catch (err) {
+  //       console.error("Polling lỗi:", err);
+  //     }
+  //   }, 1000);
+
+  //   return () => clearInterval(intervalId);
+  // }, [selectedUser, friendRequests]);
+
+  const handleSearch = () => {
+    const cleanedInput = searchValue.replace(/\D/g, "");
+    const filtered = allUsers.filter((user) =>
+      user.phone.includes(cleanedInput)
     );
-    setFilteredUsers(filtered);
-    console.log("Search: Kết quả lọc người dùng cho modal:", filtered);
-  }, [searchValue, isModalFriendsOpen, allUsers]);
+    setFilteredResults(filtered);
+    console.log(filtered);
+  };
 
-  // Xử lý gửi/thu hồi lời mời kết bạn
-  const handleFriendRequest = async () => {
-    const userId = localStorage.getItem("userId");
-    if (!userId || !selectedUser || !selectedUser._id) {
-      console.warn("Search: Thiếu thông tin để gửi/thu hồi lời mời:", { userId, selectedUser });
-      return;
-    }
+  // const handleFriendRequest = async () => {
+  //   const userId = localStorage.getItem("userId");
+  //   if (!userId || !selectedUser || !selectedUser._id) return;
+
+  //   const existingRequest = friendRequests[selectedUser._id];
+
+  //   try {
+  //     const userPhoneRes = await Api_Profile.getUserPhone(userId);
+  //     const currentUserPhone = userPhoneRes.phone;
+
+  //     if (
+  //       existingRequest &&
+  //       existingRequest.status === "pending" &&
+  //       existingRequest.isRequester
+  //     ) {
+  //       // Nếu đã gửi lời mời => thu hồi
+  //       await Api_FriendRequest.cancelFriendRequest({
+  //         requesterId: userId,
+  //         recipientId: selectedUser._id,
+  //       });
+
+  //       // Xóa trạng thái lời mời khỏi state
+  //       setFriendRequests((prev) => {
+  //         const updated = { ...prev };
+  //         delete updated[selectedUser._id];
+  //         return updated;
+  //       });
+  //     } else {
+  //       // Gửi lời mời mới
+  //       await Api_FriendRequest.sendFriendRequest({
+  //         requesterPhone: currentUserPhone,
+  //         recipientPhone: selectedUser.phone,
+  //       });
+
+  //       setFriendRequests((prev) => ({
+  //         ...prev,
+  //         [selectedUser._id]: {
+  //           status: "pending",
+  //           requestId: "temp", // Bạn có thể thay bằng ID thực sau
+  //           isRequester: true,
+  //         },
+  //       }));
+  //     }
+
+  //     await fetchFriendRequestsAndUpdate();
+  //     await handleSelectUser(selectedUser);
+  //     // Refresh dữ liệu
+  //     setRefreshTrigger((prev) => prev + 1);
+  //   } catch (err) {
+  //     console.error("Lỗi xử lý lời mời kết bạn:", err);
+  //   }
+  // };
+
+  //   const handleFriendRequest = () => {
+  //   const currentUserId = localStorage.getItem("userId");
+
+  //   if (!currentUserId || !selectedUser || !selectedUser._id) return;
+
+  //   // Gửi lời mời kết bạn qua socket
+  // if (socket1 && selectedUser) {
+  //   socket1.emit("send_friend_request", {
+  //     fromUserId: currentUserId,
+  //     toUserId: selectedUser._id,
+  //   });
+  // }
+
+  // //setFriendStatus("pending"); // set tạm realtime
+  //   // Cập nhật UI giả lập trạng thái chờ
+  //   setFriendRequests((prev) => ({
+  //     ...prev,
+  //     [selectedUser._id]: {
+  //       status: "pending",
+  //       isRequester: true,
+  //       requestId: "temp",
+  //     },
+  //   }));
+  // };
+
+  const handleFriendRequest = () => {
+    const currentUserId = localStorage.getItem("userId");
+
+    if (!currentUserId || !selectedUser || !selectedUser._id) return;
 
     const existingRequest = friendRequests[selectedUser._id];
 
-    try {
-      const userPhoneRes = await Api_Profile.getUserPhone(userId);
-      const currentUserPhone = userPhoneRes.phone;
-
-      if (existingRequest && existingRequest.status === "pending" && existingRequest.isRequester) {
-        await Api_FriendRequest.cancelFriendRequest({
-          requesterId: userId,
-          recipientId: selectedUser._id,
-        });
-
-        setFriendRequests((prev) => {
-          const updated = { ...prev };
-          delete updated[selectedUser._id];
-          return updated;
-        });
-        console.log("Search: Đã thu hồi lời mời kết bạn với:", selectedUser._id);
-      } else {
-        await Api_FriendRequest.sendFriendRequest({
-          requesterPhone: currentUserPhone,
-          recipientPhone: selectedUser.phone,
-        });
-
-        setFriendRequests((prev) => ({
-          ...prev,
-          [selectedUser._id]: {
-            status: "pending",
-            requestId: "temp",
-            isRequester: true,
-          },
-        }));
-        console.log("Search: Đã gửi lời mời kết bạn tới:", selectedUser._id);
-      }
-
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (err) {
-      console.error("Search: Lỗi xử lý lời mời kết bạn:", err);
+    // Nếu đã gửi lời mời và đang chờ => thu hồi
+    if (existingRequest?.status === "pending" && existingRequest.isRequester) {
+      socket1.emit(
+        "send_friend_request",
+        {
+          fromUserId: currentUserId,
+          toUserId: selectedUser._id,
+        },
+        (response) => {
+          if (response.status === "revoked") {
+            console.log("🗑️ Thu hồi lời mời thành công");
+            setFriendRequests((prev) => {
+              const updated = { ...prev };
+              delete updated[selectedUser._id];
+              return updated;
+            });
+            setRefreshTrigger((prev) => prev + 1);
+          }
+        }
+      );
+    } else {
+      // Chưa gửi thì gửi mới
+      socket1.emit(
+        "send_friend_request",
+        {
+          fromUserId: currentUserId,
+          toUserId: selectedUser._id,
+        },
+        (response) => {
+          if (response.status === "ok") {
+            console.log("✅ Gửi lời mời thành công");
+            setFriendRequests((prev) => ({
+              ...prev,
+              [selectedUser._id]: {
+                status: "pending",
+                isRequester: true,
+                requestId: response.requestId,
+              },
+            }));
+            setRefreshTrigger((prev) => prev + 1);
+          } else if (response.status === "exists") {
+            console.log("⚠️ Lời mời đã tồn tại");
+          }
+        }
+      );
     }
   };
 
-  // Xử lý phản hồi lời mời kết bạn
-  const handleRespondRequest = async (requestId, action) => {
+  // const handleRespondRequest = async (requestId, action) => {
+  //   try {
+  //     const userId = localStorage.getItem("userId");
+  //     const response = await Api_FriendRequest.respondToFriendRequest({
+  //       requestId,
+  //       action,
+  //       userId,
+  //     });
+
+  //     if (action === "accepted") {
+  //       setFriendRequests((prev) => ({
+  //         ...prev,
+  //         [selectedUser._id]: {
+  //           status: "accepted",
+  //           requestId,
+  //           isRequester: false, // bên nhận
+  //         },
+  //       }));
+  //       // Ép re-render lại component đang hiển thị selectedUser
+  //       setSelectedUser((prevUser) => ({ ...prevUser }));
+
+  //     } else if (action === "rejected") {
+  //       // Xóa trạng thái lời mời đã bị từ chối
+  //       setFriendRequests((prev) => {
+  //         const updated = { ...prev };
+  //         delete updated[selectedUser._id];
+  //         return updated;
+  //       });
+  //       setSelectedUser((prevUser) => ({ ...prevUser }));
+  //     }
+
+  //     await fetchFriendRequestsAndUpdate();
+  //     await handleSelectUser(selectedUser);
+  //     setRefreshTrigger((prev) => prev + 1);
+  //     setTimeout(() => {
+  //       setRefreshTrigger((prev) => prev + 1);
+  //     }, 100); // 100ms sau tăng thêm lần nữa
+  //   } catch (err) {
+  //     console.error("Lỗi khi phản hồi lời mời kết bạn:", err);
+  //   }
+  // };
+
+  //socket1
+  // const handleRespondRequest = (requestId, action) => {
+  //   const userId = localStorage.getItem("userId");
+  //   socket1.emit("respond_friend_request", { requestId, action, userId }, (response) => {
+  //     if (response.status === "accepted") {
+  //       console.log("🎉 Đã chấp nhận lời mời");
+  //       setFriendRequests((prev) => ({
+  //         ...prev,
+  //         [selectedUser._id]: {
+  //           ...prev[selectedUser._id],
+  //           status: "accepted",
+  //         },
+  //       }));
+  //     } else if (response.status === "rejected") {
+  //       console.log("⛔ Đã từ chối lời mời");
+  //       setFriendRequests((prev) => {
+  //         const updated = { ...prev };
+  //         delete updated[selectedUser._id];
+  //         return updated;
+  //       });
+  //     } else {
+  //       console.error("Lỗi phản hồi:", response.message);
+  //     }
+
+  //     setRefreshTrigger((prev) => prev + 1);
+  //   });
+  // };
+  const handleRespondRequest = (requestId, action) => {
+    const userId = localStorage.getItem("userId");
+
+    socket1.emit(
+      "respond_friend_request",
+      { requestId, action, userId },
+      (response) => {
+        if (response.status === "accepted") {
+          console.log("🎉 Đã chấp nhận lời mời");
+          setFriendRequests((prev) => ({
+            ...prev,
+            [selectedUser._id]: {
+              ...prev[selectedUser._id],
+              status: "accepted",
+            },
+          }));
+          setFriendStatus("accepted"); // Cập nhật UI ngay
+        } else if (response.status === "rejected") {
+          console.log("⛔ Đã từ chối lời mời");
+          setFriendRequests((prev) => {
+            const updated = { ...prev };
+            delete updated[selectedUser._id];
+            return updated;
+          });
+          setFriendStatus("not_friends");
+        } else {
+          console.error("Lỗi phản hồi:", response.message);
+        }
+
+        setRefreshTrigger((prev) => prev + 1);
+      }
+    );
+  };
+
+  const fetchFriendRequestsAndUpdate = async () => {
     try {
       const userId = localStorage.getItem("userId");
-      const response = await Api_FriendRequest.respondToFriendRequest({
-        requestId,
-        action,
-        userId,
+      if (!userId) return;
+
+      const [sentRes, receivedRes] = await Promise.all([
+        Api_FriendRequest.getSentRequests(userId),
+        Api_FriendRequest.getReceivedRequests(userId),
+      ]);
+
+      const newRequestStatus = {};
+
+      sentRes.data.forEach((req) => {
+        if (req.recipient && req.recipient._id) {
+          newRequestStatus[req.recipient._id] = {
+            status: req.status,
+            requestId: req._id,
+            isRequester: true,
+          };
+        }
       });
 
-      if (action === "accepted") {
-        setFriendRequests((prev) => ({
-          ...prev,
-          [selectedUser._id]: {
-            status: "accepted",
-            requestId,
+      receivedRes.data.forEach((req) => {
+        if (req.requester && req.requester._id) {
+          newRequestStatus[req.requester._id] = {
+            status: req.status,
+            requestId: req._id,
             isRequester: false,
-          },
-        }));
-        console.log("Search: Đã chấp nhận lời mời kết bạn từ:", selectedUser._id);
-      } else if (action === "rejected") {
-        setFriendRequests((prev) => {
-          const updated = { ...prev };
-          delete updated[selectedUser._id];
-          return updated;
-        });
-        setSelectedUser((prevUser) => ({ ...prevUser }));
-        console.log("Search: Đã từ chối lời mời kết bạn từ:", selectedUser._id);
-      }
+          };
+        }
+      });
 
-      setRefreshTrigger((prev) => prev + 1);
-      setTimeout(() => {
-        setRefreshTrigger((prev) => prev + 1);
-      }, 100);
-    } catch (err) {
-      console.error("Search: Lỗi khi phản hồi lời mời kết bạn:", err);
+      setFriendRequests(newRequestStatus);
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách lời mời:", error);
     }
   };
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const handleStartChat = async (conv) => {
+  try {
+    const conversationId = conv._id;
+    const isGroup = conv.isGroup;
+
+    const name = isGroup
+      ? conv.name
+      : conv.participants
+          .filter((p) => p.userId._id !== localStorage.getItem("userId"))
+          .map((p) => `${p.userId.firstname} ${p.userId.surname}`)
+          .join(", ");
+
+    const avatar = isGroup
+      ? conv.groupImage || ""
+      : conv.participants
+          .filter((p) => p.userId._id !== localStorage.getItem("userId"))[0]?.userId?.avatar || "";
+
+    dispatch(
+      setSelectedMessage({
+        id: conversationId,
+        isGroup,
+        participants: conv.participants,
+        name,
+        imageGroup: avatar,
+      })
+    );
+
+    setPhone("");               // reset input
+    setShowSearchModal(false); // ẩn modal
+    navigate("/chat");         // chuyển trang
+  } catch (error) {
+    console.error("Lỗi khi bắt đầu trò chuyện:", error);
+  }
+};
 
   return (
     <div className="flex items-center bg-gray-200 px-3 py-2 rounded-full w-full relative">
@@ -366,13 +725,37 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
         className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"
         size={16}
       />
-      <input
+      {/*Tìm kiếm conversation */}
+      {/* <input
         type="text"
         placeholder="Tìm kiếm"
         className="bg-transparent text-gray-700 placeholder-gray-500 pl-10 pr-2 py-1 flex-grow focus:outline-none"
-        value={searchValue}
-        onChange={(e) => setSearchValue(e.target.value)}
+        onChange={(e) => setPhone(e.target.value)}
+      /> */}
+
+      <input
         ref={inputRef}
+        type="text"
+        placeholder="Tìm kiếm"
+        className="bg-transparent text-gray-700 placeholder-gray-500 pl-10 pr-2 py-1 flex-grow focus:outline-none"
+        value={phone}
+        onFocus={() => {
+          setIsSearchFocused(true);
+          if (!phone.trim()) {
+            setShowSearchModal(true); // hiện modal "không có kết quả"
+          }
+        }}
+        onChange={(e) => {
+          setPhone(e.target.value);
+          if (e.target.value.trim()) {
+            setShowSearchModal(false); // khi bắt đầu gõ thì ẩn modal
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            handleTopSearch(); // tìm user
+          }
+        }}
       />
 
       <FaUserFriends
@@ -383,9 +766,8 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
       <FaUsers
         className="text-gray-500 mx-2 cursor-pointer"
         size={20}
-        onClick={toggleCreateGroupModal}
+        onClick={toggleCreateGroupModal} // Trigger CreateGroup modal
       />
-     
 
       {/* Modal tìm kiếm bạn bè */}
       {isModalFriendsOpen && (
@@ -397,7 +779,7 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
                 onClick={toggleFriendsModal}
                 className="text-gray-500 hover:text-black text-xl"
               >
-                ×
+                &times;
               </button>
             </div>
 
@@ -411,41 +793,90 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
                   />
                 </div>
                 <input
-                  type="text"
-                  placeholder="Số điện thoại hoặc tên"
+                  type="tel"
+                  placeholder="Số điện thoại"
                   className="flex-grow px-4 py-2 text-gray-700 focus:outline-none"
                   value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  autoFocus
+                  onChange={(e) =>
+                    setSearchValue(e.target.value.replace(/\D/g, ""))
+                  }
                 />
               </div>
             </div>
 
+            <div className="flex justify-end space-x-2">
+              <button
+                className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300 text-gray-700"
+                onClick={toggleFriendsModal}
+              >
+                Hủy
+              </button>
+              <button
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                onClick={handleSearch}
+              >
+                Tìm kiếm
+              </button>
+            </div>
+            {/* 
             <div className="space-y-2 mt-4 max-h-64 overflow-y-auto">
-              {searchValue && filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
+              {searchValue && filteredResults.length > 0 ? (
+                filteredResults.map((user) => (
                   <div
                     key={user._id}
                     className="flex items-center p-2 hover:bg-gray-100 cursor-pointer rounded"
                     onClick={() => handleSelectUser(user)}
                   >
                     <img
-                      src={user.avatar || "https://via.placeholder.com/150"}
+                      src={user.avatar}
                       alt={user.firstname}
                       className="w-10 h-10 rounded-full mr-3"
                     />
                     <div>
-                      <p className="font-semibold text-gray-800">
-                        {`${user.firstname || ""} ${user.surname || ""}`.trim() || user._id}
-                      </p>
+                      <p className="font-semibold text-gray-800">{`${user.firstname} ${user.surname}`}</p>
                       <p className="text-sm text-gray-600">{user.phone}</p>
                     </div>
                   </div>
                 ))
-              ) : searchValue ? (
-                <p className="text-gray-500">Không có kết quả tìm kiếm.</p>
               ) : (
-                <p className="text-gray-500">Nhập số điện thoại hoặc tên để tìm bạn bè.</p>
+                <p className="text-gray-500">Không có kết quả tìm kiếm.</p>
+              )}
+            </div> */}
+            <div className="space-y-2 mt-4 max-h-64 overflow-y-auto">
+              {searchValue && filteredResults.length > 0 ? (
+                filteredResults.map((user) => {
+                  const currentUserId = localStorage.getItem("userId");
+                  const isMe = user._id === currentUserId;
+
+                  return (
+                    <div
+                      key={user._id}
+                      className={`flex items-center p-2 ${
+                        !isMe ? "hover:bg-gray-100 cursor-pointer" : ""
+                      } rounded`}
+                      onClick={() => {
+                        if (!isMe) handleSelectUser(user);
+                      }}
+                    >
+                      <img
+                        src={user.avatar}
+                        alt={user.firstname}
+                        className="w-10 h-10 rounded-full mr-3"
+                      />
+                      <div>
+                        <p className="font-semibold text-gray-800">
+                          {`${user.firstname} ${user.surname}`}{" "}
+                          {isMe && (
+                            <span className="text-xs text-blue-500">(me)</span>
+                          )}
+                        </p>
+                        <p className="text-sm text-gray-600">{user.phone}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-gray-500">Không có kết quả tìm kiếm.</p>
               )}
             </div>
           </div>
@@ -454,31 +885,90 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
 
       {/* Modal thông tin người dùng */}
       {selectedUser && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md z-50">
+        <div
+          key={refreshTrigger}
+          className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md z-50"
+        >
           <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] relative">
             <button
               onClick={() => setSelectedUser(null)}
               className="absolute top-2 right-3 text-gray-600 text-xl"
             >
-              ×
+              &times;
             </button>
 
             <div className="flex items-center mb-4">
               <img
-                src={selectedUser.avatar || "https://via.placeholder.com/150"}
+                src={selectedUser.avatar}
                 alt={selectedUser.firstname}
                 className="w-16 h-16 rounded-full mr-4"
               />
               <div>
                 <h2 className="text-lg font-semibold text-gray-800">
-                  {`${selectedUser.firstname || ""} ${selectedUser.surname || ""}`.trim() || selectedUser._id}
+                  {`${selectedUser.firstname} ${selectedUser.surname}`}
                 </h2>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 mt-4">
-              {friendRequests[selectedUser._id] ? (
-                friendRequests[selectedUser._id].status === "pending" ? (
+            {/* {selectedUser && (
+  <div className="flex justify-end space-x-2 mt-4">
+    {friendRequests[selectedUser._id] ? (
+      friendRequests[selectedUser._id].status === "pending" ? (
+        friendRequests[selectedUser._id].isRequester ? (
+          <button
+            onClick={handleFriendRequest}
+            className="px-4 py-2 bg-red-500 text-white rounded"
+          >
+            Thu hồi lời mời
+          </button>
+        ) : (
+          <>
+            <button
+              className="bg-green-500 text-white px-4 py-2 rounded"
+              onClick={() =>
+                handleRespondRequest(
+                  friendRequests[selectedUser._id].requestId,
+                  "accepted"
+                )
+              }
+            >
+              Chấp nhận
+            </button>
+            <button
+              className="bg-red-500 text-white px-4 py-2 rounded"
+              onClick={() =>
+                handleRespondRequest(
+                  friendRequests[selectedUser._id].requestId,
+                  "rejected"
+                )
+              }
+            >
+              Từ chối
+            </button>
+          </>
+        )
+      ) : friendRequests[selectedUser._id].status === "accepted" ? (
+        <button className="bg-green-500 text-white px-4 py-2 rounded">
+          Đã là bạn bè
+        </button>
+      ) : null
+    ) : (
+      <button
+        onClick={handleFriendRequest}
+        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+      >
+        Kết bạn
+      </button>
+    )}
+  </div>
+)} */}
+            {selectedUser && (
+              <div className="flex justify-end space-x-2 mt-4">
+                {friendStatus === "accepted" ? (
+                  <button className="bg-green-500 text-white px-4 py-2 rounded">
+                    Đã là bạn bè
+                  </button>
+                ) : friendRequests[selectedUser._id]?.status === "pending" ? (
                   friendRequests[selectedUser._id].isRequester ? (
                     <button
                       onClick={handleFriendRequest}
@@ -512,41 +1002,78 @@ function Search({ onGroupCreated, onSearchResults, onConversationSelected }) {
                       </button>
                     </>
                   )
-                ) : friendRequests[selectedUser._id].status === "accepted" ? (
-                  <button className="bg-green-500 text-white px-4 py-2 rounded">
-                    Đã là bạn bè
+                ) : (
+                  <button
+                    onClick={handleFriendRequest}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Kết bạn
                   </button>
-                ) : null
-              ) : (
-                <button
-                  onClick={handleFriendRequest}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Kết bạn
-                </button>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
+
+
+{showSearchModal && (
+  <div
+    ref={modalRef}
+    className="absolute top-full mt-2 left-0 w-full bg-white rounded shadow z-10 max-h-64 overflow-y-auto"
+  >
+    {searchResults.length > 0 ? (
+      searchResults.map((conv) => {
+        const isGroup = conv.isGroup;
+        const displayName = isGroup
+          ? conv.name
+          : conv.participants
+              .filter((p) => p.userId._id !== userId)
+              .map((p) => `${p.userId.firstname} ${p.userId.surname}`)
+              .join(", ");
+
+        const avatarUrl = isGroup
+          ? conv.groupImage || "https://picsum.photos/200/300"
+          : conv.participants
+              .filter((p) => p.userId._id !== userId)[0]?.userId?.avatar ||
+            "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
+        return (
+          <button
+            key={conv._id}
+            className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 transition duration-150 text-left"
+            onClick={() => handleStartChat(conv)}
+          >
+            <img
+              src={avatarUrl}
+              alt="avatar"
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            <div className="flex flex-col">
+              <span className="font-semibold text-gray-800">{displayName}</span>
+            </div>
+          </button>
+        );
+      })
+    ) : (
+      <p className="text-gray-500 text-center p-4">Không có kết quả tìm kiếm.</p>
+    )}
+  </div>
+)}
+
+
+
+
+
+
 
       {/* Modal tạo nhóm */}
       <CreateGroup
         isOpen={isModalCreateGroupOpen}
         onClose={toggleCreateGroupModal}
         onGroupCreated={handleGroupCreated}
-        userId={userId}
+        userId={localStorage.getItem("userId")}
         socket={socket}
-      />
-
-      {/* Modal xác thực PIN */}
-      <PinVerificationModal
-        isOpen={isPinModalOpen}
-        onClose={handleClosePinModal}
-        conversationId={selectedConversation?.id}
-        userId={userId}
-        socket={socket}
-        onVerified={handlePinVerified}
       />
     </div>
   );

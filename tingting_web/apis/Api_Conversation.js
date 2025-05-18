@@ -16,4 +16,23 @@ export const Api_Conversation = {
             user2Id,
         });
     },
+
+    //API getAllConversationById2
+    // searchConversationsByUserId: async (userId, searchKeyword = "") => {
+    //     return ApiManager.get(
+    //         'chatService',
+    //         `/conversations/getAllConversationById2/${userId}`,
+    //         { search: searchKeyword }//query params
+    //     )
+    // }
+    searchConversationsByUserId: async (userId, searchKeyword = "") => {
+  // Gắn thủ công query param vào URL
+  const query = searchKeyword ? `?search=${encodeURIComponent(searchKeyword)}` : "";
+  return ApiManager.get(
+    'chatService',
+    `/conversations/getAllConversationById2/${userId}${query}`
+  );
+},
+
+   
 };
