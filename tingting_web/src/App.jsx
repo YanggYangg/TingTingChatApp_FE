@@ -104,6 +104,7 @@ function App() {
               </Routes>
               <CallModal />
               <ToastContainer position="top-right" autoClose={3000} />
+              <ToastContainer position="top-center" autoClose={3000} />
             </Router>
           </CallManagerProvider>
         </CloudSocketProvider>

@@ -48,17 +48,17 @@ const ChatScreen = ({ navigation, route }) => {
   };
 
   // Nhi thêm: Kiểm tra tính hợp lệ của conversation
-  // const validateConversation = (conversation) => {
-  //   if (!conversation._id || conversation.conversationId) {
-  //     console.warn("ChatScreen: Conversation missing _id:", conversation);
-  //     return false;
-  //   }
-  //   if (!Array.isArray(conversation.participants)) {
-  //     console.warn("ChatScreen: Conversation missing or invalid participants:", conversation);
-  //     return false;
-  //   }
-  //   return true;
-  // };
+  const validateConversation = (conversation) => {
+    if (!conversation._id || conversation.conversationId) {
+      console.warn("ChatScreen: Conversation missing _id:", conversation);
+      return false;
+    }
+    if (!Array.isArray(conversation.participants)) {
+      console.warn("ChatScreen: Conversation missing or invalid participants:", conversation);
+      return false;
+    }
+    return true;
+  };
 
   // Nhi thêm: Thêm nhóm mới
   const addNewGroup = async (newConversation) => {
