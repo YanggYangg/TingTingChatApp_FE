@@ -13,6 +13,7 @@ import { setSelectedMessage } from "../../redux/slices/chatSlice";
 import debounce from "lodash/debounce";
 //socket
 import socket1 from "../../utils/socket";
+import PinVerificationModal from "../PinVerificationModal"; // Import modal xác thực PIN
 
 function Search({ onGroupCreated }) {
   const [isModalFriendsOpen, setIsModalFriendsOpen] = useState(false);
@@ -35,7 +36,11 @@ function Search({ onGroupCreated }) {
   const [searchResults, setSearchResults] = useState([]);
   const inputRef = useRef(null);
   const modalRef = useRef(null);
-
+  const [selectedHiddenConversation, setSelectedHiddenConversation] = useState(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { socket } = useSocket();
   // Xử lý click bên ngoài modal
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -116,7 +121,6 @@ function Search({ onGroupCreated }) {
     []
   );
 
-  const { socket } = useSocket(); // Get socket from context
   const toggleFriendsModal = () => {
     setIsModalFriendsOpen(!isModalFriendsOpen);
     setSearchValue("");
@@ -481,44 +485,59 @@ function Search({ onGroupCreated }) {
     }
   };
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-
   const handleStartChat = async (conv) => {
     try {
-      const conversationId = conv._id;
-      const isGroup = conv.isGroup;
       const userId = localStorage.getItem("userId");
+      const participant = conv.participants.find(p => p.userId._id === userId);
 
-      const name = conv.displayName || (isGroup ? conv.name : "Unknown User");
-      const avatar = isGroup
-        ? conv.imageGroup || "https://picsum.photos/200/300"
-        : conv.participants.find((p) => p.userId._id !== userId)?.userId?.avatar ||
-          "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+      // Nếu cuộc trò chuyện bị ẩn và có PIN
+      if (participant?.isHidden && participant?.pin) {
+        setSelectedHiddenConversation(conv);
+        setIsPinModalOpen(true);
+        return;
+      }
 
-      console.log(
-        `Bắt đầu chat: conversationId=${conversationId}, isGroup=${isGroup}, name=${name}, avatar=${avatar}`
-      );
-
-      dispatch(
-        setSelectedMessage({
-          id: conversationId,
-          isGroup,
-          participants: conv.participants,
-          name,
-          imageGroup: avatar,
-        })
-      );
-
-      setPhone(""); // reset input
-      setShowSearchModal(false); // ẩn modal
-      navigate("/chat"); // chuyển trang
+      // Nếu không bị ẩn hoặc không có PIN, tiếp tục như bình thường
+      proceedWithChat(conv);
     } catch (error) {
       console.error("Lỗi khi bắt đầu trò chuyện:", error);
       toast.error("Đã xảy ra lỗi khi mở trò chuyện.");
     }
   };
 
+  const proceedWithChat = (conv) => {
+    const conversationId = conv._id;
+    const isGroup = conv.isGroup;
+    const userId = localStorage.getItem("userId");
+
+    const name = conv.displayName || (isGroup ? conv.name : "Unknown User");
+    const avatar = isGroup
+      ? conv.imageGroup || "https://picsum.photos/200/300"
+      : conv.participants.find((p) => p.userId._id !== userId)?.userId?.avatar ||
+      "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
+    dispatch(
+      setSelectedMessage({
+        id: conversationId,
+        isGroup,
+        participants: conv.participants,
+        name,
+        imageGroup: avatar,
+      })
+    );
+
+    setPhone("");
+    setShowSearchModal(false);
+    navigate("/chat");
+  };
+
+  const handlePinVerified = () => {
+    if (selectedHiddenConversation) {
+      proceedWithChat(selectedHiddenConversation);
+    }
+    setIsPinModalOpen(false);
+    setSelectedHiddenConversation(null);
+  };
   return (
     <div className="flex items-center bg-gray-200 px-3 py-2 rounded-full w-full relative">
       <FaSearch
@@ -619,9 +638,8 @@ function Search({ onGroupCreated }) {
                   return (
                     <div
                       key={user._id}
-                      className={`flex items-center p-2 ${
-                        !isMe ? "hover:bg-gray-100 cursor-pointer" : ""
-                      } rounded`}
+                      className={`flex items-center p-2 ${!isMe ? "hover:bg-gray-100 cursor-pointer" : ""
+                        } rounded`}
                       onClick={() => {
                         if (!isMe) handleSelectUser(user);
                       }}
@@ -751,11 +769,8 @@ function Search({ onGroupCreated }) {
               const avatarUrl = isGroup
                 ? conv.imageGroup || "https://picsum.photos/200/300"
                 : conv.participants.find((p) => p.userId._id !== userId)?.userId
-                    ?.avatar || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-
-              console.log(
-                `Hiển thị conversation ${conv._id}: isGroup=${isGroup}, displayName=${displayName}, avatarUrl=${avatarUrl}`
-              );
+                  ?.avatar || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+              const isHidden = conv.participants.find(p => p.userId._id === userId)?.isHidden;
 
               return (
                 <button
@@ -772,10 +787,11 @@ function Search({ onGroupCreated }) {
                     <span className="font-semibold text-gray-800">
                       {displayName}
                       {isGroup && (
-                        <span className="text-xs text-blue-500 ml-2">
-                          (Nhóm)
-                        </span>
+                        <span className="text-xs text-blue-500 ml-2">(Nhóm)</span>
                       )}
+                      {/* {isHidden && (
+                        <span className="text-xs text-red-500 ml-2">(Đã ẩn)</span>
+                      )} */}
                     </span>
                   </div>
                 </button>
@@ -789,6 +805,18 @@ function Search({ onGroupCreated }) {
             </p>
           )}
         </div>
+      )}
+
+      {/* Modal xác thực PIN */}
+      {isPinModalOpen && selectedHiddenConversation && (
+        <PinVerificationModal
+          isOpen={isPinModalOpen}
+          onClose={() => setIsPinModalOpen(false)}
+          conversationId={selectedHiddenConversation._id}
+          userId={localStorage.getItem("userId")}
+          socket={socket}
+          onVerified={handlePinVerified}
+        />
       )}
 
       {/* Modal tạo nhóm */}
