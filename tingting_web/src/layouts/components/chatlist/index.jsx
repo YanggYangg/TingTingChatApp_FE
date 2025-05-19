@@ -378,6 +378,22 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
       });
     };
 
+
+    socket.on("deleteAllChatHistory", ({ conversationId, deletedBy }) => {
+    console.log("ChatList: Nhận deleteAllChatHistory", { conversationId, deletedBy });
+    if (deletedBy === currentUserId) {
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg.id === conversationId
+            ? { ...msg, lastMessage: "", time: "", lastMessageType: "text" }
+            : msg
+        )
+      );
+      dispatch(setLastMessageUpdate({ conversationId, lastMessage: null }));
+      console.log(`ChatList: Cập nhật hội thoại ${conversationId} sau khi xóa lịch sử`);
+    }
+  });
+
     const handleNewGroupConversation = (newConversation) => {
       console.log("ChatList: Nhóm mới từ socket:", newConversation);
       const participant = newConversation.participants?.find((p) => p.userId === currentUserId);
@@ -457,6 +473,7 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
 
     return () => {
       console.log("ChatList: Dọn dẹp sự kiện socket");
+      socket.off("deleteAllChatHistory");
       cleanupLoad();
       offConversationUpdate(socket);
       offChatInfoUpdated(socket);

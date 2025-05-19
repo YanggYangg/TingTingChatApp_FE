@@ -243,36 +243,42 @@ const SecuritySettings = ({
     setShowDeleteConfirm(true);
   }, []);
 
-  const confirmDeleteHistory = useCallback(async () => {
-    if (isProcessing) {
-      console.log("SecuritySettings: Đang xử lý, bỏ qua deleteAllChatHistory");
-      return;
-    }
-    setIsProcessing(true);
-    try {
-      console.log("SecuritySettings: Gửi yêu cầu deleteAllChatHistory", { conversationId });
-      // Xóa tin nhắn cục bộ ngay lập tức
-      dispatch(setMessages([])); // Thêm: Xóa tin nhắn ngay lập tức
-      dispatch(setSelectedMessage(null)); // Thêm: Chuyển về trang chính ngay lập tức
-      toast.success("Đã xóa toàn bộ lịch sử trò chuyện!");
+const confirmDeleteHistory = useCallback(async () => {
+  if (isProcessing) {
+    console.log("SecuritySettings: Đang xử lý, bỏ qua deleteAllChatHistory");
+    return;
+  }
+  setIsProcessing(true);
+  try {
+    console.log("SecuritySettings: Gửi yêu cầu deleteAllChatHistory", { conversationId });
 
-      // Gửi yêu cầu xóa đến backend
-      deleteAllChatHistory(socket, { conversationId }, (response) => {
-        console.log("SecuritySettings: Phản hồi từ deleteAllChatHistory", response);
-        if (!response.success) {
-          toast.error("Lỗi khi xóa lịch sử ở server: " + response.message);
-        }
-        setShowDeleteConfirm(false);
-        setIsProcessing(false);
-      });
-    } catch (error) {
-      console.error("SecuritySettings: Lỗi khi xóa lịch sử:", error);
-      toast.error("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
-      setShowDeleteConfirm(false);
+    // Xóa tin nhắn cục bộ và chuyển về trang chính ngay lập tức
+    dispatch(setMessages([]));
+    dispatch(setSelectedMessage(null));
+    dispatch(setChatInfoUpdate({
+      ...chatInfo,
+      media: [],
+      files: [],
+      links: [],
+      lastMessage: null,
+    }));
+    toast.success("Đã xóa toàn bộ lịch sử trò chuyện!");
+    setShowDeleteConfirm(false);
+
+    // Gửi yêu cầu xóa đến backend (không chờ phản hồi để cải thiện UX)
+    deleteAllChatHistory(socket, { conversationId }, (response) => {
+      console.log("SecuritySettings: Phản hồi từ deleteAllChatHistory", response);
+      if (!response.success) {
+        toast.error("Lỗi khi xóa lịch sử ở server: " + response.message);
+      }
       setIsProcessing(false);
-    }
-  }, [socket, conversationId, isProcessing, dispatch]);
-
+    });
+  } catch (error) {
+    console.error("SecuritySettings: Lỗi khi xóa lịch sử:", error);
+    toast.error("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
+    setIsProcessing(false);
+  }
+}, [socket, conversationId, isProcessing, dispatch, chatInfo]);
   // Rời nhóm
   const handleLeaveGroup = useCallback(() => {
     if (!isGroup || !userId) {

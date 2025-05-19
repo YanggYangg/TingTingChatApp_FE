@@ -36,13 +36,14 @@ const MessageItem = ({
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [mediaType, setMediaType] = useState(null);
+  const isLink = msg.messageType === "link"
 
   const normalizeMediaArray = (data) =>
     Array.isArray(data)
       ? data.map((item) => (typeof item === "string" ? { url: item } : item))
       : typeof data === "string"
-      ? [{ url: data }]
-      : [];
+        ? [{ url: data }]
+        : [];
 
   const handleMediaPress = (mediaUrl, type) => {
     setSelectedMedia(mediaUrl);
@@ -129,14 +130,13 @@ const MessageItem = ({
           {repliedMessage?.messageType === "image"
             ? "[Ảnh]"
             : repliedMessage?.messageType === "file"
-            ? "[Tệp]"
-            : repliedMessage?.messageType === "call"
-            ? `[${
-                repliedMessage.callType === "video"
+              ? "[Tệp]"
+              : repliedMessage?.messageType === "call"
+                ? `[${repliedMessage.callType === "video"
                   ? "Video call"
                   : "Voice call"
-              }]`
-            : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
+                }]`
+                : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
         </Text>
         <Text style={styles.repliedMessage}>{msg.content}</Text>
       </View>
@@ -231,6 +231,15 @@ const MessageItem = ({
     );
   };
 
+  const renderLinkMessage = () => {
+    if (!isLink) return null;
+    return (
+      <TouchableOpacity onPress={() => Linking.openURL(msg.linkURL)}>
+        <Text style={styles.linkMessage}>{msg.content}</Text>
+      </TouchableOpacity>
+    );
+  };
+
   // {/* Call message */}
   // {msg.messageType === "call" && renderCallMessage()}
   const renderAutoLinkText = (text) => {
@@ -292,6 +301,7 @@ const MessageItem = ({
                 </Text>
               )}
 
+              {renderLinkMessage()}
               {renderImages()}
               {renderVideos()}
 
@@ -565,6 +575,11 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 20,
     fontWeight: "bold",
+  },
+  linkMessage: {
+    color: "#007bff",
+    textDecorationLine: "underline",
+    fontSize: 15,
   },
 });
 
