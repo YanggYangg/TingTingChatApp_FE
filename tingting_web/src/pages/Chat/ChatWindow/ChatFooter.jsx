@@ -88,74 +88,82 @@ function ChatFooter({
     return JSON.parse(text).linkURL;
   };
 
-  const handleSend = async () => {
-    if (uploading || (!message.trim() && attachedFiles.length === 0)) return;
-    setUploading(true);
+ const handleSend = async () => {
+  if (uploading || (!message.trim() && attachedFiles.length === 0)) return;
+  setUploading(true);
 
-    if (socket && conversationId && isTypingRef.current) {
-      console.log("Sending stopTyping on message send:", conversationId);
-      socket.emit("stopTyping", { conversationId });
-      isTypingRef.current = false;
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+  if (socket && conversationId && isTypingRef.current) {
+    console.log("Sending stopTyping on message send:", conversationId);
+    socket.emit("stopTyping", { conversationId });
+    isTypingRef.current = false;
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+  }
+
+  try {
+    let uploadedLinks = [];
+    if (attachedFiles.length > 0) {
+      const uploadPromises = attachedFiles.map((item) =>
+        uploadToS3(item.file)
+      );
+      uploadedLinks = await Promise.all(uploadPromises);
     }
 
-    try {
-      let uploadedLinks = [];
-      if (attachedFiles.length > 0) {
-        const uploadPromises = attachedFiles.map((item) =>
-          uploadToS3(item.file)
-        );
-        uploadedLinks = await Promise.all(uploadPromises);
-      }
+    // Hàm kiểm tra xem nội dung có phải là URL hợp lệ không
+    const isValidURL = (str) => {
+      const urlRegex = /^(https?:\/\/[^\s]+)/;
+      return urlRegex.test(str.trim());
+    };
 
-      if (uploadedLinks.length > 0) {
-        const firstType = attachedFiles[0]?.type || "image";
-        // Tạo tên file hoặc nối các tên file nếu có nhiều file
-        const fileNames =
-          attachedFiles.length === 1
-            ? attachedFiles[0].name
-            : attachedFiles.map((item) => item.name).join(", ");
-        const payload = {
-          messageType: firstType,
-          content: message.trim() || fileNames, // Sử dụng tên file nếu không có nội dung văn bản
-          linkURL: uploadedLinks,
-          ...(replyingTo && {
-            messageType: "reply",
-            replyMessageId: replyingTo._id,
-            replyMessageContent: replyingTo.content,
-            replyMessageType: replyingTo.messageType,
-            replyMessageSender: replyingTo.sender,
-          }),
-        };
-        console.log("ChatFooter: Sending file message", payload);
-        sendMessage(payload);
-      } else if (message.trim()) {
-        const payload = {
-          messageType: replyingTo ? "reply" : "text",
-          content: message.trim(),
-          ...(replyingTo && {
-            replyMessageId: replyingTo._id,
-            replyMessageContent: replyingTo.content,
-            replyMessageType: replyingTo.messageType,
-            replyMessageSender: replyingTo.sender,
-          }),
-        };
-        console.log("ChatFooter: Sending text message", payload);
-        sendMessage(payload);
-      }
-
-      setMessage("");
-      setAttachedFiles([]);
-      setReplyingTo(null);
-      setShowEmojiPicker(false);
-    } catch (err) {
-      console.error("Error sending message:", err);
-    } finally {
-      setUploading(false);
+    if (uploadedLinks.length > 0) {
+      const firstType = attachedFiles[0]?.type || "image";
+      const fileNames =
+        attachedFiles.length === 1
+          ? attachedFiles[0].name
+          : attachedFiles.map((item) => item.name).join(", ");
+      const payload = {
+        messageType: firstType,
+        content: message.trim() || fileNames,
+        linkURL: uploadedLinks,
+        ...(replyingTo && {
+          messageType: "reply",
+          replyMessageId: replyingTo._id,
+          replyMessageContent: replyingTo.content,
+          replyMessageType: replyingTo.messageType,
+          replyMessageSender: replyingTo.sender,
+        }),
+      };
+      console.log("ChatFooter: Sending file message", payload);
+      sendMessage(payload);
+    } else if (message.trim()) {
+      // Kiểm tra xem message có phải là URL hay không
+      const messageType = isValidURL(message) ? "link" : replyingTo ? "reply" : "text";
+      const payload = {
+        messageType,
+        content: message.trim(),
+        ...(messageType === "link" && { linkURL: message.trim() }),
+        ...(replyingTo && {
+          replyMessageId: replyingTo._id,
+          replyMessageContent: replyingTo.content,
+          replyMessageType: replyingTo.messageType,
+          replyMessageSender: replyingTo.sender,
+        }),
+      };
+      console.log(`ChatFooter: Sending ${messageType} message`, payload);
+      sendMessage(payload);
     }
-  };
+
+    setMessage("");
+    setAttachedFiles([]);
+    setReplyingTo(null);
+    setShowEmojiPicker(false);
+  } catch (err) {
+    console.error("Error sending message:", err);
+  } finally {
+    setUploading(false);
+  }
+};
 
   useEffect(() => {
     // Thu hồi các URL preview khi component unmount

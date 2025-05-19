@@ -408,7 +408,7 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
         socket.emit("leaveConversation", { conversationId: data.conversationId });
         console.log(`ChatList: Rời phòng ${data.conversationId}`);
       }
-      toast.info("Bạn đã bị xóa khỏi nhóm");
+      // toast.info("Bạn đã bị xóa khỏi nhóm");
     };
 
     const handleChatInfoUpdated = (updatedInfo) => {
