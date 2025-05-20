@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -27,6 +27,10 @@ const MessageItem = ({
   messages,
   onLongPress,
   onMediaPress,
+  markMessageAsRead,
+  participants,
+  userCache,
+  isLastMessage,
 }) => {
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
@@ -36,6 +40,15 @@ const MessageItem = ({
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [mediaType, setMediaType] = useState(null);
+
+  // Auto mark message as read when it becomes visible
+  useEffect(() => {
+    if (msg && !isCurrentUser && markMessageAsRead) {
+      if (!msg.status?.readBy || !msg.status.readBy.includes(currentUserId)) {
+        markMessageAsRead(msg._id);
+      }
+    }
+  }, [msg, isCurrentUser, currentUserId, markMessageAsRead]);
 
   const normalizeMediaArray = (data) =>
     Array.isArray(data)
@@ -258,6 +271,54 @@ const MessageItem = ({
     });
   };
 
+  const getMessageStatus = () => {
+    // Chỉ hiển thị trạng thái cho tin nhắn của người dùng hiện tại và là tin nhắn cuối cùng
+    if (!isCurrentUser || !isLastMessage) {
+      return null;
+    }
+
+    // Nếu không có thông tin trạng thái, mặc định là "Đã gửi"
+    if (!msg.status?.readBy || msg.status.readBy.length === 0) {
+      return "Đã gửi";
+    }
+
+    // Xử lý cho nhóm chat
+    if (participants && participants.length > 2) {
+      const otherMembers = participants.filter(p => p.userId !== currentUserId);
+      const totalOtherMembers = otherMembers.length;
+      const readMembers = msg.status.readBy.filter(user => {
+        const userId = typeof user === 'object' ? user._id : user;
+        return userId !== currentUserId;
+      });
+      if (readMembers.length === totalOtherMembers) {
+        return "Tất cả đã xem";
+      }
+
+      const readNames = readMembers.map(userId => {
+        const id = typeof userId === 'object' ? userId._id : userId;
+        const cachedUser = userCache[id];
+        return cachedUser?.name || "Unknown";
+      }).join(", ");
+
+      return readNames ? `${readNames} đã xem` : "Đã gửi";
+    }
+
+    // Lấy ID của người nhận (người không phải người gửi)
+    const receiverId = participants?.find(p => p.userId !== currentUserId)?.userId;
+    if (!receiverId) {
+      return "Đã gửi";
+    }
+
+    // Kiểm tra xem người nhận đã đọc tin nhắn chưa
+    const isRead = msg.status.readBy.some(user => {
+      const userId = typeof user === 'object' ? user._id : user;
+      return userId === receiverId;
+    });
+
+    // Chỉ hiển thị "Đã xem" hoặc "Đã gửi" cho chat cá nhân
+    return isRead ? "Đã xem" : "Đã gửi";
+  };
+
   return (
     <View
       style={[
@@ -307,15 +368,22 @@ const MessageItem = ({
             </>
           )}
 
-          <Text
-            style={[
-              styles.timeText,
-              isCurrentUser ? styles.timeTextRight : styles.timeTextLeft,
-            ]}
-          >
-            {msg.time}
-          </Text>
+          <View style={styles.messageFooter}>
+            <Text
+              style={[
+                styles.timeText,
+                isCurrentUser ? styles.timeTextRight : styles.timeTextLeft,
+              ]}
+            >
+              {msg.time}
+            </Text>
+          </View>
         </View>
+        {isCurrentUser && isLastMessage && (
+          <Text style={styles.statusText}>
+            {getMessageStatus()}
+          </Text>
+        )}
       </TouchableOpacity>
 
       {renderMediaModal()}
@@ -565,6 +633,19 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 20,
     fontWeight: "bold",
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
+    textAlign: 'right',
+    fontStyle: 'italic',
   },
 });
 

@@ -53,6 +53,10 @@ function ChatPage() {
     lastActive: 6,
   });
   const [replyingTo, setReplyingTo] = useState(null);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [isRevokeModalVisible, setIsRevokeModalVisible] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState(null);
+  const [messageToRevoke, setMessageToRevoke] = useState(null);
 
   const { socket, userId: currentUserId } = useSocket();
   const socketCloud = useCloudSocket();
@@ -573,45 +577,39 @@ function ChatPage() {
   };
 
   const handleDelete = (msg) => {
-    const confirmDelete = () => {
-      console.log("ChatPage: Xóa tin nhắn", { messageId: msg._id });
-      socket.emit("messageDeleted", { messageId: msg._id });
-      dispatch(setMessages(messages.filter((message) => message._id !== msg._id)));
-    };
-
-    return (
-      <ConfirmModal
-        isOpen={true}
-        onClose={() => {}}
-        onConfirm={confirmDelete}
-        title="Xóa tin nhắn"
-        message="Bạn có chắc muốn xóa tin nhắn này? Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi."
-      />
-    );
+    setMessageToDelete(msg);
+    setIsDeleteModalVisible(true);
   };
 
   const handleRevoke = (msg) => {
-    const confirmRevoke = () => {
-      console.log("ChatPage: Thu hồi tin nhắn", { messageId: msg._id });
-      socket.emit("messageRevoked", { messageId: msg._id });
+    setMessageToRevoke(msg);
+    setIsRevokeModalVisible(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (messageToDelete) {
+      console.log("ChatPage: Xóa tin nhắn", { messageId: messageToDelete._id });
+      socket.emit("messageDeleted", { messageId: messageToDelete._id });
+      dispatch(setMessages(messages.filter((message) => message._id !== messageToDelete._id)));
+    }
+    setIsDeleteModalVisible(false);
+    setMessageToDelete(null);
+  };
+
+  const handleConfirmRevoke = () => {
+    if (messageToRevoke) {
+      console.log("ChatPage: Thu hồi tin nhắn", { messageId: messageToRevoke._id });
+      socket.emit("messageRevoked", { messageId: messageToRevoke._id });
       dispatch(
         setMessages(
           messages.map((message) =>
-            message._id === msg._id ? { ...message, isRevoked: true } : message
+            message._id === messageToRevoke._id ? { ...message, isRevoked: true } : message
           )
         )
       );
-    };
-
-    return (
-      <ConfirmModal
-        isOpen={true}
-        onClose={() => {}}
-        onConfirm={confirmRevoke}
-        title="Thu hồi tin nhắn"
-        message="Bạn có chắc muốn thu hồi tin nhắn này?"
-      />
-    );
+    }
+    setIsRevokeModalVisible(false);
+    setMessageToRevoke(null);
   };
 
   const formatTime = (createdAt) => {
@@ -894,19 +892,19 @@ function ChatPage() {
       return;
 
     const handleMessageRead = ({ messageId, userId, readBy }) => {
-      dispatch(setMessages(
-        messages.map((msg) =>
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
           msg._id === messageId
             ? {
                 ...msg,
                 status: {
                   ...msg.status,
-                  readBy: readBy,
+                  readBy: readBy, // cập nhật lại mảng readBy mới nhất từ BE
                 },
               }
             : msg
         )
-      ));
+      );
     };
 
     socket.on("messageRead", handleMessageRead);
@@ -914,7 +912,7 @@ function ChatPage() {
     return () => {
       socket.off("messageRead", handleMessageRead);
     };
-  }, [socket, selectedMessageId, messages, dispatch]);
+  }, [socket, selectedMessageId]);
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {selectedChat ? (
@@ -1111,6 +1109,24 @@ function ChatPage() {
           onClose={() =>
             setContextMenu((prev) => ({ ...prev, visible: false }))
           }
+        />
+      )}
+      {isDeleteModalVisible && (
+        <ConfirmModal
+          isOpen={isDeleteModalVisible}
+          onClose={() => setIsDeleteModalVisible(false)}
+          onConfirm={handleConfirmDelete}
+          title="Xóa tin nhắn"
+          message="Bạn có chắc muốn xóa tin nhắn này? Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi."
+        />
+      )}
+      {isRevokeModalVisible && (
+        <ConfirmModal
+          isOpen={isRevokeModalVisible}
+          onClose={() => setIsRevokeModalVisible(false)}
+          onConfirm={handleConfirmRevoke}
+          title="Thu hồi tin nhắn"
+          message="Bạn có chắc muốn thu hồi tin nhắn này?"
         />
       )}
     </div>

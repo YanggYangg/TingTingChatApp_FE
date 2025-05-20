@@ -9,13 +9,7 @@ import { getMessaging, getToken } from "firebase/messaging";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyA8fnb12ST1wm-nPXWcNerKuRkFxIHmorQ",
-  authDomain: "tingtingchatapp.firebaseapp.com",
-  projectId: "tingtingchatapp",
-  storageBucket: "tingtingchatapp.firebasestorage.app",
-  messagingSenderId: "717017584828",
-  appId: "1:717017584828:web:a341539f60f000afd82cb9",
-  measurementId: "G-L2T4KXWY6Q"
+
 
 
 };
