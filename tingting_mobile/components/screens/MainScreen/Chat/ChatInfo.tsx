@@ -253,21 +253,47 @@ const ChatInfo: React.FC = () => {
 
   // Lấy và cập nhật danh sách cuộc trò chuyện
   useEffect(() => {
-    if (!socket || !finalUserId) return;
+    if (!socket || !finalUserId) {
+      setError("Thiếu socket hoặc ID người dùng để tải danh sách cuộc trò chuyện.");
+      return;
+    }
 
-    const cleanup = loadAndListenConversations(socket, setConversations);
-    onConversations(socket, setConversations);
-    onConversationUpdate(socket, (updatedConversation: any) => {
-      setConversations((prev) =>
-        prev.map((conv) => (conv._id === updatedConversation._id ? updatedConversation : conv))
-      );
-    });
+    // Hàm xử lý load danh sách cuộc trò chuyện
+    const fetchConversations = async () => {
+      try {
+        const cleanup = loadAndListenConversations(socket, (convs: any[]) => {
+          setConversations(convs);
+          setError(null); // Xóa lỗi nếu load thành công
+        });
+        
+        // Lắng nghe sự kiện cập nhật danh sách cuộc trò chuyện
+        onConversations(socket, (convs: any[]) => {
+          setConversations(convs);
+          setError(null);
+        });
 
-    return () => {
-      cleanup();
-      offConversations(socket);
-      offConversationUpdate(socket);
+        // Lắng nghe sự kiện cập nhật từng cuộc trò chuyện
+        onConversationUpdate(socket, (updatedConversation: any) => {
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv._id === updatedConversation._id ? updatedConversation : conv
+            )
+          );
+        });
+
+        // Trả về hàm cleanup để dọn dẹp các listener
+        return () => {
+          cleanup();
+          offConversations(socket);
+          offConversationUpdate(socket);
+        };
+      } catch (error) {
+        console.warn("Lỗi khi tải danh sách cuộc trò chuyện:", error);
+        setError("Không thể tải danh sách cuộc trò chuyện.");
+      }
     };
+
+    fetchConversations();
   }, [socket, finalUserId]);
 
   // Tính toán các nhóm chung giữa hai người dùng
@@ -294,25 +320,27 @@ const ChatInfo: React.FC = () => {
   }, [chatInfo, conversations, finalUserId]);
 
   // Lấy danh sách nhóm của người dùng
-
   const fetchUserGroups = useCallback(async () => {
     if (!finalUserId) {
       setError("Thiếu ID người dùng.");
       setUserGroups([]);
+      setIsLoadingGroups(false);
       return;
     }
 
+    setIsLoadingGroups(true);
     try {
       const res = await Api_chatInfo.getUserGroups(finalUserId);
+      console.log("API response for getUserGroups:", res); // Debug response
       if (res.success) {
         const groups = (res.groups || []).map((group: any) => ({
           _id: group._id,
           name: group.name,
-          imageGroup: group.imageGroup,
+          imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
           participants: Array.isArray(group.participants) ? group.participants : [],
         }));
         setUserGroups(groups);
-        console.log("User groups loaded:", groups);
+        console.log("User groups loaded:", groups); // Debug groups
       } else {
         setUserGroups([]);
         setError(res.error || "Không thể tải danh sách nhóm.");
@@ -321,16 +349,18 @@ const ChatInfo: React.FC = () => {
       console.warn("Lỗi lấy danh sách nhóm:", error);
       setUserGroups([]);
       setError("Lỗi khi tải danh sách nhóm.");
+    } finally {
+      setIsLoadingGroups(false);
     }
   }, [finalUserId, setError, setUserGroups]);
 
-
+  // Tải danh sách nhóm ngay khi component mount
   useEffect(() => {
-    console.log("finalUserId:", finalUserId);
-    if (isAddToGroupModalOpen) {
+    if (finalUserId) {
       fetchUserGroups();
     }
-  }, [isAddToGroupModalOpen, finalUserId]);
+  }, [finalUserId, fetchUserGroups]);
+
   // Xử lý khi thêm thành viên mới vào nhóm
   // Cập nhật lại thông tin chat sau khi thêm thành viên
   const handleMemberAdded = () => {
@@ -455,11 +485,14 @@ const ChatInfo: React.FC = () => {
 
   // Thêm người dùng vào nhóm
   // Mở modal thêm vào nhóm
-  const handleAddToGroup = () => {
+  const handleAddToGroup = async () => {
     console.log("handleAddToGroup called, userGroups:", userGroups);
-    if (!userGroups.length) {
-      Alert.alert("Thông báo", "Bạn chưa tham gia nhóm nào.");
-      return;
+    if (!userGroups.length && !isLoadingGroups) {
+      await fetchUserGroups(); // Gọi lại fetchUserGroups nếu userGroups rỗng
+      if (!userGroups.length) {
+        Alert.alert("Thông báo", "Bạn chưa tham gia nhóm nào.");
+        return;
+      }
     }
     if (!otherUser?._id) {
       Alert.alert("Lỗi", "Không có thông tin người dùng để thêm.");
@@ -516,7 +549,7 @@ const ChatInfo: React.FC = () => {
     };
     socket.once("error", handleUpdateError);
     setTimeout(() => socket.off("error", handleUpdateError), 5000);
-    HANDLECloseEditNameModal();
+    handleCloseEditNameModal();
   };
 
   // Tìm kiếm tin nhắn
@@ -543,6 +576,25 @@ const ChatInfo: React.FC = () => {
           onPress={() => {
             setLoading(true);
             getChatInfo(socket, { conversationId });
+          }}
+        >
+          <Text style={styles.retryText}>Thử lại</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Giao diện khi có lỗi
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.textRed}>{error}</Text>
+        <TouchableOpacity
+          onPress={() => {
+            setError(null);
+            setLoading(true);
+            getChatInfo(socket, { conversationId });
+            fetchUserGroups(); // Thử load lại nhóm
           }}
         >
           <Text style={styles.retryText}>Thử lại</Text>
