@@ -185,7 +185,7 @@ const ChatScreen = ({ route, navigation }) => {
     joinConversation(socket, selectedMessageId);
 
     socket.on("loadMessages", (data) => {
-      console.log("Received loadMessages:", data);
+      // console.log("Received loadMessages:", data);
       setMessages(data);
     });
 

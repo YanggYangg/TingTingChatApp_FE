@@ -1,11 +1,20 @@
 import React, { useCallback } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from "react-native";
 import Modal from "react-native-modal";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
 import { setChatInfoUpdate } from "../../../../../redux/slices/chatSlice";
 
-const DEFAULT_GROUP_IMAGE = "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg";
+const DEFAULT_GROUP_IMAGE =
+  "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg";
 
 interface Participant {
   userId: string;
@@ -54,15 +63,24 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
 
       // Kiểm tra các tham số bắt buộc
       if (!group._id || !otherUserId || !currentUserId) {
-        console.warn("Thiếu thông tin bắt buộc:", { groupId: group._id, otherUserId, currentUserId });
+        console.warn("Thiếu thông tin bắt buộc:", {
+          groupId: group._id,
+          otherUserId,
+          currentUserId,
+        });
         Alert.alert("Lỗi", "Thiếu thông tin nhóm hoặc người dùng.");
         return;
       }
 
       // Kiểm tra xem otherUserId đã là thành viên chưa
-      const isAlreadyMember = commonGroups.some((commonGroup) => commonGroup._id === group._id);
+      const isAlreadyMember = commonGroups.some(
+        (commonGroup) => commonGroup._id === group._id
+      );
       if (isAlreadyMember) {
-        Alert.alert("Thông báo", `Người dùng đã là thành viên của nhóm ${group.name || "Nhóm không tên"}.`);
+        Alert.alert(
+          "Thông báo",
+          `Người dùng đã là thành viên của nhóm ${group.name || "Nhóm không tên"}.`
+        );
         return;
       }
 
@@ -90,9 +108,15 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
               updatedAt: new Date().toISOString(),
             })
           );
-          Alert.alert("Thành công", `Đã thêm thành viên vào nhóm ${group.name || "Nhóm không tên"}`);
+          Alert.alert(
+            "Thành công",
+            `Đã thêm thành viên vào nhóm ${group.name || "Nhóm không tên"}`
+          );
         } else {
-          Alert.alert("Lỗi", `Thêm thành viên thất bại: ${response?.message || "Lỗi không xác định"}`);
+          Alert.alert(
+            "Lỗi",
+            `Thêm thành viên thất bại: ${response?.message || "Lỗi không xác định"}`
+          );
         }
       });
       onClose();
@@ -104,7 +128,12 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
     <Modal isVisible={isOpen} onBackdropPress={onClose} style={styles.modal}>
       <View style={styles.modalContainer}>
         <View style={styles.modalTitleContainer}>
-          <Ionicons name="person-add-outline" size={24} color="#1e90ff" style={styles.modalTitleIcon} />
+          <Ionicons
+            name="person-add-outline"
+            size={24}
+            color="#1e90ff"
+            style={styles.modalTitleIcon}
+          />
           <Text style={styles.modalTitle}>Thêm vào nhóm</Text>
         </View>
         {userGroups.length === 0 ? (
@@ -113,7 +142,9 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
           <ScrollView style={styles.list}>
             {userGroups.map((group) => {
               // Kiểm tra xem nhóm có phải là nhóm chung
-              const isCommonGroup = commonGroups.some((commonGroup) => commonGroup._id === group._id);
+              const isCommonGroup = commonGroups.some(
+                (commonGroup) => commonGroup._id === group._id
+              );
 
               if (!group._id || !group.name) {
                 console.warn(`Dữ liệu nhóm không hợp lệ: ${JSON.stringify(group)}`);
@@ -134,10 +165,17 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
                     style={styles.groupImage}
                   />
                   <View style={styles.groupInfo}>
-                    <Text style={styles.groupName}>{group.name || "Nhóm không tên"}</Text>
+                    <Text style={styles.groupName}>
+                      {group.name || "Nhóm không tên"}
+                    </Text>
                     {isCommonGroup && (
                       <View style={styles.joinedContainer}>
-                        <Ionicons name="checkmark-circle" size={16} color="#1e90ff" style={styles.joinedIcon} />
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={16}
+                          color="#1e90ff"
+                          style={styles.joinedIcon}
+                        />
                         <Text style={styles.joinedText}>Đã tham gia</Text>
                       </View>
                     )}
