@@ -40,6 +40,7 @@ interface AddToGroupModalProps {
   otherUserId: string;
   currentUserId: string;
   onMemberAdded: (group: UserGroup) => void;
+  isLoadingGroups: boolean; // Thêm prop isLoadingGroups
 }
 
 const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
@@ -51,6 +52,7 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
   otherUserId,
   currentUserId,
   onMemberAdded,
+  isLoadingGroups,
 }) => {
   const dispatch = useDispatch();
 
@@ -61,7 +63,6 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
         return;
       }
 
-      // Kiểm tra các tham số bắt buộc
       if (!group._id || !otherUserId || !currentUserId) {
         console.warn("Thiếu thông tin bắt buộc:", {
           groupId: group._id,
@@ -72,7 +73,6 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
         return;
       }
 
-      // Kiểm tra xem otherUserId đã là thành viên chưa
       const isAlreadyMember = commonGroups.some(
         (commonGroup) => commonGroup._id === group._id
       );
@@ -84,41 +84,39 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
         return;
       }
 
-      // Chuẩn bị payload
-      const payload = {
-        conversationId: group._id,
-        userId: otherUserId,
-        performerId: currentUserId,
-        role: "member",
-      };
-      console.log("Gửi payload addParticipant:", payload);
-
-      // Phát sự kiện addParticipant
-      socket.emit("addParticipant", payload, (response: any) => {
-        console.log("Phản hồi từ server:", response);
-        if (response?.success) {
-          onMemberAdded(group);
-          dispatch(
-            setChatInfoUpdate({
-              _id: group._id,
-              name: group.name,
-              imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
-              isGroup: true,
-              participants: response.data?.participants || group.participants || [],
-              updatedAt: new Date().toISOString(),
-            })
-          );
-          Alert.alert(
-            "Thành công",
-            `Đã thêm thành viên vào nhóm ${group.name || "Nhóm không tên"}`
-          );
-        } else {
-          Alert.alert(
-            "Lỗi",
-            `Thêm thành viên thất bại: ${response?.message || "Lỗi không xác định"}`
-          );
+      socket.emit(
+        "addParticipant",
+        {
+          conversationId: group._id,
+          userId: otherUserId,
+          performerId: currentUserId,
+          role: "member",
+        },
+        (response: any) => {
+          if (response?.success) {
+            onMemberAdded(group);
+            dispatch(
+              setChatInfoUpdate({
+                _id: group._id,
+                name: group.name,
+                imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
+                isGroup: true,
+                participants: response.data?.participants || group.participants || [],
+                updatedAt: new Date().toISOString(),
+              })
+            );
+            Alert.alert(
+              "Thành công",
+              `Đã thêm thành viên vào nhóm ${group.name || "Nhóm không tên"}`
+            );
+          } else {
+            Alert.alert(
+              "Lỗi",
+              `Thêm thành viên thất bại: ${response?.message || "Lỗi không xác định"}`
+            );
+          }
         }
-      });
+      );
       onClose();
     },
     [socket, otherUserId, currentUserId, commonGroups, onMemberAdded, dispatch, onClose]
@@ -136,23 +134,16 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
           />
           <Text style={styles.modalTitle}>Thêm vào nhóm</Text>
         </View>
-        {userGroups.length === 0 ? (
+        {isLoadingGroups ? (
+          <Text style={styles.noGroupsText}>Đang tải danh sách nhóm...</Text>
+        ) : userGroups.length === 0 ? (
           <Text style={styles.noGroupsText}>Bạn chưa tham gia nhóm nào.</Text>
         ) : (
           <ScrollView style={styles.list}>
             {userGroups.map((group) => {
-              // Kiểm tra xem nhóm có phải là nhóm chung
               const isCommonGroup = commonGroups.some(
                 (commonGroup) => commonGroup._id === group._id
               );
-
-              if (!group._id || !group.name) {
-                console.warn(`Dữ liệu nhóm không hợp lệ: ${JSON.stringify(group)}`);
-                return null;
-              }
-
-              console.log(`Nhóm ${group.name}: isCommonGroup=${isCommonGroup}`);
-
               return (
                 <TouchableOpacity
                   key={group._id}

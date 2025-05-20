@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,7 @@ import {
   ScrollView,
   Clipboard,
 } from "react-native";
-import { FontAwesome } from "@expo/vector-icons";
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import Modal from "react-native-modal";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useDispatch } from "react-redux";
@@ -22,24 +21,41 @@ import AddMemberModal from "./chatInfoComponent/AddMemberModal";
 import EditNameModal from "./chatInfoComponent/EditNameModal";
 import CreateGroupModal from "./chatInfoComponent/CreateGroupModal";
 import GroupActionButton from "./chatInfoComponent/GroupActionButton";
+import AddToGroupModal from "./chatInfoComponent/AddToGroupModal";
 import { Api_Profile } from "../../../../apis/api_profile";
 import { Api_chatInfo } from "../../../../apis/Api_chatInfo";
 import {
-  getChatInfo, onChatInfo, offChatInfo, onChatInfoUpdated, offChatInfoUpdated,
-  updateChatName, pinChat, updateNotification, onError, offError,
-  getChatMedia, getChatFiles, getChatLinks,
+  getChatInfo,
+  onChatInfo,
+  offChatInfo,
+  onChatInfoUpdated,
+  offChatInfoUpdated,
+  updateChatName,
+  pinChat,
+  updateNotification,
+  onError,
+  offError,
+  getChatMedia,
+  getChatFiles,
+  getChatLinks,
 } from "../../../../services/sockets/events/chatInfo";
 import {
-  onConversations, offConversations, onConversationUpdate, offConversationUpdate,
-  loadAndListenConversations, joinConversation,
+  onConversations,
+  offConversations,
+  onConversationUpdate,
+  offConversationUpdate,
+  loadAndListenConversations,
+  joinConversation,
 } from "../../../../services/sockets/events/conversation";
 import { useSocket } from "../../../../contexts/SocketContext";
 import { setChatInfoUpdate, setSelectedMessage } from "../../../../redux/slices/chatSlice";
 
-// Default avatar and group image for fallback
-const DEFAULT_AVATAR = "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
-const DEFAULT_GROUP_IMAGE = "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=";
+const DEFAULT_AVATAR =
+  "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
+const DEFAULT_GROUP_IMAGE =
+  "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=";
 
+// Định nghĩa interface cho dữ liệu
 interface Participant {
   userId: string;
   role?: "admin" | "member";
@@ -68,97 +84,21 @@ interface UserGroup {
   _id: string;
   name: string;
   imageGroup?: string;
+  participants?: Participant[];
 }
 
-interface ChatInfoProps {
-  route: {
-    params: {
-      userId: string;
-      conversationId: string;
-      socket: any;
-    };
-  };
-}
-
-const Icon = FontAwesome;
-
-const AddToGroupModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  userGroups: UserGroup[];
-  socket: any;
-  otherUserId: string;
-  onMemberAdded: () => void;
-}> = ({ isOpen, onClose, userGroups, socket, otherUserId, onMemberAdded }) => {
-  const dispatch = useDispatch();
-
-  const handleSelectGroup = (group: UserGroup) => {
-    if (!socket) {
-      Alert.alert('Lỗi', 'Không thể kết nối đến server.');
-      return;
-    }
-    socket.emit('addMemberToGroup', { conversationId: group._id, userId: otherUserId }, (response: any) => {
-      if (response?.success) {
-        onMemberAdded();
-        dispatch(setChatInfoUpdate({
-          _id: group._id,
-          name: group.name,
-          imageGroup: group.imageGroup,
-          isGroup: true,
-          participants: response.data.participants,
-          updatedAt: new Date().toISOString(),
-        }));
-      } else {
-        Alert.alert('Lỗi', `Thêm thành viên thất bại: ${response?.message || 'Lỗi không xác định'}`);
-      }
-    });
-    onClose();
-  };
-
-  return (
-    <Modal isVisible={isOpen} onBackdropPress={onClose} style={styles.modal}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalTitleContainer}>
-          <Ionicons name="person-add-outline" size={20} color="#333" style={styles.modalTitleIcon} />
-          <Text style={styles.modalTitle}>Thêm vào nhóm</Text>
-        </View>
-        {userGroups.length === 0 ? (
-          <Text style={styles.noGroupsText}>Bạn chưa tham gia nhóm nào.</Text>
-        ) : (
-          <ScrollView style={styles.list}>
-            {userGroups.map((item) => (
-              <TouchableOpacity
-                key={item._id}
-                style={styles.groupItem}
-                onPress={() => handleSelectGroup(item)}
-              >
-                <Image
-                  source={{ uri: item.imageGroup || 'https://via.placeholder.com/40' }}
-                  style={styles.groupImageSmall}
-                />
-                <Text style={styles.groupName}>{item.name || 'Nhóm không tên'}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-        <TouchableOpacity onPress={onClose} style={styles.closeIconWrapper}>
-          <Ionicons name="close-outline" size={24} color="#333" />
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-};
-
-const ChatInfo: React.FC<ChatInfoProps> = () => {
+const ChatInfo: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const dispatch = useDispatch();
   const { userId, conversationId, socket: socketFromParams } = route.params || {};
   const { socket: socketFromContext, userId: contextUserId } = useSocket();
 
+  // Sử dụng socket và userId từ params hoặc context
   const socket = socketFromParams || socketFromContext;
   const finalUserId = userId || contextUserId;
 
+  // State để quản lý dữ liệu
   const [chatInfo, setChatInfo] = useState<ChatInfoData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
@@ -167,29 +107,18 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false); // Thêm trạng thái loading cho groups
   const [isEditNameModalOpen, setIsEditNameModalOpen] = useState(false);
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
-  const [otherUserName, setOtherUserName] = useState<string>('');
+  const [otherUserName, setOtherUserName] = useState("");
   const [userRoleInGroup, setUserRoleInGroup] = useState<string | null>(null);
   const [conversations, setConversations] = useState<any[]>([]);
-  const [commonGroups, setCommonGroups] = useState<any[]>([]);
+  const [commonGroups, setCommonGroups] = useState<UserGroup[]>([]);
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const instanceId = Math.random().toString(36).substring(7);
-
-  console.log(
-    `ChatInfo instance ${instanceId} received props at:`,
-    new Date().toISOString(),
-    {
-      userId: finalUserId,
-      conversationId,
-      socket: socket ? "Socket exists" : "Socket missing",
-      routeParams: route.params,
-      navigationState: navigation.getState()?.routes,
-    }
-  );
-
-  // Select a group and join its conversation
+  // Hàm chọn và tham gia một nhóm
+  // Nhận một nhóm và tham gia vào cuộc trò chuyện của nhóm đó
   const handleGroupSelect = (group: any) => {
     if (!socket) {
       Alert.alert("Lỗi", "Socket chưa kết nối!");
@@ -202,46 +131,28 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       isGroup: true,
       imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
       isPinned: false,
-      mute: false,
+      mute: null,
     };
     joinConversation(socket, formattedMessage.id);
     dispatch(setSelectedMessage(formattedMessage));
   };
 
-  // Fetch and listen for chat info updates
+  // Lấy và cập nhật thông tin chat
   useEffect(() => {
     if (!socket || !conversationId || !finalUserId) {
-      console.warn(
-        `ChatInfo instance ${instanceId} missing userId, conversationId, or socket:`,
-        {
-          userId: finalUserId,
-          conversationId,
-          socket,
-        }
-      );
-      Alert.alert(
-        "Lỗi",
-        "Thiếu thông tin người dùng, cuộc trò chuyện hoặc kết nối.",
-        [{ text: "OK", onPress: () => navigation.goBack() }]
-      );
+      Alert.alert("Lỗi", "Thiếu thông tin người dùng hoặc cuộc trò chuyện.");
       setLoading(false);
       return;
     }
 
+    // Lấy thông tin chat ban đầu
     getChatInfo(socket, { conversationId });
 
-    const handleUpdateChatInfo = ({ conversationId: updatedId, messageType }: { conversationId: string; messageType: string }) => {
-      if (updatedId !== conversationId) return;
-      if (messageType === "image" || messageType === "video") getChatMedia(socket, { conversationId });
-      else if (messageType === "file") getChatFiles(socket, { conversationId });
-      else if (messageType === "link") getChatLinks(socket, { conversationId });
-    };
-
-    const handleOnChatInfo = (newChatInfo: ChatInfoData) => {
-      console.log(`ChatInfo instance ${instanceId} received chat info:`, newChatInfo);
+    // Xử lý khi nhận được thông tin chat
+    const handleChatInfo = (newChatInfo: ChatInfoData) => {
       const participant = newChatInfo.participants?.find((p) => p.userId === finalUserId);
       if (participant?.isHidden) {
-        Alert.alert("Lỗi", "Hội thoại này đang ẩn. Vui lòng xác thực lại.");
+        Alert.alert("Lỗi", "Hội thoại này đang ẩn.");
         dispatch(setSelectedMessage(null));
         setLoading(false);
         return;
@@ -252,21 +163,21 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       setIsPinned(!!participant?.isPinned);
       setUserRoleInGroup(participant?.role || null);
 
+      // Nếu không phải nhóm, lấy thông tin người dùng khác
       if (!newChatInfo.isGroup) {
-        const otherParticipant = newChatInfo.participants?.find((p) => p.userId !== finalUserId);
+        const otherParticipant = newChatInfo.participants?.find(
+          (p) => p.userId !== finalUserId
+        );
         if (otherParticipant?.userId) {
-          console.log(`ChatInfo instance ${instanceId} fetching other user profile:`, otherParticipant.userId);
           Api_Profile.getProfile(otherParticipant.userId)
             .then((response) => {
-              console.log(`ChatInfo instance ${instanceId} received other user profile:`, response?.data?.user);
               const user = response?.data?.user as UserProfile;
               setOtherUser(user || { _id: "", firstname: "Không tìm thấy", surname: "", avatar: null });
-              setOtherUserName(`${user.firstname || ''} ${user.surname || ''}`.trim() || 'Người dùng');
+              setOtherUserName(`${user.firstname || ""} ${user.surname || ""}`.trim() || "Người dùng");
             })
-            .catch((userError) => {
-              console.error(`ChatInfo instance ${instanceId} error fetching other user:`, userError);
+            .catch(() => {
               setOtherUser({ _id: "", firstname: "Không tìm thấy", surname: "", avatar: null });
-              setOtherUserName('Người dùng');
+              setOtherUserName("Người dùng");
             })
             .finally(() => setLoading(false));
         } else {
@@ -278,12 +189,14 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       dispatch(setChatInfoUpdate(newChatInfo));
     };
 
-    const handleOnChatInfoUpdated = (updatedInfo: Partial<ChatInfoData>) => {
-      console.log(`ChatInfo instance ${instanceId} received chat info update:`, updatedInfo);
+    // Xử lý khi thông tin chat được cập nhật
+    const handleChatInfoUpdated = (updatedInfo: Partial<ChatInfoData>) => {
       if (updatedInfo._id !== conversationId) return;
-      const participant = updatedInfo.participants?.find((p) => p.userId === finalUserId);
+      const participant = updatedInfo.participants?.find(
+        (p) => p.userId === finalUserId
+      );
       if (participant?.isHidden) {
-        Alert.alert("Lỗi", "Hội thoại này đang ẩn. Vui lòng xác thực lại.");
+        Alert.alert("Lỗi", "Hội thoại này đang ẩn.");
         dispatch(setSelectedMessage(null));
         return;
       }
@@ -299,23 +212,38 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       setUserRoleInGroup(participant?.role || null);
     };
 
+    // Xử lý khi có lỗi
     const handleError = (error: any) => {
-      console.error(`ChatInfo instance ${instanceId} received error:`, error);
-      Alert.alert("Lỗi", "Đã xảy ra lỗi: " + (error.message || "Không thể cập nhật thông tin."));
+      Alert.alert("Lỗi", "Đã xảy ra lỗi: " + (error.message || "Không xác định"));
       setLoading(false);
     };
 
-    console.log(`ChatInfo instance ${instanceId} setting up socket listeners`);
+    // Xử lý cập nhật thông tin chat (ảnh, video, file, link)
+    const handleUpdateChatInfo = ({
+      conversationId: updatedId,
+      messageType,
+    }: {
+      conversationId: string;
+      messageType: string;
+    }) => {
+      if (updatedId !== conversationId) return;
+      if (messageType === "image" || messageType === "video")
+        getChatMedia(socket, { conversationId });
+      else if (messageType === "file") getChatFiles(socket, { conversationId });
+      else if (messageType === "link") getChatLinks(socket, { conversationId });
+    };
+
+    // Đăng ký các sự kiện socket
     socket.on("updateChatInfo", handleUpdateChatInfo);
-    onChatInfo(socket, handleOnChatInfo);
-    onChatInfoUpdated(socket, handleOnChatInfoUpdated);
+    onChatInfo(socket, handleChatInfo);
+    onChatInfoUpdated(socket, handleChatInfoUpdated);
     onError(socket, handleError);
     getChatMedia(socket, { conversationId });
     getChatFiles(socket, { conversationId });
     getChatLinks(socket, { conversationId });
 
+    // Dọn dẹp khi component bị hủy
     return () => {
-      console.log(`ChatInfo instance ${instanceId} cleaning up socket listeners`);
       socket.off("updateChatInfo", handleUpdateChatInfo);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
@@ -323,29 +251,26 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     };
   }, [socket, conversationId, finalUserId, dispatch, navigation]);
 
-  // Load and listen for conversation updates
+  // Lấy và cập nhật danh sách cuộc trò chuyện
   useEffect(() => {
     if (!socket || !finalUserId) return;
 
-    console.log(`ChatInfo instance ${instanceId} setting up conversation listeners`);
     const cleanup = loadAndListenConversations(socket, setConversations);
     onConversations(socket, setConversations);
     onConversationUpdate(socket, (updatedConversation: any) => {
-      console.log(`ChatInfo instance ${instanceId} received conversation update:`, updatedConversation);
       setConversations((prev) =>
         prev.map((conv) => (conv._id === updatedConversation._id ? updatedConversation : conv))
       );
     });
 
     return () => {
-      console.log(`ChatInfo instance ${instanceId} cleaning up conversation listeners`);
       cleanup();
       offConversations(socket);
       offConversationUpdate(socket);
     };
   }, [socket, finalUserId]);
 
-  // Calculate common groups between users
+  // Tính toán các nhóm chung giữa hai người dùng
   useEffect(() => {
     if (!chatInfo || !conversations.length || !finalUserId) {
       setCommonGroups([]);
@@ -368,33 +293,52 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     setCommonGroups(common);
   }, [chatInfo, conversations, finalUserId]);
 
-  // Fetch user groups for AddToGroupModal
+  // Lấy danh sách nhóm của người dùng
+
+  const fetchUserGroups = useCallback(async () => {
+    if (!finalUserId) {
+      setError("Thiếu ID người dùng.");
+      setUserGroups([]);
+      return;
+    }
+
+    try {
+      const res = await Api_chatInfo.getUserGroups(finalUserId);
+      if (res.success) {
+        const groups = (res.groups || []).map((group: any) => ({
+          _id: group._id,
+          name: group.name,
+          imageGroup: group.imageGroup,
+          participants: Array.isArray(group.participants) ? group.participants : [],
+        }));
+        setUserGroups(groups);
+        console.log("User groups loaded:", groups);
+      } else {
+        setUserGroups([]);
+        setError(res.error || "Không thể tải danh sách nhóm.");
+      }
+    } catch (error) {
+      console.warn("Lỗi lấy danh sách nhóm:", error);
+      setUserGroups([]);
+      setError("Lỗi khi tải danh sách nhóm.");
+    }
+  }, [finalUserId, setError, setUserGroups]);
+
+
   useEffect(() => {
-    const fetchUserGroups = async () => {
-      if (!finalUserId) {
-        setUserGroups([]);
-        return;
-      }
-      try {
-        const res = await Api_chatInfo.getUserGroups(finalUserId);
-        setUserGroups(res?.groups || []);
-      } catch (err) {
-        console.error('Error fetching user groups:', err);
-        setUserGroups([]);
-      }
-    };
+    console.log("finalUserId:", finalUserId);
     if (isAddToGroupModalOpen) {
       fetchUserGroups();
     }
   }, [isAddToGroupModalOpen, finalUserId]);
-
-  // Handle adding a new member to the group
+  // Xử lý khi thêm thành viên mới vào nhóm
+  // Cập nhật lại thông tin chat sau khi thêm thành viên
   const handleMemberAdded = () => {
-    console.log(`ChatInfo instance ${instanceId} requesting updated chat info after member added`);
     getChatInfo(socket, { conversationId });
   };
 
-  // Handle removing a member from the group
+  // Xử lý khi xóa thành viên khỏi nhóm
+  // Cập nhật danh sách thành viên trong state
   const handleMemberRemoved = (removedUserId: string) => {
     setChatInfo((prev) => {
       if (!prev) return null;
@@ -407,10 +351,11 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     });
   };
 
-  // Toggle mute notification status
+  // Bật/tắt thông báo
+  // Nếu đang tắt, mở modal để chọn thời gian tắt thông báo
+  // Nếu đang bật, gửi yêu cầu bật lại thông báo
   const handleMuteNotification = () => {
     if (isMuted) {
-      console.log(`ChatInfo instance ${instanceId} requesting to unmute notifications`);
       updateNotification(socket, { conversationId, mute: null });
       setIsMuted(false);
       const updatedChatInfo = {
@@ -423,14 +368,13 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       setChatInfo(updatedChatInfo);
       dispatch(setChatInfoUpdate(updatedChatInfo));
     } else {
-      console.log(`ChatInfo instance ${instanceId} opening mute notification modal`);
       setIsMuteModalOpen(true);
     }
   };
 
-  // Handle successful mute action
+  // Xử lý khi bật/tắt thông báo thành công
+  // Cập nhật trạng thái và thông tin chat
   const handleMuteSuccess = (muted: boolean) => {
-    console.log(`ChatInfo instance ${instanceId} mute status updated to:`, muted);
     setIsMuted(muted);
     const updatedChatInfo = {
       ...chatInfo,
@@ -443,11 +387,11 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     dispatch(setChatInfoUpdate(updatedChatInfo));
   };
 
-  // Toggle pin chat status
+  // Ghim/bỏ ghim cuộc trò chuyện
+  // Gửi yêu cầu ghim/bỏ ghim đến server và cập nhật state
   const handlePinChat = () => {
     if (!chatInfo) return;
     const newIsPinned = !isPinned;
-    console.log(`ChatInfo instance ${instanceId} requesting to pin chat:`, newIsPinned);
     pinChat(socket, { conversationId, isPinned: newIsPinned });
     joinConversation(socket, conversationId);
     setIsPinned(newIsPinned);
@@ -462,7 +406,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     dispatch(setChatInfoUpdate(updatedChatInfo));
   };
 
-  // Copy group link to clipboard
+  // Sao chép link nhóm vào clipboard
   const copyToClipboard = () => {
     if (chatInfo?.linkGroup) {
       Clipboard.setString(chatInfo.linkGroup);
@@ -470,10 +414,10 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     }
   };
 
-  // Open modal to add a member
+  // Mở modal để thêm thành viên hoặc tạo nhóm
   const handleAddMember = () => {
     if (!chatInfo) {
-      Alert.alert("Lỗi", "Thông tin cuộc trò chuyện chưa được tải. Vui lòng thử lại.");
+      Alert.alert("Lỗi", "Thông tin cuộc trò chuyện chưa được tải.");
       return;
     }
     if (chatInfo.isGroup) {
@@ -485,44 +429,47 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     }
   };
 
-
-  // Handle view profile
+  // Xem hồ sơ người dùng
+  // Chuyển hướng đến màn hình hồ sơ với userId
   const handleViewProfile = () => {
     if (!otherUser?._id) {
-      Alert.alert('Lỗi', 'Không có thông tin người dùng.');
+      Alert.alert("Lỗi", "Không có thông tin người dùng.");
       return;
     }
-    navigation.navigate('ProfileScreen2', { userId: otherUser._id, profile: otherUser });
+    navigation.navigate("ProfileScreen2", { userId: otherUser._id, profile: otherUser });
   };
 
-
-  // Handle create group
+  // Tạo nhóm mới
+  // Mở modal tạo nhóm
   const handleCreateGroup = () => {
     if (!socket) {
-      Alert.alert('Lỗi', 'Không thể kết nối đến server.');
+      Alert.alert("Lỗi", "Không thể kết nối đến server.");
       return;
     }
     if (!finalUserId || !otherUser?._id) {
-      Alert.alert('Lỗi', 'Thiếu thông tin người dùng.');
+      Alert.alert("Lỗi", "Thiếu thông tin người dùng.");
       return;
     }
     setIsCreateGroupModalOpen(true);
   };
 
-  // Handle add to group
+  // Thêm người dùng vào nhóm
+  // Mở modal thêm vào nhóm
   const handleAddToGroup = () => {
+    console.log("handleAddToGroup called, userGroups:", userGroups);
     if (!userGroups.length) {
-      Alert.alert('Thông báo', 'Bạn chưa tham gia nhóm nào để thêm thành viên.');
+      Alert.alert("Thông báo", "Bạn chưa tham gia nhóm nào.");
       return;
     }
     if (!otherUser?._id) {
-      Alert.alert('Lỗi', 'Không có thông tin người dùng để thêm.');
+      Alert.alert("Lỗi", "Không có thông tin người dùng để thêm.");
       return;
     }
     setIsAddToGroupModalOpen(true);
   };
 
-  // Handle successful group creation
+  // Xử lý khi tạo nhóm thành công
+  // Chuyển hướng đến màn hình chat của nhóm mới
   const handleCreateGroupSuccess = (newGroup: any) => {
     setIsCreateGroupModalOpen(false);
     setConversations((prev) => [...prev, newGroup]);
@@ -532,13 +479,14 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     });
   };
 
-  // Handle successful add to group
-  const handleAddToGroupSuccess = () => {
-    Alert.alert('Thành công', 'Đã thêm thành viên vào nhóm!');
+  // Xử lý khi thêm vào nhóm thành công
+  // Hiển thị thông báo và đóng modal
+  const handleAddToGroupSuccess = (group: UserGroup) => {
+    Alert.alert("Thành công", `Đã thêm thành viên vào nhóm ${group.name || "Nhóm không tên"}!`);
     setIsAddToGroupModalOpen(false);
   };
 
-  // Open modal to edit group name
+  // Mở modal chỉnh sửa tên nhóm
   const handleOpenEditNameModal = () => {
     if (!chatInfo?.isGroup) {
       Alert.alert("Lỗi", "Chỉ nhóm mới có thể đổi tên!");
@@ -547,16 +495,16 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     setIsEditNameModalOpen(true);
   };
 
-  // Close edit name modal
+  // Đóng modal chỉnh sửa tên
   const handleCloseEditNameModal = () => {
     setIsEditNameModalOpen(false);
   };
 
-  // Save new chat name
+  // Lưu tên nhóm mới
+  // Gửi yêu cầu cập nhật tên đến server
   const handleSaveChatName = (newName: string) => {
     if (!chatInfo || !newName.trim()) return;
     const originalName = chatInfo.name;
-    console.log(`ChatInfo instance ${instanceId} requesting to update chat name:`, newName.trim());
     setChatInfo((prev) => ({ ...prev!, name: newName.trim() }));
     updateChatName(socket, { conversationId, name: newName.trim() });
     dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: newName.trim() }));
@@ -568,14 +516,16 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     };
     socket.once("error", handleUpdateError);
     setTimeout(() => socket.off("error", handleUpdateError), 5000);
-    handleCloseEditNameModal();
+    HANDLECloseEditNameModal();
   };
 
-  // Handle search message
+  // Tìm kiếm tin nhắn
+  // Chuyển hướng đến màn hình tìm kiếm tin nhắn
   const handleSearchMessage = () => {
     navigation.navigate("MessageScreen", { conversationId });
   };
 
+  // Giao diện khi đang tải
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -584,6 +534,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     );
   }
 
+  // Giao diện khi không tải được thông tin
   if (!chatInfo) {
     return (
       <View style={styles.centered}>
@@ -607,16 +558,11 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     ? chatInfo.imageGroup?.trim() || DEFAULT_GROUP_IMAGE
     : otherUser?.avatar || DEFAULT_AVATAR;
 
-  console.log(`ChatInfo instance ${instanceId} render - chatInfo:`, chatInfo);
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{ marginLeft: 10 }}
-        >
-          <Icon name="arrow-left" size={20} color="#1f2023" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+          <FontAwesome name="arrow-left" size={20} color="#1f2023" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {chatInfo.isGroup ? "Thông tin nhóm" : "Thông tin hội thoại"}
@@ -625,25 +571,12 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.groupInfo}>
-          <Image
-            source={{ uri: chatDisplayImage }}
-            style={styles.groupImage}
-            onError={() =>
-              console.log(
-                `ChatInfo instance ${instanceId} error loading group/avatar image`
-              )
-            }
-          />
+          <Image source={{ uri: chatDisplayImage }} style={styles.groupImage} />
           <View style={styles.groupNameContainer}>
             <Text style={styles.groupName}>{chatDisplayName}</Text>
             {chatInfo.isGroup && (
               <TouchableOpacity onPress={handleOpenEditNameModal}>
-                <Icon
-                  name="edit"
-                  size={16}
-                  color="#666"
-                  style={styles.editIcon}
-                />
+                <FontAwesome name="edit" size={16} color="#666" style={styles.editIcon} />
               </TouchableOpacity>
             )}
           </View>
@@ -691,7 +624,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
             <Text style={styles.linkTitle}>Link tham gia nhóm</Text>
             <Text style={styles.linkText}>{chatInfo.linkGroup}</Text>
             <TouchableOpacity onPress={copyToClipboard}>
-              <Icon name="copy" size={20} color="#666" />
+              <FontAwesome name="copy" size={20} color="#666" />
             </TouchableOpacity>
           </View>
         )}
@@ -700,19 +633,34 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
           <View>
             <View style={styles.socialActionContainer}>
               <TouchableOpacity style={styles.socialActionButton} onPress={handleViewProfile}>
-                <Ionicons name="person-outline" size={16} color="#1e90ff" style={styles.socialActionIcon} />
+                <Ionicons
+                  name="person-outline"
+                  size={16}
+                  color="#1e90ff"
+                  style={styles.socialActionIcon}
+                />
                 <Text style={styles.socialActionText}>Trang cá nhân</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.socialActionContainer}>
               <TouchableOpacity style={styles.socialActionButton} onPress={handleCreateGroup}>
-                <Ionicons name="add-circle-outline" size={16} color="#1e90ff" style={styles.socialActionIcon} />
+                <Ionicons
+                  name="add-circle-outline"
+                  size={16}
+                  color="#1e90ff"
+                  style={styles.socialActionIcon}
+                />
                 <Text style={styles.socialActionText}>Tạo nhóm với {otherUserName}</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.socialActionContainer}>
               <TouchableOpacity style={styles.socialActionButton} onPress={handleAddToGroup}>
-                <Ionicons name="person-add-outline" size={16} color="#1e90ff" style={styles.socialActionIcon} />
+                <Ionicons
+                  name="person-add-outline"
+                  size={16}
+                  color="#1e90ff"
+                  style={styles.socialActionIcon}
+                />
                 <Text style={styles.socialActionText}>Thêm {otherUserName} vào nhóm</Text>
               </TouchableOpacity>
             </View>
@@ -724,8 +672,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
           userId={finalUserId}
           socket={socket}
         />
-      
-    
+
         <SecuritySettings
           conversationId={conversationId}
           userId={finalUserId}
@@ -772,14 +719,18 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
         isOpen={isAddToGroupModalOpen}
         onClose={() => setIsAddToGroupModalOpen(false)}
         userGroups={userGroups}
+        commonGroups={commonGroups}
         socket={socket}
-        otherUserId={otherUser?._id || ''}
+        otherUserId={otherUser?._id || ""}
+        currentUserId={finalUserId}
         onMemberAdded={handleAddToGroupSuccess}
+        isLoadingGroups={isLoadingGroups} // Truyền trạng thái loading vào modal
       />
     </View>
   );
 };
 
+// Styles giữ nguyên như code gốc
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -838,7 +789,6 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "#fff",
     borderRadius: 8,
-    // elevation: 2,
   },
   socialActionIcon: {
     marginRight: 12,
@@ -882,62 +832,6 @@ const styles = StyleSheet.create({
     color: "#1e90ff",
     marginTop: 10,
     fontSize: 16,
-  },
-  modal: {
-    justifyContent: 'center',
-    margin: 20,
-  },
-  modalContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 10,
-    maxHeight: '80%',
-  },
-  modalTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  modalTitleIcon: {
-    marginRight: 8,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  list: {
-    maxHeight: 300,
-  },
-  groupItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  groupImageSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
-  groupName: {
-    fontSize: 14,
-    color: '#333',
-  },
-  noGroupsText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  closeIconWrapper: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    padding: 8,
-    zIndex: 10,
   },
 });
 
