@@ -46,8 +46,9 @@ import MenuProfileScreen from "@/components/screens/MainScreen/Profile/MenuProfi
 import SettingProfileScreen from "@/components/screens/MainScreen/Profile/SettingProfileScreen";
 import FeedScreen from "@/components/screens/MainScreen/Feed/FeedScreen";
 import CreatePostScreen from "@/components/screens/MainScreen/Feed/CreatePostScreen";
+import CommentSection from "@/components/screens/MainScreen/Comment/CommentSection";
 
-type RootStackParamList = {
+export type RootStackParamList = {
   Main: undefined;
   MessageScreen: { userId?: string; username?: string };
   ChatScreenCloud: undefined;
@@ -76,7 +77,9 @@ type RootStackParamList = {
 
   //Profile
   MenuProfileScreen: undefined;
-  ProfileScreen: undefined;
+  ProfileScreen: {
+    profileId: string;
+  };
   PersonalInfo: {
     formData: {
       firstname: string;
@@ -107,6 +110,9 @@ type RootStackParamList = {
   //Feed
   FeedScreen: undefined;
   CreatePostScreen: undefined;
+  CommentSection: {
+    postId: string;
+  };
 
   MessageSupportScreen: { userId?: string; username?: string };
 };
@@ -177,15 +183,17 @@ function FeedStackNavigator() {
     </FeedStack.Navigator>
   );
 }
-function InformationProfileStackNavigator() {
+function InformationProfileStackNavigator({ route }: any) {
   return (
     <ProfileStack.Navigator
       screenOptions={{
         headerShown: false,
         animation: "none", // Disable animations MenuProfileScreen
       }}
+        
     >
-      <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} />
+      <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} initialParams={route.params} />
+       <ProfileStack.Screen name="CommentSection" component={CommentSection} initialParams={route.params} />
       <ProfileStack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
       <ProfileStack.Screen
         name="EditPersonalInfo"

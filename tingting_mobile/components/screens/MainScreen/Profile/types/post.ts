@@ -12,7 +12,7 @@ export type Reactions = {
 }
 
 export type Post = {
-  id: string
+  _id: string
   profileId: string
   content: string
   media: Media[]
@@ -23,4 +23,6 @@ export type Post = {
   isHidden: boolean
   createdAt: string
   updatedAt: string
+  lovedByUser: boolean
+  totalReactions: number | 0;
 }

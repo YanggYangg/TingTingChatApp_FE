@@ -12,19 +12,22 @@ import {
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/Ionicons";
-import Icon from "react-native-vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { Api_Post } from "@/apis/api_post";
 import axios from "axios";
 import PostFeed from "./components/PostFeed";
-import { mockPosts } from "./data/mockData";
-import PostFeed from "./components/PostFeed";
-import { mockPosts } from "./data/mockData";
+import { StackScreenProps } from "@react-navigation/stack";
+import { Api_Profile } from "@/apis/api_profile";
+import { RootStackParamList } from "@/app/(tabs)";
 
-export default function ProfileScreen() {
+type Props = StackScreenProps<RootStackParamList, "ProfileScreen">;
+
+const ProfileScreen: React.FC<Props> = ({ route }) => {
   const navigation = useNavigation();
+
+  const { profileId } = route.params;
 
   // Get the user ID from the async-storage
   const [formData, setFormData] = useState({
@@ -43,10 +46,8 @@ export default function ProfileScreen() {
   useEffect(() => {
     const loadProfileFromLocal = async () => {
       try {
-        const storedProfile = await AsyncStorage.getItem("profile");
-        if (!storedProfile) return;
-
-        const profile = JSON.parse(storedProfile);
+        const response = await axios.get(`http://192.168.1.171:3001/api/v1/profile/${profileId}`);
+        const profile = response.data.data.user;
         const date = new Date(profile.dateOfBirth);
         const day = date.getDate().toString();
         const month = (date.getMonth() + 1).toString();
@@ -71,14 +72,11 @@ export default function ProfileScreen() {
       }
     };
     const getPost = async () => {
-      const profileId = await AsyncStorage.getItem("userId");
-      if (!profileId) {
-        Alert.alert("Error", "User ID not found in local storage.");
-        return;
-      }
       try {
-        const response = await axios.get(`http://192.168.1.172:3006/api/v1/post/${profileId}`);
-        console.log("Response data:", response.data.data.post);
+        const response = await axios.get(
+          `http://192.168.1.171:3006/api/v1/post/${profileId}`
+        );
+        console.log("Response data2:", response.data.data.post);
         if (response.status === 200) {
           setPosts(response.data.data.post);
         } else {
@@ -88,14 +86,10 @@ export default function ProfileScreen() {
         console.error("Error fetching posts:", error);
         Alert.alert("Error", "Failed to fetch posts.");
       }
-
     };
-
-    getPost();
-
     loadProfileFromLocal();
+    getPost();
   }, []);
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -147,7 +141,6 @@ export default function ProfileScreen() {
                 "https://pantravel.vn/wp-content/uploads/2023/11/ngon-nui-thieng-cua-nhat-ban.jpg",
             }} // hoặc từ local như require("...")
             style={styles.backgroundImage}
-          ></ImageBackground>
           ></ImageBackground>
 
           {/* Profile Picture */}
@@ -219,7 +212,6 @@ export default function ProfileScreen() {
             <Text style={styles.eventText}>14 tháng 2 - Lễ Tình Nhân</Text>
           </View>
         </View>
-        </View>
 
         <View>
           <PostFeed posts={posts} />
@@ -227,14 +219,9 @@ export default function ProfileScreen() {
       </ScrollView>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  title: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
   title: {
     color: "#fff",
     fontSize: 18,
@@ -249,7 +236,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 15,
-
 
     paddingVertical: 10,
     position: "absolute",
@@ -438,12 +424,6 @@ const styles = StyleSheet.create({
     alignContent: "center",
     paddingVertical: 5,
   },
-  reactionButtons: {
-    width: 180,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignContent: "center",
-  },
   likeButton: {
     width: 90,
     flexDirection: "row",
@@ -460,33 +440,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F5",
     padding: 6,
   },
-  commentButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 20,
-    backgroundColor: "#F5F5F5",
-    padding: 6,
-  },
   lockIcon: {
     width: 70,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-    borderRadius: 20,
-    backgroundColor: "#F5F5F5",
-    padding: 6,
-  },
-  lockIcon: {
-    width: 70,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+
   actionText: {
     marginLeft: 5,
     color: "#616161",
   },
   moreButton: {},
-  moreButton: {},
 });
+
+export default ProfileScreen;

@@ -1,7 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = "http://192.168.1.172:3001";
+const BASE_URL = "http://192.168.1.171:3001";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -16,14 +16,13 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem("token");
+    console.log("Token from AsyncStorage:", token);
     if (token) {
       config.headers["Authorization"] = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // 📦 Request wrapper
@@ -48,9 +47,12 @@ const request = async (method, url, data = null, params = null) => {
   }
 };
 
-// 🔧 API Manager
+// 🔧 API Manager (sửa lỗi destructure params)
 const ApiManager = {
-  get: async (url, { params } = {}) => request("get", url, null, params),
+  get: async (url, options = {}) => {
+    const { params } = options;
+    return request("get", url, null, params);
+  },
   post: async (url, data) => request("post", url, data),
   put: async (url, data) => request("put", url, data),
   delete: async (url) => request("delete", url),

@@ -1,13 +1,49 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native"
-import { Feather, AntDesign } from "@expo/vector-icons"
-import type { Post as PostType } from "../types/post"
-import MediaGrid from "./MediaGrid"
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Feather, AntDesign } from "@expo/vector-icons";
+import type { Post as PostType } from "../types/post";
+import MediaGrid from "./MediaGrid";
+import { useNavigation } from "expo-router";
+import axios from "axios";
+import { Api_Post } from "@/apis/api_post";
+import { useState } from "react";
 
 type PostProps = {
-  post: PostType
-}
+  post: PostType;
+};
 
 const Post = ({ post }: PostProps) => {
+  const navigator = useNavigation();
+  const [lovedByUser, setLovedByUser] = useState(post.lovedByUser || false);
+  const [totalReactions, setTotalReactions] = useState(
+    post.totalReactions || 0
+  );
+  const navigateToCommentSection = async () => {
+    navigator.navigate("CommentSection", {
+      postId: post._id,
+    });
+  };
+
+  const handleToggleLike = async () => {
+    try {
+      const response = await axios.post(
+        `http://192.168.1.171:3006/api/v1/post/${post._id}/love`,
+        {
+          profileId: post.profileId,
+        }
+      );
+
+      // ✅ Cập nhật state khi like/unlike thành công
+      if (response.data?.lovedByUser === true) {
+        setLovedByUser(true);
+        setTotalReactions((prev) => prev + 1);
+      } else {
+        setLovedByUser(false);
+        setTotalReactions((prev) => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error("Error toggling love:", error);
+    }
+  };
   return (
     <View style={styles.container}>
       <View style={styles.timelineConnector}>
@@ -18,15 +54,29 @@ const Post = ({ post }: PostProps) => {
       <View style={styles.contentContainer}>
         <Text style={styles.content}>{post.content}</Text>
 
-        {post.media && post.media.length > 0 && <MediaGrid media={post.media} />}
+        {post.media && post.media.length > 0 && (
+          <MediaGrid media={post.media} />
+        )}
 
         <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.actionButton}>
-            <AntDesign name="heart" size={20} color="#666" />
-            <Text style={styles.actionText}>Thích</Text>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleToggleLike}
+          >
+            <AntDesign
+              name="heart"
+              size={20}
+              color={lovedByUser ? "red" : "#666"}
+            />
+            <Text style={[styles.actionText, lovedByUser && { color: "red" }]}>
+              Thích | {totalReactions}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={navigateToCommentSection}
+          >
             <Feather name="message-square" size={20} color="#666" />
             <Text style={styles.actionText}></Text>
           </TouchableOpacity>
@@ -43,8 +93,8 @@ const Post = ({ post }: PostProps) => {
         </View>
       </View>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -113,6 +163,6 @@ const styles = StyleSheet.create({
     padding: 5,
     marginLeft: 10,
   },
-})
+});
 
-export default Post
+export default Post;

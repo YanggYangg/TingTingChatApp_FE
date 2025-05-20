@@ -1,7 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = "http://192.168.1.172:3006";
+const BASE_URL = "http://192.168.1.171:3006";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -51,5 +51,8 @@ export const Api_Post = {
     },
     deletePost: async (id) => {
         return ApiManager.delete(`api/v1/post/${id}`);
+    },
+    toggleLove: async (id, data) => {
+        return ApiManager.post(`api/v1/post/${id}/love`, data);
     },
 };
