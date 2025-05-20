@@ -9,7 +9,14 @@ importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-com
 // your app's Firebase config object.
 // https://firebase.google.com/docs/web/setup#config-object
 firebase.initializeApp({
-  
+  apiKey: "AIzaSyA8fnb12ST1wm-nPXWcNerKuRkFxIHmorQ",
+  authDomain: "tingtingchatapp.firebaseapp.com",
+  projectId: "tingtingchatapp",
+  storageBucket: "tingtingchatapp.firebasestorage.app",
+  messagingSenderId: "717017584828",
+  appId: "1:717017584828:web:a341539f60f000afd82cb9",
+  measurementId: "G-L2T4KXWY6Q"
+
 
 });
 
@@ -18,16 +25,16 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-    console.log(
-      '[firebase-messaging-sw.js] Received background message ',
-      payload
-    );
-    // Customize notification here
-    const notificationTitle = payload.notification.title;
-    const notificationOptions = {
-      body: payload.notification.body,
-      icon: payload.notification.image,
-    };
-  
-    self.registration.showNotification(notificationTitle, notificationOptions);
-  });
+  console.log(
+    '[firebase-messaging-sw.js] Received background message ',
+    payload
+  );
+  // Customize notification here
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
+    icon: payload.notification.image,
+  };
+
+  self.registration.showNotification(notificationTitle, notificationOptions);
+});

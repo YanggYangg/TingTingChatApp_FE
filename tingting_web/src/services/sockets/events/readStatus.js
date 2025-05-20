@@ -9,3 +9,11 @@ export const onReadMessage = (socket, callback) => {
 export const offReadMessage = (socket) => {
     socket.off('readMessage');
 };
+
+export const onMessageRead = (socket, callback) => {
+    socket.on('messageRead', callback);
+};
+
+export const offMessageRead = (socket) => {
+    socket.off('messageRead');
+};

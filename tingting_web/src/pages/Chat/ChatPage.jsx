@@ -65,6 +65,7 @@ function ChatPage() {
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
   const currUserId = localStorage.getItem("userId");
+  
 
   console.log("ChatPage: Current socket", { socket, socketCloud, currUserId });
 
@@ -836,6 +837,84 @@ function ChatPage() {
 
   console.log("ChatPage: Render với", { selectedChat, chatDetails, messages, cloudMessages });
 
+// Add this function to mark a message as read (emit trực tiếp)
+  const markMessageAsRead = (messageId) => {
+    if (
+      socket &&
+      selectedMessageId &&
+      messageId &&
+      selectedMessageId !== "my-cloud"
+    ) {
+      // Find the message
+      const msg = messages.find((m) => m._id === messageId);
+      if (!msg) return;
+      // Only mark as read if the message is not from the current user and not already read
+      if (
+        msg.userId !== currentUserId &&
+        (!msg.status?.readBy || !msg.status.readBy.includes(currentUserId))
+      ) {
+        socket.emit("readMessage", {
+          conversationId: selectedMessageId,
+          messageId,
+          userId: currentUserId,
+        });
+      }
+    }
+  };
+
+  // Auto mark last message as read if it's from another user
+  useEffect(() => {
+    if (
+      messages.length > 0 &&
+      selectedMessageId &&
+      selectedMessageId !== "my-cloud" &&
+      socket &&
+      currentUserId
+    ) {
+      const filteredMessages = messages.filter(
+        (msg) =>
+          msg.conversationId === selectedMessageId &&
+          !msg.deletedBy?.includes(currentUserId)
+      );
+      if (filteredMessages.length > 0) {
+        const lastMsg = filteredMessages[filteredMessages.length - 1];
+        if (
+          lastMsg.userId !== currentUserId &&
+          (!lastMsg.status?.readBy ||
+            !lastMsg.status.readBy.includes(currentUserId))
+        ) {
+          markMessageAsRead(lastMsg._id);
+        }
+      }
+    }
+  }, [messages, selectedMessageId, socket, currentUserId]);
+
+  useEffect(() => {
+    if (!socket || !selectedMessageId || selectedMessageId === "my-cloud")
+      return;
+
+    const handleMessageRead = ({ messageId, userId, readBy }) => {
+      dispatch(setMessages(
+        messages.map((msg) =>
+          msg._id === messageId
+            ? {
+                ...msg,
+                status: {
+                  ...msg.status,
+                  readBy: readBy,
+                },
+              }
+            : msg
+        )
+      ));
+    };
+
+    socket.on("messageRead", handleMessageRead);
+
+    return () => {
+      socket.off("messageRead", handleMessageRead);
+    };
+  }, [socket, selectedMessageId, messages, dispatch]);
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {selectedChat ? (
@@ -914,14 +993,14 @@ function ChatPage() {
             ) : (
               <>
                 <div className="flex-1 overflow-y-auto p-4">
-                  {messages.length > 0 ? (
+                 {messages.length > 0 ? (
                     messages
                       .filter(
                         (msg) =>
                           msg.conversationId === selectedMessageId &&
                           !msg.deletedBy?.includes(currentUserId)
                       )
-                      .map((msg) => (
+                      .map((msg, index, filteredMessages) => (
                         <MessageItem
                           key={msg._id}
                           msg={{
@@ -935,6 +1014,9 @@ function ChatPage() {
                             content: msg.content || "",
                             linkURL: msg.linkURL || "",
                             userId: msg.userId,
+                            receiverId: selectedMessage?.participants?.find(
+                              (p) => p.userId !== currentUserId
+                            )?.userId,
                           }}
                           currentUserId={currentUserId}
                           onReply={handleReply}
@@ -942,6 +1024,13 @@ function ChatPage() {
                           onRevoke={handleRevoke}
                           onDelete={handleDelete}
                           messages={messages}
+                          isLastMessage={
+                            index === filteredMessages.length - 1 &&
+                            msg.userId === currentUserId
+                          }
+                          participants={selectedMessage?.participants}
+                          userCache={userCache}
+                          markMessageAsRead={markMessageAsRead}
                         />
                       ))
                   ) : (
