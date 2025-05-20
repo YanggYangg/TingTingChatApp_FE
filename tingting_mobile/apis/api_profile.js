@@ -29,7 +29,7 @@ axiosInstance.interceptors.request.use(
 // 📦 Request wrapper
 const request = async (method, url, data = null, params = null) => {
   try {
-    console.log(`Making ${method.toUpperCase()} request to ${url}`);
+    // console.log(`Making ${method.toUpperCase()} request to ${url}`);
     if (data) console.log("Request data:", data);
     if (params) console.log("Request params:", params);
 
@@ -40,7 +40,7 @@ const request = async (method, url, data = null, params = null) => {
       params,
     });
 
-    console.log("Response:", response.data);
+    // console.log("Response:", response.data);
     return response.data;
   } catch (error) {
     console.error("API call error:", error?.response?.data || error.message);

@@ -18,6 +18,7 @@ import PersonalInfoScreen from "@/components/screens/MainScreen/Profile/Personal
 import EditPersonalInfoScreen from "@/components/screens/MainScreen/Profile/EditPersonalInfoScreen";
 import { View, Text, Image, StyleSheet, Platform, Alert } from "react-native";
 
+
 import { NavigationContainer } from "@react-navigation/native";
 // Auth Screens
 import Login from "../../components/screens/AuthScreen/Login";
@@ -45,6 +46,8 @@ import React,  { useEffect, useState } from "react";
 import Toast from 'react-native-toast-message';
 import { io } from "socket.io-client";
 import { useNavigationState } from "@react-navigation/native";
+// ProfileScreen
+import ProfileScreen2 from "@/components/screens/MainScreen/Chat/chatInfoComponent/ProfileScreen2";
 
 
 
@@ -357,12 +360,19 @@ useEffect(() => {
               component={VerificationCodeRegister}
               options={{ headerShown: false }}
             />
+            {/* ProfileScreen */}
+            <Stack.Screen
+              name="ProfileScreen2"
+              component={ProfileScreen2}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="MessageSupportScreen"
               component={MessageSupportScreen}
               options={{ headerShown: false }}
             />
           </Stack.Navigator>
+          
           <Toast />
 
         </CloudSocketProvider>

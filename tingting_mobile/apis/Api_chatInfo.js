@@ -96,6 +96,12 @@ export const Api_chatInfo = {
       content,
     });
   },
+
+
+
+  getUserGroups : (userId) =>
+    ApiManager.get(`/conversations/getUserGroups/${userId}`),
+
   getConversationById: (userId) =>
     ApiManager.get(`/conversations/getAllConversationById/${userId}`),
 };

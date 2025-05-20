@@ -238,7 +238,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     };
 
     const handleOnChatInfo = (newChatInfo: ChatInfoData) => {
-      console.log(`ChatInfo instance ${instanceId} received chat info:`, newChatInfo);
+      // console.log(`ChatInfo instance ${instanceId} received chat info:`, newChatInfo);
       const participant = newChatInfo.participants?.find((p) => p.userId === finalUserId);
       if (participant?.isHidden) {
         Alert.alert("Lỗi", "Hội thoại này đang ẩn. Vui lòng xác thực lại.");
@@ -255,10 +255,10 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       if (!newChatInfo.isGroup) {
         const otherParticipant = newChatInfo.participants?.find((p) => p.userId !== finalUserId);
         if (otherParticipant?.userId) {
-          console.log(`ChatInfo instance ${instanceId} fetching other user profile:`, otherParticipant.userId);
+          // console.log(`ChatInfo instance ${instanceId} fetching other user profile:`, otherParticipant.userId);
           Api_Profile.getProfile(otherParticipant.userId)
             .then((response) => {
-              console.log(`ChatInfo instance ${instanceId} received other user profile:`, response?.data?.user);
+              // console.log(`ChatInfo instance ${instanceId} received other user profile:`, response?.data?.user);
               const user = response?.data?.user as UserProfile;
               setOtherUser(user || { _id: "", firstname: "Không tìm thấy", surname: "", avatar: null });
               setOtherUserName(`${user.firstname || ''} ${user.surname || ''}`.trim() || 'Người dùng');
@@ -279,7 +279,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     };
 
     const handleOnChatInfoUpdated = (updatedInfo: Partial<ChatInfoData>) => {
-      console.log(`ChatInfo instance ${instanceId} received chat info update:`, updatedInfo);
+      // console.log(`ChatInfo instance ${instanceId} received chat info update:`, updatedInfo);
       if (updatedInfo._id !== conversationId) return;
       const participant = updatedInfo.participants?.find((p) => p.userId === finalUserId);
       if (participant?.isHidden) {
@@ -305,7 +305,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       setLoading(false);
     };
 
-    console.log(`ChatInfo instance ${instanceId} setting up socket listeners`);
+    // console.log(`ChatInfo instance ${instanceId} setting up socket listeners`);
     socket.on("updateChatInfo", handleUpdateChatInfo);
     onChatInfo(socket, handleOnChatInfo);
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
@@ -315,7 +315,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     getChatLinks(socket, { conversationId });
 
     return () => {
-      console.log(`ChatInfo instance ${instanceId} cleaning up socket listeners`);
+      // console.log(`ChatInfo instance ${instanceId} cleaning up socket listeners`);
       socket.off("updateChatInfo", handleUpdateChatInfo);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
@@ -327,18 +327,18 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
   useEffect(() => {
     if (!socket || !finalUserId) return;
 
-    console.log(`ChatInfo instance ${instanceId} setting up conversation listeners`);
+    // console.log(`ChatInfo instance ${instanceId} setting up conversation listeners`);
     const cleanup = loadAndListenConversations(socket, setConversations);
     onConversations(socket, setConversations);
     onConversationUpdate(socket, (updatedConversation: any) => {
-      console.log(`ChatInfo instance ${instanceId} received conversation update:`, updatedConversation);
+      // console.log(`ChatInfo instance ${instanceId} received conversation update:`, updatedConversation);
       setConversations((prev) =>
         prev.map((conv) => (conv._id === updatedConversation._id ? updatedConversation : conv))
       );
     });
 
     return () => {
-      console.log(`ChatInfo instance ${instanceId} cleaning up conversation listeners`);
+      // console.log(`ChatInfo instance ${instanceId} cleaning up conversation listeners`);
       cleanup();
       offConversations(socket);
       offConversationUpdate(socket);
@@ -390,7 +390,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
 
   // Handle adding a new member to the group
   const handleMemberAdded = () => {
-    console.log(`ChatInfo instance ${instanceId} requesting updated chat info after member added`);
+    // console.log(`ChatInfo instance ${instanceId} requesting updated chat info after member added`);
     getChatInfo(socket, { conversationId });
   };
 
@@ -410,7 +410,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
   // Toggle mute notification status
   const handleMuteNotification = () => {
     if (isMuted) {
-      console.log(`ChatInfo instance ${instanceId} requesting to unmute notifications`);
+      // console.log(`ChatInfo instance ${instanceId} requesting to unmute notifications`);
       updateNotification(socket, { conversationId, mute: null });
       setIsMuted(false);
       const updatedChatInfo = {
@@ -423,14 +423,14 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       setChatInfo(updatedChatInfo);
       dispatch(setChatInfoUpdate(updatedChatInfo));
     } else {
-      console.log(`ChatInfo instance ${instanceId} opening mute notification modal`);
+      // console.log(`ChatInfo instance ${instanceId} opening mute notification modal`);
       setIsMuteModalOpen(true);
     }
   };
 
   // Handle successful mute action
   const handleMuteSuccess = (muted: boolean) => {
-    console.log(`ChatInfo instance ${instanceId} mute status updated to:`, muted);
+    // console.log(`ChatInfo instance ${instanceId} mute status updated to:`, muted);
     setIsMuted(muted);
     const updatedChatInfo = {
       ...chatInfo,
@@ -447,7 +447,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
   const handlePinChat = () => {
     if (!chatInfo) return;
     const newIsPinned = !isPinned;
-    console.log(`ChatInfo instance ${instanceId} requesting to pin chat:`, newIsPinned);
+    // console.log(`ChatInfo instance ${instanceId} requesting to pin chat:`, newIsPinned);
     pinChat(socket, { conversationId, isPinned: newIsPinned });
     joinConversation(socket, conversationId);
     setIsPinned(newIsPinned);
@@ -491,7 +491,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
       Alert.alert('Lỗi', 'Không có thông tin người dùng.');
       return;
     }
-    navigation.navigate('ProfileScreen', { userId: otherUser._id, profile: otherUser });
+    navigation.navigate('ProfileScreen2', { userId: otherUser._id, profile: otherUser });
   };
 
   // Handle create group
@@ -554,7 +554,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
   const handleSaveChatName = (newName: string) => {
     if (!chatInfo || !newName.trim()) return;
     const originalName = chatInfo.name;
-    console.log(`ChatInfo instance ${instanceId} requesting to update chat name:`, newName.trim());
+    // console.log(`ChatInfo instance ${instanceId} requesting to update chat name:`, newName.trim());
     setChatInfo((prev) => ({ ...prev!, name: newName.trim() }));
     updateChatName(socket, { conversationId, name: newName.trim() });
     dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: newName.trim() }));
@@ -605,7 +605,7 @@ const ChatInfo: React.FC<ChatInfoProps> = () => {
     ? chatInfo.imageGroup?.trim() || DEFAULT_GROUP_IMAGE
     : otherUser?.avatar || DEFAULT_AVATAR;
 
-  console.log(`ChatInfo instance ${instanceId} render - chatInfo:`, chatInfo);
+  // console.log(`ChatInfo instance ${instanceId} render - chatInfo:`, chatInfo);
 
   return (
     <View style={styles.container}>
