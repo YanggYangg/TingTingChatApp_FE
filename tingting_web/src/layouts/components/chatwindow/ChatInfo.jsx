@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from "react-icons/fa";
 import { useDispatch } from "react-redux";
@@ -48,7 +48,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const dispatch = useDispatch();
 
   // Select a group and join its conversation
-  const handleGroupSelect = (group) => {
+  const handleGroupSelect = useCallback((group) => {
     if (!socket) return toast.error("Socket chưa kết nối!");
     const formattedMessage = {
       id: group._id,
@@ -62,14 +62,17 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     };
     joinConversation(socket, formattedMessage.id);
     dispatch(setSelectedMessage(formattedMessage));
-  };
+  }, [socket, dispatch]);
 
   // Fetch and listen for chat info updates
   useEffect(() => {
-    if (!socket || !conversationId) {
+    if (!socket || !conversationId || !userId) {
       setLoading(false);
       return;
     }
+
+    // Tham gia phòng user:userId để nhận sự kiện cho tất cả thiết bị
+    socket.emit("joinUserRoom", { userId });
 
     joinConversation(socket, conversationId);
     getChatInfo(socket, { conversationId });
@@ -89,7 +92,11 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         return;
       }
 
-      setChatInfo(newChatInfo);
+      // Kiểm tra dữ liệu mới có khác với hiện tại không
+      setChatInfo((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(newChatInfo)) return prev;
+        return newChatInfo;
+      });
       setIsMuted(!!participant?.mute);
       setMuteValue(participant?.mute || null);
       setIsPinned(!!participant?.isPinned);
@@ -121,12 +128,36 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         return;
       }
 
-      setChatInfo((prev) => ({ ...prev, ...updatedInfo }));
+      setChatInfo((prev) => {
+        if (!prev || JSON.stringify(prev) === JSON.stringify({ ...prev, ...updatedInfo })) return prev;
+        const newChatInfo = { ...prev, ...updatedInfo };
+        dispatch(setChatInfoUpdate(newChatInfo)); // Dispatch trong setChatInfo để đảm bảo đồng bộ
+        return newChatInfo;
+      });
       setIsMuted(!!participant?.mute);
       setMuteValue(participant?.mute || null);
       setIsPinned(!!participant?.isPinned);
       setUserRoleInGroup(participant?.role || null);
-      dispatch(setChatInfoUpdate(updatedInfo));
+    };
+
+    const handleDeleteAllChatHistory = ({ conversationId: deletedConversationId, deletedBy }) => {
+      if (deletedConversationId !== conversationId || deletedBy !== userId) return;
+      console.log("ChatInfo: Nhận deleteAllChatHistory", { conversationId, deletedBy });
+   
+  //  getChatInfo(socket, { conversationId }); // này lấy lastMessage
+      setChatInfo((prev) => {
+        if (!prev) return prev;
+        const updatedChatInfo = {
+          ...prev,
+          media: [],
+          files: [],
+          links: [],
+          lastMessage: null,
+        };
+        dispatch(setChatInfoUpdate(updatedChatInfo));
+        return updatedChatInfo;
+      });
+      toast.success("Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");
     };
 
     const handleError = (error) => {
@@ -140,6 +171,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     socket.on("updateChatInfo", handleUpdateChatInfo);
     onChatInfo(socket, handleOnChatInfo);
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
+    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
     onError(socket, handleError);
     getChatMedia(socket, { conversationId });
     getChatFiles(socket, { conversationId });
@@ -147,11 +179,12 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     return () => {
       socket.off("updateChatInfo", handleUpdateChatInfo);
+      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
     };
-  }, [socket, conversationId, userId, dispatch]);
+  }, [socket, conversationId, userId, dispatch]); // Loại bỏ chatInfo khỏi dependencies
 
   // Load and listen for conversation updates
   useEffect(() => {
@@ -160,9 +193,12 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     const cleanup = loadAndListenConversations(socket, setConversations);
     onConversations(socket, setConversations);
     onConversationUpdate(socket, (updatedConversation) => {
-      setConversations((prev) =>
-        prev.map((conv) => (conv._id === updatedConversation._id ? updatedConversation : conv))
-      );
+      setConversations((prev) => {
+        const newConversations = prev.map((conv) =>
+          conv._id === updatedConversation._id ? updatedConversation : conv
+        );
+        return newConversations;
+      });
     });
 
     return () => {
@@ -196,13 +232,14 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   }, [chatInfo, conversations, userId]);
 
   // Handle adding a new member to the group
-  const handleMemberAdded = () => {
+  const handleMemberAdded = useCallback(() => {
     getChatInfo(socket, { conversationId });
-  };
+  }, [socket, conversationId]);
 
   // Handle removing a member from the group
-  const handleMemberRemoved = (removedUserId) => {
+  const handleMemberRemoved = useCallback((removedUserId) => {
     setChatInfo((prev) => {
+      if (!prev) return prev;
       const updatedChatInfo = {
         ...prev,
         participants: prev.participants.filter((p) => p.userId !== removedUserId),
@@ -210,10 +247,10 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       dispatch(setChatInfoUpdate(updatedChatInfo));
       return updatedChatInfo;
     });
-  };
+  }, [dispatch]);
 
   // Toggle mute notification status
-  const handleMuteNotification = () => {
+  const handleMuteNotification = useCallback(() => {
     if (isMuted) {
       updateNotification(socket, { conversationId, mute: null }, (response) => {
         if (!response.success) {
@@ -226,17 +263,17 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     } else {
       setIsMuteModalOpen(true);
     }
-  };
+  }, [isMuted, socket, conversationId]);
 
   // Handle successful mute action
-  const handleMuteSuccess = (mute) => {
+  const handleMuteSuccess = useCallback((mute) => {
     setIsMuted(!!mute);
     setMuteValue(mute);
     setIsMuteModalOpen(false);
-  };
+  }, []);
 
   // Toggle pin chat status
-  const handlePinChat = () => {
+  const handlePinChat = useCallback(() => {
     if (!chatInfo || !socket) return toast.error("Không thể ghim hội thoại!");
     const newIsPinned = !isPinned;
     setIsPinned(newIsPinned); // Optimistic update
@@ -261,49 +298,49 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       }
     });
     joinConversation(socket, conversationId);
-  };
+  }, [chatInfo, socket, isPinned, conversationId, userId, dispatch]);
 
   // Copy group link to clipboard
-  const copyToClipboard = () => {
+  const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(chatInfo?.linkGroup || "");
     toast.success("Đã sao chép link nhóm!");
-  };
+  }, [chatInfo?.linkGroup]);
 
   // Open modal to add a member
-  const handleAddMember = () => {
+  const handleAddMember = useCallback(() => {
     setIsAddModalOpen(true);
     setIsCreateGroupModalOpen(false);
-  };
+  }, []);
 
   // Open modal to create a new group
-  const handleCreateGroupChat = () => {
+  const handleCreateGroupChat = useCallback(() => {
     setIsCreateGroupModalOpen(true);
     setIsAddModalOpen(false);
-  };
+  }, []);
 
   // Close create group modal
-  const handleCloseCreateGroupModal = () => {
+  const handleCloseCreateGroupModal = useCallback(() => {
     setIsCreateGroupModalOpen(false);
-  };
+  }, []);
 
   // Handle successful group creation
-  const handleCreateGroupSuccess = (newGroup) => {
+  const handleCreateGroupSuccess = useCallback((newGroup) => {
     setConversations((prev) => [...prev, newGroup]);
-  };
+  }, []);
 
   // Open modal to edit group name
-  const handleOpenEditNameModal = () => {
+  const handleOpenEditNameModal = useCallback(() => {
     if (!chatInfo?.isGroup) return toast.error("Chỉ nhóm mới có thể đổi tên!");
     setIsEditNameModalOpen(true);
-  };
+  }, [chatInfo?.isGroup]);
 
   // Close edit name modal
-  const handleCloseEditNameModal = () => {
+  const handleCloseEditNameModal = useCallback(() => {
     setIsEditNameModalOpen(false);
-  };
+  }, []);
 
   // Save new chat name
-  const handleSaveChatName = (newName) => {
+  const handleSaveChatName = useCallback((newName) => {
     if (!chatInfo || !newName.trim()) return;
     const originalName = chatInfo.name;
     setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
@@ -316,7 +353,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     });
     dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: newName.trim(), updatedAt: new Date().toISOString() }));
     handleCloseEditNameModal();
-  };
+  }, [chatInfo, socket, conversationId, dispatch]);
 
   if (loading) return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
   if (!chatInfo) return <p className="text-center text-red-500">Không thể tải thông tin chat.</p>;

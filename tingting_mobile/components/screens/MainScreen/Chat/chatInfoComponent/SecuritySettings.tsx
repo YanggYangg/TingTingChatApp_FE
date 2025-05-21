@@ -349,7 +349,7 @@ const SecuritySettings: React.FC<Props> = ({
               if (response?.success) {
                 Alert.alert('Thành công', 'Toàn bộ lịch sử trò chuyện đã được xóa!');
                 setChatInfo(null);
-                navigation.navigate('Main', { screen: 'MessageScreen', params: { refresh: true } });
+                navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
               } else {
                 Alert.alert('Lỗi', `Xóa lịch sử thất bại: ${response?.message || 'Lỗi không xác định'}`);
               }

@@ -70,6 +70,10 @@ interface ChatInfoData {
   imageGroup: string;
   linkGroup: string;
   participants: Participant[];
+  media?: any[];
+  files?: any[];
+  links?: any[];
+  lastMessage?: any;
 }
 
 interface UserProfile {
@@ -144,6 +148,9 @@ const ChatInfo: React.FC = () => {
       setLoading(false);
       return;
     }
+
+    // Tham gia phòng user:userId để nhận sự kiện cho tất cả thiết bị
+    socket.emit("joinUserRoom", { userId: finalUserId });
 
     getChatInfo(socket, { conversationId });
 
@@ -229,7 +236,6 @@ const ChatInfo: React.FC = () => {
         return;
       }
 
-
       // [MODIFIED] Kiểm tra xem nhóm có bị giải tán hay không
       if (updatedInfo.participants && updatedInfo.participants.length === 0) {
         console.log('DEBUG: Nhóm đã bị giải tán (updated)', { conversationId });
@@ -268,6 +274,24 @@ const ChatInfo: React.FC = () => {
       setUserRoleInGroup(participant?.role || null);
     };
 
+    const handleDeleteAllChatHistory = ({ conversationId: deletedConversationId, deletedBy }: { conversationId: string; deletedBy: string }) => {
+      if (deletedConversationId !== conversationId || deletedBy !== finalUserId) return;
+      console.log("ChatInfo: Nhận deleteAllChatHistory", { conversationId, deletedBy });
+      setChatInfo((prev) => {
+        if (!prev) return null;
+        const updatedChatInfo = {
+          ...prev,
+          media: [],
+          files: [],
+          links: [],
+          lastMessage: null,
+        };
+        dispatch(setChatInfoUpdate(updatedChatInfo));
+        return updatedChatInfo;
+      });
+      Alert.alert("Thông báo", "Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");
+    };
+
     const handleError = (error: any) => {
       setError("Đã xảy ra lỗi: " + (error.message || "Không xác định"));
       setLoading(false);
@@ -276,6 +300,7 @@ const ChatInfo: React.FC = () => {
     socket.on("updateChatInfo", handleUpdateChatInfo);
     onChatInfo(socket, handleOnChatInfo);
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
+    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
     onError(socket, handleError);
     getChatMedia(socket, { conversationId });
     getChatFiles(socket, { conversationId });
@@ -283,6 +308,7 @@ const ChatInfo: React.FC = () => {
 
     return () => {
       socket.off("updateChatInfo", handleUpdateChatInfo);
+      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
