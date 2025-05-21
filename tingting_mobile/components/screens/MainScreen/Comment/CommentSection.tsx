@@ -65,6 +65,7 @@ type Props = StackScreenProps<RootStackParamList, "CommentSection">;
 const CommentSection: React.FC<Props> = ({ route }) => {
   const navigator = useNavigation();
   const { postId } = route.params;
+  const [idCurrentUser, setIdCurrentUser] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -83,9 +84,11 @@ const CommentSection: React.FC<Props> = ({ route }) => {
   const [totalReactions, setTotalReactions] = useState(0);
 
   const fetchComments = async () => {
+    const id = await AsyncStorage.getItem("userId");
+    setIdCurrentUser(id || "");
     try {
       const response = await axios.get(
-        `http://192.168.1.171:3006/api/v1/comment/${postId}`
+        `http://192.168.1.15:3006/api/v1/comment/${postId}`
       );
       const commentsData = response.data.data.comments;
       console.log("Fetched comments:", commentsData);
@@ -99,6 +102,7 @@ const CommentSection: React.FC<Props> = ({ route }) => {
 
   useEffect(() => {
     console.log("Post ID in section:", postId);
+
 
     // Fetch comments
     fetchComments();
@@ -237,12 +241,14 @@ const CommentSection: React.FC<Props> = ({ route }) => {
           return comment;
         });
       });
+      const id = await AsyncStorage.getItem("userId");
       console.log("Comment loved:", commentId, profileId);
       // Gửi yêu cầu backend
+      
       const res = await axios.post(
-        `http://192.168.1.171:3006/api/v1/comment/${commentId}/love`,
+        `http://192.168.1.15:3006/api/v1/comment/${commentId}/love`,
         {
-          profileId: profileId,
+          profileId: id,
         }
       );
       console.log("Response from server:", res.data);
@@ -358,7 +364,7 @@ const CommentSection: React.FC<Props> = ({ route }) => {
 
       // Gửi request đến API
       const response = await axios.post(
-        "http://192.168.1.171:3006/api/v1/comment",
+        "http://192.168.1.15:3006/api/v1/comment",
         formData,
         {
           headers: {
@@ -467,7 +473,7 @@ const CommentSection: React.FC<Props> = ({ route }) => {
           <View style={styles.commentActions}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => handleLike(item._id, item.profileId._id)}
+              onPress={() => handleLike(item._id, idCurrentUser)}
             >
               <Text
                 style={[

@@ -64,7 +64,7 @@ export default function PersonalInfoScreen() {
   const loadProfileById = async () => {
     try {
       const response = await axios.get(
-        `http://192.168.1.171:3001/api/v1/profile/${profileId}`
+        `http://192.168.1.15:3001/api/v1/profile/${profileId}`
       );
       const profile = response.data.data.user;
       const date = new Date(profile.dateOfBirth);

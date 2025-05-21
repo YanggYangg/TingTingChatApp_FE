@@ -12,7 +12,7 @@ import {
   StatusBar,
   Alert,
 } from "react-native";
-import { Edit, Trash2, Eye, X } from "lucide-react-native";
+import { EyeOff, Trash2, Flag, X } from "lucide-react-native";
 import axios from "axios";
 
 type PostOption = {
@@ -50,7 +50,7 @@ const FeedOptions = ({
       }
 
       const res = await axios.post(
-        `http://192.168.1.171:3006/api/v1/post/hide`,
+        `http://192.168.1.15:3006/api/v1/post/hide`,
         {
           postId,
           profileId,
@@ -83,7 +83,7 @@ const FeedOptions = ({
       }
 
       const res = await axios.post(
-        `http://192.168.1.171:3006/api/v1/post/hide`, // Đảm bảo backend có route này
+        `http://192.168.1.15:3006/api/v1/post/hide`, // Đảm bảo backend có route này
         {
           postId,
           profileId,
@@ -110,13 +110,13 @@ const FeedOptions = ({
     {
       id: "delete_post",
       title: "Ẩn bài đăng",
-      icon: <Trash2 size={22} color="#ff3b30" />,
+      icon: <EyeOff size={22} color="#ff3b30" />,
       action: handleDeletePost,
     },
     {
       id: "report_post",
       title: "Báo cáo bài đăng",
-      icon: <Trash2 size={22} color="#ff3b30" />,
+      icon: <Flag size={22} />,
       action: handleReportPost,
     },
   ];

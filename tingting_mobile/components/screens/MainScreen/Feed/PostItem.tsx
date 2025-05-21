@@ -10,6 +10,7 @@ import {
 import { Ionicons, FontAwesome, AntDesign, Feather } from "@expo/vector-icons";
 import axios from "axios";
 import { useNavigation } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -136,13 +137,18 @@ const PostItem: React.FC<PostProps> = ({
     }
   };
   const handleToggleLike = async () => {
+    const id = await AsyncStorage.getItem("userId");
     try {
       const response = await axios.post(
-        `http://192.168.1.171:3006/api/v1/post/${_id}/love`,
+        `http://192.168.1.15:3006/api/v1/post/${_id}/love`,
         {
-          profileId: profileId._id,
+          profileId: id,
         }
       );
+      console.log("_id:", _id);
+      console.log("Profile author:", profileId._id);
+      console.log("Profile ID:", id);
+      console.log("Response from toggle love - Feed:", response.data);
       if (response.data?.lovedByUser === true) {
         setReactLove(true);
         setCountReaction((prev) => prev + 1);

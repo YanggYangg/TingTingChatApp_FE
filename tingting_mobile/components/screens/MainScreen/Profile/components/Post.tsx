@@ -6,19 +6,22 @@ import { useNavigation } from "expo-router";
 import axios from "axios";
 import { Api_Post } from "@/apis/api_post";
 import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type PostProps = {
   post: PostType;
 };
 
 const Post = ({ post }: PostProps) => {
-
+ 
   const navigator = useNavigation();
   const [lovedByUser, setLovedByUser] = useState(post.lovedByUser || false);
   const [totalReactions, setTotalReactions] = useState(
     post.totalReactions || 0
   );
-
+  console.log("lovedByUser:", lovedByUser);
+  console.log("totalReactions:", totalReactions);
+  
 
   const navigateToCommentSection = async () => {
     navigator.navigate("CommentSection", {
@@ -39,13 +42,15 @@ const Post = ({ post }: PostProps) => {
   };
 
   const handleToggleLike = async () => {
+    const id = await AsyncStorage.getItem("userId");
     try {
       const response = await axios.post(
-        `http://192.168.1.171:3006/api/v1/post/${post._id}/love`,
+        `http://192.168.1.15:3006/api/v1/post/${post._id}/love`,
         {
-          profileId: post.profileId,
+          profileId: id,
         }
       );
+      console.log("Response from toggle love - Post Profile:", response.data);
       if (response.data?.lovedByUser === true) {
         setLovedByUser(true);
         setTotalReactions((prev) => prev + 1);

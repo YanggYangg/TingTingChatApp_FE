@@ -23,7 +23,7 @@ import axios from "axios"
 import { Api_Profile } from "@/apis/api_profile"
 
 // Thay đổi localhost thành IP thực tế của máy tính
-const API_BASE_URL = "http://192.168.1.171:3001/api/v1"
+const API_BASE_URL = "http://192.168.1.15:3001/api/v1"
 
 export default function EditProfileScreen() {
   const navigation = useNavigation()
