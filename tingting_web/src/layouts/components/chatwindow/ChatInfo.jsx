@@ -42,7 +42,7 @@ import { toast } from "react-toastify";
 
 // Default avatar and group image for fallback
 const DEFAULT_AVATAR =
-  "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
+  "https://www.google.com/url?sa=i&url=https%3A%2F%2Fvi.pngtree.com%2Ffree-png-vectors%2Fuser-icon&psig=AOvVaw0Tbvu7Vm7uhRn-ECIZj3I2&ust=1747927668573000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCJD2vJbwtI0DFQAAAAAdAAAAABAE";
 const DEFAULT_GROUP_IMAGE =
   "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=";
 
