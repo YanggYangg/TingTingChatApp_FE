@@ -154,7 +154,8 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
           links: [],
           lastMessage: null,
         };
-        dispatch(setChatInfoUpdate(updatedChatInfo));
+        dispatch(setChatInfoUpdate(updatedChatInfo)); 
+        dispatch(setLastMessageUpdate({ conversationId, lastMessage: null })); // Nhi để này cập nhật lastMessage 
         return updatedChatInfo;
       });
       toast.success("Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");

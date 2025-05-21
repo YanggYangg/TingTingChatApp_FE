@@ -95,13 +95,37 @@ export const Api_chatInfo = {
       userId,
       content,
     });
+
   },
 
 
 
-  getUserGroups : (userId) =>
+  getUserGroups: (userId) =>
     ApiManager.get(`/conversations/getUserGroups/${userId}`),
 
   getConversationById: (userId) =>
     ApiManager.get(`/conversations/getAllConversationById/${userId}`),
+
+  // uploadGroupImage
+ uploadGroupImage: async (formData, conversationId, userId) => {
+    if (!userId) {
+      throw new Error('Không tìm thấy ID người dùng');
+    }
+    if (!conversationId) {
+      throw new Error('Không tìm thấy ID cuộc trò chuyện');
+    }
+    const url = `/conversations/uploadGroupImage/${conversationId}/${userId}`;
+    console.log('Sending request to:', url, 'with formData');
+    try {
+      const response = await ApiManager.post(url, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response;
+    } catch (error) {
+      console.error('API error:', error.response?.data || error.message);
+      throw error;
+    }
+  },
 };

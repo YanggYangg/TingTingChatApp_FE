@@ -566,18 +566,42 @@ const ChatInfo: React.FC = () => {
     setIsEditNameModalOpen(false);
   };
 
-  // Save new chat name
-  const handleSaveChatName = (newName: string) => {
-    if (!chatInfo || !newName.trim()) return;
+  const handleSaveChatName = (newName: string, newImage?: string, conversationId?: string) => {
+    if (!chatInfo || !newName.trim() || !conversationId) return;
     const originalName = chatInfo.name;
-    setChatInfo((prev) => ({ ...prev!, name: newName.trim() }));
-    updateChatName(socket, { conversationId, name: newName.trim() });
-    dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: newName.trim() }));
+    const originalImage = chatInfo.imageGroup;
+
+    setChatInfo((prev) => ({
+      ...prev!,
+      name: newName.trim(),
+      imageGroup: newImage || prev!.imageGroup,
+    }));
+
+    updateChatName(socket, { conversationId, name: newName.trim(), image: newImage });
+    dispatch(
+      setChatInfoUpdate({
+        ...chatInfo,
+        _id: conversationId,
+        name: newName.trim(),
+        imageGroup: newImage || chatInfo.imageGroup,
+      })
+    );
 
     const handleUpdateError = (error: any) => {
-      Alert.alert("Lỗi", "Không thể cập nhật tên nhóm: " + (error.message || "Lỗi server."));
-      setChatInfo((prev) => ({ ...prev!, name: originalName }));
-      dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: originalName }));
+      Alert.alert("Lỗi", "Không thể cập nhật thông tin nhóm: " + (error.message || "Lỗi server."));
+      setChatInfo((prev) => ({
+        ...prev!,
+        name: originalName,
+        imageGroup: originalImage,
+      }));
+      dispatch(
+        setChatInfoUpdate({
+          ...chatInfo,
+          _id: conversationId,
+          name: originalName,
+          imageGroup: originalImage,
+        })
+      );
     };
     socket.once("error", handleUpdateError);
     setTimeout(() => socket.off("error", handleUpdateError), 5000);
@@ -772,6 +796,9 @@ const ChatInfo: React.FC = () => {
         onClose={handleCloseEditNameModal}
         onSave={handleSaveChatName}
         initialName={chatInfo?.name}
+        initialImage={chatInfo?.imageGroup}
+        conversationId={conversationId}
+        userId={finalUserId} // Truyền userId từ finalUserId
       />
       <CreateGroupModal
         isOpen={isCreateGroupModalOpen}
