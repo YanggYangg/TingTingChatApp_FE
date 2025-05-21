@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -8,70 +8,101 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
+  Alert,
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import PostItem from "./PostItem";
 import { useNavigation } from "expo-router";
-
-// Dữ liệu mẫu cho các bài đăng
-const samplePosts = [
-  {
-    id: "1",
-    user: {
-      name: "Nguyễn Thúy Tinh",
-      avatar: "https://randomuser.me/api/portraits/women/32.jpg",
-    },
-    content: "Đã thay đổi ảnh đại diện",
-    images: [
-      {
-        uri: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=634&q=80",
-      },
-    ],
-    timestamp: "15 phút trước",
-    likes: 1,
-    comments: 0,
-  },
-  {
-    id: "2",
-    user: {
-      name: "Mr Bình",
-      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-    },
-    content:
-      "🔥 NHÀ KHU COMPOUND BIỆT LẬP SIÊU VIP – NGUYỄN TRỌNG TUYỂN, P.1, TÂN BÌNH 🔥\n💎 Hiếm – Đẹp – Giá Tốt – Khu toàn doanh nhân trí thức...",
-    images: [
-      {
-        uri: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
-      },
-      {
-        uri: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
-      },
-      {
-        uri: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
-      },
-      {
-        uri: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
-      },
-      {
-        uri: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
-      },
-    ],
-    timestamp: "Hôm qua lúc 20:42",
-    likes: 9,
-    comments: 4,
-    music: {
-      title: "Để Mị Nói Cho Mà Nghe",
-      artist: "Hoàng Thùy Linh",
-    },
-  },
-];
+import { useFocusEffect } from "@react-navigation/native";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const FeedScreen: React.FC = () => {
   const navigation = useNavigation();
   const navigateToCreatePost = () => {
     // Xử lý chuyển đến màn hình tạo bài đăng
-    navigation.navigate('CreatePostScreen');
+    navigation.navigate("CreatePostScreen");
   };
+  const [formData, setFormData] = useState({
+    firstname: "",
+    surname: "",
+    day: "1",
+    month: "1",
+    year: "2025",
+    gender: "female",
+    phone: "",
+    avatar: null,
+    coverPhoto: null,
+  });
+  const [posts, setPosts] = useState([]);
+  const loadProfileFromLocal = async () => {
+    try {
+      const profileId = await AsyncStorage.getItem("userId");
+      const response = await axios.get(
+        `http://192.168.1.171:3001/api/v1/profile/${profileId}`
+      );
+      const profile = response.data.data.user;
+      const date = new Date(profile.dateOfBirth);
+      const day = date.getDate().toString();
+      const month = (date.getMonth() + 1).toString();
+      const year = date.getFullYear().toString();
+
+      setFormData((prev) => ({
+        ...prev,
+        firstname: profile.firstname || "",
+        surname: profile.surname || "",
+        phone: profile.phone || "",
+        avatar:
+          profile.avatar ||
+          "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
+        coverPhoto: profile.coverPhoto || null,
+        gender: profile.gender || "female",
+        day,
+        month,
+        year,
+      }));
+    } catch (error) {
+      console.error("Error loading profile from localStorage:", error);
+    }
+  };
+
+  const getPost = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) {
+        Alert.alert("Lỗi", "Không tìm thấy token người dùng");
+        return;
+      }
+
+      const response = await axios.get(
+        `http://192.168.1.171:3006/api/v1/post`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("Response data2:", response.data.data.posts);
+
+      if (response.status === 200) {
+        setPosts(response.data.data.posts);
+      } else {
+        Alert.alert("Lỗi", "Không thể lấy bài viết.");
+      }
+    } catch (error) {
+      console.error("Lỗi lấy bài viết:", error);
+      Alert.alert("Lỗi", "Không thể lấy bài viết.");
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileFromLocal();
+      getPost();
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -95,14 +126,22 @@ const FeedScreen: React.FC = () => {
 
       {/* Create Post Section */}
       <ScrollView style={styles.postsContainer}>
-        <View style={styles.createPostSection}> 
+        <View style={styles.createPostSection}>
           <View style={styles.userStatusContainer}>
-          <TouchableOpacity onPress={() => {navigation.navigate("ProfileScreen")}}>
-            <Image
-              source={{ uri: "https://randomuser.me/api/portraits/men/32.jpg" }}
-              style={styles.userAvatar}
-            />
-             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate("ProfileScreen");
+              }}
+            >
+              <Image
+                source={{
+                  uri:
+                    formData.avatar ||
+                    "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
+                }}
+                style={styles.userAvatar}
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.statusInput}
               onPress={navigateToCreatePost}
@@ -148,7 +187,9 @@ const FeedScreen: React.FC = () => {
             <TouchableOpacity style={styles.momentItem}>
               <Image
                 source={{
-                  uri: "https://randomuser.me/api/portraits/men/32.jpg",
+                  uri:
+                    formData.avatar ||
+                    "https://randomuser.me/api/portraits/men/32.jpg",
                 }}
                 style={styles.momentImage}
               />
@@ -192,8 +233,8 @@ const FeedScreen: React.FC = () => {
 
         {/* Posts */}
 
-        {samplePosts.map((post) => (
-          <PostItem key={post.id} {...post} />
+        {posts.map((post) => (
+          <PostItem key={post._id} {...post} />
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -248,7 +289,6 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    
   },
   statusInputText: {
     color: "#666",

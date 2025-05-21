@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -18,113 +18,120 @@ import {
   Keyboard,
   Animated,
   Alert,
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { useNavigation } from "expo-router"
-import type { StackScreenProps } from "@react-navigation/stack"
-import type { RootStackParamList } from "@/app/(tabs)"
-import axios from "axios"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import * as ImagePicker from "expo-image-picker"
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "expo-router";
+import type { StackScreenProps } from "@react-navigation/stack";
+import type { RootStackParamList } from "@/app/(tabs)";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 
 // Types based on your Mongoose schema
 interface Media {
-  url: string
-  type: "image" | "video"
-  thumbnailUrl?: string
+  url: string;
+  type: "image" | "video";
+  thumbnailUrl?: string;
 }
 
 interface Reactions {
-  like: number
-  love: number
-  haha: number
-  angry: number
+  love: string[];
 }
 
 interface Comment {
-  _id: string
-  postId: string
-  content: string
-  media?: Media[]
-  replyTo?: string[]
-  reactions: Reactions
-  isHidden: boolean
-  createdAt: string
-  updatedAt: string
+  _id: string;
+  postId: string;
+  content: string;
+  media?: Media[];
+  replyTo?: string[];
+  reactions: Reactions;
+  isHidden: boolean;
+  createdAt: string;
+  updatedAt: string;
   // Additional fields for UI
   profileId: {
-    _id: string
-    firstname: string
-    surname: string
-    avatar: string
-  }
-  replies?: Comment[]
+    _id: string;
+    firstname: string;
+    surname: string;
+    avatar: string;
+  };
+  replies?: Comment[];
+  lovedByUser: boolean;
+  totalReactions: number | 0;
 }
 
-type Props = StackScreenProps<RootStackParamList, "CommentSection">
+type Props = StackScreenProps<RootStackParamList, "CommentSection">;
 
 const CommentSection: React.FC<Props> = ({ route }) => {
-  const navigator = useNavigation()
-  const { postId } = route.params
-  const [comments, setComments] = useState<Comment[]>([])
-  const [commentText, setCommentText] = useState("")
-  const [replyingTo, setReplyingTo] = useState<string | null>(null)
-  const [keyboardHeight, setKeyboardHeight] = useState(0)
-  const [isFocused, setIsFocused] = useState(false)
-  const [inputHeight, setInputHeight] = useState(40)
-  const [selectedMedia, setSelectedMedia] = useState<{ uri: string; type: "image" | "video" }[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const flatListRef = useRef<FlatList | null>(null)
-  const inputRef = useRef<TextInput>(null)
-  const buttonsPosition = useRef(new Animated.Value(0)).current
+  const navigator = useNavigation();
+  const { postId } = route.params;
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isFocused, setIsFocused] = useState(false);
+  const [inputHeight, setInputHeight] = useState(40);
+  const [selectedMedia, setSelectedMedia] = useState<
+    { uri: string; type: "image" | "video" }[]
+  >([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const flatListRef = useRef<FlatList | null>(null);
+  const inputRef = useRef<TextInput>(null);
+  const buttonsPosition = useRef(new Animated.Value(0)).current;
+
+  const [stateLove, setStateLove] = useState(false);
+  const [totalReactions, setTotalReactions] = useState(0);
+
+  const fetchComments = async () => {
+    try {
+      const response = await axios.get(
+        `http://192.168.1.171:3006/api/v1/comment/${postId}`
+      );
+      const commentsData = response.data.data.comments;
+      console.log("Fetched comments:", commentsData);
+      const organizedComments = organizeComments(commentsData);
+      setComments(organizedComments);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      Alert.alert("Lỗi", "Không thể tải bình luận. Vui lòng thử lại sau.");
+    }
+  };
 
   useEffect(() => {
-    console.log("Post ID in section:", postId)
+    console.log("Post ID in section:", postId);
+
     // Fetch comments
-    fetchComments()
+    fetchComments();
 
     // Set up keyboard listeners similar to CreatePostScreen
     const keyboardWillShowListener = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       (e) => {
-        setKeyboardHeight(e.endCoordinates.height)
-        setIsFocused(true)
-        animateButtons(-50) // Move buttons up
+        setKeyboardHeight(e.endCoordinates.height);
+        setIsFocused(true);
+        animateButtons(-50); // Move buttons up
 
         // Scroll to bottom when keyboard appears
         setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }, 100)
-      },
-    )
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
 
     const keyboardWillHideListener = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
       () => {
-        setKeyboardHeight(0)
-        setIsFocused(false)
-        animateButtons(0) // Return buttons to original position
-      },
-    )
+        setKeyboardHeight(0);
+        setIsFocused(false);
+        animateButtons(0); // Return buttons to original position
+      }
+    );
 
     return () => {
-      keyboardWillShowListener.remove()
-      keyboardWillHideListener.remove()
-    }
-  }, [])
-
-  const fetchComments = async () => {
-    try {
-      const response = await axios.get(`http://192.168.1.171:3006/api/v1/comment/${postId}`)
-      const commentsData = response.data.data.comments
-      console.log("Fetched comments:", commentsData)
-      const organizedComments = organizeComments(commentsData)
-      setComments(organizedComments)
-    } catch (error) {
-      console.error("Error fetching comments:", error)
-      Alert.alert("Lỗi", "Không thể tải bình luận. Vui lòng thử lại sau.")
-    }
-  }
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
 
   // Animation function for buttons
   const animateButtons = (toValue: number) => {
@@ -132,118 +139,154 @@ const CommentSection: React.FC<Props> = ({ route }) => {
       toValue,
       duration: 300,
       useNativeDriver: true,
-    }).start()
-  }
+    }).start();
+  };
 
   // Function to organize comments and their replies
   const organizeComments = (allComments: Comment[]): Comment[] => {
     // Sort by newest first
+
     const sortedComments = [...allComments].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
     // Create a map of parent comments
-    const parentComments: Comment[] = []
-    const replyMap: Record<string, Comment[]> = {}
+    const parentComments: Comment[] = [];
+    const replyMap: Record<string, Comment[]> = {};
 
     // First pass: identify parent comments and replies
     sortedComments.forEach((comment) => {
       if (!comment.replyTo || comment.replyTo.length === 0) {
         // This is a parent comment
-        parentComments.push({ ...comment, replies: [] })
+        parentComments.push({ ...comment, replies: [] });
       } else {
         // This is a reply
         comment.replyTo.forEach((parentId) => {
           if (!replyMap[parentId]) {
-            replyMap[parentId] = []
+            replyMap[parentId] = [];
           }
-          replyMap[parentId].push(comment)
-        })
+          replyMap[parentId].push(comment);
+        });
       }
-    })
+    });
 
     // Second pass: attach replies to parent comments
     parentComments.forEach((parent) => {
       if (replyMap[parent._id]) {
         parent.replies = replyMap[parent._id].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        )
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       }
-    })
+    });
 
-    return parentComments
-  }
+    return parentComments;
+  };
 
-  const handleLike = async (commentId: string) => {
+  const handleLike = async (commentId: string, profileId: string) => {
     try {
       // Optimistically update UI
       setComments((prevComments) => {
         return prevComments.map((comment) => {
           if (comment._id === commentId) {
+            const alreadyLoved =
+              Array.isArray(comment.reactions?.love) &&
+              comment.reactions.love.includes(profileId);
+            const updatedLove = alreadyLoved
+              ? comment.reactions.love.filter((id) => id !== profileId)
+              : [...comment.reactions.love, profileId];
+
             return {
               ...comment,
               reactions: {
                 ...comment.reactions,
-                like: comment.reactions.like + 1,
+                love: updatedLove,
               },
-            }
+              lovedByUser: !alreadyLoved,
+            };
           }
 
           // Check in replies
           if (comment.replies && comment.replies.length > 0) {
             const updatedReplies = comment.replies.map((reply) => {
               if (reply._id === commentId) {
+                const alreadyLoved = reply.reactions.love.includes(profileId);
+                const updatedLove = alreadyLoved
+                  ? reply.reactions.love.filter((id) => id !== profileId)
+                  : [...reply.reactions.love, profileId];
+
                 return {
                   ...reply,
                   reactions: {
                     ...reply.reactions,
-                    like: reply.reactions.like + 1,
+                    love: updatedLove,
                   },
-                }
+                  lovedByUser: !alreadyLoved,
+                };
               }
-              return reply
-            })
+              return reply;
+            });
 
             return {
               ...comment,
               replies: updatedReplies,
-            }
+            };
           }
 
-          return comment
-        })
-      })
-
-      // Send to backend
-      await axios.post(`http://192.168.1.171:3006/api/v1/comment/reaction/${commentId}`, {
-        type: "like",
-      })
+          return comment;
+        });
+      });
+      console.log("Comment loved:", commentId, profileId);
+      // Gửi yêu cầu backend
+      const res = await axios.post(
+        `http://192.168.1.171:3006/api/v1/comment/${commentId}/love`,
+        {
+          profileId: profileId,
+        }
+      );
+      console.log("Response from server:", res.data);
+      if (res.data?.lovedByUser === true) {
+        
+        setStateLove(true);
+        setTotalReactions((prev) => prev + 1);
+      } else {
+        setStateLove(false);
+        setTotalReactions((prev) => Math.max(0, prev - 1));
+      }
     } catch (error) {
-      console.error("Error liking comment:", error)
-      Alert.alert("Lỗi", "Không thể thích bình luận. Vui lòng thử lại sau.")
+      console.error("Error loving comment:", error);
+      Alert.alert(
+        "Lỗi",
+        "Không thể yêu thích bình luận. Vui lòng thử lại sau."
+      );
     }
-  }
+  };
 
   const handleReply = (commentId: string) => {
-    setReplyingTo(commentId)
+    setReplyingTo(commentId);
     // Focus on the input field
     setTimeout(() => {
-      inputRef.current?.focus()
-    }, 100)
-  }
+      inputRef.current?.focus();
+    }, 100);
+  };
 
   const dismissKeyboard = () => {
-    Keyboard.dismiss()
-  }
+    Keyboard.dismiss();
+  };
 
   // Xử lý chọn ảnh từ thư viện
   const pickImage = async () => {
     try {
       // Yêu cầu quyền truy cập thư viện ảnh
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Cần quyền truy cập", "Ứng dụng cần quyền truy cập vào thư viện ảnh để chọn ảnh.")
-        return
+        Alert.alert(
+          "Cần quyền truy cập",
+          "Ứng dụng cần quyền truy cập vào thư viện ảnh để chọn ảnh."
+        );
+        return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -251,122 +294,140 @@ const CommentSection: React.FC<Props> = ({ route }) => {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
-      })
+      });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedMedia([...selectedMedia, { uri: result.assets[0].uri, type: "image" }])
+        setSelectedMedia([
+          ...selectedMedia,
+          { uri: result.assets[0].uri, type: "image" },
+        ]);
       }
     } catch (error) {
-      console.error("Error picking image:", error)
-      Alert.alert("Lỗi", "Không thể chọn ảnh. Vui lòng thử lại sau.")
+      console.error("Error picking image:", error);
+      Alert.alert("Lỗi", "Không thể chọn ảnh. Vui lòng thử lại sau.");
     }
-  }
+  };
 
   // Xử lý xóa ảnh đã chọn
   const removeMedia = (index: number) => {
-    const newMedia = [...selectedMedia]
-    newMedia.splice(index, 1)
-    setSelectedMedia(newMedia)
-  }
+    const newMedia = [...selectedMedia];
+    newMedia.splice(index, 1);
+    setSelectedMedia(newMedia);
+  };
 
   // Gửi bình luận lên server
   const submitComment = async () => {
-    if (!commentText.trim() && selectedMedia.length === 0) return
+    if (!commentText.trim() && selectedMedia.length === 0) return;
 
     try {
-      setIsLoading(true)
+      setIsLoading(true);
 
       // Lấy profileId từ AsyncStorage
-      const profileId = await AsyncStorage.getItem("userId")
+      const profileId = await AsyncStorage.getItem("userId");
       if (!profileId) {
-        Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.")
-        setIsLoading(false)
-        return
+        Alert.alert(
+          "Lỗi",
+          "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại."
+        );
+        setIsLoading(false);
+        return;
       }
 
       // Tạo FormData để gửi dữ liệu và file
-      const formData = new FormData()
-      formData.append("profileId", profileId)
-      formData.append("postId", postId)
-      formData.append("content", commentText)
+      const formData = new FormData();
+      formData.append("profileId", profileId);
+      formData.append("postId", postId);
+      formData.append("content", commentText);
 
       // Thêm replyTo nếu đang trả lời bình luận
       if (replyingTo) {
-        formData.append("replyTo", replyingTo)
+        formData.append("replyTo", replyingTo);
       }
 
       // Thêm media nếu có
       selectedMedia.forEach((media, index) => {
-        const uriParts = media.uri.split(".")
-        const fileType = uriParts[uriParts.length - 1]
+        const uriParts = media.uri.split(".");
+        const fileType = uriParts[uriParts.length - 1];
 
         formData.append("files", {
           uri: media.uri,
           name: `media_${index}.${fileType}`,
           type: `image/${fileType}`,
-        } as any)
-      })
+        } as any);
+      });
 
       // Gửi request đến API
-      const response = await axios.post("http://192.168.1.171:3006/api/v1/comment", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
+      const response = await axios.post(
+        "http://192.168.1.171:3006/api/v1/comment",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-      console.log("Comment created:", response.data)
+      console.log("Comment created:", response.data);
 
       // Làm mới danh sách bình luận
-      await fetchComments()
+      await fetchComments();
 
       // Reset form
-      setCommentText("")
-      setSelectedMedia([])
-      setReplyingTo(null)
-      Keyboard.dismiss()
+      setCommentText("");
+      setSelectedMedia([]);
+      setReplyingTo(null);
+      Keyboard.dismiss();
     } catch (error) {
-      console.error("Error creating comment:", error)
-      Alert.alert("Lỗi", "Không thể đăng bình luận. Vui lòng thử lại sau.")
+      console.error("Error creating comment:", error);
+      Alert.alert("Lỗi", "Không thể đăng bình luận. Vui lòng thử lại sau.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = Math.floor((now.getTime() - date.getTime()) / 1000) // diff in seconds
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000); // diff in seconds
 
     if (diff < 60) {
-      return `${diff} giây trước`
+      return `${diff} giây trước`;
     } else if (diff < 3600) {
-      return `${Math.floor(diff / 60)} phút trước`
+      return `${Math.floor(diff / 60)} phút trước`;
     } else if (diff < 86400) {
-      return `${Math.floor(diff / 3600)} giờ trước`
+      return `${Math.floor(diff / 3600)} giờ trước`;
     } else if (diff < 2592000) {
       // less than 30 days
-      return `${Math.floor(diff / 86400)} ngày trước`
+      return `${Math.floor(diff / 86400)} ngày trước`;
     } else {
       // Format as DD/MM/YYYY
-      const day = date.getDate().toString().padStart(2, "0")
-      const month = (date.getMonth() + 1).toString().padStart(2, "0")
-      const year = date.getFullYear()
-      return `${day}/${month}/${year}`
+      const day = date.getDate().toString().padStart(2, "0");
+      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
     }
-  }
+  };
 
   const renderMedia = (media: Media[]) => {
-    if (!media || media.length === 0) return null
+    if (!media || media.length === 0) return null;
 
     return (
       <View style={styles.mediaContainer}>
         {media.map((item, index) => (
           <View key={index} style={styles.mediaItem}>
             {item.type === "image" ? (
-              <Image source={{ uri: item.url }} style={styles.mediaImage} resizeMode="cover" />
+              <Image
+                source={{ uri: item.url }}
+                style={styles.mediaImage}
+                resizeMode="cover"
+              />
             ) : (
               <View style={styles.videoContainer}>
-                <Image source={{ uri: item.thumbnailUrl || item.url }} style={styles.mediaImage} resizeMode="cover" />
+                <Image
+                  source={{ uri: item.thumbnailUrl || item.url }}
+                  style={styles.mediaImage}
+                  resizeMode="cover"
+                />
                 <View style={styles.playButton}>
                   <Ionicons name="play" size={24} color="white" />
                 </View>
@@ -375,20 +436,20 @@ const CommentSection: React.FC<Props> = ({ route }) => {
           </View>
         ))}
       </View>
-    )
-  }
+    );
+  };
 
   const renderReactionCount = (reactions: Reactions) => {
-    const total = reactions.like + reactions.love + reactions.haha + reactions.angry
-    if (total === 0) return null
+    const total = reactions.love.length;
+    if (total === 0) return null;
 
     return (
       <View style={styles.reactionCount}>
         <Ionicons name="heart" size={12} color="#FF3B30" />
         <Text style={styles.reactionText}>{total}</Text>
       </View>
-    )
-  }
+    );
+  };
 
   const renderComment = ({ item }: { item: Comment }) => {
     return (
@@ -404,10 +465,23 @@ const CommentSection: React.FC<Props> = ({ route }) => {
           </View>
 
           <View style={styles.commentActions}>
-            <TouchableOpacity style={styles.actionButton} onPress={() => handleLike(item._id)}>
-              <Text style={styles.actionText}>Thích</Text>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleLike(item._id, item.profileId._id)}
+            >
+              <Text
+                style={[
+                  styles.actionText,
+                  { color: item.lovedByUser ? "red" : "black" },
+                ]}
+              >
+                Thích
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={() => handleReply(item._id)}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleReply(item._id)}
+            >
               <Text style={styles.actionText}>Trả lời</Text>
             </TouchableOpacity>
             <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
@@ -419,7 +493,10 @@ const CommentSection: React.FC<Props> = ({ route }) => {
             <View style={styles.repliesContainer}>
               {item.replies.map((reply) => (
                 <View key={reply._id} style={styles.replyContainer}>
-                  <Image source={{ uri: reply.profileId?.avatar }} style={styles.replyAvatar} />
+                  <Image
+                    source={{ uri: reply.profileId?.avatar }}
+                    style={styles.replyAvatar}
+                  />
                   <View style={styles.replyContent}>
                     <View style={styles.commentBubble}>
                       <Text style={styles.userName}>
@@ -430,13 +507,21 @@ const CommentSection: React.FC<Props> = ({ route }) => {
                     </View>
 
                     <View style={styles.commentActions}>
-                      <TouchableOpacity style={styles.actionButton} onPress={() => handleLike(reply._id)}>
-                        <Text style={styles.actionText}>Thích</Text>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleLike(reply._id, reply.profileId._id)}
+                      >
+                        <Text style={[styles.actionText, { color: reply.lovedByUser ? "red" : "black" }]}>Thích</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionButton} onPress={() => handleReply(item._id)}>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleReply(item._id)}
+                      >
                         <Text style={styles.actionText}>Trả lời</Text>
                       </TouchableOpacity>
-                      <Text style={styles.timeText}>{formatTime(reply.createdAt)}</Text>
+                      <Text style={styles.timeText}>
+                        {formatTime(reply.createdAt)}
+                      </Text>
                       {renderReactionCount(reply.reactions)}
                     </View>
                   </View>
@@ -446,31 +531,40 @@ const CommentSection: React.FC<Props> = ({ route }) => {
           )}
         </View>
       </View>
-    )
-  }
+    );
+  };
 
   // Render ảnh đã chọn
   const renderSelectedMedia = () => {
-    if (selectedMedia.length === 0) return null
+    if (selectedMedia.length === 0) return null;
 
     return (
       <View style={styles.selectedMediaContainer}>
         {selectedMedia.map((media, index) => (
           <View key={index} style={styles.selectedMediaItem}>
-            <Image source={{ uri: media.uri }} style={styles.selectedMediaImage} />
-            <TouchableOpacity style={styles.removeMediaButton} onPress={() => removeMedia(index)}>
+            <Image
+              source={{ uri: media.uri }}
+              style={styles.selectedMediaImage}
+            />
+            <TouchableOpacity
+              style={styles.removeMediaButton}
+              onPress={() => removeMedia(index)}
+            >
               <Ionicons name="close-circle" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         ))}
       </View>
-    )
-  }
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigator.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigator.goBack()}
+        >
           <Ionicons name="chevron-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bình luận</Text>
@@ -498,13 +592,23 @@ const CommentSection: React.FC<Props> = ({ route }) => {
         />
 
         {/* Input container with animation similar to CreatePostScreen */}
-        <Animated.View style={[styles.inputContainer, { transform: [{ translateY: buttonsPosition }] }]}>
+        <Animated.View
+          style={[
+            styles.inputContainer,
+            { transform: [{ translateY: buttonsPosition }] },
+          ]}
+        >
           {replyingTo && (
             <View style={styles.replyingToContainer}>
               <Text style={styles.replyingToText}>
                 Đang trả lời bình luận
                 <TouchableOpacity onPress={() => setReplyingTo(null)}>
-                  <Ionicons name="close-circle" size={16} color="#666" style={{ marginLeft: 5 }} />
+                  <Ionicons
+                    name="close-circle"
+                    size={16}
+                    color="#666"
+                    style={{ marginLeft: 5 }}
+                  />
                 </TouchableOpacity>
               </Text>
             </View>
@@ -525,11 +629,11 @@ const CommentSection: React.FC<Props> = ({ route }) => {
               onChangeText={setCommentText}
               multiline
               onContentSizeChange={(e) => {
-                setInputHeight(Math.min(100, e.nativeEvent.contentSize.height))
+                setInputHeight(Math.min(100, e.nativeEvent.contentSize.height));
               }}
               onFocus={() => {
-                setIsFocused(true)
-                animateButtons(-50)
+                setIsFocused(true);
+                animateButtons(-50);
               }}
             />
             <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
@@ -538,11 +642,15 @@ const CommentSection: React.FC<Props> = ({ route }) => {
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                commentText.trim() || selectedMedia.length > 0 ? styles.sendButtonActive : null,
+                commentText.trim() || selectedMedia.length > 0
+                  ? styles.sendButtonActive
+                  : null,
                 isLoading && styles.sendButtonDisabled,
               ]}
               onPress={submitComment}
-              disabled={(!commentText.trim() && selectedMedia.length === 0) || isLoading}
+              disabled={
+                (!commentText.trim() && selectedMedia.length === 0) || isLoading
+              }
             >
               {isLoading ? (
                 <Ionicons name="hourglass-outline" size={24} color="#CCC" />
@@ -550,7 +658,11 @@ const CommentSection: React.FC<Props> = ({ route }) => {
                 <Ionicons
                   name="send"
                   size={24}
-                  color={commentText.trim() || selectedMedia.length > 0 ? "#0084FF" : "#CCC"}
+                  color={
+                    commentText.trim() || selectedMedia.length > 0
+                      ? "#0084FF"
+                      : "#CCC"
+                  }
                 />
               )}
             </TouchableOpacity>
@@ -558,8 +670,8 @@ const CommentSection: React.FC<Props> = ({ route }) => {
         </Animated.View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -776,6 +888,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-})
+});
 
-export default CommentSection
+export default CommentSection;

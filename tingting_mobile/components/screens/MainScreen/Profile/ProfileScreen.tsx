@@ -12,14 +12,14 @@ import {
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/Ionicons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
-import { Api_Post } from "@/apis/api_post";
+import {
+  useFocusEffect,
+  useNavigation,
+} from "@react-navigation/native";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import PostFeed from "./components/PostFeed";
 import { StackScreenProps } from "@react-navigation/stack";
-import { Api_Profile } from "@/apis/api_profile";
 import { RootStackParamList } from "@/app/(tabs)";
 
 type Props = StackScreenProps<RootStackParamList, "ProfileScreen">;
@@ -42,54 +42,58 @@ const ProfileScreen: React.FC<Props> = ({ route }) => {
     coverPhoto: null,
   });
   const [posts, setPosts] = useState([]);
+  const loadProfileFromLocal = async () => {
+    try {
+      const response = await axios.get(
+        `http://192.168.1.171:3001/api/v1/profile/${profileId}`
+      );
+      const profile = response.data.data.user;
+      const date = new Date(profile.dateOfBirth);
+      const day = date.getDate().toString();
+      const month = (date.getMonth() + 1).toString();
+      const year = date.getFullYear().toString();
 
-  useEffect(() => {
-    const loadProfileFromLocal = async () => {
-      try {
-        const response = await axios.get(`http://192.168.1.171:3001/api/v1/profile/${profileId}`);
-        const profile = response.data.data.user;
-        const date = new Date(profile.dateOfBirth);
-        const day = date.getDate().toString();
-        const month = (date.getMonth() + 1).toString();
-        const year = date.getFullYear().toString();
+      setFormData((prev) => ({
+        ...prev,
+        firstname: profile.firstname || "",
+        surname: profile.surname || "",
+        phone: profile.phone || "",
+        avatar:
+          profile.avatar ||
+          "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
+        coverPhoto: profile.coverPhoto || null,
+        gender: profile.gender || "female",
+        day,
+        month,
+        year,
+      }));
+    } catch (error) {
+      console.error("Error loading profile from localStorage:", error);
+    }
+  };
 
-        setFormData((prev) => ({
-          ...prev,
-          firstname: profile.firstname || "",
-          surname: profile.surname || "",
-          phone: profile.phone || "",
-          avatar:
-            profile.avatar ||
-            "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
-          coverPhoto: profile.coverPhoto || null,
-          gender: profile.gender || "female",
-          day,
-          month,
-          year,
-        }));
-      } catch (error) {
-        console.error("Error loading profile from localStorage:", error);
-      }
-    };
-    const getPost = async () => {
-      try {
-        const response = await axios.get(
-          `http://192.168.1.171:3006/api/v1/post/${profileId}`
-        );
-        console.log("Response data2:", response.data.data.post);
-        if (response.status === 200) {
-          setPosts(response.data.data.post);
-        } else {
-          Alert.alert("Error", "Failed to fetch posts.");
-        }
-      } catch (error) {
-        console.error("Error fetching posts:", error);
+  const getPost = async () => {
+    try {
+      const response = await axios.get(
+        `http://192.168.1.171:3006/api/v1/post/${profileId}`
+      );
+      console.log("Response data2:", response.data.data.post);
+      if (response.status === 200) {
+        setPosts(response.data.data.post);
+      } else {
         Alert.alert("Error", "Failed to fetch posts.");
       }
-    };
-    loadProfileFromLocal();
-    getPost();
-  }, []);
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+      Alert.alert("Error", "Failed to fetch posts.");
+    }
+  };
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileFromLocal();
+      getPost();
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -163,7 +167,7 @@ const ProfileScreen: React.FC<Props> = ({ route }) => {
           {/* Update Profile Button */}
           <TouchableOpacity
             style={styles.updateProfileButton}
-            onPress={() => navigation.navigate("PersonalInfo", { formData })}
+            onPress={() => navigation.navigate("PersonalInfo", { formData, profileId })}
           >
             <Feather name="edit-2" size={16} color="#2196F3" />
             <Text style={styles.updateProfileText}>Cập nhật</Text>
@@ -191,26 +195,15 @@ const ProfileScreen: React.FC<Props> = ({ route }) => {
 
         {/* Post Section */}
         <View style={styles.postSection}>
-          <View style={styles.postInput}>
+          <TouchableOpacity
+            style={styles.postInput}
+            onPress={() => {
+              navigation.navigate("CreatePostScreen");
+            }}
+          >
             <Text style={styles.postInputText}>Bạn đang nghĩ gì?</Text>
             <Ionicons name="image-outline" size={24} color="#8BC34A" />
-          </View>
-
-          <View style={styles.privacyNote}>
-            <Ionicons name="lock-closed" size={16} color="#9E9E9E" />
-            <Text style={styles.privacyText}>
-              Bạn bè của bạn sẽ không xem được các bài đăng dưới đây.{" "}
-              <Text style={styles.privacyLink}>Thay đổi cài đặt</Text>
-            </Text>
-          </View>
-
-          {/* Valentine's Day */}
-          <View style={styles.eventSection}>
-            <View style={styles.eventBadge}>
-              <Ionicons name="heart" size={16} color="white" />
-            </View>
-            <Text style={styles.eventText}>14 tháng 2 - Lễ Tình Nhân</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View>

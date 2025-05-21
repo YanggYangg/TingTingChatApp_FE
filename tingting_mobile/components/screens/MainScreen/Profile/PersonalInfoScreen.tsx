@@ -1,14 +1,31 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from "react-native"
-import { Feather } from "@expo/vector-icons"
-import { RouteProp, useNavigation, useRoute } from "@react-navigation/native"
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  ScrollView,
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import {
+  RouteProp,
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from "@react-navigation/native";
 
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useCallback, useState } from "react";
+import axios from "axios";
 
 type RootStackParamList = {
   Main: undefined;
   MessageScreen: { userId?: string; username?: string };
   Login: undefined;
   PersonalInfo: {
+    profileId: string;
     formData: {
       firstname: string;
       surname: string;
@@ -26,17 +43,68 @@ type RootStackParamList = {
 type PersonalInfoRouteProp = RouteProp<RootStackParamList, "PersonalInfo">;
 
 export default function PersonalInfoScreen() {
+  const navigation =
+    useNavigation<
+      NativeStackScreenProps<RootStackParamList, "PersonalInfo">["navigation"]
+    >();
   const route = useRoute<PersonalInfoRouteProp>();
-  const { formData } = route.params;
-  const navigation = useNavigation<NativeStackScreenProps<RootStackParamList, "PersonalInfo">["navigation"]>();
+  const { profileId } = route.params;
+  const [formData, setFormData] = useState({
+    firstname: "",
+    surname: "",
+    day: "1",
+    month: "1",
+    year: "2025",
+    gender: "female",
+    phone: "",
+    avatar: null,
+    coverPhoto: null,
+  });
 
+  const loadProfileById = async () => {
+    try {
+      const response = await axios.get(
+        `http://192.168.1.171:3001/api/v1/profile/${profileId}`
+      );
+      const profile = response.data.data.user;
+      const date = new Date(profile.dateOfBirth);
+      const day = date.getDate().toString();
+      const month = (date.getMonth() + 1).toString();
+      const year = date.getFullYear().toString();
+
+      setFormData((prev) => ({
+        ...prev,
+        firstname: profile.firstname || "",
+        surname: profile.surname || "",
+        phone: profile.phone || "",
+        avatar:
+          profile.avatar ||
+          "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
+        coverPhoto: profile.coverPhoto || null,
+        gender: profile.gender || "female",
+        day,
+        month,
+        year,
+      }));
+    } catch (error) {
+      console.error("Error loading profile from localStorage:", error);
+    }
+  };
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileById();
+    }, [])
+  );
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
           <Feather name="chevron-left" size={28} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Thông tin cá nhân</Text>
@@ -51,7 +119,10 @@ export default function PersonalInfoScreen() {
             }}
             style={styles.profilePicture}
           />
-          <Text style={styles.profileName}> {formData.firstname} {formData.surname}</Text>
+          <Text style={styles.profileName}>
+            {" "}
+            {formData.firstname} {formData.surname}
+          </Text>
         </View>
 
         {/* Personal Info */}
@@ -59,13 +130,19 @@ export default function PersonalInfoScreen() {
           {/* Gender */}
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Giới tính</Text>
-            <Text style={styles.infoValue}> {formData.gender == "female" ? "Nữ" : "Nam"}</Text>
+            <Text style={styles.infoValue}>
+              {" "}
+              {formData.gender == "female" ? "Nữ" : "Nam"}
+            </Text>
           </View>
 
           {/* Birthday */}
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Ngày sinh</Text>
-            <Text style={styles.infoValue}> {formData.day}/{formData.month}/{formData.year}</Text>
+            <Text style={styles.infoValue}>
+              {" "}
+              {formData.day}/{formData.month}/{formData.year}
+            </Text>
           </View>
 
           {/* Phone */}
@@ -73,19 +150,25 @@ export default function PersonalInfoScreen() {
             <Text style={styles.infoLabel}>Điện thoại</Text>
             <View>
               <Text style={styles.infoValue}> {formData.phone}</Text>
-              <Text style={styles.infoNote}>Số điện thoại chỉ hiển thị với người có lưu số bạn trong danh bạ máy</Text>
+              <Text style={styles.infoNote}>
+                Số điện thoại chỉ hiển thị với người có lưu số bạn trong danh bạ
+                máy
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Edit Button */}
-        <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate("EditPersonalInfo", {formData})}>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => navigation.navigate("EditPersonalInfo", { formData })}
+        >
           <Feather name="edit-2" size={18} color="#333" />
           <Text style={styles.editButtonText}>Chỉnh sửa</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -170,4 +253,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 10,
   },
-})
+});

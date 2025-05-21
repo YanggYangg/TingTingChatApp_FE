@@ -47,6 +47,9 @@ import SettingProfileScreen from "@/components/screens/MainScreen/Profile/Settin
 import FeedScreen from "@/components/screens/MainScreen/Feed/FeedScreen";
 import CreatePostScreen from "@/components/screens/MainScreen/Feed/CreatePostScreen";
 import CommentSection from "@/components/screens/MainScreen/Comment/CommentSection";
+import PostOptions from "@/components/screens/MainScreen/Profile/PostOptions";
+import PrivacySettings from "@/components/screens/MainScreen/Profile/PrivacySettings";
+import FeedOptions from "@/components/screens/MainScreen/Profile/components/FeedOptions";
 
 export type RootStackParamList = {
   Main: undefined;
@@ -113,6 +116,12 @@ export type RootStackParamList = {
   CommentSection: {
     postId: string;
   };
+  PostOptions: undefined;
+  PrivacySettings: undefined;
+  FeedOptions: {
+    postId: string;
+    profileId: string;
+  }
 
   MessageSupportScreen: { userId?: string; username?: string };
 };
@@ -171,7 +180,7 @@ function ProfileStackNavigator() {
     </ProfileStack.Navigator>
   );
 }
-function FeedStackNavigator() {
+function FeedStackNavigator({ route }: any) {
   return (
     <FeedStack.Navigator
       screenOptions={{
@@ -180,6 +189,12 @@ function FeedStackNavigator() {
       }}
     >
       <FeedStack.Screen name="FeedScreen" component={FeedScreen} />
+      <ProfileStack.Screen
+        name="CommentSection"
+        component={CommentSection}
+      />
+      <Stack.Screen name="FeedOptions" component={FeedOptions} />
+
     </FeedStack.Navigator>
   );
 }
@@ -190,15 +205,24 @@ function InformationProfileStackNavigator({ route }: any) {
         headerShown: false,
         animation: "none", // Disable animations MenuProfileScreen
       }}
-        
     >
-      <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} initialParams={route.params} />
-       <ProfileStack.Screen name="CommentSection" component={CommentSection} initialParams={route.params} />
+      <ProfileStack.Screen
+        name="ProfileScreen"
+        component={ProfileScreen}
+        initialParams={route.params}
+      />
+      <ProfileStack.Screen
+        name="CommentSection"
+        component={CommentSection}
+        initialParams={route.params}
+      />
       <ProfileStack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
       <ProfileStack.Screen
         name="EditPersonalInfo"
         component={EditPersonalInfoScreen}
       />
+      <Stack.Screen name="PostOptions" component={PostOptions} />
+      <Stack.Screen name="PrivacySettings" component={PrivacySettings} />
     </ProfileStack.Navigator>
   );
 }

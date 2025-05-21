@@ -12,13 +12,28 @@ type PostProps = {
 };
 
 const Post = ({ post }: PostProps) => {
+
   const navigator = useNavigation();
   const [lovedByUser, setLovedByUser] = useState(post.lovedByUser || false);
   const [totalReactions, setTotalReactions] = useState(
     post.totalReactions || 0
   );
+
+
   const navigateToCommentSection = async () => {
     navigator.navigate("CommentSection", {
+      postId: post._id,
+    });
+  };
+  const handleTogglePrivacySettings = () => {
+    console.log("Post ID before privacy setting:", post._id);
+    navigator.navigate("PrivacySettings", {
+      postId: post._id,
+    });
+  };
+  const handleTogglePostOptions = () => {
+    console.log("Post ID before option setting:", post._id);
+    navigator.navigate("PostOptions", {
       postId: post._id,
     });
   };
@@ -31,8 +46,6 @@ const Post = ({ post }: PostProps) => {
           profileId: post.profileId,
         }
       );
-
-      // ✅ Cập nhật state khi like/unlike thành công
       if (response.data?.lovedByUser === true) {
         setLovedByUser(true);
         setTotalReactions((prev) => prev + 1);
@@ -82,11 +95,23 @@ const Post = ({ post }: PostProps) => {
           </TouchableOpacity>
 
           <View style={styles.rightActions}>
-            <TouchableOpacity style={styles.iconButton}>
-              <Feather name="users" size={20} color="#666" />
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleTogglePrivacySettings}
+            >
+              {post.privacy === "private" ? (
+                <Feather name="lock" size={20} color="#666" />
+              ) : post.privacy === "public" ? (
+                <Feather name="user" size={20} color="#666" />
+              ) : (
+                <Feather name="users" size={20} color="#666" />
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleTogglePostOptions}
+            >
               <Feather name="more-horizontal" size={20} color="#666" />
             </TouchableOpacity>
           </View>
