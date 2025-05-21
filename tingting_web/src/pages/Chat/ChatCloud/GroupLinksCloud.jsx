@@ -51,7 +51,7 @@ const GroupLinksCloud = ({
 
     try {
       const response = await axios.delete(
-        `http://localhost:3000/api/messages/${linkItem.id}`
+        `http://184.73.0.29:3000/api/messages/${linkItem.id}`
       );
       if (response.data?.message) {
         if (onDeleteLink) onDeleteLink(linkItem.id);

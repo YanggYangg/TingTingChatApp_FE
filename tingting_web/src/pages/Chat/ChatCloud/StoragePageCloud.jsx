@@ -191,7 +191,7 @@ const StoragePageCloud = ({
 
       await Promise.all(
         items.map((item) =>
-          axios.delete(`http://localhost:3000/api/messages/${item.messageId}`)
+          axios.delete(`http://184.73.0.29:3000/api/messages/${item.messageId}`)
         )
       );
 

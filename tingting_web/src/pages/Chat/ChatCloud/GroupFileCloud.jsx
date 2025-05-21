@@ -77,7 +77,7 @@ const GroupFileCloud = ({
 
     try {
       const response = await axios.delete(
-        `http://localhost:3000/api/messages/${file.id}`
+        `http://184.73.0.29:3000/api/messages/${file.id}`
       );
       if (response.data?.message) {
         if (onDeleteFile) onDeleteFile(file.id);

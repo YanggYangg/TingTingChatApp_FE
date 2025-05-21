@@ -135,7 +135,7 @@ const GroupMediaGalleryCloud = ({
                         e.stopPropagation();
                         try {
                           await axios.delete(
-                            `http://localhost:3000/api/messages/${item.messageId}`
+                            `http://184.73.0.29:3000/api/messages/${item.messageId}`
                           );
                           setMedia(media.filter((m) => m.id !== item.id));
                         } catch (error) {

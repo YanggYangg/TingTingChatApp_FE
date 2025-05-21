@@ -471,7 +471,7 @@ function ChatPage() {
         setLoading(true);
         try {
           const response = await axios.get(
-            `http://localhost:3000/api/messages/user/${currUserId}`
+            `http://184.73.0.29:3000/api/messages/user/${currUserId}`
           );
           const sortedMessages = response.data.sort(
             (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
@@ -657,7 +657,7 @@ function ChatPage() {
     const handleDelete = async () => {
       console.log("ChatPage: Xóa tin nhắn cloud", { messageId: message.messageId });
       try {
-        await axios.delete(`http://localhost:3000/api/messages/${message.messageId}`);
+        await axios.delete(`http://184.73.0.29:3000/api/messages/${message.messageId}`);
       } catch (error) {
         console.error("ChatPage: Lỗi khi xóa tin nhắn cloud", error);
       }

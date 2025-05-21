@@ -80,7 +80,7 @@ function InfoModal({ isOpen, onClose }) {
         console.log("uploadForm", uploadForm);
 
         const uploadRes = await axios.put(
-          "http://localhost:3001/api/v1/profile/upload", // bạn đổi lại nếu cần
+          "http://184.73.0.29:3001/api/v1/profile/upload", // bạn đổi lại nếu cần
           uploadForm,
           {
             headers: {
