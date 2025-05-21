@@ -45,9 +45,9 @@ const handleApiError = (error) => {
 
 const request = async (method, url, data = null, params = null) => {
   try {
-    console.log(`[${method.toUpperCase()}] Gửi request tới: ${BASE_URL}${url}`);
+    // console.log(`[${method.toUpperCase()}] Gửi request tới: ${BASE_URL}${url}`);
     const response = await axiosInstance({ method, url, data, params });
-    console.log(`[${method.toUpperCase()}] Phản hồi API:`, response.data);
+    // console.log(`[${method.toUpperCase()}] Phản hồi API:`, response.data);
     return response.data;
   } catch (error) {
     const errorData = handleApiError(error);

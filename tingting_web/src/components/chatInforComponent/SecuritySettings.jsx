@@ -251,27 +251,30 @@ const SecuritySettings = ({
     setIsProcessing(true);
     try {
       console.log("SecuritySettings: Gửi yêu cầu deleteAllChatHistory", { conversationId });
-      // Xóa tin nhắn cục bộ ngay lập tức
-      dispatch(setMessages([])); // Thêm: Xóa tin nhắn ngay lập tức
-      dispatch(setSelectedMessage(null)); // Thêm: Chuyển về trang chính ngay lập tức
+      dispatch(setMessages([]));
+      dispatch(setSelectedMessage(null));
+      dispatch(setChatInfoUpdate({
+        ...chatInfo,
+        media: [],
+        files: [],
+        links: [],
+        lastMessage: null,
+      }));
       toast.success("Đã xóa toàn bộ lịch sử trò chuyện!");
-
-      // Gửi yêu cầu xóa đến backend
+      setShowDeleteConfirm(false);
       deleteAllChatHistory(socket, { conversationId }, (response) => {
         console.log("SecuritySettings: Phản hồi từ deleteAllChatHistory", response);
         if (!response.success) {
           toast.error("Lỗi khi xóa lịch sử ở server: " + response.message);
         }
-        setShowDeleteConfirm(false);
         setIsProcessing(false);
       });
     } catch (error) {
       console.error("SecuritySettings: Lỗi khi xóa lịch sử:", error);
       toast.error("Lỗi khi xóa lịch sử. Vui lòng thử lại.");
-      setShowDeleteConfirm(false);
       setIsProcessing(false);
     }
-  }, [socket, conversationId, isProcessing, dispatch]);
+  }, [socket, conversationId, isProcessing, dispatch, chatInfo]);
 
   // Rời nhóm
   const handleLeaveGroup = useCallback(() => {
@@ -353,7 +356,7 @@ const SecuritySettings = ({
         transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
           console.log("SecuritySettings: Phản hồi từ transferGroupAdmin", response);
           if (response.success) {
-           
+
             resolve();
           } else {
             toast.error("Lỗi khi chuyển quyền: " + response.message);
@@ -413,7 +416,7 @@ const SecuritySettings = ({
       transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
         console.log("SecuritySettings: Phản hồi từ transferGroupAdmin", response);
         if (response.success) {
-          
+
           setShowTransferAdminModal(false);
           setNewAdminUserId("");
           dispatch(setChatInfoUpdate(response.data));
@@ -446,7 +449,7 @@ const SecuritySettings = ({
       disbandGroup(socket, { conversationId }, (response) => {
         console.log("SecuritySettings: Phản hồi từ disbandGroup", response);
         if (response.success) {
-         
+
           dispatch(setSelectedMessage(null));
         } else {
           toast.error("Lỗi khi giải tán nhóm: " + response.message);

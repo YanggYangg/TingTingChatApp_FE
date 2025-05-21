@@ -35,9 +35,6 @@ interface Props {
   onForward?: (media: Media, targetConversations: string[], content: string) => void;
 }
 
-/**
- * Component for displaying group media gallery (images and videos).
- */
 const GroupMediaGallery: React.FC<Props> = ({
   conversationId,
   userId,
@@ -58,9 +55,6 @@ const GroupMediaGallery: React.FC<Props> = ({
   const videoRef = useRef<Video>(null);
   const gridVideoRefs = useRef<Record<string, Video>>({});
 
-  /**
-   * Download media to the device.
-   */
   const downloadMedia = useCallback(async (url: string, type: 'image' | 'video') => {
     try {
       const fileName = url.split('/').pop() || (type === 'image' ? 'image.jpg' : 'video.mp4');
@@ -75,9 +69,6 @@ const GroupMediaGallery: React.FC<Props> = ({
     }
   }, []);
 
-  /**
-   * Fetch media from the server.
-   */
   const fetchMedia = useCallback(() => {
     if (!conversationId || !socket) {
       setMedia([]);
@@ -99,9 +90,6 @@ const GroupMediaGallery: React.FC<Props> = ({
     });
   }, [conversationId, socket]);
 
-  /**
-   * Format raw server data into Media objects.
-   */
   const formatData = useCallback((items: any[]): Media[] => {
     if (!Array.isArray(items)) return [];
 
@@ -117,7 +105,6 @@ const GroupMediaGallery: React.FC<Props> = ({
           messageId: item?._id,
           urlIndex,
           linkURL: url,
-          // name: item?.content || `Media_${urlIndex + 1}`,
           type: item?.messageType === 'video' ? 'video' : 'image',
           userId: item?.userId || 'unknown',
         }));
@@ -125,9 +112,6 @@ const GroupMediaGallery: React.FC<Props> = ({
       .filter((item) => item.linkURL);
   }, []);
 
-  /**
-   * Handle socket events and media updates.
-   */
   useEffect(() => {
     if (!socket || !conversationId) return;
 
@@ -163,9 +147,6 @@ const GroupMediaGallery: React.FC<Props> = ({
     };
   }, [socket, conversationId, fetchMedia, formatData, fullScreenMedia]);
 
-  /**
-   * Update media after deletion from StoragePage.
-   */
   const handleDeleteFromStorage = useCallback(
     (deletedItems: { messageId: string; urlIndex: number; isMessageDeleted: boolean }[]) => {
       setMedia((prev) =>
@@ -191,17 +172,11 @@ const GroupMediaGallery: React.FC<Props> = ({
     [fullScreenMedia]
   );
 
-  /**
-   * Forward media to other conversations.
-   */
   const handleForwardClick = useCallback((item: Media) => {
     setMediaToForward(item);
     setIsShareModalOpen(true);
   }, []);
 
-  /**
-   * Handle media sharing completion.
-   */
   const handleMediaShared = useCallback(
     (targetConversations: string[], shareContent: string) => {
       if (!mediaToForward || !targetConversations.length) {
@@ -233,43 +208,31 @@ const GroupMediaGallery: React.FC<Props> = ({
     [mediaToForward, userId, socket, onForward]
   );
 
-  /**
-   * Close the share modal.
-   */
   const handleShareModalClose = useCallback(() => {
     setIsShareModalOpen(false);
     setMediaToForward(null);
   }, []);
 
-  /**
-   * Manage video playback.
-   */
   useEffect(() => {
     if (fullScreenMedia?.type === 'video' && videoRef.current) {
       if (isPlaying) {
         videoRef.current.playAsync().catch(() => Alert.alert('Lỗi', 'Không thể phát video.'));
       } else {
-        videoRef.current.pauseAsync().catch(() => { });
+        videoRef.current.pauseAsync().catch(() => {});
       }
     }
   }, [fullScreenMedia, isPlaying]);
 
-  /**
-   * Update state when entering/exiting full-screen mode.
-   */
   useEffect(() => {
     if (fullScreenMedia) {
       const index = media.findIndex((item) => item.id === fullScreenMedia.id);
       if (index !== -1) setCurrentIndex(index);
     } else {
       setIsPlaying(false);
-      Object.values(gridVideoRefs.current).forEach((ref) => ref?.pauseAsync().catch(() => { }));
+      Object.values(gridVideoRefs.current).forEach((ref) => ref?.pauseAsync().catch(() => {}));
     }
   }, [fullScreenMedia, media]);
 
-  /**
-   * Handle swiper index change.
-   */
   const handleSwipe = useCallback(
     (index: number) => {
       setCurrentIndex(index);
@@ -279,9 +242,6 @@ const GroupMediaGallery: React.FC<Props> = ({
     [media]
   );
 
-  /**
-   * Handle media loading states.
-   */
   const handleMediaLoadStart = useCallback((mediaId: string) => {
     setMediaLoading((prev) => ({ ...prev, [mediaId]: true }));
     setMediaLoadError((prev) => ({ ...prev, [mediaId]: null }));
@@ -296,9 +256,6 @@ const GroupMediaGallery: React.FC<Props> = ({
     setMediaLoadError((prev) => ({ ...prev, [mediaId]: 'Không thể tải media.' }));
   }, []);
 
-  /**
-   * Limit displayed media to 4 items.
-   */
   const mediaItems = useMemo(() => media.slice(0, 4), [media]);
 
   if (loading) {
@@ -313,11 +270,13 @@ const GroupMediaGallery: React.FC<Props> = ({
   return (
     <View style={styles.container}>
       <View style={styles.titleContainer}>
-        <Ionicons name="image-outline" size={20} color="#333" style={styles.titleIcon} />
+        <Ionicons name="image-outline" size={18} color="#333" style={styles.titleIcon} />
         <Text style={styles.title}>Hình ảnh/Video</Text>
       </View>
       {media.length === 0 ? (
-        <Text style={styles.noDataText}>Không có hình ảnh/video.</Text>
+        <TouchableOpacity style={styles.noDataContainer} onPress={() => setIsOpen(true)}>
+          <Text style={styles.noDataText}>Hình mới nhất của trò chuyện sẽ xuất hiện tại đây</Text>
+        </TouchableOpacity>
       ) : (
         <View style={styles.grid}>
           {mediaItems.map((item) => (
@@ -352,7 +311,7 @@ const GroupMediaGallery: React.FC<Props> = ({
                       onError={(error) => handleMediaError(item.id, error)}
                     />
                     <View style={styles.playIconContainer}>
-                      <Ionicons name="play-circle-outline" size={25} color="#fff" />
+                      <Ionicons name="play-circle-outline" size={24} color="#fff" />
                     </View>
                   </>
                 )}
@@ -368,7 +327,7 @@ const GroupMediaGallery: React.FC<Props> = ({
             </TouchableOpacity>
           ))}
           <TouchableOpacity style={styles.arrowButton} onPress={() => setIsOpen(true)}>
-            <Ionicons name="arrow-forward-outline" size={25} color="#007bff" />
+            <Ionicons name='chevron-forward-outline' size={24} color='#007bff' />
           </TouchableOpacity>
         </View>
       )}
@@ -403,19 +362,19 @@ const GroupMediaGallery: React.FC<Props> = ({
                 setIsPlaying(false);
               }}
             >
-              <Ionicons name="close" size={24} color="#fff" />
+              <Ionicons name="close" size={22} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.downloadButton}
               onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type)}
             >
-              <Ionicons name="download-outline" size={24} color="#fff" />
+              <Ionicons name="download-outline" size={22} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.forwardButton}
               onPress={() => handleForwardClick(fullScreenMedia)}
             >
-              <Ionicons name="share-outline" size={24} color="#fff" />
+              <Ionicons name="share-outline" size={22} color="#fff" />
             </TouchableOpacity>
             <Swiper
               index={currentIndex}
@@ -463,14 +422,13 @@ const GroupMediaGallery: React.FC<Props> = ({
                         >
                           <Ionicons
                             name={isPlaying && item.id === fullScreenMedia.id ? 'pause-circle' : 'play-circle'}
-                            size={60}
+                            size={55}
                             color="#fff"
                           />
                         </TouchableOpacity>
                       )}
                     </View>
                   )}
-                  <Text style={styles.mediaName}>{item.name}</Text>
                 </View>
               ))}
             </Swiper>
@@ -483,7 +441,7 @@ const GroupMediaGallery: React.FC<Props> = ({
           isOpen={isShareModalOpen}
           onClose={handleShareModalClose}
           onShare={handleMediaShared}
-          messageToForward={mediaToForward.linkURL || mediaToForward.name}
+          messageToForward={mediaToForward.linkURL}
           userId={userId}
           messageId={mediaToForward.messageId}
         />
@@ -493,22 +451,40 @@ const GroupMediaGallery: React.FC<Props> = ({
 };
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  loadingText: { marginTop: 10, fontSize: 16, color: '#555' },
-  container: { marginBottom: 15, padding: 5 },
-  titleContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  titleIcon: { marginRight: 8 },
-  title: { fontSize: 16, fontWeight: '600' },
-  grid: { flexDirection: 'row', justifyContent: 'flex-start', gap: 5, padding: 5, paddingLeft: 15 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 18 },
+  loadingText: { marginTop: 8, fontSize: 14, color: '#555' }, // Reduced from 16
+  container: { marginBottom: 12, padding: 8, backgroundColor: '#f8fafc', borderRadius: 12 }, // Softer corners
+  titleContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingHorizontal: 12 },
+  titleIcon: { marginRight: 6 },
+  title: { fontSize: 14, fontWeight: '600', color: '#333' }, // Reduced from 16
+  grid: { 
+    flexDirection: 'row', 
+    justifyContent: 'flex-start', 
+    gap: 8, 
+    padding: 8, 
+    paddingLeft: 12,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   mediaItemContainer: { position: 'relative' },
-  mediaItem: { width: 60, height: 60, borderRadius: 5 },
+  mediaItem: { width: 65, height: 65, borderRadius: 8 }, // Softer corners
   arrowButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 5,
-    backgroundColor: '#e0f0ff',
+    width: 65,
+    height: 65,
+    borderRadius: 8,
+    backgroundColor: '#e6f3ff', // Lighter background
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   modal: { margin: 0 },
   fullScreenContainer: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
@@ -517,43 +493,45 @@ const styles = StyleSheet.create({
   fullScreenVideo: { width: '100%', height: '100%' },
   closeButton: {
     position: 'absolute',
-    top: 16,
-    left: 16,
+    top: 14,
+    left: 14,
     zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 18,
     padding: 8,
   },
   downloadButton: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 14,
+    right: 14,
     zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 18,
     padding: 8,
   },
   forwardButton: {
     position: 'absolute',
-    top: 60,
-    right: 16,
+    top: 56,
+    right: 14,
     zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 18,
     padding: 8,
   },
   swiperSlide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  mediaName: {
-    color: '#fff',
-    fontSize: 16,
-    marginTop: 10,
-    textAlign: 'center',
-    position: 'absolute',
-    bottom: 20,
-    left: 0,
-    right: 0,
+  noDataContainer: {
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginHorizontal: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  noDataText: { fontSize: 14, color: '#666', textAlign: 'center' },
+  noDataText: { fontSize: 13, color: '#666', textAlign: 'center' }, // Reduced from 14
   playIconContainer: {
     position: 'absolute',
     top: 0,
@@ -573,12 +551,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  errorText: { color: 'red', fontSize: 14, textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 5 },
+  errorText: { color: 'red', fontSize: 13, textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 5 }, // Reduced from 14
   playPauseButton: {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -30 }, { translateY: -30 }],
+    transform: [{ translateX: -27.5 }, { translateY: -27.5 }],
     zIndex: 10,
   },
 });

@@ -62,6 +62,9 @@ const ChatScreen = ({ navigation }) => {
   const chatInfoUpdate = useSelector((state) => state.chat.chatInfoUpdate);
   const lastMessageUpdate = useSelector((state) => state.chat.lastMessageUpdate);
   const pinnedOrder = useSelector((state) => state.chat.pinnedOrder);
+  // Thêm useRef để lưu trữ giá trị trước đó của chatInfoUpdate và lastMessageUpdate
+  const prevChatInfoUpdateRef = useRef(null);
+  const prevLastMessageUpdateRef = useRef(null);
 
   const validateConversation = (conversation) => {
     return (
@@ -73,11 +76,11 @@ const ChatScreen = ({ navigation }) => {
 
   const sortMessages = (msgs) => {
     const filteredMessages = msgs.filter((msg) => {
-      if (msg.isCloud) return true; // Luôn giữ mục "Cloud của tôi"
+      if (msg.isCloud) return true;
       const participant = msg.participants?.find(
         (p) => p.userId === currentUserId
       );
-      return participant && !participant.isHidden; // Chỉ giữ các cuộc trò chuyện không ẩn
+      return participant && !participant.isHidden;
     });
 
     return filteredMessages.sort((a, b) => {
@@ -224,7 +227,7 @@ const ChatScreen = ({ navigation }) => {
     const participant = newConversation.participants?.find(
       (p) => p.userId === currentUserId
     );
-    if (!participant || participant.isHidden) return; // Bỏ qua nếu cuộc trò chuyện bị ẩn
+    if (!participant || participant.isHidden) return;
 
     const participantIds = newConversation.participants
       .filter((p) => p.userId !== currentUserId)
@@ -359,7 +362,6 @@ const ChatScreen = ({ navigation }) => {
     const handleConversations = async (conversations) => {
       const validConversations = conversations.filter(validateConversation);
 
-      // Lọc các cuộc trò chuyện không ẩn
       const visibleConversations = validConversations.filter((conversation) => {
         const participant = conversation.participants?.find(
           (p) => p.userId === currentUserId
@@ -405,7 +407,6 @@ const ChatScreen = ({ navigation }) => {
         })
       );
 
-
       const transformedMessages = transformConversationsToMessages(
         visibleConversations,
         currentUserId,
@@ -427,7 +428,7 @@ const ChatScreen = ({ navigation }) => {
       const participant = updatedConversation.participants?.find(
         (p) => p.userId === currentUserId
       );
-      if (!participant || participant.isHidden) return; // Bỏ qua nếu cuộc trò chuyện bị ẩn
+      if (!participant || participant.isHidden) return;
 
       setMessages((prevMessages) => {
         const filteredMessages = prevMessages.filter(
@@ -487,7 +488,7 @@ const ChatScreen = ({ navigation }) => {
       const participant = newConversation.participants?.find(
         (p) => p.userId === currentUserId
       );
-      if (!participant || participant.isHidden) return; // Bỏ qua nếu cuộc trò chuyện bị ẩn
+      if (!participant || participant.isHidden) return;
       addNewGroup(newConversation);
     };
 
@@ -499,8 +500,7 @@ const ChatScreen = ({ navigation }) => {
         dispatch(
           setPinnedOrder(pinnedOrder.filter((id) => id !== data.conversationId))
         );
-        dispatch(setSelectedMessage(null)
-        );
+        dispatch(setSelectedMessage(null));
         Alert.alert("Thông báo", "Bạn đã rời khỏi nhóm.");
       }
     };
@@ -597,6 +597,15 @@ const ChatScreen = ({ navigation }) => {
   useEffect(() => {
     if (!chatInfoUpdate) return;
 
+    // Kiểm tra xem chatInfoUpdate có thay đổi thực sự không
+    if (
+      prevChatInfoUpdateRef.current &&
+      JSON.stringify(prevChatInfoUpdateRef.current) === JSON.stringify(chatInfoUpdate)
+    ) {
+      return; // Bỏ qua nếu dữ liệu không thay đổi
+    }
+    prevChatInfoUpdateRef.current = chatInfoUpdate;
+
     const participant = chatInfoUpdate.participants?.find(
       (p) => p.userId === currentUserId
     );
@@ -653,6 +662,15 @@ const ChatScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (!lastMessageUpdate) return;
+
+    // Kiểm tra xem lastMessageUpdate có thay đổi thực sự không
+    if (
+      prevLastMessageUpdateRef.current &&
+      JSON.stringify(prevLastMessageUpdateRef.current) === JSON.stringify(lastMessageUpdate)
+    ) {
+      return; // Bỏ qua nếu dữ liệu không thay đổi
+    }
+    prevLastMessageUpdateRef.current = lastMessageUpdate;
 
     setMessages((prevMessages) => {
       const filteredMessages = prevMessages.filter(

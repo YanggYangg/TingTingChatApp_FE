@@ -40,7 +40,7 @@ axiosInstance.interceptors.request.use(
 // 📦 Request wrapper
 const request = async (method, url, data = null, params = null) => {
   try {
-    console.log(`Making ${method.toUpperCase()} request to ${url}`);
+    // console.log(`Making ${method.toUpperCase()} request to ${url}`);
     if (data) console.log("Request data:", data);
     if (params) console.log("Request params:", params);
 

@@ -189,59 +189,69 @@ const ChatFooter = ({
     }
   };
 
-  const handleSend = async () => {
-    if (!message.trim() && !attachedFile) return;
+const handleSend = async () => {
+  if (!message.trim() && !attachedFile) return;
 
-    if (socket && conversationId && isTypingRef.current) {
-      console.log("Sending stopTyping on message send:", conversationId);
-      socket.emit("stopTyping", { conversationId });
-      isTypingRef.current = false;
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+  if (socket && conversationId && isTypingRef.current) {
+    console.log("Sending stopTyping on message send:", conversationId);
+    socket.emit("stopTyping", { conversationId });
+    isTypingRef.current = false;
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+  }
+
+  try {
+    let fileURL = null;
+    let messageType = "text";
+    let content = message.trim();
+
+    // Hàm kiểm tra xem nội dung có phải là URL hợp lệ không
+    const isValidURL = (str) => {
+      const urlRegex = /^(https?:\/\/[^\s]+)/;
+      return urlRegex.test(str.trim());
+    };
+
+    if (attachedFile) {
+      fileURL = await uploadToS3(attachedFile.file);
+      if (!fileURL) return;
+
+      messageType = attachedFile.type;
+      content = content || attachedFile.file.name || `[${messageType}]`;
+    } else if (isValidURL(message)) {
+      // Nếu nội dung là URL, gán messageType là "link"
+      messageType = "link";
+      fileURL = message.trim(); // Gán linkURL bằng nội dung URL
     }
 
-    try {
-      let fileURL = null;
-      let messageType = "text";
-      let content = message.trim();
-
-      if (attachedFile) {
-        fileURL = await uploadToS3(attachedFile.file);
-        if (!fileURL) return;
-
-        messageType = attachedFile.type;
-        content = content || attachedFile.file.name || `[${messageType}]`;
-      }
-
-      if (replyingTo) {
-        messageType = "reply";
-      }
-
-      const payload = {
-        messageType,
-        content,
-        ...(fileURL && { linkURL: fileURL }),
-        ...(replyingTo && {
-          replyMessageId: replyingTo._id,
-          replyMessageContent: replyingTo.content,
-          replyMessageType: replyingTo.messageType,
-          replyMessageSender: replyingTo.sender,
-        }),
-      };
-
-      console.log("Payload gửi đi:", payload);
-      sendMessage(payload);
-
-      setMessage("");
-      setAttachedFile(null);
-      setPreviewURL(null);
-      setReplyingTo(null);
-    } catch (error) {
-      console.error("Failed to send message:", error);
-      Alert.alert("Lỗi", error.message || "Không thể gửi tin nhắn");
+    if (replyingTo) {
+      messageType = "reply";
     }
-  };
+
+    const payload = {
+      messageType,
+      content,
+      ...(fileURL && { linkURL: fileURL }),
+      ...(replyingTo && {
+        replyMessageId: replyingTo._id,
+        replyMessageContent: replyingTo.content,
+        replyMessageType: replyingTo.messageType,
+        replyMessageSender: replyingTo.sender,
+      }),
+    };
+
+    console.log("Payload gửi đi:", payload);
+    sendMessage(payload);
+
+    setMessage("");
+    setAttachedFile(null);
+    setPreviewURL(null);
+    setReplyingTo(null);
+  } catch (error) {
+    console.error("Failed to send message:", error);
+    Alert.alert("Lỗi", error.message || "Không thể gửi tin nhắn");
+  }
+};
 
   useEffect(() => {
     return () => {

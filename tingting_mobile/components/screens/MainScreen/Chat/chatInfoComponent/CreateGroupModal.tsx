@@ -36,14 +36,15 @@ interface GroupData {
   isHidden: boolean;
   isPinned: boolean;
   pin: null;
+  _id?: string; // Added to handle response from server
 }
 
 interface CreateGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onGroupCreated?: (data: any) => void;
+  onGroupCreated?: (data: GroupData) => void; // Updated to pass GroupData
   userId: string;
-  socket: any; // Replace with proper Socket.IO type if available
+  socket: any;
   currentConversationParticipants?: string[];
 }
 
@@ -104,7 +105,6 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
       setError(null);
 
       try {
-        // Debug logging
         console.log('Current conversation participants:', currentConversationParticipants);
 
         // Fetch current user's profile
@@ -177,10 +177,6 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
             }
           }
         }
-
-        console.log('Default members:', defaultMembersList);
-        console.log('Auto-selected contacts:', autoSelectedContacts);
-        console.log('Formatted contacts:', formattedContacts);
 
         setDefaultMembers(defaultMembersList);
         setContacts(formattedContacts);
@@ -277,7 +273,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
       })),
       isGroup: true,
       imageGroup:
-       "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A1o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=",
+        "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A1o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=",
       mute: null,
       isHidden: false,
       isPinned: false,
@@ -294,19 +290,17 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
       console.log('Create conversation response:', response);
       try {
         if (response && response.success) {
-          // if (typeof window.showToast === 'function') {
-          //   // window.showToast('Tạo nhóm thành công!', 'success');
-          // } else {
-          //   console.warn('window.showToast is not defined, falling back to alert');
-          //   // alert('Tạo nhóm thành công!');
-          // }
-
           setGroupName('');
           setSelectedContacts([]);
           if (onGroupCreated) {
-            onGroupCreated(response.data);
+            // Pass the created group data with _id from response
+            onGroupCreated({
+              ...groupData,
+              _id: response.data?._id || '',
+              participants: response.data?.participants || groupData.participants,
+            });
           }
-          // setSuccessMessage('Tạo nhóm thành công!');
+          setSuccessMessage('Tạo nhóm thành công!');
           setTimeout(() => {
             setSuccessMessage(null);
             onClose();

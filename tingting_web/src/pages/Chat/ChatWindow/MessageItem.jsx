@@ -59,6 +59,7 @@ const MessageItem = ({
   const isFile = msg.messageType === "file";
   const isCall = msg.messageType === "call";
   const isReply = msg.messageType === "reply";
+  const isLink = msg.messageType === "link";
   const isText = msg.messageType === "text" && !msg.replyMessageId;
 
   const handleMediaClick = () => {
@@ -246,6 +247,18 @@ const MessageItem = ({
                 <p className="break-words">
                   {renderTextWithLinks(msg.content)}
                 </p>
+              )}
+
+              {/* Tin nhắn liên kết */}
+              {isLink && (
+                <a
+                  href={msg.content}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline break-words"
+                >
+                  {msg.content}
+                </a>
               )}
 
               {/* Tin nhắn hình ảnh (nhiều ảnh) */}

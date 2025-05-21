@@ -65,13 +65,13 @@ const ChatScreen = ({ route, navigation }) => {
   const selectedMessageId = selectedMessageData?.id;
   const receiverId = Object.keys(userCache)[0];
 
-  console.log("ChatScreen params:", {
-    userId,
-    conversationId,
-    message,
-    user,
-    routeParams: route.params,
-  });
+  // console.log("ChatScreen params:", {
+  //   userId,
+  //   conversationId,
+  //   message,
+  //   user,
+  //   routeParams: route.params,
+  // });
 
   // Fetch user info
   const fetchUserInfo = async (userId) => {
@@ -154,7 +154,7 @@ const ChatScreen = ({ route, navigation }) => {
   // Đồng bộ conversationInfo với chatInfoUpdate từ Redux
   useEffect(() => {
     if (chatInfoUpdate && chatInfoUpdate._id === conversationId) {
-      console.log("Updating conversationInfo from chatInfoUpdate:", chatInfoUpdate);
+      // console.log("Updating conversationInfo from chatInfoUpdate:", chatInfoUpdate);
       setConversationInfo((prev) => ({
         ...prev,
         name: chatInfoUpdate.name || prev.name,
@@ -185,7 +185,7 @@ const ChatScreen = ({ route, navigation }) => {
     joinConversation(socket, selectedMessageId);
 
     socket.on("loadMessages", (data) => {
-      console.log("Received loadMessages:", data);
+      // console.log("Received loadMessages:", data);
       setMessages(data);
     });
 

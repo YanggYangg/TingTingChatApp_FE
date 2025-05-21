@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AiOutlineCopy } from "react-icons/ai";
 import { FaEdit } from "react-icons/fa";
 import { useDispatch } from "react-redux";
@@ -15,20 +15,36 @@ import EditNameModal from "../../../components/chatInforComponent/EditNameModal"
 import CreateGroupModal from "../../../components/chatInforComponent/CreateGroupModal";
 import PinLimitModal from "../../../components/chatInforComponent/PinLimitModal";
 import {
-  getChatInfo, onChatInfo, offChatInfo, onChatInfoUpdated, offChatInfoUpdated,
-  updateChatName, pinChat, updateNotification, onError, offError,
-  getChatMedia, getChatFiles, getChatLinks,
+  getChatInfo,
+  onChatInfo,
+  offChatInfo,
+  onChatInfoUpdated,
+  offChatInfoUpdated,
+  updateChatName,
+  pinChat,
+  updateNotification,
+  onError,
+  offError,
+  getChatMedia,
+  getChatFiles,
+  getChatLinks,
 } from "../../../services/sockets/events/chatInfo";
 import {
-  onConversations, offConversations, onConversationUpdate, offConversationUpdate,
-  loadAndListenConversations, joinConversation,
+  onConversations,
+  offConversations,
+  onConversationUpdate,
+  offConversationUpdate,
+  loadAndListenConversations,
+  joinConversation,
 } from "../../../services/sockets/events/conversation";
 import { Api_Profile } from "../../../../apis/api_profile";
 import { toast } from "react-toastify";
 
 // Default avatar and group image for fallback
-const DEFAULT_AVATAR = "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
-const DEFAULT_GROUP_IMAGE = "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=";
+const DEFAULT_AVATAR =
+  "https://www.google.com/url?sa=i&url=https%3A%2F%2Fvi.pngtree.com%2Ffree-png-vectors%2Fuser-icon&psig=AOvVaw0Tbvu7Vm7uhRn-ECIZj3I2&ust=1747927668573000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCJD2vJbwtI0DFQAAAAAdAAAAABAE";
+const DEFAULT_GROUP_IMAGE =
+  "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=";
 
 const ChatInfo = ({ userId, conversationId, socket }) => {
   const [chatInfo, setChatInfo] = useState(null);
@@ -48,29 +64,33 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const dispatch = useDispatch();
 
   // Select a group and join its conversation
-  const handleGroupSelect = (group) => {
-    if (!socket) return toast.error("Socket chưa kết nối!");
-    const formattedMessage = {
-      id: group._id,
-      name: group.name || "Nhóm không tên",
-      participants: group.participants || [],
-      isGroup: true,
-      imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
-      isPinned: false,
-      mute: null,
-      updatedAt: group.updatedAt || new Date().toISOString(),
-    };
-    joinConversation(socket, formattedMessage.id);
-    dispatch(setSelectedMessage(formattedMessage));
-  };
+  const handleGroupSelect = useCallback(
+    (group) => {
+      if (!socket) return toast.error("Socket chưa kết nối!");
+      const formattedMessage = {
+        id: group._id,
+        name: group.name || "Nhóm không tên",
+        participants: group.participants || [],
+        isGroup: true,
+        imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
+        isPinned: false,
+        mute: null,
+        updatedAt: group.updatedAt || new Date().toISOString(),
+      };
+      joinConversation(socket, formattedMessage.id);
+      dispatch(setSelectedMessage(formattedMessage));
+    },
+    [socket, dispatch]
+  );
 
   // Fetch and listen for chat info updates
   useEffect(() => {
-    if (!socket || !conversationId) {
+    if (!socket || !conversationId || !userId) {
       setLoading(false);
       return;
     }
 
+    socket.emit("joinUserRoom", { userId });
     joinConversation(socket, conversationId);
     getChatInfo(socket, { conversationId });
 
@@ -89,7 +109,10 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         return;
       }
 
-      setChatInfo(newChatInfo);
+      setChatInfo((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(newChatInfo)) return prev;
+        return newChatInfo;
+      });
       setIsMuted(!!participant?.mute);
       setMuteValue(participant?.mute || null);
       setIsPinned(!!participant?.isPinned);
@@ -115,18 +138,41 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       if (updatedInfo._id !== conversationId) return;
       const participant = updatedInfo.participants?.find((p) => p.userId === userId);
       if (!participant || participant.isHidden) {
-        toast.error("Hội thoại này đang ẩn. Vui lòng xác thực lại.");
+        
         dispatch(setSelectedMessage(null));
         socket.emit("leaveConversation", { conversationId });
         return;
       }
 
-      setChatInfo((prev) => ({ ...prev, ...updatedInfo }));
+      setChatInfo((prev) => {
+        if (!prev || JSON.stringify(prev) === JSON.stringify({ ...prev, ...updatedInfo })) return prev;
+        const newChatInfo = { ...prev, ...updatedInfo };
+        dispatch(setChatInfoUpdate(newChatInfo));
+        return newChatInfo;
+      });
       setIsMuted(!!participant?.mute);
       setMuteValue(participant?.mute || null);
       setIsPinned(!!participant?.isPinned);
       setUserRoleInGroup(participant?.role || null);
-      dispatch(setChatInfoUpdate(updatedInfo));
+    };
+
+    const handleDeleteAllChatHistory = ({ conversationId: deletedConversationId, deletedBy }) => {
+      if (deletedConversationId !== conversationId || deletedBy !== userId) return;
+      console.log("ChatInfo: Nhận deleteAllChatHistory", { conversationId, deletedBy });
+
+      setChatInfo((prev) => {
+        if (!prev) return prev;
+        const updatedChatInfo = {
+          ...prev,
+          media: [],
+          files: [],
+          links: [],
+          lastMessage: null,
+        };
+        dispatch(setChatInfoUpdate(updatedChatInfo));
+        return updatedChatInfo;
+      });
+      toast.success("Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");
     };
 
     const handleError = (error) => {
@@ -140,6 +186,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     socket.on("updateChatInfo", handleUpdateChatInfo);
     onChatInfo(socket, handleOnChatInfo);
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
+    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
     onError(socket, handleError);
     getChatMedia(socket, { conversationId });
     getChatFiles(socket, { conversationId });
@@ -147,6 +194,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     return () => {
       socket.off("updateChatInfo", handleUpdateChatInfo);
+      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
@@ -160,9 +208,12 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     const cleanup = loadAndListenConversations(socket, setConversations);
     onConversations(socket, setConversations);
     onConversationUpdate(socket, (updatedConversation) => {
-      setConversations((prev) =>
-        prev.map((conv) => (conv._id === updatedConversation._id ? updatedConversation : conv))
-      );
+      setConversations((prev) => {
+        const newConversations = prev.map((conv) =>
+          conv._id === updatedConversation._id ? updatedConversation : conv
+        );
+        return newConversations;
+      });
     });
 
     return () => {
@@ -196,24 +247,28 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   }, [chatInfo, conversations, userId]);
 
   // Handle adding a new member to the group
-  const handleMemberAdded = () => {
+  const handleMemberAdded = useCallback(() => {
     getChatInfo(socket, { conversationId });
-  };
+  }, [socket, conversationId]);
 
   // Handle removing a member from the group
-  const handleMemberRemoved = (removedUserId) => {
-    setChatInfo((prev) => {
-      const updatedChatInfo = {
-        ...prev,
-        participants: prev.participants.filter((p) => p.userId !== removedUserId),
-      };
-      dispatch(setChatInfoUpdate(updatedChatInfo));
-      return updatedChatInfo;
-    });
-  };
+  const handleMemberRemoved = useCallback(
+    (removedUserId) => {
+      setChatInfo((prev) => {
+        if (!prev) return prev;
+        const updatedChatInfo = {
+          ...prev,
+          participants: prev.participants.filter((p) => p.userId !== removedUserId),
+        };
+        dispatch(setChatInfoUpdate(updatedChatInfo));
+        return updatedChatInfo;
+      });
+    },
+    [dispatch]
+  );
 
   // Toggle mute notification status
-  const handleMuteNotification = () => {
+  const handleMuteNotification = useCallback(() => {
     if (isMuted) {
       updateNotification(socket, { conversationId, mute: null }, (response) => {
         if (!response.success) {
@@ -226,17 +281,17 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     } else {
       setIsMuteModalOpen(true);
     }
-  };
+  }, [isMuted, socket, conversationId]);
 
   // Handle successful mute action
-  const handleMuteSuccess = (mute) => {
+  const handleMuteSuccess = useCallback((mute) => {
     setIsMuted(!!mute);
     setMuteValue(mute);
     setIsMuteModalOpen(false);
-  };
+  }, []);
 
   // Toggle pin chat status
-  const handlePinChat = () => {
+  const handlePinChat = useCallback(() => {
     if (!chatInfo || !socket) return toast.error("Không thể ghim hội thoại!");
     const newIsPinned = !isPinned;
     setIsPinned(newIsPinned); // Optimistic update
@@ -261,62 +316,72 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       }
     });
     joinConversation(socket, conversationId);
-  };
+  }, [chatInfo, socket, isPinned, conversationId, userId, dispatch]);
 
   // Copy group link to clipboard
-  const copyToClipboard = () => {
+  const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(chatInfo?.linkGroup || "");
     toast.success("Đã sao chép link nhóm!");
-  };
+  }, [chatInfo?.linkGroup]);
 
   // Open modal to add a member
-  const handleAddMember = () => {
+  const handleAddMember = useCallback(() => {
     setIsAddModalOpen(true);
     setIsCreateGroupModalOpen(false);
-  };
+  }, []);
 
   // Open modal to create a new group
-  const handleCreateGroupChat = () => {
+  const handleCreateGroupChat = useCallback(() => {
     setIsCreateGroupModalOpen(true);
     setIsAddModalOpen(false);
-  };
+  }, []);
 
   // Close create group modal
-  const handleCloseCreateGroupModal = () => {
+  const handleCloseCreateGroupModal = useCallback(() => {
     setIsCreateGroupModalOpen(false);
-  };
+  }, []);
 
   // Handle successful group creation
-  const handleCreateGroupSuccess = (newGroup) => {
+  const handleCreateGroupSuccess = useCallback((newGroup) => {
     setConversations((prev) => [...prev, newGroup]);
-  };
+  }, []);
 
   // Open modal to edit group name
-  const handleOpenEditNameModal = () => {
+  const handleOpenEditNameModal = useCallback(() => {
     if (!chatInfo?.isGroup) return toast.error("Chỉ nhóm mới có thể đổi tên!");
     setIsEditNameModalOpen(true);
-  };
+  }, [chatInfo?.isGroup]);
 
   // Close edit name modal
-  const handleCloseEditNameModal = () => {
+  const handleCloseEditNameModal = useCallback(() => {
     setIsEditNameModalOpen(false);
-  };
+  }, []);
 
   // Save new chat name
-  const handleSaveChatName = (newName) => {
-    if (!chatInfo || !newName.trim()) return;
-    const originalName = chatInfo.name;
-    setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
-    updateChatName(socket, { conversationId, name: newName.trim() }, (response) => {
-      if (!response.success) {
-        toast.error(response.message || "Không thể cập nhật tên nhóm!");
-        setChatInfo((prev) => ({ ...prev, name: originalName }));
-        dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: originalName }));
-      }
-    });
-    dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: newName.trim(), updatedAt: new Date().toISOString() }));
-    handleCloseEditNameModal();
-  };
+  const handleSaveChatName = useCallback(
+    (newName) => {
+      if (!chatInfo || !newName.trim()) return;
+      const originalName = chatInfo.name;
+      setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
+      updateChatName(socket, { conversationId, name: newName.trim() }, (response) => {
+        if (!response.success) {
+          toast.error(response.message || "Không thể cập nhật tên nhóm!");
+          setChatInfo((prev) => ({ ...prev, name: originalName }));
+          dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: originalName }));
+        }
+      });
+      dispatch(
+        setChatInfoUpdate({
+          ...chatInfo,
+          _id: conversationId,
+          name: newName.trim(),
+          updatedAt: new Date().toISOString(),
+        })
+      );
+      handleCloseEditNameModal();
+    },
+    [chatInfo, socket, conversationId, dispatch]
+  );
 
   if (loading) return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
   if (!chatInfo) return <p className="text-center text-red-500">Không thể tải thông tin chat.</p>;
@@ -336,18 +401,11 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       </div>
       <div className="flex-1 overflow-y-auto">
         <div className="text-center my-4">
-          <img
-            src={chatImage}
-            className="w-20 h-20 rounded-full mx-auto object-cover"
-            alt={displayName}
-          />
+          <img src={chatImage} className="w-20 h-20 rounded-full mx-auto object-cover" alt={displayName} />
           <div className="flex items-center justify-center mt-2">
             <h2 className="text-lg font-semibold">{displayName}</h2>
             {chatInfo?.isGroup && (
-              <button
-                onClick={handleOpenEditNameModal}
-                className="text-gray-500 hover:text-blue-500 ml-2"
-              >
+              <button onClick={handleOpenEditNameModal} className="text-gray-500 hover:text-blue-500 ml-2">
                 <FaEdit size={16} />
               </button>
             )}
@@ -386,10 +444,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
             <a href={chatInfo.linkGroup} className="text-blue-500 text-sm truncate">
               {chatInfo.linkGroup}
             </a>
-            <button
-              onClick={copyToClipboard}
-              className="text-gray-500 hover:text-blue-500"
-            >
+            <button onClick={copyToClipboard} className="text-gray-500 hover:text-blue-500">
               <AiOutlineCopy size={20} />
             </button>
           </div>
@@ -440,10 +495,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         currentConversationParticipants={chatInfo?.participants?.map((p) => p.userId) || []}
         socket={socket}
       />
-      <PinLimitModal
-        isOpen={isPinLimitModalOpen}
-        onClose={() => setIsPinLimitModalOpen(false)}
-      />
+      <PinLimitModal isOpen={isPinLimitModalOpen} onClose={() => setIsPinLimitModalOpen(false)} />
     </div>
   );
 };

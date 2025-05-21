@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Switch, TextInput, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Api_Profile } from '../../../../../apis/api_profile';
@@ -76,6 +76,8 @@ const SecuritySettings: React.FC<Props> = ({
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isDisbanding, setIsDisbanding] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  // Thêm useRef để lưu trữ chatInfo trước đó
+  const prevChatInfoRef = useRef<ChatInfoData | null>(null);
 
   const navigation = useNavigation();
 
@@ -171,6 +173,32 @@ const SecuritySettings: React.FC<Props> = ({
 
     onChatInfo(socket, (data) => {
       console.log('SecuritySettings: Nhận onChatInfo', data);
+      // Kiểm tra dữ liệu trùng lặp
+      if (JSON.stringify(data) === JSON.stringify(prevChatInfoRef.current)) {
+        return;
+      }
+      prevChatInfoRef.current = data;
+
+
+// [NEW] Kiểm tra xem nhóm có bị giải tán hay không
+    if (!data.participants || data.participants.length === 0) {
+      console.log('DEBUG: Nhóm đã bị giải tán', { conversationId });
+      Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            setChatInfo(null);
+            try {
+              navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+            } catch (error) {
+              console.error('DEBUG: Lỗi điều hướng:', error);
+            }
+          },
+        },
+      ]);
+      return;
+    }
+
       setIsGroup(data.isGroup);
       setGroupMembers(data.participants.filter((p) => p.userId !== userId));
       const participant = data.participants.find((p) => p.userId === userId);
@@ -182,6 +210,32 @@ const SecuritySettings: React.FC<Props> = ({
 
     onChatInfoUpdated(socket, (updatedInfo) => {
       console.log('SecuritySettings: Nhận onChatInfoUpdated', JSON.stringify(updatedInfo, null, 2));
+      // Kiểm tra dữ liệu trùng lặp
+      if (JSON.stringify(updatedInfo) === JSON.stringify(prevChatInfoRef.current)) {
+        return;
+      }
+      prevChatInfoRef.current = updatedInfo;
+
+// [NEW] Kiểm tra xem nhóm có bị giải tán hay không
+    if (updatedInfo.participants && updatedInfo.participants.length === 0) {
+      console.log('DEBUG: Nhóm đã bị giải tán (updated)', { conversationId });
+      Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            setChatInfo(null);
+            try {
+              navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+            } catch (error) {
+              console.error('DEBUG: Lỗi điều hướng:', error);
+            }
+          },
+        },
+      ]);
+      return;
+    }
+
+
       setIsGroup(updatedInfo.isGroup);
       setGroupMembers(updatedInfo.participants.filter((p) => p.userId !== userId));
       const participant = updatedInfo.participants.find((p) => p.userId === userId);
@@ -190,10 +244,6 @@ const SecuritySettings: React.FC<Props> = ({
       setIsAdmin(participant?.role === 'admin');
       setChatInfo(updatedInfo);
       console.log('SecuritySettings: Đã cập nhật chatInfo từ onChatInfoUpdated', updatedInfo);
-      if (participant?.role === 'admin') {
-        // Alert.alert('Thông báo', 'Bạn đã được chuyển quyền trưởng nhóm!');
-        fetchChatInfo();
-      }
     });
 
     onError(socket, (error) => {
@@ -216,41 +266,40 @@ const SecuritySettings: React.FC<Props> = ({
   }, [groupMembers, fetchProfileDetails]);
 
   // Handle hiding/unhiding chat
-const handleHideChat = useCallback(
-  async (hide: boolean, currentPin: string | null) => {
-    if (isProcessing) {
-      console.log('SecuritySettings: Đang xử lý, bỏ qua hideChat');
-      return;
-    }
-    setIsProcessing(true);
-    try {
-      console.log('SecuritySettings: Gửi yêu cầu hideChat', { conversationId, isHidden: hide, pin: currentPin });
-      hideChat(socket, { conversationId, isHidden: hide, pin: currentPin }, (response) => {
-        console.log('SecuritySettings: Phản hồi từ hideChat', response);
-        if (response.success) {
-          setIsHidden(hide);
-          setShowPinInput(false);
-          setPin('');
-          Alert.alert('Thành công', `Cuộc trò chuyện đã ${hide ? 'được ẩn' : 'được hiện'}!`);
-          
-          if (hide) {
-            // Khi ẩn cuộc trò chuyện, xóa chatInfo và điều hướng về ChatScreen
-            setChatInfo(null);
-            navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+  const handleHideChat = useCallback(
+    async (hide: boolean, currentPin: string | null) => {
+      if (isProcessing) {
+        console.log('SecuritySettings: Đang xử lý, bỏ qua hideChat');
+        return;
+      }
+      setIsProcessing(true);
+      try {
+        console.log('SecuritySettings: Gửi yêu cầu hideChat', { conversationId, isHidden: hide, pin: currentPin });
+        hideChat(socket, { conversationId, isHidden: hide, pin: currentPin }, (response) => {
+          console.log('SecuritySettings: Phản hồi từ hideChat', response);
+          if (response.success) {
+            setIsHidden(hide);
+            setShowPinInput(false);
+            setPin('');
+            Alert.alert('Thành công', `Cuộc trò chuyện đã ${hide ? 'được ẩn' : 'được hiện'}!`);
+            
+            if (hide) {
+              setChatInfo(null);
+              navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+            }
+          } else {
+            Alert.alert('Lỗi', `Cuộc trò chuyện ${hide ? 'ẩn' : 'hiện'} thất bại: ${response.message}`);
           }
-        } else {
-          Alert.alert('Lỗi', `Cuộc trò chuyện ${hide ? 'ẩn' : 'hiện'} thất bại: ${response.message}`);
-        }
+          setIsProcessing(false);
+        });
+      } catch (error) {
+        console.error('SecuritySettings: Lỗi khi ẩn/hiện trò chuyện:', error);
+        Alert.alert('Lỗi', 'Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.');
         setIsProcessing(false);
-      });
-    } catch (error) {
-      console.error('SecuritySettings: Lỗi khi ẩn/hiện trò chuyện:', error);
-      Alert.alert('Lỗi', 'Lỗi khi ẩn/hiện trò chuyện. Vui lòng thử lại.');
-      setIsProcessing(false);
-    }
-  },
-  [socket, conversationId, isProcessing, setChatInfo, navigation]
-);
+      }
+    },
+    [socket, conversationId, isProcessing, setChatInfo, navigation]
+  );
 
   // Handle toggle switch change
   const handleToggle = useCallback(
@@ -300,7 +349,7 @@ const handleHideChat = useCallback(
               if (response?.success) {
                 Alert.alert('Thành công', 'Toàn bộ lịch sử trò chuyện đã được xóa!');
                 setChatInfo(null);
-                navigation.navigate('Main', { screen: 'MessageScreen', params: { refresh: true } });
+                navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
               } else {
                 Alert.alert('Lỗi', `Xóa lịch sử thất bại: ${response?.message || 'Lỗi không xác định'}`);
               }
@@ -340,7 +389,7 @@ const handleHideChat = useCallback(
       if (response.success) {
         setChatInfo(null);
         Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
-        navigation.navigate('Main', { screen: 'MessageScreen' });
+        navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
       } else {
         Alert.alert('Lỗi', `Rời nhóm thất bại: ${response.message}`);
       }
@@ -366,15 +415,13 @@ const handleHideChat = useCallback(
     transferGroupAdmin(socket, { conversationId, userId: newAdminUserId }, (response) => {
       console.log('SecuritySettings: Phản hồi từ transferGroupAdmin', response);
       if (response.success) {
-  
-        fetchChatInfo();
         console.log('SecuritySettings: Gửi yêu cầu leaveGroup', { conversationId, userId });
         leaveGroup(socket, { conversationId, userId }, (leaveResponse) => {
           console.log('SecuritySettings: Phản hồi từ leaveGroup', leaveResponse);
           if (leaveResponse.success) {
             setChatInfo(null);
-            Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
-            navigation.navigate('Main', { screen: 'MessageScreen' });
+          
+            navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
           } else {
             Alert.alert('Lỗi', `Rời nhóm thất bại: ${leaveResponse.message}`);
           }
@@ -385,14 +432,13 @@ const handleHideChat = useCallback(
         });
       } else {
         Alert.alert('Lỗi', `Chuyển quyền thất bại: ${response.message}`);
-        fetchChatInfo();
         setIsLeaving(false);
         setShowTransferAdminModal(false);
         setNewAdminUserId('');
         setIsProcessing(false);
       }
     });
-  }, [socket, conversationId, userId, newAdminUserId, setChatInfo, navigation, isProcessing, fetchChatInfo]);
+  }, [socket, conversationId, userId, newAdminUserId, setChatInfo, navigation, isProcessing]);
 
   // Disband group functionality
   const handleDisbandGroup = useCallback(() => {
@@ -412,9 +458,7 @@ const handleHideChat = useCallback(
       console.log('SecuritySettings: Phản hồi từ disbandGroup', response);
       if (response.success) {
         setChatInfo(null);
-      
-        console.log('SecuritySettings: Đã xóa chatInfo và điều hướng đến MessageScreen');
-        navigation.navigate('Main', { screen: 'MessageScreen' });
+        navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
       } else {
         Alert.alert('Lỗi', `Giải tán nhóm thất bại: ${response.message}`);
       }
@@ -440,20 +484,15 @@ const handleHideChat = useCallback(
       console.log('SecuritySettings: Phản hồi từ transferGroupAdmin', response);
       if (response.success) {
         setIsAdmin(false);
-       
-        fetchChatInfo();
-        setTimeout(() => {
-          fetchChatInfo();
-        }, 2000);
+        setShowTransferAdminModal(false);
+        setNewAdminUserId('');
+        setIsProcessing(false);
       } else {
         Alert.alert('Lỗi', `Chuyển quyền thất bại: ${response.message}`);
-        fetchChatInfo();
+        setIsProcessing(false);
       }
-      setShowTransferAdminModal(false);
-      setNewAdminUserId('');
-      setIsProcessing(false);
     });
-  }, [socket, conversationId, newAdminUserId, fetchChatInfo, isProcessing]);
+  }, [socket, conversationId, newAdminUserId, isProcessing]);
 
   // Handle closing the transfer admin modal
   const handleCloseTransferAdminModal = useCallback(() => {
@@ -852,7 +891,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    // backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContainer: {
     backgroundColor: 'white',
