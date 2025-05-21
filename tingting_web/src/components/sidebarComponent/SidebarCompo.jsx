@@ -90,7 +90,7 @@ function SidebarCompo({ setActiveTab }) {
       <div className="flex-grow"></div>
 
       {/*Bottom */}
-      <SidebarItem icon={FaCloud} />
+      {/* <SidebarItem icon={FaCloud} /> */}
       <SidebarItem icon={FaCog} onClick={toggleSettings} />
 
       {/* Settings Menu */}

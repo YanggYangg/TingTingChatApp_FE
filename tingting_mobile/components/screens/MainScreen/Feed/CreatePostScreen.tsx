@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   SafeAreaView,
   StatusBar,
+  Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -24,6 +25,8 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import { useNavigation } from "expo-router";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface MediaItem {
   uri: string;
@@ -109,12 +112,44 @@ const CreatePostScreen: React.FC = () => {
   };
 
   // Xử lý đăng bài
-  const handlePost = () => {
-    console.log("Đăng bài với nội dung:", text);
-    console.log("Media đính kèm:", selectedMedia);
-    // Xử lý logic đăng bài ở đây
-    setText("");
-    setSelectedMedia([]);
+  const handlePost = async () => {
+    try {
+      const profileId = await AsyncStorage.getItem("userId");
+      const formData = new FormData();
+      formData.append("profileId", profileId || "");
+      formData.append("content", text || "");
+      selectedMedia.forEach((media, index) => {
+        const uriParts = media.uri.split(".");
+        const fileType = uriParts[uriParts.length - 1];
+
+        formData.append("files", {
+          uri: media.uri,
+          name: `media_${index}.${fileType}`,
+          type:
+            media.type === "image" ? `image/${fileType}` : `video/${fileType}`,
+        } as any); 
+      });
+
+      const response = await axios.post(
+        "http://192.168.0.102:3006/api/v1/post",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      console.log("Post created:", response.data);
+
+      // Reset
+      setText("");
+      setSelectedMedia([]);
+      Alert.alert("Thông báo", "Đăng bài thành công!");
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error creating post:", error);
+    }
   };
 
   return (
@@ -123,7 +158,12 @@ const CreatePostScreen: React.FC = () => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton}  onPress={() => {navigation.goBack()}}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            navigation.goBack();
+          }}
+        >
           <Ionicons name="close" size={24} color="#000" />
         </TouchableOpacity>
 
@@ -169,8 +209,6 @@ const CreatePostScreen: React.FC = () => {
               animateButtons(-50);
             }}
           />
-
-          
         </ScrollView>
 
         {/* Tag buttons */}
@@ -195,10 +233,7 @@ const CreatePostScreen: React.FC = () => {
         )} */}
 
         {/* Media buttons */}
-        <Animated.View
-          style={[
-            styles.mediaButtonsContainer       ]}
-        >
+        <Animated.View style={[styles.mediaButtonsContainer]}>
           <TouchableOpacity style={styles.mediaButton}>
             <Ionicons name="musical-notes" size={20} color="#000" />
             <Text style={styles.mediaButtonText}>Nhạc</Text>
@@ -216,24 +251,24 @@ const CreatePostScreen: React.FC = () => {
         </Animated.View>
         {/* Hiển thị media đã chọn */}
         {selectedMedia.length > 0 && (
-            <View style={styles.mediaPreviewContainer}>
-              {selectedMedia.map((item, index) => (
-                <View key={index} style={styles.mediaPreview}>
-                  <Image source={{ uri: item.uri }} style={styles.mediaImage} />
-                  <TouchableOpacity
-                    style={styles.removeMediaButton}
-                    onPress={() => {
-                      const newMedia = [...selectedMedia];
-                      newMedia.splice(index, 1);
-                      setSelectedMedia(newMedia);
-                    }}
-                  >
-                    <Ionicons name="close-circle" size={24} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
+          <View style={styles.mediaPreviewContainer}>
+            {selectedMedia.map((item, index) => (
+              <View key={index} style={styles.mediaPreview}>
+                <Image source={{ uri: item.uri }} style={styles.mediaImage} />
+                <TouchableOpacity
+                  style={styles.removeMediaButton}
+                  onPress={() => {
+                    const newMedia = [...selectedMedia];
+                    newMedia.splice(index, 1);
+                    setSelectedMedia(newMedia);
+                  }}
+                >
+                  <Ionicons name="close-circle" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Bottom toolbar */}
         <View style={styles.toolbar}>

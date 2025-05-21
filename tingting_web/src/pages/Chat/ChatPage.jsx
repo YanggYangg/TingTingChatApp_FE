@@ -838,30 +838,30 @@ function ChatPage() {
 
   console.log("ChatPage: Render với", { selectedChat, chatDetails, messages, cloudMessages }); // Nhi thêm
 
-  // Add this function to mark a message as read (emit trực tiếp)
-  const markMessageAsRead = (messageId) => {
-    if (
-      socket &&
-      selectedMessageId &&
-      messageId &&
-      selectedMessageId !== "my-cloud"
-    ) {
-      // Find the message
-      const msg = messages.find((m) => m._id === messageId);
-      if (!msg) return;
-      // Only mark as read if the message is not from the current user and not already read
-      if (
-        msg.userId !== currentUserId &&
-        (!msg.status?.readBy || !msg.status.readBy.includes(currentUserId))
-      ) {
-        socket.emit("readMessage", {
-          conversationId: selectedMessageId,
-          messageId,
-          userId: currentUserId,
-        });
-      }
-    }
-  };
+  // // Add this function to mark a message as read (emit trực tiếp)
+  // const markMessageAsRead = (messageId) => {
+  //   if (
+  //     socket &&
+  //     selectedMessageId &&
+  //     messageId &&
+  //     selectedMessageId !== "my-cloud"
+  //   ) {
+  //     // Find the message
+  //     const msg = messages.find((m) => m._id === messageId);
+  //     if (!msg) return;
+  //     // Only mark as read if the message is not from the current user and not already read
+  //     if (
+  //       msg.userId !== currentUserId &&
+  //       (!msg.status?.readBy || !msg.status.readBy.includes(currentUserId))
+  //     ) {
+  //       socket.emit("readMessage", {
+  //         conversationId: selectedMessageId,
+  //         messageId,
+  //         userId: currentUserId,
+  //       });
+  //     }
+  //   }
+  // };
 
   // Auto mark last message as read if it's from another user
   useEffect(() => {

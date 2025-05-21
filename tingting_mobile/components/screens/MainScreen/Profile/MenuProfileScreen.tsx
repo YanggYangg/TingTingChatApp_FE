@@ -22,7 +22,9 @@ import SettingProfileScreen from "./SettingProfileScreen";
 
 type RootStackParamList = {
   MainScreen: undefined;
-  ProfileScreen: undefined;
+  ProfileScreen: {
+    profileId: string;
+  };
   SettingsScreen: undefined;
 };
 
@@ -32,8 +34,12 @@ const MenuProfileScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [showSettings, setShowSettings] = useState(false);
 
-  const navigateToProfile = () => {
-    navigation.navigate("ProfileScreen");
+  const navigateToProfile = async () => {
+    const profileId = (await AsyncStorage.getItem("userId")) || "defaultId";
+    console.log("Profile ID:", profileId);
+    navigation.navigate("ProfileScreen", {
+      profileId,
+    });
   };
   const [formData, setFormData] = useState({
     firstname: "",

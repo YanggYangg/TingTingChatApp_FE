@@ -28,7 +28,7 @@ export const messaging = getMessaging(app);
 // Hàm gửi token về backend
 const sendTokenToBackend = async (userId, fcmToken) => {
   try {
-    await fetch("http://184.73.0.29:3003/userFcmToken/saveUserTokenFcm", {
+    await fetch("http://localhost:3003/userFcmToken/saveUserTokenFcm", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

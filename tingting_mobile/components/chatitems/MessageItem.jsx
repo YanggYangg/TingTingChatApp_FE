@@ -644,12 +644,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
   },
-<<<<<<< HEAD
   linkMessage: {
     color: "#007bff",
     textDecorationLine: "underline",
     fontSize: 15,
-=======
+  },
   messageFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -662,7 +661,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'right',
     fontStyle: 'italic',
->>>>>>> 96dfdde139e3e2e88fdf8bf43836271670c4f645
   },
 });
 

@@ -12,16 +12,22 @@ import {
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
-import { Api_Profile } from "@/apis/api_profile";
+import {
+  useFocusEffect,
+  useNavigation,
+} from "@react-navigation/native";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import PostFeed from "./components/PostFeed";
-import { mockPosts } from "./data/mockData";
+import { StackScreenProps } from "@react-navigation/stack";
+import { RootStackParamList } from "@/app/(tabs)";
 
-export default function ProfileScreen() {
+type Props = StackScreenProps<RootStackParamList, "ProfileScreen">;
+
+const ProfileScreen: React.FC<Props> = ({ route }) => {
   const navigation = useNavigation();
+
+  const { profileId } = route.params;
 
   // Get the user ID from the async-storage
   const [formData, setFormData] = useState({
@@ -35,47 +41,80 @@ export default function ProfileScreen() {
     avatar: null,
     coverPhoto: null,
   });
+  const [posts, setPosts] = useState([]);
+  const loadProfileFromLocal = async () => {
+    try {
+      const response = await axios.get(
+        `http://192.168.0.102:3001/api/v1/profile/${profileId}`
+      );
+      const profile = response.data.data.user;
+      const date = new Date(profile.dateOfBirth);
+      const day = date.getDate().toString();
+      const month = (date.getMonth() + 1).toString();
+      const year = date.getFullYear().toString();
 
-  useEffect(() => {
-    const loadProfileFromLocal = async () => {
-      try {
-        const storedProfile = await AsyncStorage.getItem("profile");
-        if (!storedProfile) return;
+      setFormData((prev) => ({
+        ...prev,
+        firstname: profile.firstname || "",
+        surname: profile.surname || "",
+        phone: profile.phone || "",
+        avatar:
+          profile.avatar ||
+          "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
+        coverPhoto: profile.coverPhoto || null,
+        gender: profile.gender || "female",
+        day,
+        month,
+        year,
+      }));
+    } catch (error) {
+      console.error("Error loading profile from localStorage:", error);
+    }
+  };
 
-        const profile = JSON.parse(storedProfile);
-        const date = new Date(profile.dateOfBirth);
-        const day = date.getDate().toString();
-        const month = (date.getMonth() + 1).toString();
-        const year = date.getFullYear().toString();
-
-        setFormData((prev) => ({
-          ...prev,
-          firstname: profile.firstname || "",
-          surname: profile.surname || "",
-          phone: profile.phone || "",
-          avatar:
-            profile.avatar ||
-            "https://internetviettel.vn/wp-content/uploads/2017/05/H%C3%ACnh-%E1%BA%A3nh-minh-h%E1%BB%8Da.jpg",
-          coverPhoto: profile.coverPhoto || null,
-          gender: profile.gender || "female",
-          day,
-          month,
-          year,
-        }));
-      } catch (error) {
-        console.error("Error loading profile from localStorage:", error);
+  const getPost = async () => {
+    try {
+      const response = await axios.get(
+        `http://192.168.0.102:3006/api/v1/post/${profileId}`
+      );
+      console.log("Response data2:", response.data.data.post);
+      if (response.status === 200) {
+        setPosts(response.data.data.post);
+      } else {
+        Alert.alert("Error", "Failed to fetch posts.");
       }
-    };
-    const groupPost = () => {};
-
-    groupPost();
-
-    loadProfileFromLocal();
-  }, []);
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+      Alert.alert("Error", "Failed to fetch posts.");
+    }
+  };
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileFromLocal();
+      getPost();
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.iconButton}
+        >
+          <Icon name="chevron-back" size={26} color="#fff" />
+        </TouchableOpacity>
+
+        {/* <Text style={styles.title}>{title}</Text> */}
+
+        <TouchableOpacity
+          onPress={() => console.log("Info pressed")}
+          style={styles.iconButton}
+        >
+          <Icon name="ellipsis-vertical" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -128,7 +167,7 @@ export default function ProfileScreen() {
           {/* Update Profile Button */}
           <TouchableOpacity
             style={styles.updateProfileButton}
-            onPress={() => navigation.navigate("PersonalInfo", { formData })}
+            onPress={() => navigation.navigate("PersonalInfo", { formData, profileId })}
           >
             <Feather name="edit-2" size={16} color="#2196F3" />
             <Text style={styles.updateProfileText}>Cập nhật</Text>
@@ -156,35 +195,24 @@ export default function ProfileScreen() {
 
         {/* Post Section */}
         <View style={styles.postSection}>
-          <View style={styles.postInput}>
+          <TouchableOpacity
+            style={styles.postInput}
+            onPress={() => {
+              navigation.navigate("CreatePostScreen");
+            }}
+          >
             <Text style={styles.postInputText}>Bạn đang nghĩ gì?</Text>
             <Ionicons name="image-outline" size={24} color="#8BC34A" />
-          </View>
-
-          <View style={styles.privacyNote}>
-            <Ionicons name="lock-closed" size={16} color="#9E9E9E" />
-            <Text style={styles.privacyText}>
-              Bạn bè của bạn sẽ không xem được các bài đăng dưới đây.{" "}
-              <Text style={styles.privacyLink}>Thay đổi cài đặt</Text>
-            </Text>
-          </View>
-
-          {/* Valentine's Day */}
-          <View style={styles.eventSection}>
-            <View style={styles.eventBadge}>
-              <Ionicons name="heart" size={16} color="white" />
-            </View>
-            <Text style={styles.eventText}>14 tháng 2 - Lễ Tình Nhân</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View>
-          <PostFeed posts={mockPosts} />
+          <PostFeed posts={posts} />
         </View>
       </ScrollView>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   title: {
@@ -387,6 +415,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignContent: "center",
+    paddingVertical: 5,
   },
   likeButton: {
     width: 90,
@@ -397,6 +426,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   commentButton: {
+    width: 90,
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 20,
@@ -409,9 +439,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+
   actionText: {
     marginLeft: 5,
     color: "#616161",
   },
   moreButton: {},
 });
+
+export default ProfileScreen;

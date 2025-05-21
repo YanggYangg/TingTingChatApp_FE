@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,75 +7,94 @@ import {
   StyleSheet,
   Dimensions,
 } from "react-native";
-import { Ionicons, FontAwesome } from "@expo/vector-icons";
+import { Ionicons, FontAwesome, AntDesign, Feather } from "@expo/vector-icons";
+import axios from "axios";
+import { useNavigation } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
-interface PostImage {
-  uri: string;
-}
+export type Media = {
+  url: string;
+  type: "image" | "video";
+  thumbnailUrl?: string;
+};
 
-interface PostProps {
-  user: {
-    name: string;
+export type Reactions = {
+  love: String[];
+};
+
+export type PostProps = {
+  _id: string;
+  profileId: {
+    _id: string;
+    firstname: string;
+    surname: string;
     avatar: string;
   };
   content: string;
-  images: PostImage[];
-  timestamp: string;
-  likes: number;
-  comments: number;
-  music?: {
-    title: string;
-    artist: string;
-  };
-}
+  media: Media[];
+  privacy: "public" | "friends" | "private";
+  tags: string[];
+  reactions: Reactions;
+  commentsCount: number;
+  isHidden: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lovedByUser: boolean;
+  totalReactions: number | 0;
+};
 
 const PostItem: React.FC<PostProps> = ({
-  user,
+  _id,
+  profileId,
   content,
-  images,
-  timestamp,
-  likes,
-  comments,
-  music,
+  media,
+  createdAt,
+  lovedByUser,
+  privacy,
+  reactions,
+  commentsCount,
+  totalReactions,
 }) => {
-  const renderImageGrid = () => {
-    if (images.length === 0) return null;
 
-    if (images.length === 1) {
+  const navigator = useNavigation();
+  const [reactLove, setReactLove] = useState(lovedByUser || false);
+  const [countReaction, setCountReaction] = useState(totalReactions || 0);
+
+  const renderImageGrid = () => {
+    if (media.length === 0) return null;
+
+    if (media.length === 1) {
       // Hiển thị 1 hình ảnh với kích thước lớn
       return (
         <View style={styles.singleImageContainer}>
-          <Image source={{ uri: images[0].uri }} style={styles.singleImage} />
+          <Image source={{ uri: media[0].url }} style={styles.singleImage} />
         </View>
       );
-    } else if (images.length === 2) {
+    } else if (media.length === 2) {
       // Hiển thị 2 hình ảnh cạnh nhau
       return (
         <View style={styles.twoImagesContainer}>
-          {images.map((image, index) => (
+          {media.map((image, index) => (
             <Image
               key={index}
-              source={{ uri: image.uri }}
+              source={{ uri: image.url }}
               style={styles.twoImage}
             />
           ))}
         </View>
       );
-    } else if (images.length === 3) {
+    } else if (media.length === 3) {
       // Hiển thị 3 hình ảnh: 1 lớn bên trái, 2 nhỏ bên phải
       return (
         <View style={styles.threeImagesContainer}>
-          <Image
-            source={{ uri: images[0].uri }}
-            style={styles.threeImageMain}
-          />
+          <Image source={{ uri: media[0].url }} style={styles.threeImageMain} />
           <View style={styles.threeImageSideContainer}>
-            {images.slice(1, 3).map((image, index) => (
+            {media.slice(1, 3).map((image, index) => (
               <Image
                 key={index}
-                source={{ uri: image.uri }}
+                source={{ uri: image.url }}
                 style={styles.threeImageSide}
               />
             ))}
@@ -84,23 +103,23 @@ const PostItem: React.FC<PostProps> = ({
       );
     } else {
       // Hiển thị 4+ hình ảnh: grid 2x2 với "+n" cho các hình còn lại
-      const remainingCount = images.length - 4;
+      const remainingCount = media.length - 4;
       return (
         <View style={styles.multipleImagesContainer}>
           <View style={styles.multipleImagesRow}>
-            {images.slice(0, 2).map((image, index) => (
+            {media.slice(0, 2).map((image, index) => (
               <Image
                 key={index}
-                source={{ uri: image.uri }}
+                source={{ uri: image.url }}
                 style={styles.multipleImage}
               />
             ))}
           </View>
           <View style={styles.multipleImagesRow}>
-            {images.slice(2, 4).map((image, index) => (
+            {media.slice(2, 4).map((image, index) => (
               <View key={index} style={{ position: "relative" }}>
                 <Image
-                  source={{ uri: image.uri }}
+                  source={{ uri: image.url }}
                   style={styles.multipleImage}
                 />
                 {index === 1 && remainingCount > 0 && (
@@ -117,17 +136,74 @@ const PostItem: React.FC<PostProps> = ({
       );
     }
   };
+  const handleToggleLike = async () => {
+    const id = await AsyncStorage.getItem("userId");
+    try {
+      const response = await axios.post(
+        `http://192.168.0.102:3006/api/v1/post/${_id}/love`,
+        {
+          profileId: id,
+        }
+      );
+      console.log("_id:", _id);
+      console.log("Profile author:", profileId._id);
+      console.log("Profile ID:", id);
+      console.log("Response from toggle love - Feed:", response.data);
+      if (response.data?.lovedByUser === true) {
+        setReactLove(true);
+        setCountReaction((prev) => prev + 1);
+      } else {
+        setReactLove(false);
+        setCountReaction((prev) => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error("Error toggling love:", error);
+    }
+  };
+  const navigateToCommentSection = async () => {
+    navigator.navigate("CommentSection", {
+      postId: _id
+    });
+  };
+  const navigateToFeedOptions = async () => {
+    navigator.navigate("FeedOptions", {
+      postId: _id,
+      profileId: profileId._id,
+    });
+  };
+  const formatTime = (createAt: string) => {
+    const date = new Date(createAt);
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000); // diff in seconds
+
+    if (diff < 60) {
+      return `${diff} giây trước`;
+    } else if (diff < 3600) {
+      return `${Math.floor(diff / 60)} phút trước`;
+    } else if (diff < 86400) {
+      return `${Math.floor(diff / 3600)} giờ trước`;
+    } else if (diff < 2592000) {  
+      return `${Math.floor(diff / 86400)} ngày trước`;
+    } else {
+      const day = date.getDate().toString().padStart(2, "0");
+      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+  };
 
   return (
     <View style={styles.container}>
       {/* User Info */}
       <View style={styles.userInfoContainer}>
-        <Image source={{ uri: user.avatar }} style={styles.userAvatar} />
+        <Image source={{ uri: profileId.avatar }} style={styles.userAvatar} />
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user.name}</Text>
-          <Text style={styles.timestamp}>{timestamp}</Text>
+          <Text style={styles.userName}>
+            {profileId.firstname} {profileId.surname}
+          </Text>
+          <Text style={styles.timestamp}>{formatTime(createdAt)}</Text>
         </View>
-        <TouchableOpacity style={styles.moreButton}>
+        <TouchableOpacity style={styles.moreButton} onPress={navigateToFeedOptions}>
           <Ionicons name="ellipsis-horizontal" size={20} color="#666" />
         </TouchableOpacity>
       </View>
@@ -139,7 +215,7 @@ const PostItem: React.FC<PostProps> = ({
       {renderImageGrid()}
 
       {/* Music Player (if available) */}
-      {music && (
+      {/* {music && (
         <View style={styles.musicPlayer}>
           <FontAwesome name="music" size={16} color="#666" />
           <Text style={styles.musicTitle}>
@@ -149,42 +225,44 @@ const PostItem: React.FC<PostProps> = ({
             <FontAwesome name="play" size={14} color="white" />
           </TouchableOpacity>
         </View>
-      )}
+      )} */}
 
       {/* Interaction Buttons */}
       <View style={styles.interactionContainer}>
         <View style={styles.likesCommentsCount}>
-          {likes > 0 && (
+          {countReaction > 0 && (
             <View style={styles.countItem}>
               <FontAwesome name="heart" size={14} color="#E53935" />
-              <Text style={styles.countText}>{likes}</Text>
+              <Text style={styles.countText}>{countReaction}</Text>
             </View>
           )}
-          {comments > 0 && (
-            <Text style={styles.countText}>{comments} bình luận</Text>
+          {commentsCount > 0 && (
+            <Text style={styles.countText}>{commentsCount} bình luận</Text>
           )}
         </View>
 
-        <View style={styles.actionButtons}>
-          <View style={styles.reactionButtons}>
-          <TouchableOpacity style={styles.likeButton}>
-            <Ionicons name="heart-outline" size={24} color="#616161" />
-            <Text style={styles.actionText}>Thích</Text>
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleToggleLike}
+          >
+            <AntDesign
+              name="heart"
+              size={20}
+              color={reactLove ? "red" : "#666"}
+            />
+            <Text style={[styles.actionText, reactLove && { color: "red" }]}>
+              Thích | {countReaction}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.commentButton}>
-            <Ionicons name="chatbubble-outline" size={24} color="#616161" />
-            <Text style={styles.actionText}>0</Text>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={navigateToCommentSection}
+          >
+            <Feather name="message-square" size={20} color="#666" />
+            <Text style={styles.actionText}></Text>
           </TouchableOpacity>
-          </View>
-         
-
-          <View style={styles.lockIcon}>
-            <Ionicons name="lock-closed" size={20} color="#9E9E9E" />
-            <TouchableOpacity style={styles.moreButton}>
-              <Ionicons name="ellipsis-horizontal" size={24} color="#616161" />
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </View>
@@ -258,12 +336,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   threeImageMain: {
-    width: (width * 0.66)-20,
-    height: (width * 0.66)-20,
+    width: width * 0.66 - 20,
+    height: width * 0.66 - 20,
   },
   threeImageSideContainer: {
-    width: (width * 0.34)-20,
-    height: (width * 0.66)-20,
+    width: width * 0.34 - 20,
+    height: width * 0.66 - 20,
     justifyContent: "space-between",
   },
   threeImageSide: {
@@ -284,8 +362,8 @@ const styles = StyleSheet.create({
     height: width / 2,
   },
   multipleImage: {
-    width: (width / 2) - 20,
-    height: (width / 2) - 20,
+    width: width / 2 - 20,
+    height: width / 2 - 20,
   },
   remainingCountOverlay: {
     position: "absolute",
@@ -349,42 +427,34 @@ const styles = StyleSheet.create({
     color: "#666",
     marginLeft: 4,
   },
-  actionButtons: {
+  actionsContainer: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    paddingTop: 10,
+    marginTop: 10,
+  },
+  actionButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingVertical: 5,
-  },
-  reactionButtons: {
-    width: 180,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignContent: "center",
-  },
-  likeButton: {
-    width: 90,
-    flexDirection: "row",
-    alignItems: "center",
+    paddingHorizontal: 15,
     borderRadius: 20,
-    backgroundColor: "#F5F5F5",
-    padding: 6,
-  },
-  commentButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 20,
-    backgroundColor: "#F5F5F5",
-    padding: 6,
-  },
-  lockIcon: {
-    width: 70,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    marginRight: 10,
   },
   actionText: {
     marginLeft: 5,
-    color: "#616161",
+    color: "#666",
+  },
+  rightActions: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  iconButton: {
+    padding: 5,
+    marginLeft: 10,
   },
 });
 

@@ -1,13 +1,67 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native"
-import { Feather, AntDesign } from "@expo/vector-icons"
-import type { Post as PostType } from "../types/post"
-import MediaGrid from "./MediaGrid"
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Feather, AntDesign } from "@expo/vector-icons";
+import type { Post as PostType } from "../types/post";
+import MediaGrid from "./MediaGrid";
+import { useNavigation } from "expo-router";
+import axios from "axios";
+import { Api_Post } from "@/apis/api_post";
+import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type PostProps = {
-  post: PostType
-}
+  post: PostType;
+};
 
 const Post = ({ post }: PostProps) => {
+ 
+  const navigator = useNavigation();
+  const [lovedByUser, setLovedByUser] = useState(post.lovedByUser || false);
+  const [totalReactions, setTotalReactions] = useState(
+    post.totalReactions || 0
+  );
+  console.log("lovedByUser:", lovedByUser);
+  console.log("totalReactions:", totalReactions);
+  
+
+  const navigateToCommentSection = async () => {
+    navigator.navigate("CommentSection", {
+      postId: post._id,
+    });
+  };
+  const handleTogglePrivacySettings = () => {
+    console.log("Post ID before privacy setting:", post._id);
+    navigator.navigate("PrivacySettings", {
+      postId: post._id,
+    });
+  };
+  const handleTogglePostOptions = () => {
+    console.log("Post ID before option setting:", post._id);
+    navigator.navigate("PostOptions", {
+      postId: post._id,
+    });
+  };
+
+  const handleToggleLike = async () => {
+    const id = await AsyncStorage.getItem("userId");
+    try {
+      const response = await axios.post(
+        `http://192.168.0.102:3006/api/v1/post/${post._id}/love`,
+        {
+          profileId: id,
+        }
+      );
+      console.log("Response from toggle love - Post Profile:", response.data);
+      if (response.data?.lovedByUser === true) {
+        setLovedByUser(true);
+        setTotalReactions((prev) => prev + 1);
+      } else {
+        setLovedByUser(false);
+        setTotalReactions((prev) => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error("Error toggling love:", error);
+    }
+  };
   return (
     <View style={styles.container}>
       <View style={styles.timelineConnector}>
@@ -18,33 +72,59 @@ const Post = ({ post }: PostProps) => {
       <View style={styles.contentContainer}>
         <Text style={styles.content}>{post.content}</Text>
 
-        {post.media && post.media.length > 0 && <MediaGrid media={post.media} />}
+        {post.media && post.media.length > 0 && (
+          <MediaGrid media={post.media} />
+        )}
 
         <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.actionButton}>
-            <AntDesign name="heart" size={20} color="#666" />
-            <Text style={styles.actionText}>Thích</Text>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleToggleLike}
+          >
+            <AntDesign
+              name="heart"
+              size={20}
+              color={lovedByUser ? "red" : "#666"}
+            />
+            <Text style={[styles.actionText, lovedByUser && { color: "red" }]}>
+              Thích | {totalReactions}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={navigateToCommentSection}
+          >
             <Feather name="message-square" size={20} color="#666" />
             <Text style={styles.actionText}></Text>
           </TouchableOpacity>
 
           <View style={styles.rightActions}>
-            <TouchableOpacity style={styles.iconButton}>
-              <Feather name="users" size={20} color="#666" />
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleTogglePrivacySettings}
+            >
+              {post.privacy === "private" ? (
+                <Feather name="lock" size={20} color="#666" />
+              ) : post.privacy === "public" ? (
+                <Feather name="user" size={20} color="#666" />
+              ) : (
+                <Feather name="users" size={20} color="#666" />
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleTogglePostOptions}
+            >
               <Feather name="more-horizontal" size={20} color="#666" />
             </TouchableOpacity>
           </View>
         </View>
       </View>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -113,6 +193,6 @@ const styles = StyleSheet.create({
     padding: 5,
     marginLeft: 10,
   },
-})
+});
 
-export default Post
+export default Post;

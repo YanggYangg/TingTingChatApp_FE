@@ -17,11 +17,7 @@ const MessageItem = ({
   onDelete,
   onRevoke,
   messages,
-<<<<<<< HEAD
   isLastMessage,
-=======
-   isLastMessage,
->>>>>>> 96dfdde139e3e2e88fdf8bf43836271670c4f645
   participants,
   userCache,
   markMessageAsRead,
@@ -62,50 +58,50 @@ const MessageItem = ({
   }, [msg, isCurrentUser, currentUserId, markMessageAsRead]);
 
   // Function to get message status text
-  const getMessageStatus = () => {
-    if (!isCurrentUser || !isLastMessage) return null;
+  // const getMessageStatus = () => {
+  //   if (!isCurrentUser || !isLastMessage) return null;
 
-    // If no read status or empty readBy array
-    if (!msg.status?.readBy || msg.status.readBy.length === 0) {
-      return "Đã gửi";
-    }
+  //   // If no read status or empty readBy array
+  //   if (!msg.status?.readBy || msg.status.readBy.length === 0) {
+  //     return "Đã gửi";
+  //   }
 
-    // For group chat (more than 2 participants)
-    if (participants && participants.length > 2) {
-      // Get all other members (excluding current user)
-      const otherMembers = participants.filter(p => p.userId !== currentUserId);
-      const totalOtherMembers = otherMembers.length;
+  //   // For group chat (more than 2 participants)
+  //   if (participants && participants.length > 2) {
+  //     // Get all other members (excluding current user)
+  //     const otherMembers = participants.filter(p => p.userId !== currentUserId);
+  //     const totalOtherMembers = otherMembers.length;
 
-      // Check both object format (_id) and direct ID format
-      const readMembers = msg.status.readBy.filter(user => {
-        const userId = typeof user === 'object' ? user._id : user;
-        return userId !== currentUserId;
-      });
+  //     // Check both object format (_id) and direct ID format
+  //     const readMembers = msg.status.readBy.filter(user => {
+  //       const userId = typeof user === 'object' ? user._id : user;
+  //       return userId !== currentUserId;
+  //     });
 
-      if (readMembers.length === totalOtherMembers) {
-        return "Tất cả đã xem";
-      }
+  //     if (readMembers.length === totalOtherMembers) {
+  //       return "Tất cả đã xem";
+  //     }
 
-      // Get names of users who have read from userCache
-      const readNames = readMembers.map(userId => {
-        const cachedUser = userCache[userId];
-        return cachedUser?.name || "Unknown";
-      }).join(", ");
+  //     // Get names of users who have read from userCache
+  //     const readNames = readMembers.map(userId => {
+  //       const cachedUser = userCache[userId];
+  //       return cachedUser?.name || "Unknown";
+  //     }).join(", ");
 
-      return readNames ? `Đã xem: ${readNames}` : "Đã gửi";
-    }
+  //     return readNames ? `Đã xem: ${readNames}` : "Đã gửi";
+  //   }
 
-    // For personal chat (2 participants)
-    const receiverId = participants?.find(p => p.userId !== currentUserId)?.userId;
+  //   // For personal chat (2 participants)
+  //   const receiverId = participants?.find(p => p.userId !== currentUserId)?.userId;
 
-    // Check both object format (_id) and direct ID format
-    const isRead = msg.status.readBy.some(user => 
-      (typeof user === 'object' && user._id === receiverId) || 
-      (typeof user === 'string' && user === receiverId)
-    );
+  //   // Check both object format (_id) and direct ID format
+  //   const isRead = msg.status.readBy.some(user => 
+  //     (typeof user === 'object' && user._id === receiverId) || 
+  //     (typeof user === 'string' && user === receiverId)
+  //   );
 
-    return isRead ? "Đã xem" : "Đã gửi";
-  };
+  //   return isRead ? "Đã xem" : "Đã gửi";
+  // };
 
   const handleRevokeClick = () => {
     if (onRevoke && msg && msg._id) {

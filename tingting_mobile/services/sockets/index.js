@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 export const initSocket = (userId) => {
-  return io("http://192.168.1.12:5000", {
+  return io("http://192.168.0.102:5000", {
     query: { userId },
     transports: ["websocket"], // quan trọng để tránh fallback polling
   });

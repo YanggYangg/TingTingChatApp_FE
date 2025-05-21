@@ -49,9 +49,17 @@ import { useNavigationState } from "@react-navigation/native";
 // ProfileScreen
 import ProfileScreen2 from "@/components/screens/MainScreen/Chat/chatInfoComponent/ProfileScreen2";
 
+import MenuProfileScreen from "@/components/screens/MainScreen/Profile/MenuProfileScreen";
+import SettingProfileScreen from "@/components/screens/MainScreen/Profile/SettingProfileScreen";
+import FeedScreen from "@/components/screens/MainScreen/Feed/FeedScreen";
+import CreatePostScreen from "@/components/screens/MainScreen/Feed/CreatePostScreen";
+import CommentSection from "@/components/screens/MainScreen/Comment/CommentSection";
+import PostOptions from "@/components/screens/MainScreen/Profile/PostOptions";
+import PrivacySettings from "@/components/screens/MainScreen/Profile/PrivacySettings";
+import FeedOptions from "@/components/screens/MainScreen/Profile/components/FeedOptions";
 
 
-type RootStackParamList = {
+export type RootStackParamList = {
   Main: undefined;
   MessageScreen: { userId?: string; username?: string };
   ChatScreenCloud: undefined;
@@ -77,7 +85,12 @@ type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { phoneNumber: string };
   VerificationCodeRegister: { phoneNumber: string };
-  ProfileScreen: undefined;
+
+  //Profile
+  MenuProfileScreen: undefined;
+  ProfileScreen:{
+     profileId: string;
+  }
   PersonalInfo: {
     formData: {
       firstname: string;
@@ -104,6 +117,19 @@ type RootStackParamList = {
       coverPhoto: string | null;
     };
   };
+   //Feed
+  FeedScreen: undefined;
+  CreatePostScreen: undefined;
+  CommentSection: {
+    postId: string;
+  };
+  PostOptions: undefined;
+  PrivacySettings: undefined;
+  FeedOptions: {
+    postId: string;
+    profileId: string;
+  }
+
   MessageSupportScreen: { userId?: string; username?: string };
 };
 
@@ -111,6 +137,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 const ContactStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
+const FeedStack = createNativeStackNavigator();
 
 // Stack Navigator cho phần Contact/Friends
 function ContactStackNavigator() {
@@ -137,16 +164,22 @@ function ContactStackNavigator() {
   );
 }
 
+
 // Stack Navigator cho phần Profile/Friends
 function ProfileStackNavigator() {
   return (
     <ProfileStack.Navigator
       screenOptions={{
         headerShown: false,
-        animation: "none", // Disable animations
+        animation: "none", // Disable animations MenuProfileScreen
       }}
     >
-      <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} />
+      <ProfileStack.Screen
+        name="MenuProfileScreen"
+        component={MenuProfileScreen}
+      />
+
+      {/* <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} /> */}
       <ProfileStack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
       <ProfileStack.Screen
         name="EditPersonalInfo"
@@ -161,6 +194,57 @@ import store from "../../redux/store";
 import { Provider } from "react-redux";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+
+function FeedStackNavigator({ route }: any) {
+  return (
+    <FeedStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: "none", // Disable animations
+      }}
+    >
+      <FeedStack.Screen name="FeedScreen" component={FeedScreen} />
+      <ProfileStack.Screen
+        name="CommentSection"
+        component={CommentSection}
+      />
+      <Stack.Screen name="FeedOptions" component={FeedOptions} />
+
+    </FeedStack.Navigator>
+  );
+}
+function InformationProfileStackNavigator({ route }: any) {
+  return (
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: "none", // Disable animations MenuProfileScreen
+      }}
+    >
+      <ProfileStack.Screen
+        name="ProfileScreen"
+        component={ProfileScreen}
+        initialParams={route.params}
+      />
+      <ProfileStack.Screen
+        name="CommentSection"
+        component={CommentSection}
+        initialParams={route.params}
+      />
+      <ProfileStack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
+      <ProfileStack.Screen
+        name="EditPersonalInfo"
+        component={EditPersonalInfoScreen}
+      />
+      <Stack.Screen name="PostOptions" component={PostOptions} />
+      <Stack.Screen name="PrivacySettings" component={PrivacySettings} />
+    </ProfileStack.Navigator>
+  );
+}
+
+
+
 
 function MainTabNavigator() {
   return (
@@ -187,7 +271,7 @@ function MainTabNavigator() {
       <Tab.Screen name="DiaryScreen" options={{ tabBarLabel: "Nhật ký" }}>
         {() => (
           <MainLayout>
-            <DiaryScreen />
+            <FeedStackNavigator />
           </MainLayout>
         )}
       </Tab.Screen>
@@ -252,7 +336,7 @@ export default function App() {
     const userId = await AsyncStorage.getItem("userId");
     if (!userId) return;
 
-    const socket = io("http://192.168.1.8:5000", {
+    const socket = io("http://192.168.0.102:5000", {
       query: { userId },
       transports: ["websocket"],
     });
@@ -282,15 +366,6 @@ export default function App() {
   };
 
   setupSocket();
-}, []);
-
-useEffect(() => {
-  Toast.show({
-    type: "success",
-    text1: "Chạy thử toast",
-    text2: "Nó hoạt động rồi nè!",
-    visibilityTime: 1000,
-  });
 }, []);
 
   return (
@@ -362,13 +437,18 @@ useEffect(() => {
             />
             {/* ProfileScreen */}
             <Stack.Screen
-              name="ProfileScreen2"
-              component={ProfileScreen2}
+              name="ProfileScreen"
+              component={InformationProfileStackNavigator}
               options={{ headerShown: false }}
             />
             <Stack.Screen
               name="MessageSupportScreen"
               component={MessageSupportScreen}
+              options={{ headerShown: false }}
+            />
+             <Stack.Screen
+              name="CreatePostScreen"
+              component={CreatePostScreen}
               options={{ headerShown: false }}
             />
           </Stack.Navigator>

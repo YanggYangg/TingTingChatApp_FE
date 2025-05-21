@@ -110,6 +110,8 @@ const VerificationCode: React.FC<{ navigation: any; route: any }> = ({ navigatio
         console.log("UserId = ", response.data.user.userId);
         console.log("Profile = ", response.data.profile.data.user);
         
+        
+        
         // Navigate to next screen on success
         navigation.replace("Main")
             

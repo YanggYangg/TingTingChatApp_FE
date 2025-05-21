@@ -9,7 +9,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-com
 // your app's Firebase config object.
 // https://firebase.google.com/docs/web/setup#config-object
 firebase.initializeApp({
-<<<<<<< HEAD
+
   apiKey: "AIzaSyA8fnb12ST1wm-nPXWcNerKuRkFxIHmorQ",
   authDomain: "tingtingchatapp.firebaseapp.com",
   projectId: "tingtingchatapp",
@@ -17,11 +17,6 @@ firebase.initializeApp({
   messagingSenderId: "717017584828",
   appId: "1:717017584828:web:a341539f60f000afd82cb9",
   measurementId: "G-L2T4KXWY6Q"
-=======
-
-
->>>>>>> 96dfdde139e3e2e88fdf8bf43836271670c4f645
-
 });
 
 // Retrieve an instance of Firebase Messaging so that it can handle background

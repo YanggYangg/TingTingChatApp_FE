@@ -105,21 +105,21 @@ const ChatHeader = ({
       </div>
 
       <div className="ml-auto flex space-x-3">
-        <button className="text-gray-500 hover:text-gray-700">
+        {/* <button className="text-gray-500 hover:text-gray-700">
           <UserPlus />
-        </button>
+        </button> */}
         <button
           onClick={() => handleCall("voice")}
           className="text-gray-500 hover:text-gray-700"
         >
           <Phone size={22} />
         </button>
-        <button
+        {/* <button
           onClick={() => handleCall("video")}
           className="text-gray-500 hover:text-gray-700"
         >
           <Video size={26} />
-        </button>
+        </button> */}
         <button className="text-gray-500 hover:text-gray-700">
           <Search />
         </button>

@@ -28,7 +28,7 @@ const PostFeed = ({ posts }: PostFeedProps) => {
       <FlatList
         data={flattenedData}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       />

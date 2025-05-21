@@ -9,7 +9,7 @@ export function CloudSocketProvider({ children }) {
   useEffect(() => {
     const userId = localStorage.getItem('userId');
     if (userId) {
-      const socketInstance = io('http://184.73.0.29:3000', {
+      const socketInstance = io('http://localhost:3000', {
         query: { userId },
       });
       setSocket(socketInstance);
