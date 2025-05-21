@@ -67,9 +67,13 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   // Fetch and listen for chat info updates
   useEffect(() => {
     if (!socket || !conversationId || !userId) {
+    if (!socket || !conversationId || !userId) {
       setLoading(false);
       return;
     }
+
+    // Tham gia phòng user:userId để nhận sự kiện cho tất cả thiết bị
+    socket.emit("joinUserRoom", { userId });
 
     // Tham gia phòng user:userId để nhận sự kiện cho tất cả thiết bị
     socket.emit("joinUserRoom", { userId });
@@ -173,6 +177,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     onChatInfo(socket, handleOnChatInfo);
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
     socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
+    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
     onError(socket, handleError);
     getChatMedia(socket, { conversationId });
     getChatFiles(socket, { conversationId });
@@ -180,6 +185,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     return () => {
       socket.off("updateChatInfo", handleUpdateChatInfo);
+      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
       socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
