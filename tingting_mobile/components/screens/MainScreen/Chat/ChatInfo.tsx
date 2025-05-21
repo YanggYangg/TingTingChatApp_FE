@@ -163,6 +163,34 @@ const ChatInfo: React.FC = () => {
         return;
       }
 
+      // [MODIFIED] Kiểm tra xem nhóm có bị giải tán hay không
+      if (!newChatInfo.participants || newChatInfo.participants.length === 0) {
+        console.log('DEBUG: Nhóm đã bị giải tán', { conversationId });
+        Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              dispatch(setSelectedMessage(null));
+              setChatInfo(null);
+              try {
+                navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+              } catch (error) {
+                console.error('DEBUG: Lỗi điều hướng:', error);
+              }
+            },
+          },
+        ]);
+        return;
+      }
+      // Thêm logic kiểm tra xem finalUserId có trong participants hay không
+      if (!newChatInfo.participants?.some((p) => p.userId === finalUserId)) {
+        Alert.alert("Thông báo", "Bạn đã bị rời khỏi nhóm!");
+        dispatch(setSelectedMessage(null));
+        setChatInfo(null);
+        navigation.navigate("Main", { screen: "ChatScreen", params: { refresh: true } });
+        return;
+      }
+
       setChatInfo(newChatInfo);
       setIsMuted(!!participant?.mute);
       setIsPinned(!!participant?.isPinned);
@@ -201,6 +229,34 @@ const ChatInfo: React.FC = () => {
         return;
       }
 
+
+      // [MODIFIED] Kiểm tra xem nhóm có bị giải tán hay không
+      if (updatedInfo.participants && updatedInfo.participants.length === 0) {
+        console.log('DEBUG: Nhóm đã bị giải tán (updated)', { conversationId });
+        Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              dispatch(setSelectedMessage(null));
+              setChatInfo(null);
+              try {
+                navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+              } catch (error) {
+                console.error('DEBUG: Lỗi điều hướng:', error);
+              }
+            },
+          },
+        ]);
+        return;
+      }
+      // Thêm logic kiểm tra xem finalUserId có trong participants hay không
+      if (updatedInfo.participants && !updatedInfo.participants.some((p) => p.userId === finalUserId)) {
+        Alert.alert("Thông báo", "Bạn đã bị rời khỏi nhóm!");
+        dispatch(setSelectedMessage(null));
+        setChatInfo(null);
+        navigation.navigate("Main", { screen: "ChatScreen", params: { refresh: true } });
+        return;
+      }
       setChatInfo((prev) => {
         if (!prev) return null;
         const newChatInfo = { ...prev, ...updatedInfo };

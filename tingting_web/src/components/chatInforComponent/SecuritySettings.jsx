@@ -564,14 +564,14 @@ const confirmDeleteHistory = useCallback(async () => {
                 Chuyển quyền trưởng nhóm
               </button>
 
-              {/* <button
+              <button
                 className="w-full text-red-600 text-left flex items-center gap-2 mt-2"
                 onClick={handleDisbandGroup}
                 disabled={isDisbanding || isProcessing}
               >
                 <FaSignOutAlt size={16} />
                 {isDisbanding ? "Đang giải tán..." : "Giải tán nhóm"}
-              </button> */}
+              </button>
             </>
           )}
         </>
@@ -631,7 +631,7 @@ const confirmDeleteHistory = useCallback(async () => {
         </div>
       )}
 
-      {/* {showDisbandConfirm && (
+      {showDisbandConfirm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md">
           <div className="bg-white p-6 rounded-md shadow-lg w-96">
             <h2 className="text-lg font-semibold mb-4">Xác nhận giải tán nhóm</h2>
@@ -656,7 +656,7 @@ const confirmDeleteHistory = useCallback(async () => {
             </div>
           </div>
         </div>
-      )} */}
+      )}
 
       {showLeaveConfirm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-md">

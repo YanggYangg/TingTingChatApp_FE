@@ -178,6 +178,27 @@ const SecuritySettings: React.FC<Props> = ({
         return;
       }
       prevChatInfoRef.current = data;
+
+
+// [NEW] Kiểm tra xem nhóm có bị giải tán hay không
+    if (!data.participants || data.participants.length === 0) {
+      console.log('DEBUG: Nhóm đã bị giải tán', { conversationId });
+      Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            setChatInfo(null);
+            try {
+              navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+            } catch (error) {
+              console.error('DEBUG: Lỗi điều hướng:', error);
+            }
+          },
+        },
+      ]);
+      return;
+    }
+
       setIsGroup(data.isGroup);
       setGroupMembers(data.participants.filter((p) => p.userId !== userId));
       const participant = data.participants.find((p) => p.userId === userId);
@@ -194,6 +215,27 @@ const SecuritySettings: React.FC<Props> = ({
         return;
       }
       prevChatInfoRef.current = updatedInfo;
+
+// [NEW] Kiểm tra xem nhóm có bị giải tán hay không
+    if (updatedInfo.participants && updatedInfo.participants.length === 0) {
+      console.log('DEBUG: Nhóm đã bị giải tán (updated)', { conversationId });
+      Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            setChatInfo(null);
+            try {
+              navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+            } catch (error) {
+              console.error('DEBUG: Lỗi điều hướng:', error);
+            }
+          },
+        },
+      ]);
+      return;
+    }
+
+
       setIsGroup(updatedInfo.isGroup);
       setGroupMembers(updatedInfo.participants.filter((p) => p.userId !== userId));
       const participant = updatedInfo.participants.find((p) => p.userId === userId);
@@ -347,7 +389,7 @@ const SecuritySettings: React.FC<Props> = ({
       if (response.success) {
         setChatInfo(null);
         Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
-        navigation.navigate('Main', { screen: 'MessageScreen' });
+        navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
       } else {
         Alert.alert('Lỗi', `Rời nhóm thất bại: ${response.message}`);
       }
@@ -378,8 +420,8 @@ const SecuritySettings: React.FC<Props> = ({
           console.log('SecuritySettings: Phản hồi từ leaveGroup', leaveResponse);
           if (leaveResponse.success) {
             setChatInfo(null);
-            Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
-            navigation.navigate('Main', { screen: 'MessageScreen' });
+          
+            navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
           } else {
             Alert.alert('Lỗi', `Rời nhóm thất bại: ${leaveResponse.message}`);
           }
@@ -416,8 +458,7 @@ const SecuritySettings: React.FC<Props> = ({
       console.log('SecuritySettings: Phản hồi từ disbandGroup', response);
       if (response.success) {
         setChatInfo(null);
-        console.log('SecuritySettings: Đã xóa chatInfo và điều hướng đến MessageScreen');
-        navigation.navigate('Main', { screen: 'MessageScreen' });
+        navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
       } else {
         Alert.alert('Lỗi', `Giải tán nhóm thất bại: ${response.message}`);
       }
