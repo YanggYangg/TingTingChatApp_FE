@@ -66,10 +66,13 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
   // Fetch and listen for chat info updates
   useEffect(() => {
-    if (!socket || !conversationId) {
+    if (!socket || !conversationId || !userId) {
       setLoading(false);
       return;
     }
+
+    // Tham gia phòng user:userId để nhận sự kiện cho tất cả thiết bị
+    socket.emit("joinUserRoom", { userId });
 
     joinConversation(socket, conversationId);
     getChatInfo(socket, { conversationId });
@@ -129,6 +132,26 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       dispatch(setChatInfoUpdate(updatedInfo));
     };
 
+    const handleDeleteAllChatHistory = ({ conversationId: deletedConversationId, deletedBy }) => {
+      if (deletedConversationId !== conversationId || deletedBy !== userId) return;
+      console.log("ChatInfo: Nhận deleteAllChatHistory", { conversationId, deletedBy });
+      setChatInfo((prev) => ({
+        ...prev,
+        media: [],
+        files: [],
+        links: [],
+        lastMessage: null,
+      }));
+      dispatch(setChatInfoUpdate({
+        ...chatInfo,
+        media: [],
+        files: [],
+        links: [],
+        lastMessage: null,
+      }));
+      toast.success("Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");
+    };
+
     const handleError = (error) => {
       if (error.message === "Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!") {
         setIsPinLimitModalOpen(true);
@@ -140,6 +163,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     socket.on("updateChatInfo", handleUpdateChatInfo);
     onChatInfo(socket, handleOnChatInfo);
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
+    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
     onError(socket, handleError);
     getChatMedia(socket, { conversationId });
     getChatFiles(socket, { conversationId });
@@ -147,11 +171,12 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     return () => {
       socket.off("updateChatInfo", handleUpdateChatInfo);
+      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
     };
-  }, [socket, conversationId, userId, dispatch]);
+  }, [socket, conversationId, userId, dispatch, chatInfo]);
 
   // Load and listen for conversation updates
   useEffect(() => {
