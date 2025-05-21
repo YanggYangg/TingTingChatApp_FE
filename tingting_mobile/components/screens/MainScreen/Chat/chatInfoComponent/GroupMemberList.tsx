@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MemberListModal from './MemberListModal';
 import CommonGroupsModal from './CommonGroupsModal';
-import { Api_chatInfo } from '../../../../../apis/Api_chatInfo'; // Adjust path as needed
 
 interface Participant {
   userId: string;
@@ -25,45 +24,26 @@ interface CommonGroup {
 interface Props {
   chatInfo: ChatInfoData;
   userId: string;
+  conversationId: string;
   onMemberRemoved?: (memberId: string) => void;
   socket: any;
+  commonGroups: CommonGroup[]; // Nhận commonGroups từ props
   onGroupSelect?: (group: CommonGroup) => void;
 }
 
-const GroupMemberList: React.FC<Props> = ({ chatInfo, userId, onMemberRemoved, socket, onGroupSelect }) => {
+const GroupMemberList: React.FC<Props> = ({ chatInfo, userId, conversationId, onMemberRemoved, socket, commonGroups, onGroupSelect }) => {
   const [isMemberModalOpen, setMemberModalOpen] = useState(false);
   const [isGroupModalOpen, setGroupModalOpen] = useState(false);
-  const [commonGroups, setCommonGroups] = useState<CommonGroup[]>([]);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
 
-  // Fetch common groups and other user ID for non-group chats
+  // Set otherUserId for non-group chats
   useEffect(() => {
-    const fetchCommonGroups = async () => {
-      if (!chatInfo?.isGroup && chatInfo?._id) {
-        // Set other user ID (assuming 1:1 chat has exactly 2 participants)
-        const otherParticipant = chatInfo.participants.find(p => p.userId !== userId);
-        if (otherParticipant) {
-          setOtherUserId(otherParticipant.userId);
-        } else {
-          setOtherUserId(null);
-          setCommonGroups([]);
-          return;
-        }
-
-        try {
-          const res = await Api_chatInfo.getCommonGroups(chatInfo._id);
-          setCommonGroups(res?.commonGroups || []);
-        } catch (err) {
-          console.error('Error fetching common groups:', err);
-          setCommonGroups([]);
-        }
-      } else {
-        setOtherUserId(null);
-        setCommonGroups([]);
-      }
-    };
-
-    fetchCommonGroups();
+    if (!chatInfo?.isGroup && chatInfo?.participants) {
+      const otherParticipant = chatInfo.participants.find(p => p.userId !== userId);
+      setOtherUserId(otherParticipant ? otherParticipant.userId : null);
+    } else {
+      setOtherUserId(null);
+    }
   }, [chatInfo, userId]);
 
   const handleOpenGroupModal = () => {

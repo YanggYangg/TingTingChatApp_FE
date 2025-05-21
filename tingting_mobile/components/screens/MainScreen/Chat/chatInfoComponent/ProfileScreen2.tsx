@@ -18,7 +18,7 @@ import { useSocket } from "../../../../../contexts/SocketContext";
 import Icon from "react-native-vector-icons/Feather"; // Thêm thư viện icon
 
 const DEFAULT_AVATAR =
-  "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
+  "https://png.pngtree.com/png-clipart/20191122/original/pngtree-user-vector-icon-with-white-background-png-image_5168884.jpg";
 const DEFAULT_COVER_PHOTO =
   "https://inkythuatso.com/uploads/thumbnails/800/2022/04/anh-bia-zalo-canh-dep-thien-nhien-024637306-20-09-22-39.jpg";
 
