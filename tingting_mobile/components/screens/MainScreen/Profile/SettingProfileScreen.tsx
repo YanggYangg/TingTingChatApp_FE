@@ -15,7 +15,7 @@ import {
 import Icon from "react-native-vector-icons/Ionicons";
 import MaterialIcon from "react-native-vector-icons/MaterialCommunityIcons";
 
-const API_BASE_URL = "http://192.168.24.106:3002/api/v1";
+const API_BASE_URL = "http://192.168.1.12:3002/api/v1";
 
 interface SettingsScreenProps {
   onClose: () => void;

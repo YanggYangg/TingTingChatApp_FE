@@ -1,22 +1,22 @@
 import React from "react";
 
-const ConfirmModal = ({ isOpen, message, onConfirm, onCancel }) => {
+const ConfirmModal = ({ isOpen, message, onConfirm, onClose }) => {
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 bg-gray-200 bg-opacity-30 flex items-center justify-center z-[1000]" // Backdrop trong suốt
-      onClick={onCancel} // Nhấn ngoài để hủy
+      className="fixed inset-0 flex items-center justify-center z-[9999]"
+      onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg p-6 w-96 max-w-[90%] shadow-lg border border-gray-200" // Modal với viền và shadow
-        onClick={(e) => e.stopPropagation()} // Ngăn sự kiện click xuyên qua
+        className="bg-white rounded-lg p-6 w-96 max-w-[90%] shadow-lg border border-gray-200"
+        onClick={(e) => e.stopPropagation()}
       >
         <p className="text-gray-800 mb-4 text-center">{message}</p>
         <div className="flex justify-end space-x-2">
           <button
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-            onClick={onCancel}
+            onClick={onClose}
           >
             Hủy
           </button>

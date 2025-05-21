@@ -16,4 +16,8 @@ export const onMessageRead = (socket, callback) => {
 
 export const offMessageRead = (socket) => {
     socket.off('messageRead');
+<<<<<<< HEAD
 };
+=======
+};
+>>>>>>> 96dfdde139e3e2e88fdf8bf43836271670c4f645

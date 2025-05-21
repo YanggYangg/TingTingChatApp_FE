@@ -17,7 +17,11 @@ const MessageItem = ({
   onDelete,
   onRevoke,
   messages,
+<<<<<<< HEAD
   isLastMessage,
+=======
+   isLastMessage,
+>>>>>>> 96dfdde139e3e2e88fdf8bf43836271670c4f645
   participants,
   userCache,
   markMessageAsRead,
@@ -29,6 +33,79 @@ const MessageItem = ({
   console.log("userCache", userCache)
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
+
+  // Add useEffect to mark message as read when it becomes visible
+  useEffect(() => {
+    if (msg && !isCurrentUser && markMessageAsRead) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting && (!msg.status?.readBy || !msg.status.readBy.includes(currentUserId))) {
+              markMessageAsRead(msg._id);
+            }
+          });
+        },
+        { threshold: 0.5 }
+      );
+
+      const messageElement = document.getElementById(`message-${msg._id}`);
+      if (messageElement) {
+        observer.observe(messageElement);
+      }
+
+      return () => {
+        if (messageElement) {
+          observer.unobserve(messageElement);
+        }
+      };
+    }
+  }, [msg, isCurrentUser, currentUserId, markMessageAsRead]);
+
+  // Function to get message status text
+  const getMessageStatus = () => {
+    if (!isCurrentUser || !isLastMessage) return null;
+
+    // If no read status or empty readBy array
+    if (!msg.status?.readBy || msg.status.readBy.length === 0) {
+      return "Đã gửi";
+    }
+
+    // For group chat (more than 2 participants)
+    if (participants && participants.length > 2) {
+      // Get all other members (excluding current user)
+      const otherMembers = participants.filter(p => p.userId !== currentUserId);
+      const totalOtherMembers = otherMembers.length;
+
+      // Check both object format (_id) and direct ID format
+      const readMembers = msg.status.readBy.filter(user => {
+        const userId = typeof user === 'object' ? user._id : user;
+        return userId !== currentUserId;
+      });
+
+      if (readMembers.length === totalOtherMembers) {
+        return "Tất cả đã xem";
+      }
+
+      // Get names of users who have read from userCache
+      const readNames = readMembers.map(userId => {
+        const cachedUser = userCache[userId];
+        return cachedUser?.name || "Unknown";
+      }).join(", ");
+
+      return readNames ? `Đã xem: ${readNames}` : "Đã gửi";
+    }
+
+    // For personal chat (2 participants)
+    const receiverId = participants?.find(p => p.userId !== currentUserId)?.userId;
+
+    // Check both object format (_id) and direct ID format
+    const isRead = msg.status.readBy.some(user => 
+      (typeof user === 'object' && user._id === receiverId) || 
+      (typeof user === 'string' && user === receiverId)
+    );
+
+    return isRead ? "Đã xem" : "Đã gửi";
+  };
 
   const handleRevokeClick = () => {
     if (onRevoke && msg && msg._id) {

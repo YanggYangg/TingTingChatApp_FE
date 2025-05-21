@@ -2,7 +2,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Use environment-specific base URL
-const BASE_URL = "http://192.168.24.106:5000";
+const BASE_URL = "http://192.168.1.12:5000";
 
 // const BASE_URL = 'http://192.168.139.71:3001'
 
@@ -59,14 +59,14 @@ const ApiManager = {
 };
 
 export const Api_Conversation = {
-    getUserJoinGroup: async (userId) => {
-        return ApiManager.get( `/conversations/userGroups/${userId}`);
-    },
-    getOrCreateConversation: async (user1Id, user2Id)  => {
-      return ApiManager.post('/conversations/getOrCreateConversation', {
-          user1Id,
-          user2Id,
-      });
+  getUserJoinGroup: async (userId) => {
+    return ApiManager.get(`/conversations/userGroups/${userId}`);
+  },
+  getOrCreateConversation: async (user1Id, user2Id) => {
+    return ApiManager.post('/conversations/getOrCreateConversation', {
+      user1Id,
+      user2Id,
+    });
   },
 
 

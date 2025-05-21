@@ -54,6 +54,10 @@ function ChatPage() {
     lastActive: 6,
   });
   const [replyingTo, setReplyingTo] = useState(null);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [isRevokeModalVisible, setIsRevokeModalVisible] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState(null);
+  const [messageToRevoke, setMessageToRevoke] = useState(null);
 
   const { socket, userId: currentUserId } = useSocket();
   const socketCloud = useCloudSocket();
@@ -66,6 +70,7 @@ function ChatPage() {
   const selectedMessage = useSelector((state) => state.chat.selectedMessage);
   const selectedMessageId = selectedMessage?.id;
   const currUserId = localStorage.getItem("userId");
+  
 
   console.log("ChatPage: Current socket", { socket, socketCloud, currUserId });
 
@@ -575,45 +580,39 @@ function ChatPage() {
   };
 
   const handleDelete = (msg) => {
-    const confirmDelete = () => {
-      console.log("ChatPage: Xóa tin nhắn", { messageId: msg._id });
-      socket.emit("messageDeleted", { messageId: msg._id });
-      dispatch(setMessages(messages.filter((message) => message._id !== msg._id)));
-    };
-
-    return (
-      <ConfirmModal
-        isOpen={true}
-        onClose={() => {}}
-        onConfirm={confirmDelete}
-        title="Xóa tin nhắn"
-        message="Bạn có chắc muốn xóa tin nhắn này? Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi."
-      />
-    );
+    setMessageToDelete(msg);
+    setIsDeleteModalVisible(true);
   };
 
   const handleRevoke = (msg) => {
-    const confirmRevoke = () => {
-      console.log("ChatPage: Thu hồi tin nhắn", { messageId: msg._id });
-      socket.emit("messageRevoked", { messageId: msg._id });
+    setMessageToRevoke(msg);
+    setIsRevokeModalVisible(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (messageToDelete) {
+      console.log("ChatPage: Xóa tin nhắn", { messageId: messageToDelete._id });
+      socket.emit("messageDeleted", { messageId: messageToDelete._id });
+      dispatch(setMessages(messages.filter((message) => message._id !== messageToDelete._id)));
+    }
+    setIsDeleteModalVisible(false);
+    setMessageToDelete(null);
+  };
+
+  const handleConfirmRevoke = () => {
+    if (messageToRevoke) {
+      console.log("ChatPage: Thu hồi tin nhắn", { messageId: messageToRevoke._id });
+      socket.emit("messageRevoked", { messageId: messageToRevoke._id });
       dispatch(
         setMessages(
           messages.map((message) =>
-            message._id === msg._id ? { ...message, isRevoked: true } : message
+            message._id === messageToRevoke._id ? { ...message, isRevoked: true } : message
           )
         )
       );
-    };
-
-    return (
-      <ConfirmModal
-        isOpen={true}
-        onClose={() => {}}
-        onConfirm={confirmRevoke}
-        title="Thu hồi tin nhắn"
-        message="Bạn có chắc muốn thu hồi tin nhắn này?"
-      />
-    );
+    }
+    setIsRevokeModalVisible(false);
+    setMessageToRevoke(null);
   };
 
   const formatTime = (createdAt) => {
@@ -917,6 +916,84 @@ function ChatPage() {
   }, [socket, selectedMessageId]);
   console.log("ChatPage: Render với", { selectedChat, chatDetails, messages, cloudMessages });
 
+// Add this function to mark a message as read (emit trực tiếp)
+  const markMessageAsRead = (messageId) => {
+    if (
+      socket &&
+      selectedMessageId &&
+      messageId &&
+      selectedMessageId !== "my-cloud"
+    ) {
+      // Find the message
+      const msg = messages.find((m) => m._id === messageId);
+      if (!msg) return;
+      // Only mark as read if the message is not from the current user and not already read
+      if (
+        msg.userId !== currentUserId &&
+        (!msg.status?.readBy || !msg.status.readBy.includes(currentUserId))
+      ) {
+        socket.emit("readMessage", {
+          conversationId: selectedMessageId,
+          messageId,
+          userId: currentUserId,
+        });
+      }
+    }
+  };
+
+  // Auto mark last message as read if it's from another user
+  useEffect(() => {
+    if (
+      messages.length > 0 &&
+      selectedMessageId &&
+      selectedMessageId !== "my-cloud" &&
+      socket &&
+      currentUserId
+    ) {
+      const filteredMessages = messages.filter(
+        (msg) =>
+          msg.conversationId === selectedMessageId &&
+          !msg.deletedBy?.includes(currentUserId)
+      );
+      if (filteredMessages.length > 0) {
+        const lastMsg = filteredMessages[filteredMessages.length - 1];
+        if (
+          lastMsg.userId !== currentUserId &&
+          (!lastMsg.status?.readBy ||
+            !lastMsg.status.readBy.includes(currentUserId))
+        ) {
+          markMessageAsRead(lastMsg._id);
+        }
+      }
+    }
+  }, [messages, selectedMessageId, socket, currentUserId]);
+
+  useEffect(() => {
+    if (!socket || !selectedMessageId || selectedMessageId === "my-cloud")
+      return;
+
+    const handleMessageRead = ({ messageId, userId, readBy }) => {
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg._id === messageId
+            ? {
+                ...msg,
+                status: {
+                  ...msg.status,
+                  readBy: readBy, // cập nhật lại mảng readBy mới nhất từ BE
+                },
+              }
+            : msg
+        )
+      );
+    };
+
+    socket.on("messageRead", handleMessageRead);
+
+    return () => {
+      socket.off("messageRead", handleMessageRead);
+    };
+  }, [socket, selectedMessageId]);
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {selectedChat ? (
@@ -995,7 +1072,7 @@ function ChatPage() {
             ) : (
               <>
                 <div className="flex-1 overflow-y-auto p-4">
-                  {messages.length > 0 ? (
+                 {messages.length > 0 ? (
                     messages
                       .filter(
                         (msg) =>
@@ -1113,6 +1190,24 @@ function ChatPage() {
           onClose={() =>
             setContextMenu((prev) => ({ ...prev, visible: false }))
           }
+        />
+      )}
+      {isDeleteModalVisible && (
+        <ConfirmModal
+          isOpen={isDeleteModalVisible}
+          onClose={() => setIsDeleteModalVisible(false)}
+          onConfirm={handleConfirmDelete}
+          title="Xóa tin nhắn"
+          message="Bạn có chắc muốn xóa tin nhắn này? Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi."
+        />
+      )}
+      {isRevokeModalVisible && (
+        <ConfirmModal
+          isOpen={isRevokeModalVisible}
+          onClose={() => setIsRevokeModalVisible(false)}
+          onConfirm={handleConfirmRevoke}
+          title="Thu hồi tin nhắn"
+          message="Bạn có chắc muốn thu hồi tin nhắn này?"
         />
       )}
     </div>
