@@ -15,20 +15,36 @@ import EditNameModal from "../../../components/chatInforComponent/EditNameModal"
 import CreateGroupModal from "../../../components/chatInforComponent/CreateGroupModal";
 import PinLimitModal from "../../../components/chatInforComponent/PinLimitModal";
 import {
-  getChatInfo, onChatInfo, offChatInfo, onChatInfoUpdated, offChatInfoUpdated,
-  updateChatName, pinChat, updateNotification, onError, offError,
-  getChatMedia, getChatFiles, getChatLinks,
+  getChatInfo,
+  onChatInfo,
+  offChatInfo,
+  onChatInfoUpdated,
+  offChatInfoUpdated,
+  updateChatName,
+  pinChat,
+  updateNotification,
+  onError,
+  offError,
+  getChatMedia,
+  getChatFiles,
+  getChatLinks,
 } from "../../../services/sockets/events/chatInfo";
 import {
-  onConversations, offConversations, onConversationUpdate, offConversationUpdate,
-  loadAndListenConversations, joinConversation,
+  onConversations,
+  offConversations,
+  onConversationUpdate,
+  offConversationUpdate,
+  loadAndListenConversations,
+  joinConversation,
 } from "../../../services/sockets/events/conversation";
 import { Api_Profile } from "../../../../apis/api_profile";
 import { toast } from "react-toastify";
 
 // Default avatar and group image for fallback
-const DEFAULT_AVATAR = "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
-const DEFAULT_GROUP_IMAGE = "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=";
+const DEFAULT_AVATAR =
+  "https://encrypted-tbn0.gstatic.com/images?q=tbngcQDPQFLjc7cTCBIW5tyYcZGlMkWfvQptRw-k1lF5XyVoor51KoaIx6gWCy-rh4J1kVlE0k&usqp=CAU";
+const DEFAULT_GROUP_IMAGE =
+  "https://media.istockphoto.com/id/1306949457/vi/vec-to/nh%E1%BB%AFng-ng%C6%B0%E1%BB%9Di-%C4%91ang-t%C3%ACm-ki%E1%BA%BFm-c%C3%A1c-gi%E1%BA%A3i-ph%C3%A1p-s%C3%A1ng-t%E1%BA%A0o-kh%C3%A1i-ni%E1%BB%87m-kinh-doanh-l%C3%A0m-vi%E1%BB%87c-nh%C3%B3m-minh-h%E1%BB%8Da.jpg?s=2048x2048&w=is&k=20&c=kw1Pdcz1wenUsvVRH0V16KTE1ng7bfkSxHswHPHGmCA=";
 
 const ChatInfo = ({ userId, conversationId, socket }) => {
   const [chatInfo, setChatInfo] = useState(null);
@@ -48,36 +64,33 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   const dispatch = useDispatch();
 
   // Select a group and join its conversation
-  const handleGroupSelect = useCallback((group) => {
-    if (!socket) return toast.error("Socket chưa kết nối!");
-    const formattedMessage = {
-      id: group._id,
-      name: group.name || "Nhóm không tên",
-      participants: group.participants || [],
-      isGroup: true,
-      imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
-      isPinned: false,
-      mute: null,
-      updatedAt: group.updatedAt || new Date().toISOString(),
-    };
-    joinConversation(socket, formattedMessage.id);
-    dispatch(setSelectedMessage(formattedMessage));
-  }, [socket, dispatch]);
+  const handleGroupSelect = useCallback(
+    (group) => {
+      if (!socket) return toast.error("Socket chưa kết nối!");
+      const formattedMessage = {
+        id: group._id,
+        name: group.name || "Nhóm không tên",
+        participants: group.participants || [],
+        isGroup: true,
+        imageGroup: group.imageGroup || DEFAULT_GROUP_IMAGE,
+        isPinned: false,
+        mute: null,
+        updatedAt: group.updatedAt || new Date().toISOString(),
+      };
+      joinConversation(socket, formattedMessage.id);
+      dispatch(setSelectedMessage(formattedMessage));
+    },
+    [socket, dispatch]
+  );
 
   // Fetch and listen for chat info updates
   useEffect(() => {
-    if (!socket || !conversationId || !userId) {
     if (!socket || !conversationId || !userId) {
       setLoading(false);
       return;
     }
 
-    // Tham gia phòng user:userId để nhận sự kiện cho tất cả thiết bị
     socket.emit("joinUserRoom", { userId });
-
-    // Tham gia phòng user:userId để nhận sự kiện cho tất cả thiết bị
-    socket.emit("joinUserRoom", { userId });
-
     joinConversation(socket, conversationId);
     getChatInfo(socket, { conversationId });
 
@@ -96,7 +109,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         return;
       }
 
-      // Kiểm tra dữ liệu mới có khác với hiện tại không
       setChatInfo((prev) => {
         if (JSON.stringify(prev) === JSON.stringify(newChatInfo)) return prev;
         return newChatInfo;
@@ -126,7 +138,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       if (updatedInfo._id !== conversationId) return;
       const participant = updatedInfo.participants?.find((p) => p.userId === userId);
       if (!participant || participant.isHidden) {
-        toast.error("Hội thoại này đang ẩn. Vui lòng xác thực lại.");
+        
         dispatch(setSelectedMessage(null));
         socket.emit("leaveConversation", { conversationId });
         return;
@@ -135,7 +147,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       setChatInfo((prev) => {
         if (!prev || JSON.stringify(prev) === JSON.stringify({ ...prev, ...updatedInfo })) return prev;
         const newChatInfo = { ...prev, ...updatedInfo };
-        dispatch(setChatInfoUpdate(newChatInfo)); // Dispatch trong setChatInfo để đảm bảo đồng bộ
+        dispatch(setChatInfoUpdate(newChatInfo));
         return newChatInfo;
       });
       setIsMuted(!!participant?.mute);
@@ -147,8 +159,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     const handleDeleteAllChatHistory = ({ conversationId: deletedConversationId, deletedBy }) => {
       if (deletedConversationId !== conversationId || deletedBy !== userId) return;
       console.log("ChatInfo: Nhận deleteAllChatHistory", { conversationId, deletedBy });
-   
-  //  getChatInfo(socket, { conversationId }); // này lấy lastMessage
+
       setChatInfo((prev) => {
         if (!prev) return prev;
         const updatedChatInfo = {
@@ -158,8 +169,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
           links: [],
           lastMessage: null,
         };
-        dispatch(setChatInfoUpdate(updatedChatInfo)); 
-        dispatch(setLastMessageUpdate({ conversationId, lastMessage: null })); // Nhi để này cập nhật lastMessage 
+        dispatch(setChatInfoUpdate(updatedChatInfo));
         return updatedChatInfo;
       });
       toast.success("Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");
@@ -177,7 +187,6 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     onChatInfo(socket, handleOnChatInfo);
     onChatInfoUpdated(socket, handleOnChatInfoUpdated);
     socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
-    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
     onError(socket, handleError);
     getChatMedia(socket, { conversationId });
     getChatFiles(socket, { conversationId });
@@ -186,12 +195,11 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     return () => {
       socket.off("updateChatInfo", handleUpdateChatInfo);
       socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
-      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
     };
-  }, [socket, conversationId, userId, dispatch]); // Loại bỏ chatInfo khỏi dependencies
+  }, [socket, conversationId, userId, dispatch]);
 
   // Load and listen for conversation updates
   useEffect(() => {
@@ -244,17 +252,20 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   }, [socket, conversationId]);
 
   // Handle removing a member from the group
-  const handleMemberRemoved = useCallback((removedUserId) => {
-    setChatInfo((prev) => {
-      if (!prev) return prev;
-      const updatedChatInfo = {
-        ...prev,
-        participants: prev.participants.filter((p) => p.userId !== removedUserId),
-      };
-      dispatch(setChatInfoUpdate(updatedChatInfo));
-      return updatedChatInfo;
-    });
-  }, [dispatch]);
+  const handleMemberRemoved = useCallback(
+    (removedUserId) => {
+      setChatInfo((prev) => {
+        if (!prev) return prev;
+        const updatedChatInfo = {
+          ...prev,
+          participants: prev.participants.filter((p) => p.userId !== removedUserId),
+        };
+        dispatch(setChatInfoUpdate(updatedChatInfo));
+        return updatedChatInfo;
+      });
+    },
+    [dispatch]
+  );
 
   // Toggle mute notification status
   const handleMuteNotification = useCallback(() => {
@@ -347,20 +358,30 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   }, []);
 
   // Save new chat name
-  const handleSaveChatName = useCallback((newName) => {
-    if (!chatInfo || !newName.trim()) return;
-    const originalName = chatInfo.name;
-    setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
-    updateChatName(socket, { conversationId, name: newName.trim() }, (response) => {
-      if (!response.success) {
-        toast.error(response.message || "Không thể cập nhật tên nhóm!");
-        setChatInfo((prev) => ({ ...prev, name: originalName }));
-        dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: originalName }));
-      }
-    });
-    dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: newName.trim(), updatedAt: new Date().toISOString() }));
-    handleCloseEditNameModal();
-  }, [chatInfo, socket, conversationId, dispatch]);
+  const handleSaveChatName = useCallback(
+    (newName) => {
+      if (!chatInfo || !newName.trim()) return;
+      const originalName = chatInfo.name;
+      setChatInfo((prev) => ({ ...prev, name: newName.trim() }));
+      updateChatName(socket, { conversationId, name: newName.trim() }, (response) => {
+        if (!response.success) {
+          toast.error(response.message || "Không thể cập nhật tên nhóm!");
+          setChatInfo((prev) => ({ ...prev, name: originalName }));
+          dispatch(setChatInfoUpdate({ ...chatInfo, _id: conversationId, name: originalName }));
+        }
+      });
+      dispatch(
+        setChatInfoUpdate({
+          ...chatInfo,
+          _id: conversationId,
+          name: newName.trim(),
+          updatedAt: new Date().toISOString(),
+        })
+      );
+      handleCloseEditNameModal();
+    },
+    [chatInfo, socket, conversationId, dispatch]
+  );
 
   if (loading) return <p className="text-center text-gray-500">Đang tải thông tin chat...</p>;
   if (!chatInfo) return <p className="text-center text-red-500">Không thể tải thông tin chat.</p>;
@@ -380,18 +401,11 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
       </div>
       <div className="flex-1 overflow-y-auto">
         <div className="text-center my-4">
-          <img
-            src={chatImage}
-            className="w-20 h-20 rounded-full mx-auto object-cover"
-            alt={displayName}
-          />
+          <img src={chatImage} className="w-20 h-20 rounded-full mx-auto object-cover" alt={displayName} />
           <div className="flex items-center justify-center mt-2">
             <h2 className="text-lg font-semibold">{displayName}</h2>
             {chatInfo?.isGroup && (
-              <button
-                onClick={handleOpenEditNameModal}
-                className="text-gray-500 hover:text-blue-500 ml-2"
-              >
+              <button onClick={handleOpenEditNameModal} className="text-gray-500 hover:text-blue-500 ml-2">
                 <FaEdit size={16} />
               </button>
             )}
@@ -430,10 +444,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
             <a href={chatInfo.linkGroup} className="text-blue-500 text-sm truncate">
               {chatInfo.linkGroup}
             </a>
-            <button
-              onClick={copyToClipboard}
-              className="text-gray-500 hover:text-blue-500"
-            >
+            <button onClick={copyToClipboard} className="text-gray-500 hover:text-blue-500">
               <AiOutlineCopy size={20} />
             </button>
           </div>
@@ -484,10 +495,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
         currentConversationParticipants={chatInfo?.participants?.map((p) => p.userId) || []}
         socket={socket}
       />
-      <PinLimitModal
-        isOpen={isPinLimitModalOpen}
-        onClose={() => setIsPinLimitModalOpen(false)}
-      />
+      <PinLimitModal isOpen={isPinLimitModalOpen} onClose={() => setIsPinLimitModalOpen(false)} />
     </div>
   );
 };
