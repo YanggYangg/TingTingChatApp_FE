@@ -231,8 +231,8 @@ const MessageItem = ({
     });
 
     // Check both object format (_id) and direct ID format
-    const isRead = msg.status.readBy.some(user => 
-      (typeof user === 'object' && user._id === receiverId) || 
+    const isRead = msg.status.readBy.some(user =>
+      (typeof user === 'object' && user._id === receiverId) ||
       (typeof user === 'string' && user === receiverId)
     );
 
@@ -270,14 +270,12 @@ const MessageItem = ({
     <>
       <div
         id={`message-${msg._id}`}
-        className={`flex ${
-          isCurrentUser ? "justify-end" : "justify-start"
-        } mb-4 relative`}
+        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"
+          } mb-4 relative`}
       >
         <div
-          className={`p-3 rounded-lg w-fit max-w-xs relative ${
-            isCurrentUser ? "bg-blue-200 text-black" : "bg-gray-200 text-black"
-          } ${msg.isRevoked ? "" : "group"}`}
+          className={`p-3 rounded-lg w-fit max-w-xs relative ${isCurrentUser ? "bg-blue-200 text-black" : "bg-gray-200 text-black"
+            } ${msg.isRevoked ? "" : "group"}`}
         >
           {!isCurrentUser && !msg.isRevoked && (
             <p className="text-xs font-semibold text-gray-700">{msg.sender}</p>
@@ -298,10 +296,10 @@ const MessageItem = ({
                     {repliedMessage?.messageType === "image"
                       ? "[Ảnh]"
                       : repliedMessage?.messageType === "file"
-                      ? "[Tệp]"
-                      : repliedMessage?.messageType === "call"
-                      ? "[Cuộc gọi]"
-                      : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
+                        ? "[Tệp]"
+                        : repliedMessage?.messageType === "call"
+                          ? "[Cuộc gọi]"
+                          : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
                   </p>
                   <p className="text-sm text-gray-900 mt-1">{msg.content}</p>
                 </div>
@@ -335,16 +333,18 @@ const MessageItem = ({
               )}
 
               {/* Tin nhắn hình ảnh (nhiều ảnh) */}
-              {isImage && Array.isArray(msg.linkURL) && (
+              {isImage && Array.isArray(msg.linkURL) && msg.linkURL.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mt-1">
                   {msg.linkURL.map((url, index) => (
-                    <img
-                      key={index}
-                      src={url}
-                      alt={`Ảnh ${index + 1}`}
-                      className="w-full h-auto rounded-lg cursor-pointer object-cover"
-                      onClick={() => setOpenMedia(url)}
-                    />
+                    url && ( // Chỉ hiển thị nếu URL tồn tại
+                      <img
+                        key={index}
+                        src={url}
+                        alt={`Ảnh ${index + 1}`}
+                        className="w-full h-auto rounded-lg cursor-pointer object-cover"
+                        onClick={() => setOpenMedia(url)}
+                      />
+                    )
                   ))}
                   {msg.content && (
                     <p className="text-sm text-gray-800 mt-2">{msg.content}</p>
@@ -353,7 +353,7 @@ const MessageItem = ({
               )}
 
               {/* Tin nhắn hình ảnh (1 ảnh) */}
-              {isImage && typeof msg.linkURL === "string" && (
+              {isImage && typeof msg.linkURL === "string" && msg.linkURL && (
                 <>
                   <img
                     src={msg.linkURL}
@@ -426,9 +426,8 @@ const MessageItem = ({
           {/* Nút hành động khi hover */}
           {!msg.isRevoked && (
             <div
-              className={`absolute top-[-36px] ${
-                isCurrentUser ? "right-0" : "left-0"
-              } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
+              className={`absolute top-[-36px] ${isCurrentUser ? "right-0" : "left-0"
+                } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
             >
               <button
                 onClick={() => onReply(msg)}
@@ -480,7 +479,7 @@ const MessageItem = ({
 
           <div className="relative max-w-[90%] max-h-[90%] flex items-center justify-center">
             {typeof openMedia === "string" &&
-            /\.(mp4|mov|avi|mkv)$/i.test(openMedia) ? (
+              /\.(mp4|mov|avi|mkv)$/i.test(openMedia) ? (
               <video
                 controls
                 autoPlay

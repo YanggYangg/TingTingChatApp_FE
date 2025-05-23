@@ -100,11 +100,21 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
         });
 
         onMessageDeleted(socket, (data) => {
-          setData((prev) => ({
-            images: prev.images.filter((item) => item.messageId !== data.messageId),
-            files: prev.files.filter((item) => item.messageId !== data.messageId),
-            links: prev.links.filter((item) => item.messageId !== data.messageId),
-          }));
+          setData((prev) => {
+            const newData = { ...prev };
+            if (data.isMessageDeleted) {
+              // Xóa toàn bộ các mục liên quan đến messageId
+              newData.images = newData.images.filter((item) => item.messageId !== data.messageId);
+              newData.files = newData.files.filter((item) => item.messageId !== data.messageId);
+              newData.links = newData.links.filter((item) => item.messageId !== data.messageId);
+            } else if (data.urlIndex !== null) {
+              // Xóa mục cụ thể tại urlIndex
+              newData[activeTab] = newData[activeTab].filter(
+                (item) => !(item.messageId === data.messageId && item.urlIndex === data.urlIndex)
+              );
+            }
+            return newData;
+          });
         });
 
         // Lắng nghe sự kiện xóa lịch sử trò chuyện
@@ -151,8 +161,8 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
         const urls = Array.isArray(linkURL)
           ? linkURL.filter((url) => url && typeof url === "string")
           : typeof linkURL === "string"
-          ? [linkURL]
-          : [];
+            ? [linkURL]
+            : [];
         if (urls.length === 0) {
           console.warn(`Tin nhắn ${_id} thiếu linkURL hợp lệ:`, { linkURL, messageType });
           return [];
@@ -388,17 +398,15 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
                     <img
                       src={item.url}
                       alt={item.name}
-                      className={`w-20 h-20 rounded-md object-cover cursor-pointer transition-all ${
-                        isSelecting ? "" : "hover:scale-105"
-                      }`}
+                      className={`w-20 h-20 rounded-md object-cover cursor-pointer transition-all ${isSelecting ? "" : "hover:scale-105"
+                        }`}
                       onClick={() => (isSelecting ? null : setFullScreenImage(item))}
                     />
                   ) : (
                     <video
                       src={item.url}
-                      className={`w-20 h-20 rounded-md object-cover cursor-pointer transition-all ${
-                        isSelecting ? "" : "hover:scale-105"
-                      }`}
+                      className={`w-20 h-20 rounded-md object-cover cursor-pointer transition-all ${isSelecting ? "" : "hover:scale-105"
+                        }`}
                       onClick={() => (isSelecting ? null : setFullScreenImage(item))}
                     />
                   )}
@@ -504,9 +512,8 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
         {["images", "files", "links"].map((tab) => (
           <button
             key={tab}
-            className={`px-4 py-2 font-medium text-sm ${
-              activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"
-            }`}
+            className={`px-4 py-2 font-medium text-sm ${activeTab === tab ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500"
+              }`}
             onClick={() => setActiveTab(tab)}
           >
             {tab === "images" ? "Ảnh/Video" : tab === "files" ? "Files" : "Links"}
@@ -597,11 +604,10 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
                   key={img.id}
                   src={img.url}
                   alt={img.name}
-                  className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${
-                    fullScreenImage.url === img.url
+                  className={`w-16 h-16 rounded-md object-cover cursor-pointer mb-2 transition-all ${fullScreenImage.url === img.url
                       ? "opacity-100 border-2 border-blue-400"
                       : "opacity-50 hover:opacity-100"
-                  }`}
+                    }`}
                   onClick={() => setFullScreenImage(img)}
                 />
               ))}

@@ -312,10 +312,30 @@ function ChatPage() {
       );
     });
 
-    socket.on("messageDeleted", ({ messageId }) => {
-      console.log("ChatPage: Nhận messageDeleted", { messageId });
-      dispatch(setMessages(messages.filter((msg) => msg._id !== messageId)));
-    });
+  socket.on("messageDeleted", ({ messageId, urlIndex, isMessageDeleted, deletedBy }) => {
+  console.log("ChatPage: Nhận messageDeleted", { messageId, urlIndex, isMessageDeleted, deletedBy });
+
+  dispatch(setMessages(messages.map((msg) => {
+    if (msg._id === messageId) {
+      if (isMessageDeleted) {
+        // Nếu tin nhắn bị xóa hoàn toàn, thêm userId vào deletedBy hoặc xóa tin nhắn
+        return {
+          ...msg,
+          deletedBy: [...(msg.deletedBy || []), deletedBy]
+        };
+      } else if (urlIndex !== null && Array.isArray(msg.linkURL)) {
+        // Nếu chỉ xóa một URL cụ thể, cập nhật mảng linkURL
+        const updatedLinkURL = [...msg.linkURL];
+        updatedLinkURL.splice(urlIndex, 1); // Xóa URL tại urlIndex
+        return {
+          ...msg,
+          linkURL: updatedLinkURL
+        };
+      }
+    }
+    return msg;
+  })));
+});
 
     socket.on("messageRevoked", ({ messageId }) => {
       console.log("ChatPage: Nhận messageRevoked", { messageId });
