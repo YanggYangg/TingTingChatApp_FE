@@ -157,7 +157,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     };
 
     const handleDeleteAllChatHistory = ({ conversationId: deletedConversationId, deletedBy }) => {
-      if (deletedConversationId !== conversationId || deletedBy !== userId) return;
+      if (deletedConversationId !== conversationId) return;
       console.log("ChatInfo: Nhận deleteAllChatHistory", { conversationId, deletedBy });
 
       setChatInfo((prev) => {
