@@ -122,41 +122,46 @@ const SecuritySettings = ({ socket, conversationId, userId, setChatInfo, userRol
     };
   }, [socket, conversationId, userId, fetchChatInfo, setChatInfo, setUserRoleInGroup, dispatch]);
 
-  const handleHideChat = useCallback(
-    async (hide, pin) => {
-      if (isProcessing) return;
-      setIsProcessing(true);
-      try {
-        hideChat(socket, { conversationId, isHidden: hide, pin }, (response) => {
-          if (response.success) {
-            setIsHidden(hide);
-            setShowPinInput(false);
-            setPin("");
-            toast.success(hide ? "Đã ẩn trò chuyện!" : "Đã hiện trò chuyện!");
-            setChatInfo((prev) => ({
-              ...prev,
-              participants: prev.participants.map((p) =>
-                p.userId === userId ? { ...p, isHidden: hide, pin: hide ? pin : null } : p
-              ),
-            }));
-            dispatch(setChatInfoUpdate({
-              ...chatInfo,
-              participants: chatInfo.participants.map((p) =>
-                p.userId === userId ? { ...p, isHidden: hide, pin: hide ? pin : null } : p
-              ),
-            }));
-          } else {
-            toast.error(`Lỗi khi ${hide ? "ẩn" : "hiện"} trò chuyện: ${response.message}`);
-          }
-          setIsProcessing(false);
-        });
-      } catch {
-        toast.error("Lỗi khi ẩn/hiện trò chuyện.");
+const handleHideChat = useCallback(
+  async (hide, pin) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      hideChat(socket, { conversationId, isHidden: hide, pin }, (response) => {
+        if (response.success) {
+          setIsHidden(hide);
+          setShowPinInput(false);
+          setPin("");
+          toast.success(hide ? "Đã ẩn trò chuyện!" : "Đã hiện trò chuyện!");
+          setChatInfo((prev) => ({
+            ...prev,
+            participants: prev.participants.map((p) =>
+              p.userId === userId ? { ...p, isHidden: hide, pin: hide ? pin : null } : p
+            ),
+          }));
+          dispatch(setChatInfoUpdate({
+            ...chatInfo,
+            participants: chatInfo.participants.map((p) =>
+              p.userId === userId ? { ...p, isHidden: hide, pin: hide ? pin : null } : p
+            ),
+          }));
+          // Cập nhật selectedMessage để phản ánh trạng thái isHidden
+          dispatch(setSelectedMessage({
+            ...chatInfo,
+            isHidden: hide,
+          }));
+        } else {
+          toast.error(`Lỗi khi ${hide ? "ẩn" : "hiện"} trò chuyện: ${response.message}`);
+        }
         setIsProcessing(false);
-      }
-    },
-    [socket, conversationId, userId, chatInfo, dispatch, isProcessing]
-  );
+      });
+    } catch {
+      toast.error("Lỗi khi ẩn/hiện trò chuyện.");
+      setIsProcessing(false);
+    }
+  },
+  [socket, conversationId, userId, chatInfo, dispatch, isProcessing]
+);
 
   const handleToggle = useCallback((checked) => {
     if (checked && !isHidden) {

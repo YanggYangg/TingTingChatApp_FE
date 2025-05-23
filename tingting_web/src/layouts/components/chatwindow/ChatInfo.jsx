@@ -103,11 +103,11 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
 
     const handleOnChatInfo = (newChatInfo) => {
       const participant = newChatInfo.participants?.find((p) => p.userId === userId);
-      if (participant?.isHidden) {
-        dispatch(setSelectedMessage(null));
-        setLoading(false);
-        return;
-      }
+      // if (participant?.isHidden) {
+      //   dispatch(setSelectedMessage(null));
+      //   setLoading(false);
+      //   return;
+      // }
 
       setChatInfo((prev) => {
         if (JSON.stringify(prev) === JSON.stringify(newChatInfo)) return prev;
@@ -137,7 +137,7 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
     const handleOnChatInfoUpdated = (updatedInfo) => {
       if (updatedInfo._id !== conversationId) return;
       const participant = updatedInfo.participants?.find((p) => p.userId === userId);
-      if (!participant || participant.isHidden) {
+      if (!participant ) {
         
         dispatch(setSelectedMessage(null));
         socket.emit("leaveConversation", { conversationId });

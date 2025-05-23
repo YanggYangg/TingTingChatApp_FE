@@ -505,31 +505,32 @@ function Search({ onGroupCreated }) {
     }
   };
 
-  const proceedWithChat = (conv) => {
-    const conversationId = conv._id;
-    const isGroup = conv.isGroup;
-    const userId = localStorage.getItem("userId");
+const proceedWithChat = (conv) => {
+  const conversationId = conv._id;
+  const isGroup = conv.isGroup;
+  const userId = localStorage.getItem("userId");
 
-    const name = conv.displayName || (isGroup ? conv.name : "Unknown User");
-    const avatar = isGroup
-      ? conv.imageGroup || "https://picsum.photos/200/300"
-      : conv.participants.find((p) => p.userId._id !== userId)?.userId?.avatar ||
+  const name = conv.displayName || (isGroup ? conv.name : "Unknown User");
+  const avatar = isGroup
+    ? conv.imageGroup || "https://picsum.photos/200/300"
+    : conv.participants.find((p) => p.userId._id !== userId)?.userId?.avatar ||
       "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
-    dispatch(
-      setSelectedMessage({
-        id: conversationId,
-        isGroup,
-        participants: conv.participants,
-        name,
-        imageGroup: avatar,
-      })
-    );
+  dispatch(
+    setSelectedMessage({
+      id: conversationId,
+      isGroup,
+      participants: conv.participants,
+      name,
+      imageGroup: avatar,
+      isHidden: conv.participants.find(p => p.userId._id === userId)?.isHidden || false, // Thêm isHidden
+    })
+  );
 
-    setPhone("");
-    setShowSearchModal(false);
-    navigate("/chat");
-  };
+  setPhone("");
+  setShowSearchModal(false);
+  navigate("/chat");
+};
 
   const handlePinVerified = () => {
     if (selectedHiddenConversation) {

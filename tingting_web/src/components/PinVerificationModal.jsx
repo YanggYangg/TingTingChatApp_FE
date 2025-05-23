@@ -7,30 +7,30 @@ const PinVerificationModal = ({ isOpen, onClose, conversationId, userId, socket,
   const [errorMessage, setErrorMessage] = useState("");
   const [showPin, setShowPin] = useState(false); // State để theo dõi trạng thái hiển thị PIN
 
-  const handleVerifyPin = () => {
-    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-      setErrorMessage("Mã PIN phải là 4 chữ số!");
-      return;
+const handleVerifyPin = () => {
+  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+    setErrorMessage("Mã PIN phải là 4 chữ số!");
+    return;
+  }
+  setErrorMessage("");
+
+  setIsProcessing(true);
+  socket.emit("verifyPin", { conversationId, userId, pin }, (response) => {
+    setIsProcessing(false);
+    if (response.success) {
+      // Cập nhật trạng thái chatInfo để bỏ isHidden
+      socket.emit("updateChatInfo", {
+        conversationId,
+        userId,
+        isHidden: false, // Tạm thời bỏ ẩn sau khi xác thực
+      });
+      onVerified();
+    } else {
+      setErrorMessage(response.message || "Mã PIN không đúng!");
+      setPin("");
     }
-    setErrorMessage("");
-
-    setIsProcessing(true);
-    socket.emit("verifyPin", { conversationId, userId, pin }, (response) => {
-      setIsProcessing(false);
-      if (response.success) {
-        socket.emit("updateChatInfo", {
-          conversationId,
-          userId,
-          isHidden: false,
-        });
-        onVerified();
-      } else {
-        setErrorMessage(response.message || "Mã PIN không đúng!");
-        setPin("");
-      }
-    });
-  };
-
+  });
+};
   const toggleShowPin = () => {
     setShowPin(!showPin);
   };
