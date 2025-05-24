@@ -91,6 +91,8 @@ const ChatScreen = ({ route, navigation }) => {
   //   console.log("ChatScreen message:", message);
   // }, [route.params, message]);
 
+
+  
   useEffect(() => {
   console.log("ChatScreen route.params:", route.params);
   console.log("ChatScreen message:", message);
@@ -102,11 +104,14 @@ const ChatScreen = ({ route, navigation }) => {
     navigation.goBack();
   }
 }, [route.params, message, conversationId, userId, navigation]);
-  const fetchUserInfo = async (userId) => {
+
+
+
+ const fetchUserInfo = async (userId) => {
     if (!userId) {
       console.warn("fetchUserInfo: userId is undefined or null");
       return {
-        name: "Người dùng ẩn danh",
+        name: "Unknown",
         avatar: "https://picsum.photos/200",
       };
     }
@@ -121,8 +126,7 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (response?.data?.user) {
         userInfo = {
-          name: `${response.data.user.firstname || ""} ${response.data.user.surname || ""
-            }`.trim() || `Người dùng ${userId.slice(-4)}`,
+          name: `${response.data.user.firstname || ""} ${response.data.user.surname || ""}`.trim() || `Người dùng ${userId.slice(-4)}`,
           avatar: response.data.user.avatar || "https://picsum.photos/200",
         };
       } else {
@@ -138,7 +142,7 @@ const ChatScreen = ({ route, navigation }) => {
     } catch (error) {
       console.error(`Failed to fetch user info for userId ${userId}:`, error);
       const fallbackUserInfo = {
-        name: `Người dùng ${userId.slice(-4)}`,
+        name: "Unknown",
         avatar: "https://picsum.photos/200",
       };
       setUserCache((prev) => ({ ...prev, [userId]: fallbackUserInfo }));
@@ -146,6 +150,47 @@ const ChatScreen = ({ route, navigation }) => {
     }
   };
 
+
+  useEffect(() => {
+    const fetchConversationDetails = async () => {
+      if (!message || !currentUserId) {
+        console.warn("Thiếu message hoặc currentUserId", { message, currentUserId });
+        setConversationInfo({
+          name: "Unknown",
+          isGroup: false,
+          participants: [],
+          imageGroup: null,
+        });
+        return;
+      }
+
+      let name = message.name || "Unknown";
+      let imageGroup = message.imageGroup || "https://picsum.photos/200";
+      let participants = message.participants || [];
+      let isGroup = message.isGroup || false;
+
+      if (!isGroup && (!name || name === "Unknown")) {
+        const otherParticipant = message.participants?.find(
+          (p) => p.userId !== currentUserId
+        );
+        if (otherParticipant?.userId) {
+          const userInfo = await fetchUserInfo(otherParticipant.userId);
+          name = userInfo.name || `Người dùng ${otherParticipant.userId.slice(-4)}`;
+          imageGroup = userInfo.avatar || imageGroup;
+        }
+      }
+
+      console.log("Cập nhật conversationInfo", { name, isGroup, participants, imageGroup });
+      setConversationInfo({
+        name,
+        isGroup,
+        participants,
+        imageGroup,
+      });
+    };
+
+    fetchConversationDetails();
+  }, [message, currentUserId]);
   // Load user info when messages change
   useEffect(() => {
     const loadUserInfos = async () => {
@@ -179,9 +224,9 @@ const ChatScreen = ({ route, navigation }) => {
   }, [message, user]);
 
   // Đồng bộ conversationInfo với chatInfoUpdate từ Redux
-  useEffect(() => {
+useEffect(() => {
     if (chatInfoUpdate && chatInfoUpdate._id === conversationId) {
-      // console.log("Updating conversationInfo from chatInfoUpdate:", chatInfoUpdate);
+      console.log("Cập nhật conversationInfo từ chatInfoUpdate:", chatInfoUpdate);
       setConversationInfo((prev) => ({
         ...prev,
         name: chatInfoUpdate.name || prev.name,
@@ -776,7 +821,7 @@ const searchMessages = async () => {
                   || "Cuộc trò chuyện")}
             </Text> */}
             <Text style={styles.headerText}>
-              {message?.name || "Cuộc trò chuyện"}
+             {conversationInfo.name || "Cuộc trò chuyện"}
             </Text>
             <View style={styles.statusContainer}>
               {isGroupChat ? (
