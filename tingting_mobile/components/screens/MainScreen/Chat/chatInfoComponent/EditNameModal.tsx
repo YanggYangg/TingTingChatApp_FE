@@ -57,8 +57,8 @@ const EditNameModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialName, 
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        console.log(`Attempt ${attempt}: Uploading to http://192.168.0.102:5000`);
-        const res = await fetch('http://192.168.0.102:5000/messages/sendMessageWithMedia', {
+        console.log(`Attempt ${attempt}: Uploading to http://192.168.24.106:5000`);
+        const res = await fetch('http://192.168.24.106:5000/messages/sendMessageWithMedia', {
           method: 'POST',
           body: formData,
         });
