@@ -10,6 +10,8 @@ import {
   Platform,
   StyleSheet,
   Alert,
+  TextInput,
+   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux"; // Thêm useDispatch
@@ -19,6 +21,7 @@ import ChatFooter from "./ChatFooter";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Api_Profile } from "../../../../apis/api_profile";
+import { Api_chatInfo } from "../../../../apis/Api_chatInfo";
 import ShareModal from "../Chat/chatInfoComponent/ShareModal";
 import {
   onConversationUpdate,
@@ -66,6 +69,13 @@ const ChatScreen = ({ route, navigation }) => {
   const selectedMessageId = selectedMessageData?.id;
   const receiverId = Object.keys(userCache)[0];
 
+    // Thêm state cho tìm kiếm
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [totalResults, setTotalResults] = useState(0); // Thêm state để lưu tổng số kết quả
+
   // console.log("ChatScreen params:", {
   //   userId,
   //   conversationId,
@@ -76,10 +86,22 @@ const ChatScreen = ({ route, navigation }) => {
 
   // Fetch user info
 
+  // useEffect(() => {
+  //   console.log("ChatScreen route.params:", route.params);
+  //   console.log("ChatScreen message:", message);
+  // }, [route.params, message]);
+
   useEffect(() => {
-    console.log("ChatScreen route.params:", route.params);
-    console.log("ChatScreen message:", message);
-  }, [route.params, message]);
+  console.log("ChatScreen route.params:", route.params);
+  console.log("ChatScreen message:", message);
+  console.log("ChatScreen conversationId:", conversationId);
+  console.log("ChatScreen userId:", userId);
+  if (!conversationId) {
+    console.warn("conversationId is missing or invalid");
+    Alert.alert("Lỗi", "Không tìm thấy ID cuộc trò chuyện. Vui lòng thử lại.");
+    navigation.goBack();
+  }
+}, [route.params, message, conversationId, userId, navigation]);
   const fetchUserInfo = async (userId) => {
     if (!userId) {
       console.warn("fetchUserInfo: userId is undefined or null");
@@ -346,6 +368,121 @@ const ChatScreen = ({ route, navigation }) => {
       socket.off("getOnlineUsers");
     };
   }, [socket, receiverId]);
+
+
+
+
+
+  // Hàm tìm kiếm tin nhắn
+
+// Hàm tìm kiếm tin nhắn trong ChatScreen
+const searchMessages = async () => {
+  console.log('Starting searchMessages with:', {
+    conversationId,
+    searchTerm: searchKeyword.trim(),
+    userId: currentUserId,
+  });
+
+  // Kiểm tra các tham số đầu vào
+  if (!conversationId) {
+    console.warn('Missing conversationId');
+    Alert.alert('Lỗi', 'Không tìm thấy ID cuộc trò chuyện. Vui lòng thử lại.');
+    setIsSearching(false);
+    return;
+  }
+  if (!searchKeyword.trim()) {
+    console.warn('Empty search keyword');
+    Alert.alert('Lỗi', 'Vui lòng nhập từ khóa tìm kiếm.');
+    setIsSearching(false);
+    return;
+  }
+  if (!currentUserId) {
+    console.warn('Missing userId');
+    Alert.alert('Lỗi', 'Không thể xác định người dùng hiện tại. Vui lòng đăng nhập lại.');
+    setIsSearching(false);
+    return;
+  }
+
+  setIsSearching(true);
+  try {
+    const response = await Api_chatInfo.searchMessages({
+      conversationId,
+      searchTerm: searchKeyword.trim(),
+      page: 1,
+      limit: 20,
+      userId: currentUserId,
+    });
+    console.log('Search messages response:', response);
+
+    if (!response) {
+      console.warn('No response received from Api_chatInfo.searchMessages');
+      Alert.alert('Lỗi', 'Không nhận được phản hồi từ server.');
+      return;
+    }
+
+    if (response.success) {
+      setSearchResults(response.messages || []);
+      setTotalResults(response.total || 0);
+      setIsSearchModalVisible(true);
+    } else {
+      console.warn('Search failed:', response.error || 'Unknown error');
+      Alert.alert('Lỗi', response.error || 'Không tìm thấy tin nhắn phù hợp.');
+    }
+  } catch (error) {
+    console.error('Error searching messages:', {
+      message: error.message,
+      response: error.response,
+      stack: error.stack,
+    });
+    let errorMessage = 'Không thể tìm kiếm tin nhắn. Vui lòng thử lại.';
+    if (error.message.includes('Network Error')) {
+      errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet.';
+    } else if (error.response?.error) {
+      errorMessage = error.response.error;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    Alert.alert('Lỗi', errorMessage);
+  } finally {
+    setIsSearching(false);
+  }
+};
+  // Cuộn đến tin nhắn được chọn
+  const scrollToMessage = (messageId) => {
+    const index = messages.findIndex((msg) => msg._id === messageId);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({ index, animated: true });
+      setIsSearchModalVisible(false);
+      setSearchKeyword("");
+    } else {
+      Alert.alert("Lỗi", "Không tìm thấy tin nhắn trong danh sách hiện tại");
+    }
+  };
+
+  // Render kết quả tìm kiếm
+  const renderSearchResult = ({ item }) => {
+    const senderName = item.userId?.firstname
+      ? `${item.userId.firstname} ${item.userId.surname || ''}`.trim()
+      : userCache[item.userId?._id]?.name || "Người dùng ẩn danh";
+    return (
+      <TouchableOpacity
+        style={styles.searchResultItem}
+        onPress={() => scrollToMessage(item._id)}
+      >
+        <Text style={styles.searchResultSender}>{senderName}</Text>
+        <Text style={styles.searchResultContent} numberOfLines={2}>
+          {item.content}
+        </Text>
+        <Text style={styles.searchResultTime}>
+          {new Date(item.createdAt).toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
 
   const sendMessage = (payload) => {
     if (!payload.content && !payload.linkURL) return;
@@ -698,7 +835,23 @@ const ChatScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
-
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Tìm kiếm tin nhắn..."
+          value={searchKeyword}
+          onChangeText={setSearchKeyword}
+          onSubmitEditing={searchMessages}
+        />
+        <TouchableOpacity onPress={searchMessages} disabled={isSearching}>
+          <Ionicons
+            name="search"
+            size={24}
+           color={isSearching || !searchKeyword.trim() ? "#ccc" : "#0196fc"}
+          />
+        </TouchableOpacity>
+      </View>
       <FlatList
         ref={flatListRef}
         data={messages.filter((msg) => !msg.deletedBy?.includes(currentUserId))}
@@ -722,7 +875,35 @@ const ChatScreen = ({ route, navigation }) => {
         setReplyingTo={setReplyingTo}
         conversationId={selectedMessageId}
       />
-
+     {/* Modal hiển thị kết quả tìm kiếm */}
+      <Modal
+        visible={isSearchModalVisible}
+        animationType="slide"
+        onRequestClose={() => setIsSearchModalVisible(false)}
+      >
+        <View style={styles.searchModalContainer}>
+          <View style={styles.searchModalHeader}>
+            <TouchableOpacity onPress={() => setIsSearchModalVisible(false)}>
+              <Ionicons name="close" size={28} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.searchModalTitle}>
+              Kết quả tìm kiếm ({totalResults})
+            </Text>
+          </View>
+          {isSearching ? (
+            <ActivityIndicator size="large" color="#0196fc" />
+          ) : searchResults.length === 0 ? (
+            <Text style={styles.noResultsText}>Không tìm thấy tin nhắn</Text>
+          ) : (
+            <FlatList
+              data={searchResults}
+              renderItem={renderSearchResult}
+              keyExtractor={(item) => item._id}
+              contentContainerStyle={{ padding: 10 }}
+            />
+          )}
+        </View>
+      </Modal>
       <Modal visible={showOptions} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setShowOptions(false)}>
           <View style={styles.modalOverlay}>
@@ -834,6 +1015,64 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingVertical: 8,
     textAlign: "center",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    marginRight: 10,
+  },
+  searchModalContainer: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  searchModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  searchModalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginLeft: 20,
+    flex: 1, // Để chiếm không gian còn lại
+  },
+  searchResultItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  searchResultSender: {
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  searchResultContent: {
+    fontSize: 14,
+    color: "#333",
+    marginVertical: 5,
+  },
+  searchResultTime: {
+    fontSize: 12,
+    color: "#666",
+  },
+  noResultsText: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
+    color: "#666",
   },
 });
 

@@ -128,4 +128,36 @@ export const Api_chatInfo = {
       throw error;
     }
   },
+
+//  const { conversationId, searchTerm, page = 1, limit = 20 } = req.query;
+//     const userId = req.userId;
+
+// Trong file Api_chatInfo.js
+// Trong file Api_chatInfo.js
+// Trong file Api_chatInfo.js
+searchMessages: async ({ conversationId, searchTerm, page = 1, limit = 20, userId }) => {
+  try {
+    const queryParams = new URLSearchParams({
+      searchTerm,
+      page,
+      limit,
+      userId,
+    }).toString();
+    const url = `/messages/search/${conversationId}?${queryParams}`;
+    console.log('Calling ApiManager.get with:', { url });
+    const response = await ApiManager.get(url);
+    console.log('ApiManager.get response:', response);
+    if (!response) {
+      throw new Error('No response received from ApiManager.get');
+    }
+    return response; // Trả về response trực tiếp (không cần response.data)
+  } catch (error) {
+    console.error('Error in Api_chatInfo.searchMessages:', {
+      message: error.message,
+      response: error.response,
+      stack: error.stack,
+    });
+    throw new Error(error.response?.error || error.message || 'Không thể tìm kiếm tin nhắn');
+  }
+},
 };
