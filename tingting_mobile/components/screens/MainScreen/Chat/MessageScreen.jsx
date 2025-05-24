@@ -61,7 +61,8 @@ const ChatScreen = ({ route, navigation }) => {
   const selectedMessageData = useSelector((state) => state.chat.selectedMessage);
   const chatInfoUpdate = useSelector((state) => state.chat.chatInfoUpdate); // Lấy chatInfoUpdate từ Redux
   const isGroupChat = message?.isGroup === true;
-  const memberCount = message?.members || 0;
+  // const memberCount = message?.members || 0;
+  const memberCount = message?.participants?.length || 0;
   const selectedMessageId = selectedMessageData?.id;
   const receiverId = Object.keys(userCache)[0];
 
@@ -74,6 +75,11 @@ const ChatScreen = ({ route, navigation }) => {
   // });
 
   // Fetch user info
+
+  useEffect(() => {
+    console.log("ChatScreen route.params:", route.params);
+    console.log("ChatScreen message:", message);
+  }, [route.params, message]);
   const fetchUserInfo = async (userId) => {
     if (!userId) {
       console.warn("fetchUserInfo: userId is undefined or null");
@@ -93,9 +99,8 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (response?.data?.user) {
         userInfo = {
-          name: `${response.data.user.firstname || ""} ${
-            response.data.user.surname || ""
-          }`.trim() || `Người dùng ${userId.slice(-4)}`,
+          name: `${response.data.user.firstname || ""} ${response.data.user.surname || ""
+            }`.trim() || `Người dùng ${userId.slice(-4)}`,
           avatar: response.data.user.avatar || "https://picsum.photos/200",
         };
       } else {
@@ -463,7 +468,7 @@ const ChatScreen = ({ route, navigation }) => {
     });
   };
 
- const formatDateSeparator = (dateString) => {
+  const formatDateSeparator = (dateString) => {
     return new Date(dateString).toLocaleDateString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
@@ -485,20 +490,20 @@ const ChatScreen = ({ route, navigation }) => {
       console.log('Cannot mark as read - missing required data');
       return;
     }
-    
+
     // Find the message
     const msg = messages.find((m) => m._id === messageId);
     if (!msg) {
       console.log('Message not found');
       return;
     }
-    
+
     console.log('Message found:', {
       userId: msg.userId,
       currentUserId,
       readBy: msg.status?.readBy
     });
-    
+
     // Only mark as read if the message is not from the current user and not already read
     if (
       msg.userId !== currentUserId &&
@@ -524,12 +529,12 @@ const ChatScreen = ({ route, navigation }) => {
         prevMessages.map((msg) =>
           msg._id === messageId
             ? {
-                ...msg,
-                status: {
-                  ...msg.status,
-                  readBy: readBy,
-                },
-              }
+              ...msg,
+              status: {
+                ...msg.status,
+                readBy: readBy,
+              },
+            }
             : msg
         )
       );
@@ -550,7 +555,7 @@ const ChatScreen = ({ route, navigation }) => {
           msg.conversationId === selectedMessageId &&
           !msg.deletedBy?.includes(currentUserId)
       );
-      
+
       if (filteredMessages.length > 0) {
         const lastMsg = filteredMessages[filteredMessages.length - 1];
         console.log('Checking last message for read status:', {
@@ -573,11 +578,11 @@ const ChatScreen = ({ route, navigation }) => {
 
   const renderItem = ({ item, index }) => {
     const currentDate = formatDateSeparator(item.createdAt);
-    const prevMessage = index > 0 ? visibleMessages[index - 1] : null;
+    const prevMessage = index > 0 ? setMessages[index - 1] : null;
     const prevDate = prevMessage ? formatDateSeparator(prevMessage.createdAt) : null;
     const showDateSeparator = index === 0 || currentDate !== prevDate;
 
-    const isLastMessage = item._id === visibleMessages[visibleMessages.length - 1]?._id;
+    const isLastMessage = item._id === setMessages[setMessages.length - 1]?._id;
 
 
     return (
@@ -626,12 +631,15 @@ const ChatScreen = ({ route, navigation }) => {
             <Ionicons name="chevron-back-outline" size={28} color="#fff" />
           </TouchableOpacity>
           <View style={styles.nameContainer}>
-            <Text style={styles.headerText}>
+            {/* <Text style={styles.headerText}>
               {message?.isGroup 
                 ? (message.name || conversationInfo.name || "Nhóm chat")
                 : (message?.participants?.find(p => p.userId !== currentUserId)?.name 
                   || userCache[message?.participants?.find(p => p.userId !== currentUserId)?.userId]?.name 
                   || "Cuộc trò chuyện")}
+            </Text> */}
+            <Text style={styles.headerText}>
+              {message?.name || "Cuộc trò chuyện"}
             </Text>
             <View style={styles.statusContainer}>
               {isGroupChat ? (
