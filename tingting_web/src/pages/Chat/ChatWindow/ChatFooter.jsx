@@ -77,7 +77,7 @@ function ChatFooter({
     const formData = new FormData();
     formData.append("media", file);
     const res = await fetch(
-      "http://184.73.0.29:5000/messages/sendMessageWithMedia",
+      "http://localhost:5000/messages/sendMessageWithMedia",
       {
         method: "POST",
         body: formData,

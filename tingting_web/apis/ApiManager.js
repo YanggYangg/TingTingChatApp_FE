@@ -4,9 +4,9 @@ import axios from "axios";
 //User: 3001
 //Chat: 5000
 const SERVICES = {
-  authService: 'http://localhost:3002',
-  userService: 'http://localhost:3001',
-  chatService: 'http://localhost:5000',
+  authService: 'http://100.28.46.80:3002',
+  userService: 'http://100.28.46.80:3001',
+  chatService: 'http://100.28.46.80:5000',
 };
 
 // Tạo một instance axios theo service

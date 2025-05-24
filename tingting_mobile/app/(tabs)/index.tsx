@@ -58,6 +58,8 @@ import PostOptions from "@/components/screens/MainScreen/Profile/PostOptions";
 import PrivacySettings from "@/components/screens/MainScreen/Profile/PrivacySettings";
 import FeedOptions from "@/components/screens/MainScreen/Profile/components/FeedOptions";
 
+//AddFriendScreen
+import AddFriendScreen from "../../components/find/AddFriendScreen"; 
 
 export type RootStackParamList = {
   Main: undefined;
@@ -131,6 +133,7 @@ export type RootStackParamList = {
   }
 
   MessageSupportScreen: { userId?: string; username?: string };
+  AddFriendScreen: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -336,7 +339,7 @@ export default function App() {
     const userId = await AsyncStorage.getItem("userId");
     if (!userId) return;
 
-    const socket = io("http://192.168.0.102:5000", {
+    const socket = io("http://192.168.0.100:5000", {
       query: { userId },
       transports: ["websocket"],
     });
@@ -449,6 +452,11 @@ export default function App() {
              <Stack.Screen
               name="CreatePostScreen"
               component={CreatePostScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="AddFriendScreen"
+              component={AddFriendScreen}
               options={{ headerShown: false }}
             />
           </Stack.Navigator>

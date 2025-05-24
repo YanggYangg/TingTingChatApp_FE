@@ -573,11 +573,11 @@ const ChatScreen = ({ route, navigation }) => {
 
   const renderItem = ({ item, index }) => {
     const currentDate = formatDateSeparator(item.createdAt);
-    const prevMessage = index > 0 ? visibleMessages[index - 1] : null;
+    const prevMessage = index > 0 ? setMessages[index - 1] : null;
     const prevDate = prevMessage ? formatDateSeparator(prevMessage.createdAt) : null;
     const showDateSeparator = index === 0 || currentDate !== prevDate;
 
-    const isLastMessage = item._id === visibleMessages[visibleMessages.length - 1]?._id;
+    const isLastMessage = item._id === setMessages[setMessages.length - 1]?._id;
 
 
     return (

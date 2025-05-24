@@ -29,7 +29,7 @@ export const CloudSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const userId = initializeSocket();
 
-    const socketInstance = io("http://192.168.0.102:3000", {
+    const socketInstance = io("http://192.168.0.100:3000", {
       query: { userId },
     });
 

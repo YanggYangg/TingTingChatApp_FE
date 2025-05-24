@@ -72,12 +72,12 @@ const SearchHeader = () => {
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.iconButton}
           onPress={() => navigation.navigate('QRScannerScreen')}
         >
           <Ionicons name="qr-code-outline" size={24} color="#fff" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <TouchableOpacity
           onPress={() => setIsModalVisible(true)}
           style={styles.iconButton}

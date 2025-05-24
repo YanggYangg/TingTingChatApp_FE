@@ -6,7 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialIcons, Entypo } from "@expo/vector-icons";
 import { Api_Profile } from "@/apis/api_profile";
@@ -17,11 +17,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import socket from "../../utils/socketFriendRequest";
 
 const AddFriendScreen = ({ navigation }) => {
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState("");
   const [searchResult, setSearchResult] = useState(null);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
-  
+
   // 🔐 Lấy userId từ AsyncStorage và kết nối socket
   useEffect(() => {
     const fetchUserId = async () => {
@@ -40,7 +40,6 @@ const AddFriendScreen = ({ navigation }) => {
 
     fetchUserId();
 
-    
     // 👂 Lắng nghe khi lời mời được chấp nhận
     socket.on("friend_request_accepted", ({ fromUserId }) => {
       if (searchResult && fromUserId === searchResult._id) {
@@ -54,69 +53,69 @@ const AddFriendScreen = ({ navigation }) => {
     };
   }, [searchResult]);
 
+  useEffect(() => {
+    // Lắng nghe khi bị từ chối lời mời
+    socket.on("friend_request_rejected", ({ fromUserId }) => {
+      if (searchResult && fromUserId === searchResult._id) {
+        setStatus(""); // Trạng thái trở lại "chưa kết bạn"
+        Alert.alert("❌ Lời mời đã bị từ chối");
+      }
+    });
+
+    return () => {
+      socket.off("friend_request_rejected");
+    };
+  }, [searchResult]);
 
   useEffect(() => {
-  // Lắng nghe khi bị từ chối lời mời
-  socket.on("friend_request_rejected", ({ fromUserId }) => {
-    if (searchResult && fromUserId === searchResult._id) {
-      setStatus(""); // Trạng thái trở lại "chưa kết bạn"
-      Alert.alert("❌ Lời mời đã bị từ chối");
-    }
-  });
+    if (!userId) return;
 
-  return () => {
-    socket.off("friend_request_rejected");
-  };
-}, [searchResult]);
+    socket.on("friend_request_sent", ({ toUserId }) => {
+      if (searchResult && toUserId === searchResult._id) {
+        setStatus("pending");
+      }
+    });
 
-useEffect(() => {
-  if (!userId) return;
+    socket.on("friend_request_revoked_self", ({ toUserId }) => {
+      if (searchResult && toUserId === searchResult._id) {
+        setStatus("");
+      }
+    });
 
-  socket.on("friend_request_sent", ({ toUserId }) => {
-    if (searchResult && toUserId === searchResult._id) {
-      setStatus("pending");
-    }
-  });
+    return () => {
+      socket.off("friend_request_sent");
+      socket.off("friend_request_revoked_self");
+    };
+  }, [searchResult, userId]);
 
-  socket.on("friend_request_revoked_self", ({ toUserId }) => {
-    if (searchResult && toUserId === searchResult._id) {
-      setStatus("");
-    }
-  });
-
-  return () => {
-    socket.off("friend_request_sent");
-    socket.off("friend_request_revoked_self");
-  };
-}, [searchResult, userId]);
-
-  
-    // Lấy userId hiện tại từ AsyncStorage
-    useEffect(() => {
-      const fetchUserId = async () => {
-        try {
-          const id = await AsyncStorage.getItem("userId");
-          setUserId(id);
-        } catch (error) {
-          console.log("Lỗi lấy userId từ AsyncStorage:", error);
-        }
-      };
-      fetchUserId();
-    }, []);
+  // Lấy userId hiện tại từ AsyncStorage
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const id = await AsyncStorage.getItem("userId");
+        setUserId(id);
+      } catch (error) {
+        console.log("Lỗi lấy userId từ AsyncStorage:", error);
+      }
+    };
+    fetchUserId();
+  }, []);
 
   const handleSearch = async () => {
-    if(!userId) {
+    if (!userId) {
       Alert.alert("Không tìm thấy userId hiện tại");
       return;
     }
 
-    try{
+    try {
       const res = await Api_Profile.getProfiles();
       const allUsers = res.data.users;
 
-      const foundUser =  allUsers.find((u: { phone: string; }) => u.phone === phone);
+      const foundUser = allUsers.find(
+        (u: { phone: string }) => u.phone === phone
+      );
 
-      if(!foundUser) {
+      if (!foundUser) {
         Alert.alert("Không tìm thấy người dùng ");
         setSearchResult(null);
         setStatus(""); // reset status
@@ -125,24 +124,22 @@ useEffect(() => {
 
       // setSearchResult(foundUser);
 
-      const statusRes = await Api_FriendRequest.checkFriendStatus(
-        {
-          userIdA: userId,
-          userIdB: foundUser._id,
-        }
-      );
+      const statusRes = await Api_FriendRequest.checkFriendStatus({
+        userIdA: userId,
+        userIdB: foundUser._id,
+      });
       // setStatus(statusRes.data);
       // setSearchResult(foundUser);//gán user sau cùng
       // ✅ Chỉ lấy field status trong object
-setStatus(statusRes.status || "not_friends");
-setSearchResult(foundUser);// gán user sau cùng
+      setStatus(statusRes.status || "not_friends");
+      setSearchResult(foundUser); // gán user sau cùng
       console.log("Trạng thái kết bạn:", statusRes.status);
-    }catch (err) {
+    } catch (err) {
       console.error("Lỗi tìm kiếm", err);
-        setSearchResult(null);
-    setStatus(""); // reset để tránh giữ lại kết quả sai
+      setSearchResult(null);
+      setStatus(""); // reset để tránh giữ lại kết quả sai
     }
-  }
+  };
 
   // 📩 Gửi hoặc thu hồi lời mời kết bạn qua socket
   const handleSendOrRevokeRequest = () => {
@@ -168,7 +165,7 @@ setSearchResult(foundUser);// gán user sau cùng
     );
   };
 
-return (
+  return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -193,7 +190,7 @@ return (
         </TouchableOpacity>
       </View>
 
-       {/* Kết quả tìm kiếm */}
+      {/* Kết quả tìm kiếm */}
       {searchResult && (
         <View style={styles.resultContainer}>
           <Image source={{ uri: searchResult.avatar }} style={styles.avatar} />
@@ -224,7 +221,6 @@ return (
           )}
         </View>
       )}
-
     </View>
   );
 };
