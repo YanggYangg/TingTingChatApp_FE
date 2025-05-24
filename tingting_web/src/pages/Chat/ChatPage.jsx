@@ -129,39 +129,40 @@ function ChatPage() {
     }
   }, [messages, currentUserId]);
 
-  useEffect(() => {
-    const fetchChatDetails = async () => {
-      if (!selectedMessage || !currentUserId) {
-        console.warn("ChatPage: Thiếu selectedMessage hoặc currentUserId", { selectedMessage, currentUserId });
-        return;
-      }
+useEffect(() => {
+  const fetchChatDetails = async () => {
+    if (!selectedMessage || !currentUserId) {
+      console.warn("ChatPage: Thiếu selectedMessage hoặc currentUserId", { selectedMessage, currentUserId });
+      return;
+    }
 
-      let name = "Unknown";
-      let avatar = "https://picsum.photos/200";
-      let members = 0;
-      let lastActive = 6;
+    let name = selectedMessage.name || "Unknown"; // Ưu tiên selectedMessage.name
+    let avatar = selectedMessage.imageGroup || "https://picsum.photos/200";
+    let members = selectedMessage.participants?.length || 0;
+    let lastActive = 6;
 
-      if (selectedMessage.isGroup && selectedMessage.name) {
-        name = selectedMessage.name;
-        avatar = selectedMessage.imageGroup || avatar;
-        members = selectedMessage.participants?.length || 0;
-      } else if (selectedMessage.participants) {
-        const otherParticipant = selectedMessage.participants.find(
-          (p) => p.userId !== currentUserId
-        );
-        if (otherParticipant?.userId) {
-          const userInfo = await fetchUserInfo(otherParticipant.userId);
-          name = userInfo.name;
-          avatar = userInfo.avatar;
-        }
-      }
+    if (selectedMessage.isGroup) {
+      // Đối với nhóm, sử dụng selectedMessage.name nếu có
+      name = selectedMessage.name || "Nhóm không tên";
+      avatar = selectedMessage.imageGroup || avatar;
+    } else if (selectedMessage.participants && (!name || name === "Unknown")) {
+      // Đối với cuộc trò chuyện 1:1, chỉ gọi fetchUserInfo nếu name không hợp lệ
+      const otherParticipant = selectedMessage.participants.find(
+        (p) => p.userId !== currentUserId
+      );
+      if (otherParticipant?.userId) {
+        const userInfo = await fetchUserInfo(otherParticipant.userId);
+        name = userInfo.name || `Người dùng ${otherParticipant.userId.slice(-4)}`;
+        avatar = userInfo.avatar || avatar;
+      }
+    }
 
-      console.log("ChatPage: Cập nhật chatDetails", { name, avatar, members, lastActive });
-      setChatDetails({ name, avatar, members, lastActive });
-    };
+    console.log("ChatPage: Cập nhật chatDetails", { name, avatar, members, lastActive });
+    setChatDetails({ name, avatar, members, lastActive });
+  };
 
-    fetchChatDetails();
-  }, [selectedMessage, currentUserId]);
+  fetchChatDetails();
+}, [selectedMessage, currentUserId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
