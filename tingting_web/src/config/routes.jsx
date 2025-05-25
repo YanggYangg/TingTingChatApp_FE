@@ -11,7 +11,8 @@ const routes = {
     verifyOTP: '/verify-otp',
     
     chatInfo: '/chatInfo',
-    storagePage: '/storagePage',    
+    storagePage: '/storagePage',
+    profile: '/profile/:userId',
 };
 
 export default routes;
