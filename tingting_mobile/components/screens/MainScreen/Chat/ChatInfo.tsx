@@ -191,7 +191,8 @@ const ChatInfo: React.FC = () => {
       }
       // Thêm logic kiểm tra xem finalUserId có trong participants hay không
       if (!newChatInfo.participants?.some((p) => p.userId === finalUserId)) {
-        Alert.alert("Thông báo", "Bạn đã bị rời khỏi nhóm!");
+        // Alert.alert("Thông báo", "Bạn đã bị rời khỏi nhóm!");
+        console.log("Bạn đã bị rời khỏi nhóm!");
         dispatch(setSelectedMessage(null));
         setChatInfo(null);
         navigation.navigate("Main", { screen: "ChatScreen", params: { refresh: true } });
@@ -236,7 +237,6 @@ const ChatInfo: React.FC = () => {
         return;
       }
 
-      // [MODIFIED] Kiểm tra xem nhóm có bị giải tán hay không
       if (updatedInfo.participants && updatedInfo.participants.length === 0) {
         console.log('DEBUG: Nhóm đã bị giải tán (updated)', { conversationId });
         Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [

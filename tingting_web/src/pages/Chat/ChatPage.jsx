@@ -138,13 +138,14 @@ useEffect(() => {
 
     let name = selectedMessage.name || "Unknown"; // Ưu tiên selectedMessage.name
     let avatar = selectedMessage.imageGroup || "https://picsum.photos/200";
-    let members = selectedMessage.participants?.length || 0;
+    let members =  0;
     let lastActive = 6;
 
     if (selectedMessage.isGroup) {
       // Đối với nhóm, sử dụng selectedMessage.name nếu có
       name = selectedMessage.name || "Nhóm không tên";
       avatar = selectedMessage.imageGroup || avatar;
+      members = selectedMessage.participants?.length || 0;
     } else if (selectedMessage.participants && (!name || name === "Unknown")) {
       // Đối với cuộc trò chuyện 1:1, chỉ gọi fetchUserInfo nếu name không hợp lệ
       const otherParticipant = selectedMessage.participants.find(

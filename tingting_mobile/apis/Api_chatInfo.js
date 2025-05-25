@@ -132,9 +132,6 @@ export const Api_chatInfo = {
 //  const { conversationId, searchTerm, page = 1, limit = 20 } = req.query;
 //     const userId = req.userId;
 
-// Trong file Api_chatInfo.js
-// Trong file Api_chatInfo.js
-// Trong file Api_chatInfo.js
 searchMessages: async ({ conversationId, searchTerm, page = 1, limit = 20, userId }) => {
   try {
     const queryParams = new URLSearchParams({

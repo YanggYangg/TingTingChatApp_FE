@@ -26,6 +26,14 @@ const MessageItem = ({
   if (msg.deletedBy?.includes(currentUserId)) {
     return null;
   }
+
+  // Nhi thêm:  Kiểm tra nếu tin nhắn là media/file nhưng linkURL rỗng
+  if (
+    (msg.messageType === "image" || msg.messageType === "video" || msg.messageType === "file") &&
+    (!msg.linkURL || (Array.isArray(msg.linkURL) && msg.linkURL.length === 0))
+  ) {
+    return null; // Không render tin nhắn nếu linkURL rỗng
+  }
   console.log("userCache", userCache)
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
