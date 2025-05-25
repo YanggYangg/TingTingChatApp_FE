@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+
 import {
   PanelRight,
   Search,
@@ -7,6 +8,7 @@ import {
   User,
   PhoneCall,
   Phone,
+  X,
 } from "lucide-react";
 
 import { useCallManager } from "../../../contexts/CallManagerContext";
@@ -23,13 +25,17 @@ const ChatHeader = ({
   conversationId,
   userId,
   receiverId,
+  onSearch, // Thêm prop để xử lý tìm kiếm
+  searchKeyword, // Thêm prop để quản lý từ khóa tìm kiếm
+  setSearchKeyword, // Thêm prop để cập nhật từ khóa tìm kiếm
+  isSearching, // Thêm prop để hiển thị trạng thái đang tìm kiếm
 }) => {
   const { initiateCall } = useCallManager();
   const { socket } = useSocket();
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [isOnline, setIsOnline] = useState(false);
   console.log("members", members);
-
+const [isSearchVisible, setIsSearchVisible] = useState(false);
   
 
 
@@ -77,7 +83,7 @@ const ChatHeader = ({
 
 
 
-  return (
+return (
     <div className="flex items-center justify-between p-2 border-b bg-white">
       <div className="flex items-center">
         <img
@@ -88,8 +94,8 @@ const ChatHeader = ({
         <div>
           <h2 className="text-lg font-bold">{name}</h2>
           {members > 0 ? (
-            <p className="flex text-x text-gray-500">
-              <User size={20} />
+            <p className="flex items-center text-sm text-gray-500">
+              <User size={20} className="mr-1" />
               {members} thành viên
             </p>
           ) : (
@@ -104,33 +110,60 @@ const ChatHeader = ({
         </div>
       </div>
 
-      <div className="ml-auto flex space-x-3">
-        {/* <button className="text-gray-500 hover:text-gray-700">
-          <UserPlus />
-        </button> */}
-        <button
-          onClick={() => handleCall("voice")}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <Phone size={22} />
-        </button>
-        {/* <button
-          onClick={() => handleCall("video")}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <Video size={26} />
-        </button> */}
-        <button className="text-gray-500 hover:text-gray-700">
-          <Search />
-        </button>
-        <button className="text-gray-500 hover:text-gray-700"
-          onClick={() => {
-            setIsChatInfoVisible(!isChatInfoVisible);
-            console.log("Chat info visibility toggled:", !isChatInfoVisible);
-          }}
-        >
-          <PanelRight />
-        </button>
+      <div className="ml-auto flex space-x-3 items-center">
+        {isSearchVisible ? (
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              className="px-3 py-1 rounded-full text-black border border-gray-300 focus:outline-none"
+              placeholder="Tìm kiếm tin nhắn..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && onSearch()}
+              autoFocus
+            />
+            <button
+              onClick={onSearch}
+              disabled={isSearching || !searchKeyword.trim()}
+              className="text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+            >
+              <Search size={22} />
+            </button>
+            <button
+              onClick={() => setIsSearchVisible(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={22} />
+            </button>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={() => handleCall("voice")}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <Phone size={22} />
+            </button>
+            <button
+              onClick={() => setIsSearchVisible(true)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <Search size={22} />
+            </button>
+            <button
+              className="text-gray-500 hover:text-gray-700"
+              onClick={() => {
+                setIsChatInfoVisible(!isChatInfoVisible);
+                console.log(
+                  "ChatHeader: Chat info visibility toggled:",
+                  !isChatInfoVisible
+                );
+              }}
+            >
+              <PanelRight size={22} />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

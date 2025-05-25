@@ -344,97 +344,99 @@ const GroupMediaGallery: React.FC<Props> = ({
         />
       )}
 
-      <Modal
-        isVisible={!!fullScreenMedia}
-        onBackdropPress={() => {
+    <Modal
+  isVisible={!!fullScreenMedia}
+  onBackdropPress={() => {
+    setFullScreenMedia(null);
+    setIsPlaying(false);
+  }}
+  style={styles.modal}
+  useNativeDriver
+>
+  {fullScreenMedia && (
+    <View style={styles.fullScreenContainer}>
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={() => {
           setFullScreenMedia(null);
           setIsPlaying(false);
         }}
-        style={styles.modal}
-        useNativeDriver
       >
-        {fullScreenMedia && (
-          <View style={styles.fullScreenContainer}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => {
-                setFullScreenMedia(null);
-                setIsPlaying(false);
-              }}
-            >
-              <Ionicons name="close" size={22} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.downloadButton}
-              onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type)}
-            >
-              <Ionicons name="download-outline" size={22} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.forwardButton}
-              onPress={() => handleForwardClick(fullScreenMedia)}
-            >
-              <Ionicons name="share-outline" size={22} color="#fff" />
-            </TouchableOpacity>
-            <Swiper
-              index={currentIndex}
-              onIndexChanged={handleSwipe}
-              loop={false}
-              showsPagination={false}
-            >
-              {media.map((item) => (
-                <View key={item.id} style={styles.swiperSlide}>
-                  {mediaLoading[item.id] && (
-                    <View style={styles.loadingIndicator}>
-                      <ActivityIndicator size="large" color="#fff" />
-                    </View>
-                  )}
-                  {mediaLoadError[item.id] && (
-                    <Text style={styles.errorText}>{mediaLoadError[item.id]}</Text>
-                  )}
-                  {item.type === 'image' ? (
-                    <Image
-                      source={{ uri: item.linkURL }}
-                      style={styles.fullScreenMedia}
-                      resizeMode="contain"
-                      onLoadStart={() => handleMediaLoadStart(item.id)}
-                      onLoad={() => handleMediaLoad(item.id)}
-                      onError={(error) => handleMediaError(item.id, error)}
+        <Ionicons name="close" size={24} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.downloadButton}
+        onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type)}
+      >
+        <Ionicons name="download-outline" size={24} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.forwardButton}
+        onPress={() => handleForwardClick(fullScreenMedia)}
+      >
+        <Ionicons name="share-outline" size={24} color="#fff" />
+      </TouchableOpacity>
+      <Swiper
+        index={currentIndex}
+        onIndexChanged={handleSwipe}
+        loop={false}
+        showsPagination={true} // Hiển thị chấm điều hướng để người dùng biết vị trí media
+        dotColor="#555"
+        activeDotColor="#fff"
+      >
+        {media.map((item) => (
+          <View key={item.id} style={styles.swiperSlide}>
+            {mediaLoading[item.id] && (
+              <View style={styles.loadingIndicator}>
+                <ActivityIndicator size="large" color="#fff" />
+              </View>
+            )}
+            {mediaLoadError[item.id] && (
+              <Text style={styles.errorText}>{mediaLoadError[item.id]}</Text>
+            )}
+            {item.type === 'image' ? (
+              <Image
+                source={{ uri: item.linkURL }}
+                style={styles.fullScreenMedia}
+                resizeMode="contain"
+                onLoadStart={() => handleMediaLoadStart(item.id)}
+                onLoad={() => handleMediaLoad(item.id)}
+                onError={(error) => handleMediaError(item.id, error)}
+              />
+            ) : (
+              <View style={styles.fullScreenVideoContainer}>
+                <Video
+                  ref={item.id === fullScreenMedia.id ? videoRef : null}
+                  source={{ uri: item.linkURL }}
+                  style={styles.fullScreenVideo}
+                  useNativeControls // Sử dụng điều khiển gốc để người dùng dễ thao tác
+                  resizeMode="contain"
+                  onLoadStart={() => handleMediaLoadStart(item.id)}
+                  onLoad={() => handleMediaLoad(item.id)}
+                  onError={(error) => handleMediaError(item.id, error)}
+                  isLooping
+                  shouldPlay={item.id === fullScreenMedia.id && isPlaying}
+                />
+                {!mediaLoading[item.id] && !mediaLoadError[item.id] && (
+                  <TouchableOpacity
+                    style={styles.playPauseButton}
+                    onPress={() => setIsPlaying((prev) => !prev)}
+                  >
+                    <Ionicons
+                      name={isPlaying && item.id === fullScreenMedia.id ? 'pause-circle' : 'play-circle'}
+                      size={60}
+                      color="#fff"
                     />
-                  ) : (
-                    <View style={styles.fullScreenVideoContainer}>
-                      <Video
-                        ref={item.id === fullScreenMedia.id ? videoRef : undefined}
-                        source={{ uri: item.linkURL }}
-                        style={styles.fullScreenVideo}
-                        useNativeControls={false}
-                        resizeMode="contain"
-                        onLoadStart={() => handleMediaLoadStart(item.id)}
-                        onLoad={() => handleMediaLoad(item.id)}
-                        onError={(error) => handleMediaError(item.id, error)}
-                        isLooping
-                        shouldPlay={item.id === fullScreenMedia.id && isPlaying}
-                      />
-                      {!mediaLoading[item.id] && !mediaLoadError[item.id] && (
-                        <TouchableOpacity
-                          style={styles.playPauseButton}
-                          onPress={() => setIsPlaying((prev) => !prev)}
-                        >
-                          <Ionicons
-                            name={isPlaying && item.id === fullScreenMedia.id ? 'pause-circle' : 'play-circle'}
-                            size={55}
-                            color="#fff"
-                          />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  )}
-                </View>
-              ))}
-            </Swiper>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
-        )}
-      </Modal>
+        ))}
+      </Swiper>
+    </View>
+  )}
+</Modal>
 
       {isShareModalOpen && mediaToForward && (
         <ShareModal
@@ -486,60 +488,69 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  modal: { margin: 0 },
-  fullScreenContainer: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-  fullScreenMedia: { width: '100%', height: '90%' },
-  fullScreenVideoContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%', height: '90%' },
-  fullScreenVideo: { width: '100%', height: '100%' },
+ modal: {
+    margin: 0,
+    justifyContent: 'center',
+  },
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenMedia: {
+    width: '100%',
+    height: '100%', // Đảm bảo chiếm toàn bộ chiều cao
+    alignSelf: 'center',
+  },
+  fullScreenVideoContainer: {
+    width: '100%',
+    height: '100%', // Đảm bảo video chiếm toàn bộ chiều cao
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenVideo: {
+    width: '100%',
+    height: '100%', // Đảm bảo video chiếm toàn bộ chiều cao
+  },
   closeButton: {
     position: 'absolute',
-    top: 14,
-    left: 14,
+    top: 40,
+    left: 20,
     zIndex: 100,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 18,
-    padding: 8,
+    borderRadius: 20,
+    padding: 10,
   },
   downloadButton: {
     position: 'absolute',
-    top: 14,
-    right: 14,
+    top: 40,
+    right: 20,
     zIndex: 100,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 18,
-    padding: 8,
+    borderRadius: 20,
+    padding: 10,
   },
   forwardButton: {
     position: 'absolute',
-    top: 56,
-    right: 14,
+    top: 90,
+    right: 20,
     zIndex: 100,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 18,
-    padding: 8,
+    borderRadius: 20,
+    padding: 10,
   },
-  swiperSlide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  noDataContainer: {
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginHorizontal: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  noDataText: { fontSize: 13, color: '#666', textAlign: 'center' }, // Reduced from 14
-  playIconContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  swiperSlide: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  playPauseButton: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -30 }, { translateY: -30 }],
+    zIndex: 10,
   },
   loadingIndicator: {
     position: 'absolute',
@@ -551,14 +562,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  errorText: { color: 'red', fontSize: 13, textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 5 }, // Reduced from 14
-  playPauseButton: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -27.5 }, { translateY: -27.5 }],
-    zIndex: 10,
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+    textAlign: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 10,
   },
+ 
 });
 
 export default GroupMediaGallery;

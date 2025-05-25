@@ -136,7 +136,7 @@ searchMessages: async ({ conversationId, searchTerm, page = 1, limit = 20, userI
     }).toString();
     const url = `/messages/search/${conversationId}?${queryParams}`;
     console.log('Calling ApiManager.get with:', { url });
-    const response = await ApiManager.get(url);
+    const response = await ApiManager.get('chatService', url);
     console.log('ApiManager.get response:', response);
     if (!response) {
       throw new Error('No response received from ApiManager.get');
