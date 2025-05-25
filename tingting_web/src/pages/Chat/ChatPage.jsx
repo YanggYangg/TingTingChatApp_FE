@@ -351,31 +351,30 @@ const fetchUserInfo = async (userId) => {
       );
     });
 
-    socket.on("messageDeleted", ({ messageId, urlIndex, isMessageDeleted, deletedBy }) => {
-      console.log("ChatPage: Nhận messageDeleted", { messageId, urlIndex, isMessageDeleted, deletedBy });
+  socket.on("messageDeleted", ({ messageId, urlIndex, isMessageDeleted, deletedBy }) => {
+  console.log("ChatPage: Nhận messageDeleted", { messageId, urlIndex, isMessageDeleted, deletedBy });
 
-      dispatch(setMessages(messages.map((msg) => {
-        if (msg._id === messageId) {
-          if (isMessageDeleted) {
-            // Nếu tin nhắn bị xóa hoàn toàn, thêm userId vào deletedBy hoặc xóa tin nhắn
-            return {
-              ...msg,
-              deletedBy: [...(msg.deletedBy || []), deletedBy]
-            };
-          } else if (urlIndex !== null && Array.isArray(msg.linkURL)) {
-            // Nếu chỉ xóa một URL cụ thể, cập nhật mảng linkURL
-            const updatedLinkURL = [...msg.linkURL];
-            updatedLinkURL.splice(urlIndex, 1); // Xóa URL tại urlIndex
-            return {
-              ...msg,
-              linkURL: updatedLinkURL
-            };
-          }
-        }
-        return msg;
-      })));
-    });
-
+  dispatch(setMessages(messages.map((msg) => {
+    if (msg._id === messageId) {
+      if (isMessageDeleted) {
+        // Nếu tin nhắn bị xóa hoàn toàn, thêm userId vào deletedBy hoặc xóa tin nhắn
+        return {
+          ...msg,
+          deletedBy: [...(msg.deletedBy || []), deletedBy]
+        };
+      } else if (urlIndex !== null && Array.isArray(msg.linkURL)) {
+        // Nếu chỉ xóa một URL cụ thể, cập nhật mảng linkURL
+        const updatedLinkURL = [...msg.linkURL];
+        updatedLinkURL.splice(urlIndex, 1); // Xóa URL tại urlIndex
+        return {
+          ...msg,
+          linkURL: updatedLinkURL
+        };
+      }
+    }
+    return msg;
+  })));
+});
     socket.on("messageRevoked", ({ messageId }) => {
       console.log("ChatPage: Nhận messageRevoked", { messageId });
       dispatch(
@@ -1126,18 +1125,27 @@ const selectedChat = useMemo(
 const initializeSenders = () => {
   if (selectedMessage?.participants) {
     const senderList = [
-      { userId: "all", name: "Tất cả" },
+      { userId: "all", name: "Tất cả" }, // Luôn có tùy chọn "Tất cả"
       ...selectedMessage.participants.map((participant) => {
         // Chuẩn hóa userId
         let userId = participant.userId;
         if (typeof userId === "object" && userId?._id) {
           userId = userId._id; // Lấy _id nếu userId là object
         }
-        userId = userId?.toString() || "unknown"; // Chuyển thành chuỗi hoặc mặc định là "unknown"
+        userId = userId?.toString() || "unknown"; // Chuyển thành chuỗi, mặc định "unknown" nếu không có
+
+        // Xác định tên người gửi
+        const name =
+          userId === currentUserId
+            ? "Bạn" // Hiển thị "Bạn" nếu là người dùng hiện tại
+            : userCache[userId]?.name || // Lấy từ userCache nếu có
+              (participant.firstname
+                ? `${participant.firstname} ${participant.surname || ""}`.trim()
+                : `Người dùng ${userId.slice(-4)}`); // Dự phòng nếu không có thông tin
 
         return {
           userId,
-          name: userCache[userId]?.name || `Người dùng ${userId.slice(-4)}`,
+          name,
         };
       }),
     ];
@@ -1145,10 +1153,9 @@ const initializeSenders = () => {
     setSenders(senderList);
   } else {
     console.warn("ChatPage: Không có participants để khởi tạo senders");
-    setSenders([{ userId: "all", name: "Tất cả" }]);
+    setSenders([{ userId: "all", name: "Tất cả" }]); // Danh sách mặc định chỉ có "Tất cả"
   }
 };
-
   // Hàm đặt lại bộ lọc
   const resetFilters = () => {
     console.log("ChatPage: Đặt lại bộ lọc");

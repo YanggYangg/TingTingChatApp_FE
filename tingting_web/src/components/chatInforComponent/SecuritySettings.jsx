@@ -225,7 +225,7 @@ const handleHideChat = useCallback(
     try {
       leaveGroup(socket, { conversationId, userId }, (response) => {
         if (response.success) {
-          toast.success("Bạn đã rời khỏi nhóm!");
+          // toast.success("Bạn đã rời khỏi nhóm!");
           setChatInfo((prev) => ({
             ...prev,
             participants: prev.participants.filter((p) => p.userId !== userId),

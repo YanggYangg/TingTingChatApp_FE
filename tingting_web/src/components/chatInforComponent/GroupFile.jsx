@@ -266,6 +266,7 @@ const GroupFile = ({ conversationId, onDeleteFile, onForwardFile, userId, socket
           onDelete={fetchFiles}
           onForwardFile={onForwardFile}
           socket={socket}
+          userId={userId}
         />
       )}
 

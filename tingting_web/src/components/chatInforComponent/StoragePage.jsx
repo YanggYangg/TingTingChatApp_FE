@@ -130,23 +130,23 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
           }));
         });
 
-        onMessageDeleted(socket, (data) => {
-          setData((prev) => {
-            const newData = { ...prev };
-            if (data.isMessageDeleted) {
-              newData.images = Array.isArray(newData.images) ? newData.images.filter((item) => item.messageId !== data.messageId) : [];
-              newData.files = Array.isArray(newData.files) ? newData.files.filter((item) => item.messageId !== data.messageId) : [];
-              newData.links = Array.isArray(newData.links) ? newData.links.filter((item) => item.messageId !== data.messageId) : [];
-            } else if (data.urlIndex !== null) {
-              newData[activeTab] = Array.isArray(newData[activeTab])
-                ? newData[activeTab].filter(
-                  (item) => !(item.messageId === data.messageId && item.urlIndex === data.urlIndex)
-                )
-                : [];
-            }
-            return newData;
-          });
-        });
+       onMessageDeleted(socket, (data) => {
+  setData((prev) => {
+    const newData = { ...prev };
+    if (data.isMessageDeleted) {
+      newData.images = Array.isArray(newData.images) ? newData.images.filter((item) => item.messageId !== data.messageId) : [];
+      newData.files = Array.isArray(newData.files) ? newData.files.filter((item) => item.messageId !== data.messageId) : [];
+      newData.links = Array.isArray(newData.links) ? newData.links.filter((item) => item.messageId !== data.messageId) : [];
+    } else if (data.urlIndex !== null) {
+      newData[activeTab] = Array.isArray(newData[activeTab])
+        ? newData[activeTab].filter(
+            (item) => !(item.messageId === data.messageId && item.urlIndex === data.urlIndex)
+          )
+        : [];
+    }
+    return newData;
+  });
+});
 
         socket.on("deleteAllChatHistory", (data) => {
           console.log("StoragePage: Nhận sự kiện deleteAllChatHistory:", data);

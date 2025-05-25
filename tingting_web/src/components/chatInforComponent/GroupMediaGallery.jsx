@@ -295,6 +295,7 @@ const GroupMediaGallery = ({ conversationId, onForward, userId, socket }) => {
             onClose={() => setIsOpen(false)}
             onDelete={handleDeleteFromStorage}
             socket={socket}
+            userId={userId}
           />
         )}
       </div>
