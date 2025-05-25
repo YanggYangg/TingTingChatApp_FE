@@ -74,6 +74,7 @@ const ChatScreen = ({ route, navigation }) => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [totalMessages, setTotalMessages] = useState(0);
 
+  const [isSearchBarVisible, setIsSearchBarVisible] = useState(false);
   // Thêm state cho tìm kiếm
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -1226,6 +1227,16 @@ const renderItem = ({ item, index }) => {
             <Ionicons name="videocam-outline" size={28} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
+          onPress={() => setIsSearchBarVisible(!isSearchBarVisible)}
+          style={{ marginLeft: 15 }}
+        >
+          <Ionicons
+            name={isSearchBarVisible ? "close" : "search"}
+            size={28}
+            color="#fff"
+          />
+        </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => {
               console.log("Navigating to ChatInfo with:", {
                 userId,
@@ -1251,6 +1262,7 @@ const renderItem = ({ item, index }) => {
         </View>
       </View>
       {/* Search Bar */}
+     {isSearchBarVisible && (
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -1258,6 +1270,7 @@ const renderItem = ({ item, index }) => {
           value={searchKeyword}
           onChangeText={setSearchKeyword}
           onSubmitEditing={searchMessages}
+          autoFocus={true}
         />
         <TouchableOpacity onPress={searchMessages} disabled={isSearching}>
           <Ionicons
@@ -1266,7 +1279,17 @@ const renderItem = ({ item, index }) => {
             color={isSearching || !searchKeyword.trim() ? "#ccc" : "#0196fc"}
           />
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            setIsSearchBarVisible(false);
+            setSearchKeyword("");
+          }}
+          style={{ marginLeft: 10 }}
+        >
+          <Ionicons name="close" size={24} color="#666" />
+        </TouchableOpacity>
       </View>
+    )}
      <FlatList
         ref={flatListRef}
         data={messages.filter((msg) => !msg.deletedBy?.includes(currentUserId))}
@@ -1434,7 +1457,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     height: 60,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
    
   },
   leftContainer: {
@@ -1442,13 +1465,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   nameContainer: {
-    marginLeft: 12,
-    width: "50%",
+  marginLeft: 8, // Khoảng cách giữa nút back và tên
+    flexDirection: "column",
+    justifyContent: "center",
+  //  flex: 1, // Để tên chiếm không gian còn lại
+   ellipsizeMode: "tail",
+    numberOfLines: 1, // Giới hạn tên chỉ hiển thị một dòng
+   
+
   },
   headerText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#fff",
+    numberOfLines: 1, // Giới hạn tên chỉ hiển thị một dòng
+    ellipsizeMode: "tail", // Hiển thị dấu ba chấm nếu tên quá dài
+    maxWidth: 170, // Giới hạn chiều rộng tối đa của tên
   },
   statusContainer: {
     flexDirection: "row",
@@ -1469,6 +1501,9 @@ const styles = StyleSheet.create({
   rightContainer: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
+    flexShrink: 0, // Để tránh tràn ra ngoài
+    marginLeft: 10, // Khoảng cách giữa các biểu tượng
   },
   dateSeparatorContainer: {
     flexDirection: "row",
@@ -1503,7 +1538,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
+    padding: 8,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
@@ -1516,6 +1551,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 15,
     marginRight: 10,
+    backgroundColor: "#f5f5f5",
   },
   searchModalContainer: {
     flex: 1,
@@ -1621,6 +1657,23 @@ const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
     fontWeight: "bold",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    marginRight: 10,
   },
 });
 

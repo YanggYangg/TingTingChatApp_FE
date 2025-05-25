@@ -630,9 +630,25 @@ const ChatInfo: React.FC = () => {
   };
 
   // Search messages
-  const handleSearchMessage = () => {
-    navigation.navigate("MessageScreen", { conversationId });
-  };
+const handleSearchMessage = () => {
+  if (!conversationId || !finalUserId) {
+    Alert.alert("Lỗi", "Thiếu thông tin cuộc trò chuyện hoặc người dùng.");
+    return;
+  }
+  navigation.navigate("MessageScreen", {
+    conversationId,
+    userId: finalUserId,
+    socket, // Truyền socket nếu cần
+    searchMode: true, // Cờ để kích hoạt modal tìm kiếm
+    message: {
+      id: conversationId,
+      name: chatDisplayName,
+      isGroup: chatInfo.isGroup,
+      participants: chatInfo.participants || [],
+      imageGroup: chatDisplayImage,
+    },
+  });
+};;
 
   // Loading state
   if (loading) {
@@ -753,7 +769,7 @@ const ChatInfo: React.FC = () => {
                 <Text style={styles.socialActionText}>Trang cá nhân</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.socialActionContainer}>
+            {/* <View style={styles.socialActionContainer}>
               <TouchableOpacity style={styles.socialActionButton} onPress={handleCreateGroup}>
                 <Ionicons
                   name="add-circle-outline"
@@ -763,7 +779,7 @@ const ChatInfo: React.FC = () => {
                 />
                 <Text style={styles.socialActionText}>Tạo nhóm với {otherUserName}</Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
             <View style={styles.socialActionContainer}>
               <TouchableOpacity style={styles.socialActionButton} onPress={handleAddToGroup}>
                 <Ionicons
