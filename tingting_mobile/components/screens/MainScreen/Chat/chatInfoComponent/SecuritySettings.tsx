@@ -18,7 +18,10 @@ import {
   onChatInfoUpdated,
   offChatInfoUpdated,
 } from '../../../../../services/sockets/events/chatInfo';
+import { useDispatch } from 'react-redux';
 import { joinConversation } from '../../../../../services/sockets/events/conversation';
+import { setChatInfoUpdate, setSelectedMessage } from '../../../../../redux/slices/chatSlice';
+
 
 interface Participant {
   userId: string;
@@ -80,6 +83,8 @@ const SecuritySettings: React.FC<Props> = ({
   const prevChatInfoRef = useRef<ChatInfoData | null>(null);
 
   const navigation = useNavigation();
+    const dispatch = useDispatch();
+
 
   // Fetch chat information
   const fetchChatInfo = useCallback(() => {
@@ -283,8 +288,30 @@ const SecuritySettings: React.FC<Props> = ({
             setPin('');
             Alert.alert('Thành công', `Cuộc trò chuyện đã ${hide ? 'được ẩn' : 'được hiện'}!`);
             
+            // Cập nhật chatInfo giống phiên bản web
+            setChatInfo((prev) => {
+              if (!prev) return prev;
+              const updatedChatInfo = {
+                ...prev,
+                participants: prev.participants.map((p) =>
+                  p.userId === userId ? { ...p, isHidden: hide, pin: hide ? currentPin : null } : p
+                ),
+              };
+              dispatch(setChatInfoUpdate(updatedChatInfo));
+              return updatedChatInfo;
+            });
+
+            // Cập nhật selectedMessage để phản ánh trạng thái isHidden
+            dispatch(setSelectedMessage({
+              ...chatInfo,
+              isHidden: hide,
+              participants: chatInfo?.participants.map((p) =>
+                p.userId === userId ? { ...p, isHidden: hide, pin: hide ? currentPin : null } : p
+              ),
+            }));
+
+            // Chỉ điều hướng nếu ẩn và yêu cầu xác thực lại
             if (hide) {
-              setChatInfo(null);
               navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
             }
           } else {
@@ -298,8 +325,9 @@ const SecuritySettings: React.FC<Props> = ({
         setIsProcessing(false);
       }
     },
-    [socket, conversationId, isProcessing, setChatInfo, navigation]
+    [socket, conversationId, userId, isProcessing, setChatInfo, navigation, chatInfo, dispatch]
   );
+
 
   // Handle toggle switch change
   const handleToggle = useCallback(
@@ -389,6 +417,7 @@ const SecuritySettings: React.FC<Props> = ({
       if (response.success) {
         setChatInfo(null);
         Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
+        console.log('SecuritySettings: Rời nhóm thành công', { conversationId, userId });
         navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
       } else {
         Alert.alert('Lỗi', `Rời nhóm thất bại: ${response.message}`);
@@ -443,6 +472,7 @@ const SecuritySettings: React.FC<Props> = ({
   // Disband group functionality
   const handleDisbandGroup = useCallback(() => {
     if (!isGroup || !isAdmin) return;
+    
     setShowDisbandConfirm(true);
   }, [isGroup, isAdmin]);
 

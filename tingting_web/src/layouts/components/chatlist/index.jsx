@@ -40,7 +40,7 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [isPinLimitModalOpen, setIsPinLimitModalOpen] = useState(false); // State cho modal giới hạn ghim
+  const [isPinLimitModalOpen, setIsPinLimitModalOpen] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState(null);
 
   const dispatch = useDispatch();
@@ -167,7 +167,7 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     }
 
     if (!isPinned && checkPinnedLimit()) {
-      setIsPinLimitModalOpen(true); // Hiển thị modal khi vượt quá giới hạn
+      setIsPinLimitModalOpen(true);
       return;
     }
 
@@ -349,12 +349,18 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
           if (msg.id === updatedConversationId) {
             return {
               ...msg,
-              lastMessage: updatedConversation.lastMessage?.content || msg.lastMessage || "",
+              lastMessage: updatedConversation.lastMessage?.content || "",
               lastMessageType: updatedConversation.lastMessage?.messageType || msg.lastMessageType || "text",
-              lastMessageSenderId: updatedConversation.lastMessage?.userId || msg.lastMessageSenderId || null,
-              time: new Date(
-                updatedConversation.lastMessage?.createdAt || updatedConversation.updatedAt
-              ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              lastMessageSenderId: updatedConversation.lastMessage?._id || msg.lastMessageSenderId || null,
+              time: updatedConversation.lastMessage
+                ? new Date(updatedConversation.lastMessage.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : new Date(updatedConversation.updatedAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
               updateAt: updatedConversation.lastMessage?.createdAt || updatedConversation.updatedAt,
             };
           }
@@ -376,23 +382,36 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
 
         return sortMessages(updatedMessages);
       });
+
+      // Dispatch lastMessageUpdate để đồng bộ Redux
+      dispatch(
+        setLastMessageUpdate({
+          conversationId: updatedConversation.conversationId,
+          lastMessage: updatedConversation.lastMessage || null,
+        })
+      );
     };
 
-
-    socket.on("deleteAllChatHistory", ({ conversationId, deletedBy }) => {
-    console.log("ChatList: Nhận deleteAllChatHistory", { conversationId, deletedBy });
-    if (deletedBy === currentUserId) {
+    const handleDeleteAllChatHistory = ({ conversationId, deletedBy, lastMessage, updatedAt }) => {
+      console.log("ChatList: Nhận deleteAllChatHistory", { conversationId, deletedBy, lastMessage });
       setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg.id === conversationId
-            ? { ...msg, lastMessage: "", time: "", lastMessageType: "text" }
-            : msg
-        )
+        prevMessages.map((msg) => {
+          if (msg.id === conversationId) {
+            return {
+              ...msg,
+              lastMessage: lastMessage?.content || "",
+              lastMessageType: lastMessage?.messageType || "text",
+              lastMessageSenderId: lastMessage?._id || null,
+              time: "",
+              updateAt: updatedAt || new Date().toISOString(),
+            };
+          }
+          return msg;
+        })
       );
-      dispatch(setLastMessageUpdate({ conversationId, lastMessage: null }));
+      dispatch(setLastMessageUpdate({ conversationId, lastMessage }));
       console.log(`ChatList: Cập nhật hội thoại ${conversationId} sau khi xóa lịch sử`);
-    }
-  });
+    };
 
     const handleNewGroupConversation = (newConversation) => {
       console.log("ChatList: Nhóm mới từ socket:", newConversation);
@@ -424,7 +443,6 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
         socket.emit("leaveConversation", { conversationId: data.conversationId });
         console.log(`ChatList: Rời phòng ${data.conversationId}`);
       }
-      // toast.info("Bạn đã bị xóa khỏi nhóm");
     };
 
     const handleChatInfoUpdated = (updatedInfo) => {
@@ -470,6 +488,7 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
     socket.on("newGroupConversation", handleNewGroupConversation);
     onConversationRemoved(socket, handleConversationRemoved);
     onGroupLeft(socket, handleGroupLeft);
+    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
 
     return () => {
       console.log("ChatList: Dọn dẹp sự kiện socket");
@@ -480,6 +499,7 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
       socket.off("newGroupConversation", handleNewGroupConversation);
       offConversationRemoved(socket);
       offGroupLeft(socket);
+      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
     };
   }, [socket, currentUserId, dispatch]);
 
@@ -528,7 +548,7 @@ function ChatList({ activeTab, onGroupCreated, onConversationSelected }) {
               ...msg,
               lastMessage: lastMessageUpdate.lastMessage?.content || "",
               lastMessageType: lastMessageUpdate.lastMessage?.messageType || msg.lastMessageType || "text",
-              lastMessageSenderId: lastMessageUpdate.lastMessage?.userId || msg.lastMessageSenderId || null,
+              lastMessageSenderId: lastMessageUpdate.lastMessage?._id || msg.lastMessageSenderId || null,
               time: lastMessageUpdate.lastMessage
                 ? new Date(lastMessageUpdate.lastMessage.createdAt).toLocaleTimeString([], {
                     hour: "2-digit",

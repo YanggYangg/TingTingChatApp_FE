@@ -39,7 +39,7 @@ const FeedScreen: React.FC = () => {
     try {
       const profileId = await AsyncStorage.getItem("userId");
       const response = await axios.get(
-        `http://192.168.0.102:3001/api/v1/profile/${profileId}`
+        `http://192.168.24.106:3001/api/v1/profile/${profileId}`
       );
       const profile = response.data.data.user;
       const date = new Date(profile.dateOfBirth);
@@ -75,7 +75,7 @@ const FeedScreen: React.FC = () => {
       }
 
       const response = await axios.get(
-        `http://192.168.0.102:3006/api/v1/post`,
+        `http://192.168.24.106:3006/api/v1/post`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

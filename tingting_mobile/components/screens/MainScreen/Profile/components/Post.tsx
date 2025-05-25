@@ -45,7 +45,7 @@ const Post = ({ post }: PostProps) => {
     const id = await AsyncStorage.getItem("userId");
     try {
       const response = await axios.post(
-        `http://192.168.0.102:3006/api/v1/post/${post._id}/love`,
+        `http://192.168.24.106:3006/api/v1/post/${post._id}/love`,
         {
           profileId: id,
         }

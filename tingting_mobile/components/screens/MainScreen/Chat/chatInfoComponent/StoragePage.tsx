@@ -874,13 +874,13 @@ const StoragePage: React.FC<Props> = ({
                   <Ionicons name="close" size={24} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.forwardButton1, { top: 16, right: 60 }]} // Di chuyển icon chuyển tiếp sang trái
+                  style={[styles.forwardButton1, { top: 40, right: 60 }]}
                   onPress={() => handleForwardClick(fullScreenMedia)}
                 >
                   <Ionicons name="share-outline" size={24} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.downloadButton, { top: 16, right: 16 }]} // Đặt icon tải xuống bên phải
+                  style={[styles.downloadButton, { top: 40, right: 20 }]}
                   onPress={() => downloadMedia(fullScreenMedia.linkURL, fullScreenMedia.type, fullScreenMedia.name)}
                 >
                   <Ionicons name="download-outline" size={24} color="#fff" />
@@ -889,7 +889,9 @@ const StoragePage: React.FC<Props> = ({
                   index={currentIndex}
                   onIndexChanged={handleSwipe}
                   loop={false}
-                  showsPagination={false}
+                  showsPagination={true} // Hiển thị chấm điều hướng
+                  dotColor="#555"
+                  activeDotColor="#fff"
                   scrollEnabled={true}
                 >
                   {filteredData
@@ -901,6 +903,7 @@ const StoragePage: React.FC<Props> = ({
                             source={{ uri: item.linkURL }}
                             style={styles.fullScreenMedia}
                             resizeMode="contain"
+                            onError={(e) => console.error(`Error loading image ${item.id}:`, e)}
                           />
                         ) : item.type === 'video' && item.linkURL && item.linkURL.startsWith('http') ? (
                           <View style={styles.fullScreenVideoContainer}>
@@ -908,18 +911,19 @@ const StoragePage: React.FC<Props> = ({
                               ref={item.id === fullScreenMedia.id ? fullScreenVideoRef : null}
                               source={{ uri: item.linkURL }}
                               style={styles.fullScreenMedia}
-                              useNativeControls
+                              useNativeControls // Sử dụng điều khiển gốc
                               resizeMode="contain"
                               onError={(e) => {
                                 console.error(`Error loading full-screen video ${item.id}:`, e);
                                 setVideoError('Không thể tải video.');
                               }}
+                              isLooping
                             />
                           </View>
                         ) : (
                           <Text style={styles.errorText}>Video không hợp lệ</Text>
                         )}
-                        <Text style={styles.mediaName}>{item.name}</Text>
+                        <Text style={styles.mediaName}>{item.name || item.linkURL}</Text>
                       </View>
                     ))}
                 </Swiper>
@@ -1242,6 +1246,7 @@ const styles = StyleSheet.create({
   },
   fullScreenModal: {
     margin: 0,
+    justifyContent: 'center',
   },
   fullScreenContainer: {
     flex: 1,
@@ -1251,20 +1256,41 @@ const styles = StyleSheet.create({
   },
   fullScreenMedia: {
     width: '100%',
-    height: '90%',
+    height: '100%', // Đảm bảo chiếm toàn bộ chiều cao
+    alignSelf: 'center',
   },
   fullScreenVideoContainer: {
     width: '100%',
-    height: '90%',
+    height: '100%', // Đảm bảo video chiếm toàn bộ chiều cao
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   closeButton: {
     position: 'absolute',
-    top: 16,
-    left: 16,
+    top: 40,
+    left: 20,
     zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     borderRadius: 20,
-    padding: 8,
+    padding: 10,
+  },
+  forwardButton1: {
+    position: 'absolute',
+    top: 40,
+    right: 60,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    padding: 10,
+  },
+  downloadButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    padding: 10,
   },
   swiperSlide: {
     flex: 1,
@@ -1279,35 +1305,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
   },
-  noDataText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#555',
-  },
   errorText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#ff0000',
     textAlign: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 10,
   },
-  forwardButton1: {
-    position: 'absolute',
-    top: 60,
-    right: 16,
-    zIndex: 100,
-    borderRadius: 20,
-    padding: 8,
-  },
+
 });
 
 export default StoragePage;

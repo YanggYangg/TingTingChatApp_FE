@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ApiManager } from './ApiManager';
 
-const BASE_URL = 'http://100.28.46.80:3002';
+const BASE_URL = 'http://localhost:3002';
 
 export const Api_Auth = {
     login: async (data) => {

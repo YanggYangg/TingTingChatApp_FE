@@ -12,6 +12,8 @@ import {
   StatusBar,
   SafeAreaView,
   Linking,
+  highlightedMessageId,
+  Animated,
 } from "react-native";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -35,12 +37,32 @@ const MessageItem = ({
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
   const [isLoading, setIsLoading] = useState(true);
+  const [highlightAnim] = useState(new Animated.Value(0)); // ĐỂ highlight animation nếu cần
 
   // Modal states
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [mediaType, setMediaType] = useState(null);
-  const isLink = msg.messageType === "link"
+  const isLink = msg.messageType === "link";
+  const isHighlighted = msg._id === highlightedMessageId;
+
+   useEffect(() => {
+    if (isHighlighted) {
+      Animated.sequence([
+        Animated.timing(highlightAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(highlightAnim, {
+          toValue: 0,
+          duration: 1500,
+          delay: 2000,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isHighlighted, highlightAnim]);
 
   // Auto mark message as read when it becomes visible
   useEffect(() => {
@@ -329,10 +351,24 @@ const MessageItem = ({
   };
 
   return (
-    <View
+   <Animated.View
       style={[
         styles.container,
         isCurrentUser ? styles.rightContainer : styles.leftContainer,
+        {
+          opacity: highlightAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, 0.7],
+          }),
+          transform: [
+            {
+              scale: highlightAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [1, 1.05],
+              }),
+            },
+          ],
+        },
       ]}
     >
       <TouchableOpacity
@@ -344,6 +380,7 @@ const MessageItem = ({
           style={[
             styles.messageBox,
             isCurrentUser ? styles.messageRightBox : styles.messageLeftBox,
+            isHighlighted && styles.highlightedMessageBox, // Thêm style highlight
           ]}
         >
           {!isCurrentUser && (
@@ -397,7 +434,7 @@ const MessageItem = ({
       </TouchableOpacity>
 
       {renderMediaModal()}
-    </View>
+   </Animated.View>
   );
 };
 
@@ -661,6 +698,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'right',
     fontStyle: 'italic',
+  },
+  highlightedMessageBox: {
+    backgroundColor: "#FFF9C4", // Màu nền highlight (vàng nhạt)
+    borderColor: "#FFD700", // Viền vàng
+    borderWidth: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
 

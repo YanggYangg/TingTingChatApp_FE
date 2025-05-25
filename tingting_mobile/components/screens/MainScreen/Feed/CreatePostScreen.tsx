@@ -131,7 +131,7 @@ const CreatePostScreen: React.FC = () => {
       });
 
       const response = await axios.post(
-        "http://192.168.0.102:3006/api/v1/post",
+        "http://192.168.24.106:3006/api/v1/post",
         formData,
         {
           headers: {

@@ -191,7 +191,8 @@ const ChatInfo: React.FC = () => {
       }
       // Thêm logic kiểm tra xem finalUserId có trong participants hay không
       if (!newChatInfo.participants?.some((p) => p.userId === finalUserId)) {
-        Alert.alert("Thông báo", "Bạn đã bị rời khỏi nhóm!");
+        // Alert.alert("Thông báo", "Bạn đã bị rời khỏi nhóm!");
+        console.log("Bạn đã bị rời khỏi nhóm!");
         dispatch(setSelectedMessage(null));
         setChatInfo(null);
         navigation.navigate("Main", { screen: "ChatScreen", params: { refresh: true } });
@@ -236,7 +237,6 @@ const ChatInfo: React.FC = () => {
         return;
       }
 
-      // [MODIFIED] Kiểm tra xem nhóm có bị giải tán hay không
       if (updatedInfo.participants && updatedInfo.participants.length === 0) {
         console.log('DEBUG: Nhóm đã bị giải tán (updated)', { conversationId });
         Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
@@ -291,6 +291,26 @@ const ChatInfo: React.FC = () => {
       });
       Alert.alert("Thông báo", "Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");
     };
+    const handleDisbandGroup = ({ conversationId: disbandedConversationId }) => {
+    if (disbandedConversationId !== conversationId) return;
+    console.log('DEBUG: Nhận sự kiện disbandGroup từ thiết bị khác', { conversationId });
+    Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
+      {
+        text: 'OK',
+        onPress: () => {
+          dispatch(setSelectedMessage(null));
+          setChatInfo(null);
+          try {
+            navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+          } catch (error) {
+            console.error('DEBUG: Lỗi điều hướng:', error);
+          }
+        },
+      },
+    ]);
+  };
+
+  socket.on('disbandGroup', handleDisbandGroup);
 
     const handleError = (error: any) => {
       setError("Đã xảy ra lỗi: " + (error.message || "Không xác định"));
@@ -309,6 +329,7 @@ const ChatInfo: React.FC = () => {
     return () => {
       socket.off("updateChatInfo", handleUpdateChatInfo);
       socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
+      socket.off('disbandGroup', handleDisbandGroup);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
@@ -609,9 +630,25 @@ const ChatInfo: React.FC = () => {
   };
 
   // Search messages
-  const handleSearchMessage = () => {
-    navigation.navigate("MessageScreen", { conversationId });
-  };
+const handleSearchMessage = () => {
+  if (!conversationId || !finalUserId) {
+    Alert.alert("Lỗi", "Thiếu thông tin cuộc trò chuyện hoặc người dùng.");
+    return;
+  }
+  navigation.navigate("MessageScreen", {
+    conversationId,
+    userId: finalUserId,
+    socket, // Truyền socket nếu cần
+    searchMode: true, // Cờ để kích hoạt modal tìm kiếm
+    message: {
+      id: conversationId,
+      name: chatDisplayName,
+      isGroup: chatInfo.isGroup,
+      participants: chatInfo.participants || [],
+      imageGroup: chatDisplayImage,
+    },
+  });
+};;
 
   // Loading state
   if (loading) {
@@ -732,7 +769,7 @@ const ChatInfo: React.FC = () => {
                 <Text style={styles.socialActionText}>Trang cá nhân</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.socialActionContainer}>
+            {/* <View style={styles.socialActionContainer}>
               <TouchableOpacity style={styles.socialActionButton} onPress={handleCreateGroup}>
                 <Ionicons
                   name="add-circle-outline"
@@ -742,7 +779,7 @@ const ChatInfo: React.FC = () => {
                 />
                 <Text style={styles.socialActionText}>Tạo nhóm với {otherUserName}</Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
             <View style={styles.socialActionContainer}>
               <TouchableOpacity style={styles.socialActionButton} onPress={handleAddToGroup}>
                 <Ionicons

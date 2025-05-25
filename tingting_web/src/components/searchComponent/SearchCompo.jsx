@@ -485,51 +485,54 @@ function Search({ onGroupCreated }) {
     }
   };
 
-  const handleStartChat = async (conv) => {
-    try {
-      const userId = localStorage.getItem("userId");
-      const participant = conv.participants.find(p => p.userId._id === userId);
-
-      // Nếu cuộc trò chuyện bị ẩn và có PIN
-      if (participant?.isHidden && participant?.pin) {
-        setSelectedHiddenConversation(conv);
-        setIsPinModalOpen(true);
-        return;
-      }
-
-      // Nếu không bị ẩn hoặc không có PIN, tiếp tục như bình thường
-      proceedWithChat(conv);
-    } catch (error) {
-      console.error("Lỗi khi bắt đầu trò chuyện:", error);
-      toast.error("Đã xảy ra lỗi khi mở trò chuyện.");
-    }
-  };
-
-  const proceedWithChat = (conv) => {
-    const conversationId = conv._id;
-    const isGroup = conv.isGroup;
+const handleStartChat = async (conv) => {
+  try {
     const userId = localStorage.getItem("userId");
+    const participant = conv.participants.find(p => p.userId._id === userId);
 
-    const name = conv.displayName || (isGroup ? conv.name : "Unknown User");
-    const avatar = isGroup
-      ? conv.imageGroup || "https://picsum.photos/200/300"
-      : conv.participants.find((p) => p.userId._id !== userId)?.userId?.avatar ||
+    // Nếu cuộc trò chuyện bị ẩn và có PIN
+    if (participant?.isHidden && participant?.pin) {
+      setSelectedHiddenConversation(conv);
+      setIsPinModalOpen(true);
+      return;
+    }
+
+    // Gọi hàm proceedWithChat để xử lý tiếp
+    proceedWithChat(conv);
+  } catch (error) {
+    console.error("Lỗi khi bắt đầu trò chuyện:", error);
+    toast.error("Đã xảy ra lỗi khi mở trò chuyện.");
+  }
+};
+
+const proceedWithChat = (conv) => {
+  const conversationId = conv._id;
+  const isGroup = conv.isGroup;
+  const userId = localStorage.getItem("userId");
+
+  // Lấy displayName, ưu tiên conv.displayName, nếu không có thì lấy tên nhóm hoặc tên người dùng
+  const name = conv.displayName || (isGroup ? conv.name || "Nhóm không tên" : conv.participants.find(p => p.userId._id !== userId)?.userId?.name || "Người dùng không xác định");
+
+  const avatar = isGroup
+    ? conv.imageGroup || "https://picsum.photos/200/300"
+    : conv.participants.find((p) => p.userId._id !== userId)?.userId?.avatar ||
       "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
-    dispatch(
-      setSelectedMessage({
-        id: conversationId,
-        isGroup,
-        participants: conv.participants,
-        name,
-        imageGroup: avatar,
-      })
-    );
+  dispatch(
+    setSelectedMessage({
+      id: conversationId,
+      isGroup,
+      participants: conv.participants,
+      name, // Sử dụng name đã tính toán
+      imageGroup: avatar,
+      isHidden: conv.participants.find(p => p.userId._id === userId)?.isHidden || false,
+    })
+  );
 
-    setPhone("");
-    setShowSearchModal(false);
-    navigate("/chat");
-  };
+  setPhone("");
+  setShowSearchModal(false);
+  navigate("/chat");
+};
 
   const handlePinVerified = () => {
     if (selectedHiddenConversation) {

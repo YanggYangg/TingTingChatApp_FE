@@ -36,6 +36,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { toast } from 'react-toastify';
 import FCMHandler from "./utils/FCMHandler";
+import ProfileScreen from "./layouts/components/profile/ProfileScreen";
 
 function App() {
   
@@ -76,6 +77,7 @@ function App() {
                 <Route path="/" element={<DefaultLayout />}>
                   <Route index element={<h1>Chat window</h1>} />
                   <Route path="chat" element={<ChatPage />} />
+                  <Route path="chat/:conversationId" element={<ChatPage />} />
                   <Route path="/contacts/:tab" element={<ContactsPage />} />
                   <Route
                     path="*"
@@ -86,6 +88,7 @@ function App() {
                 <Route path="/homepage" element={<HomePage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/verify-otp" element={<VerifyOTP />} />
+                <Route path="/profile/:userId" element={<ProfileScreen />} />
                 {forgotPasswordRoutes.map((route, index) => {
                   const Page = route.component;
                   const Layout = ForgotAccountLayout;

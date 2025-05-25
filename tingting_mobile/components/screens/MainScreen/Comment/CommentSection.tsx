@@ -88,7 +88,7 @@ const CommentSection: React.FC<Props> = ({ route }) => {
     setIdCurrentUser(id || "");
     try {
       const response = await axios.get(
-        `http://192.168.0.102:3006/api/v1/comment/${postId}`
+        `http://192.168.24.106:3006/api/v1/comment/${postId}`
       );
       const commentsData = response.data.data.comments;
       console.log("Fetched comments:", commentsData);
@@ -246,7 +246,7 @@ const CommentSection: React.FC<Props> = ({ route }) => {
       // Gửi yêu cầu backend
       
       const res = await axios.post(
-        `http://192.168.0.102:3006/api/v1/comment/${commentId}/love`,
+        `http://192.168.24.106:3006/api/v1/comment/${commentId}/love`,
         {
           profileId: id,
         }
@@ -364,7 +364,7 @@ const CommentSection: React.FC<Props> = ({ route }) => {
 
       // Gửi request đến API
       const response = await axios.post(
-        "http://192.168.0.102:3006/api/v1/comment",
+        "http://192.168.24.106:3006/api/v1/comment",
         formData,
         {
           headers: {

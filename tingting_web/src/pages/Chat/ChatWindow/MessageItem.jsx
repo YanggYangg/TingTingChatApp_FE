@@ -8,6 +8,8 @@ import { AiFillFileText } from "react-icons/ai";
 import { HiDownload } from "react-icons/hi";
 import { MdCall, MdVideocam } from "react-icons/md";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import ProfileScreen from "../../../layouts/components/profile/ProfileScreen";
 
 const MessageItem = ({
   msg,
@@ -21,15 +23,37 @@ const MessageItem = ({
   participants,
   userCache,
   markMessageAsRead,
+  highlightedMessageId,
 }) => {
   // Nhi thêm: Kiểm tra nếu tin nhắn đã bị xóa bởi người dùng hiện tại
   if (msg.deletedBy?.includes(currentUserId)) {
     return null;
   }
+
+  // Nhi thêm:  Kiểm tra nếu tin nhắn là media/file nhưng linkURL rỗng
+  if (
+    (msg.messageType === "image" || msg.messageType === "video" || msg.messageType === "file") &&
+    (!msg.linkURL || (Array.isArray(msg.linkURL) && msg.linkURL.length === 0))
+  ) {
+    return null; // Không render tin nhắn nếu linkURL rỗng
+  }
   console.log("userCache", userCache)
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
+  const isHighlighted = msg._id === highlightedMessageId;
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Mở modal khi nhấn vào tên hoặc avatar
+  const handleProfileClick = () => {
+    if (!isCurrentUser && msg.userId) {
+      setIsModalOpen(true);
+    }
+  };
+
+  // Đóng modal
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
   // Add useEffect to mark message as read when it becomes visible
   useEffect(() => {
     if (msg && !isCurrentUser && markMessageAsRead) {
@@ -231,8 +255,8 @@ const MessageItem = ({
     });
 
     // Check both object format (_id) and direct ID format
-    const isRead = msg.status.readBy.some(user => 
-      (typeof user === 'object' && user._id === receiverId) || 
+    const isRead = msg.status.readBy.some(user =>
+      (typeof user === 'object' && user._id === receiverId) ||
       (typeof user === 'string' && user === receiverId)
     );
 
@@ -269,28 +293,42 @@ const MessageItem = ({
   return (
     <>
       <div
-        id={`message-${msg._id}`}
-        className={`flex ${
-          isCurrentUser ? "justify-end" : "justify-start"
-        } mb-4 relative`}
+        id={`message-${msg._id}`} // Đảm bảo có ID để cuộn đến
+        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"} mb-4 ${isHighlighted ? "highlighted" : ""
+          }`}
       >
+        {!isCurrentUser && !msg.isRevoked && (
+          <div className="mr-2">
+            {userCache[msg.userId]?.avatar && (
+              <img
+                src={userCache[msg.userId].avatar}
+                alt={msg.sender}
+                className="w-8 h-8 rounded-full cursor-pointer"
+                onClick={handleProfileClick}
+              />
+            )}
+          </div>
+        )}
         <div
-          className={`p-3 rounded-lg w-fit max-w-xs relative ${
-            isCurrentUser ? "bg-blue-200 text-black" : "bg-gray-200 text-black"
-          } ${msg.isRevoked ? "" : "group"}`}
+          className={`p-3 rounded-lg max-w-xs relative ${isCurrentUser
+              ? "bg-blue-200 text-black ml-auto"
+              : "bg-gray-200 text-black"
+            } ${msg.isRevoked ? "" : "group"}`}
         >
           {!isCurrentUser && !msg.isRevoked && (
-            <p className="text-xs font-semibold text-gray-700">{msg.sender}</p>
+            <p
+              className="text-xs font-semibold text-gray-700 mb-1 cursor-pointer"
+              onClick={handleProfileClick}
+            >
+              {msg.sender}
+            </p>
           )}
-
-          {/* Nếu đã bị thu hồi thì chỉ hiển thị text */}
           {msg.isRevoked ? (
             <p className="italic text-gray-500">Tin nhắn đã được thu hồi</p>
           ) : (
             <>
-              {/* Tin nhắn trả lời */}
               {msg.messageType === "reply" && (
-                <div className="bg-gray-100 p-2 rounded-md mt-1 border-l-4 border-blue-400 pl-3">
+                <div className="bg-gray-100 p-2 rounded-md mb-1 border-l-4 border-blue-400 pl-3">
                   <p className="text-sm text-gray-700 font-semibold">
                     {repliedMessage?.sender || ""}
                   </p>
@@ -298,31 +336,21 @@ const MessageItem = ({
                     {repliedMessage?.messageType === "image"
                       ? "[Ảnh]"
                       : repliedMessage?.messageType === "file"
-                      ? "[Tệp]"
-                      : repliedMessage?.messageType === "call"
-                      ? "[Cuộc gọi]"
-                      : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
+                        ? "[Tệp]"
+                        : repliedMessage?.messageType === "call"
+                          ? "[Cuộc gọi]"
+                          : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
                   </p>
-                  <p className="text-sm text-gray-900 mt-1">{msg.content}</p>
+                  <p className="text-sm text-gray-900">{msg.content}</p>
                 </div>
               )}
 
-              {/* Tin nhắn cuộc gọi */}
-              {msg.messageType === "call" && (
-                <>
-                  {/* {console.log("Rendering call message:", msg)} */}
-                  {renderCallMessage()}
-                </>
+              {msg.messageType === "call" && renderCallMessage()}
+
+              {isText && (
+                <p className="break-words">{renderTextWithLinks(msg.content)}</p>
               )}
 
-              {/* Tin nhắn văn bản không phải reply */}
-              {msg.messageType === "text" && !msg.replyMessageId && (
-                <p className="break-words">
-                  {renderTextWithLinks(msg.content)}
-                </p>
-              )}
-
-              {/* Tin nhắn liên kết */}
               {isLink && (
                 <a
                   href={msg.content}
@@ -334,44 +362,47 @@ const MessageItem = ({
                 </a>
               )}
 
-              {/* Tin nhắn hình ảnh (nhiều ảnh) */}
-              {isImage && Array.isArray(msg.linkURL) && (
-                <div className="grid grid-cols-3 gap-2 mt-1">
-                  {msg.linkURL.map((url, index) => (
+              {isImage &&
+                Array.isArray(msg.linkURL) &&
+                msg.linkURL.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-1">
+                    {msg.linkURL.map((url, index) =>
+                      url ? (
+                        <img
+                          key={index}
+                          src={url}
+                          alt={`Ảnh ${index + 1}`}
+                          className="w-full h-auto rounded-lg cursor-pointer object-cover"
+                          onClick={() => setOpenMedia(url)}
+                        />
+                      ) : null
+                    )}
+                    {msg.content && (
+                      <p className="text-sm text-gray-800 mt-2">{msg.content}</p>
+                    )}
+                  </div>
+                )}
+
+              {isImage &&
+                typeof msg.linkURL === "string" &&
+                msg.linkURL && (
+                  <>
                     <img
-                      key={index}
-                      src={url}
-                      alt={`Ảnh ${index + 1}`}
-                      className="w-full h-auto rounded-lg cursor-pointer object-cover"
-                      onClick={() => setOpenMedia(url)}
+                      src={msg.linkURL}
+                      className="w-40 h-auto rounded-lg cursor-pointer mt-1"
+                      alt="Ảnh"
+                      onClick={handleMediaClick}
                     />
-                  ))}
-                  {msg.content && (
-                    <p className="text-sm text-gray-800 mt-2">{msg.content}</p>
-                  )}
-                </div>
-              )}
+                    {msg.content && (
+                      <p className="text-sm text-gray-800 mt-2">{msg.content}</p>
+                    )}
+                  </>
+                )}
 
-              {/* Tin nhắn hình ảnh (1 ảnh) */}
-              {isImage && typeof msg.linkURL === "string" && (
-                <>
-                  <img
-                    src={msg.linkURL}
-                    className="w-40 h-auto rounded-lg cursor-pointer"
-                    alt="Ảnh"
-                    onClick={handleMediaClick}
-                  />
-                  {msg.content && (
-                    <p className="text-sm text-gray-800 mt-2">{msg.content}</p>
-                  )}
-                </>
-              )}
-
-              {/* Tin nhắn video */}
               {isVideo && (
                 <video
                   controls
-                  className="w-40 h-auto rounded-lg cursor-pointer"
+                  className="w-40 h-auto rounded-lg cursor-pointer mt-1"
                   onClick={handleMediaClick}
                 >
                   <source src={msg.linkURL} type="video/mp4" />
@@ -379,7 +410,6 @@ const MessageItem = ({
                 </video>
               )}
 
-              {/* Tin nhắn file */}
               {isFile && (
                 <div className="flex items-center justify-between space-x-3 bg-white rounded-md p-2 shadow-sm mt-1">
                   <div className="flex items-center space-x-2 overflow-hidden">
@@ -401,21 +431,20 @@ const MessageItem = ({
             </>
           )}
 
-          {/* Message time */}
           <p className="text-xs text-gray-500 text-right mt-1">{msg.time}</p>
 
-          {/* Message status - only show for last message of current user */}
           {isCurrentUser && isLastMessage && (
             <div className="absolute -bottom-5 right-2">
               {participants && participants.length > 2 && msg.status?.readBy?.length > 0 ? (
                 <span className="text-xs text-gray-500 whitespace-nowrap">
                   {msg.status.readBy
-                    .filter(user => {
-                      const userId = typeof user === 'object' ? user._id : user;
+                    .filter((user) => {
+                      const userId = typeof user === "object" ? user._id : user;
                       return userId !== currentUserId;
                     })
-                    .map(userId => userCache[userId]?.name || "Unknown")
-                    .join(", ")} đã xem
+                    .map((userId) => userCache[userId]?.name || "Unknown")
+                    .join(", ")}{" "}
+                  đã xem
                 </span>
               ) : (
                 <span className="text-xs text-gray-500">{getMessageStatus()}</span>
@@ -423,12 +452,10 @@ const MessageItem = ({
             </div>
           )}
 
-          {/* Nút hành động khi hover */}
           {!msg.isRevoked && (
             <div
-              className={`absolute top-[-36px] ${
-                isCurrentUser ? "right-0" : "left-0"
-              } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
+              className={`absolute top-[-36px] ${isCurrentUser ? "right-0" : "left-0"
+                } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
             >
               <button
                 onClick={() => onReply(msg)}
@@ -454,7 +481,7 @@ const MessageItem = ({
                     <IoTrashOutline size={18} />
                   </button>
                   <button
-                    onClick={handleRevokeClick} // Sử dụng handleRevokeClick thay vì gọi onRevoke trực tiếp
+                    onClick={handleRevokeClick}
                     title="Thu hồi"
                     className="p-1 rounded-full bg-white/80 hover:bg-purple-100 transition-all shadow-md hover:scale-110 text-gray-600 hover:text-purple-500"
                   >
@@ -466,7 +493,10 @@ const MessageItem = ({
           )}
         </div>
       </div>
-
+      {/* Hiển thị modal khi isModalOpen là true */}
+      {isModalOpen && (
+        <ProfileScreen userId={msg.userId} onClose={handleCloseModal} />
+      )}
       {/* Modal xem ảnh/video */}
       {openMedia && (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
@@ -480,7 +510,7 @@ const MessageItem = ({
 
           <div className="relative max-w-[90%] max-h-[90%] flex items-center justify-center">
             {typeof openMedia === "string" &&
-            /\.(mp4|mov|avi|mkv)$/i.test(openMedia) ? (
+              /\.(mp4|mov|avi|mkv)$/i.test(openMedia) ? (
               <video
                 controls
                 autoPlay
