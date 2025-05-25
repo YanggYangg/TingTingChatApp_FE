@@ -21,6 +21,7 @@ const MessageItem = ({
   participants,
   userCache,
   markMessageAsRead,
+  highlightedMessageId,
 }) => {
   // Nhi thêm: Kiểm tra nếu tin nhắn đã bị xóa bởi người dùng hiện tại
   if (msg.deletedBy?.includes(currentUserId)) {
@@ -37,6 +38,7 @@ const MessageItem = ({
   console.log("userCache", userCache)
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
+  const isHighlighted = msg._id === highlightedMessageId;
 
   // Add useEffect to mark message as read when it becomes visible
   useEffect(() => {
@@ -277,9 +279,10 @@ const MessageItem = ({
   return (
     <>
       <div
-        id={`message-${msg._id}`}
-        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"
-          } mb-4 relative`}
+       id={`message-${msg._id}`} // Đảm bảo có ID để cuộn đến
+        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"} mb-4 relative ${
+          isHighlighted ? "highlighted" : "" // Áp dụng class highlight
+        }`}
       >
         <div
           className={`p-3 rounded-lg w-fit max-w-xs relative ${isCurrentUser ? "bg-blue-200 text-black" : "bg-gray-200 text-black"

@@ -85,6 +85,7 @@ function ChatPage() {
   const [filterStartDate, setFilterStartDate] = useState(""); // Ngày bắt đầu
   const [filterEndDate, setFilterEndDate] = useState(""); // Ngày kết thúc
   const [senders, setSenders] = useState([]); // Danh sách người gửi
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null); 
   const messagesContainerRef = useRef(null);
 
   console.log("ChatPage: Current socket", { socket, socketCloud, currUserId });
@@ -1158,12 +1159,18 @@ const searchMessages = async () => {
 };
 
   // Hàm cuộn đến tin nhắn
-  const scrollToMessage = (messageId) => {
+ const scrollToMessage = (messageId) => {
     const messageElement = document.getElementById(`message-${messageId}`);
     if (messageElement) {
       messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedMessageId(messageId); // Set ID để highlight
       setIsSearchModalVisible(false);
       setSearchKeyword("");
+
+      // Tự động tắt highlight sau 3 giây
+      setTimeout(() => {
+        setHighlightedMessageId(null);
+      }, 3000);
     } else {
       toast.error("Không tìm thấy tin nhắn trong danh sách hiện tại");
     }
@@ -1200,6 +1207,16 @@ const renderSearchResult = (msg) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
+      <style>
+        {`
+          .highlighted {
+            background-color: #e0f7fa; /* Màu nền sáng để nổi bật */
+            transition: background-color 0.5s ease;
+            border-radius: 8px;
+            padding: 4px;
+          }
+        `}
+      </style>
       {selectedChat ? (
         <div className={`flex w-full transition-all duration-300`}>
           <div
@@ -1317,6 +1334,7 @@ const renderSearchResult = (msg) => {
                           participants={selectedMessage?.participants}
                           userCache={userCache}
                           markMessageAsRead={markMessageAsRead}
+                          highlightedMessageId={highlightedMessageId}
                         />
                       ))
                   ) : (
