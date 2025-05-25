@@ -80,8 +80,12 @@ function ChatPage() {
   const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [totalResults, setTotalResults] = useState(0);
+  // Thêm các state mới vào đầu component ChatPage
+  const [filterSender, setFilterSender] = useState("all"); // Mặc định là "all" để không lọc theo người gửi
+  const [filterStartDate, setFilterStartDate] = useState(""); // Ngày bắt đầu
+  const [filterEndDate, setFilterEndDate] = useState(""); // Ngày kết thúc
+  const [senders, setSenders] = useState([]); // Danh sách người gửi
   const messagesContainerRef = useRef(null);
-
 
   console.log("ChatPage: Current socket", { socket, socketCloud, currUserId });
 
@@ -100,46 +104,54 @@ function ChatPage() {
 
   const conversationId = selectedMessageId;
 
-  const fetchUserInfo = async (userId) => {
-    if (userCache[userId]) {
-      console.log("ChatPage: Lấy thông tin người dùng từ cache", { userId, userInfo: userCache[userId] });
-      return userCache[userId];
-    }
+const fetchUserInfo = async (userId) => {
+  if (userCache[userId]) {
+    console.log("ChatPage: Lấy thông tin người dùng từ cache", { userId, userInfo: userCache[userId] });
+    return userCache[userId];
+  }
 
-    try {
-      const response = await Api_Profile.getProfile(userId);
-      if (response?.data?.user) {
-        const userInfo = {
-          name: `${response.data.user.firstname} ${response.data.user.surname}`.trim(),
-          avatar: response.data.user.avatar || "https://picsum.photos/200",
-        };
-        console.log("ChatPage: Nhận thông tin người dùng từ API", { userId, userInfo });
-        setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
-        return userInfo;
+  try {
+    const response = await Api_Profile.getProfile(userId);
+    if (response?.data?.user) {
+      const userInfo = {
+        name: `${response.data.user.firstname || ''} ${response.data.user.surname || ''}`.trim() || `Người dùng ${userId.slice(-4)}`,
+        avatar: response.data.user.avatar || "https://picsum.photos/200",
+      };
+      console.log("ChatPage: Nhận thông tin người dùng từ API", { userId, userInfo });
+      setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
+      return userInfo;
+    }
+  } catch (error) {
+    console.error("ChatPage: Lỗi khi lấy thông tin người dùng", { userId, error });
+    return { name: `Người dùng ${userId.slice(-4)}`, avatar: "https://picsum.photos/200" };
+  }
+};
+
+  useEffect(() => {
+  const loadUserInfos = async () => {
+    const userIds = [
+      ...new Set(
+        messages.map((msg) => msg.userId).filter((id) => id !== currentUserId)
+      ),
+    ];
+    console.log("ChatPage: Tải thông tin người dùng", { userIds });
+    for (const userId of userIds) {
+      await fetchUserInfo(userId);
+    }
+    if (selectedMessage?.participants) {
+      const participantIds = selectedMessage.participants
+        .map((p) => p.userId)
+        .filter((id) => id !== currentUserId && !userCache[id]);
+      for (const userId of participantIds) {
+        await fetchUserInfo(userId);
       }
-    } catch (error) {
-      console.error("ChatPage: Lỗi khi lấy thông tin người dùng", { userId, error });
-      return { name: "Unknown", avatar: "https://picsum.photos/200" };
     }
   };
 
-  useEffect(() => {
-    const loadUserInfos = async () => {
-      const userIds = [
-        ...new Set(
-          messages.map((msg) => msg.userId).filter((id) => id !== currentUserId)
-        ),
-      ];
-      console.log("ChatPage: Tải thông tin người dùng", { userIds });
-      for (const userId of userIds) {
-        await fetchUserInfo(userId);
-      }
-    };
-
-    if (messages.length > 0) {
-      loadUserInfos();
-    }
-  }, [messages, currentUserId]);
+  if (messages.length > 0 || selectedMessage?.participants) {
+    loadUserInfos();
+  }
+}, [messages, selectedMessage, currentUserId, userCache]);
 
   useEffect(() => {
     const fetchChatDetails = async () => {
@@ -1036,68 +1048,114 @@ function ChatPage() {
     };
   }, [socket, selectedMessageId]);
 
-  // Hàm tìm kiếm
-  const searchMessages = async () => {
-    console.log("ChatPage: Bắt đầu tìm kiếm", {
-      conversationId: selectedMessageId,
-      searchTerm: searchKeyword.trim(),
-      userId: currentUserId,
-    });
 
-    if (!selectedMessageId) {
-      console.warn("ChatPage: Thiếu conversationId");
-      toast.error("Không tìm thấy ID cuộc trò chuyện.");
-      setIsSearching(false);
-      return;
-    }
-    if (!searchKeyword.trim()) {
-      console.warn("ChatPage: Từ khóa tìm kiếm rỗng");
-      toast.error("Vui lòng nhập từ khóa tìm kiếm.");
-      setIsSearching(false);
-      return;
-    }
-    if (!currentUserId) {
-      console.warn("ChatPage: Thiếu userId");
-      toast.error("Không thể xác định người dùng hiện tại.");
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const response = await Api_chatInfo.searchMessages({
-        conversationId: selectedMessageId,
-        searchTerm: searchKeyword.trim(),
-        page: 1,
-        limit: 20,
-        userId: currentUserId,
-      });
-      console.log("ChatPage: Kết quả tìm kiếm", response);
-
-      if (response.success) {
-        setSearchResults(response.messages || []);
-        setTotalResults(response.total || 0);
-        setIsSearchModalVisible(true);
-      } else {
-        console.warn("ChatPage: Tìm kiếm thất bại", response.error);
-        toast.error(response.error || "Không tìm thấy tin nhắn phù hợp.");
-      }
-    } catch (error) {
-      console.error("ChatPage: Lỗi khi tìm kiếm", {
-        message: error.message,
-        response: error.response,
-      });
-      let errorMessage = "Không thể tìm kiếm tin nhắn. Vui lòng thử lại.";
-      if (error.message.includes("Network Error")) {
-        errorMessage = "Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet.";
-      } else if (error.response?.error) {
-        errorMessage = error.response.error;
-      }
-      toast.error(errorMessage);
-    } finally {
-      setIsSearching(false);
+  // Hàm khởi tạo danh sách senders
+  const initializeSenders = () => {
+    if (selectedMessage?.participants) {
+      const senderList = [
+        { userId: "all", name: "Tất cả" },
+        ...selectedMessage.participants.map((participant) => ({
+          userId: participant.userId,
+          name: userCache[participant.userId]?.name || `Người dùng ${participant.userId.slice(-4)}`,
+        })),
+      ];
+      console.log("ChatPage: Khởi tạo danh sách senders", senderList);
+      setSenders(senderList);
+    } else {
+      console.warn("ChatPage: Không có participants để khởi tạo senders");
+      setSenders([{ userId: "all", name: "Tất cả" }]);
     }
   };
+
+  // Hàm đặt lại bộ lọc
+  const resetFilters = () => {
+    console.log("ChatPage: Đặt lại bộ lọc");
+    setFilterSender("all");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setSearchKeyword(""); // Tùy chọn: đặt lại từ khóa tìm kiếm
+    initializeSenders(); // Tải lại danh sách senders
+    setIsSearchModalVisible(false); // Tùy chọn: đóng modal sau khi đặt lại
+    // Nếu muốn làm mới kết quả tìm kiếm, có thể gọi lại searchMessages
+    // searchMessages();
+  };
+  // useEffect để khởi tạo senders
+  useEffect(() => {
+    initializeSenders();
+  }, [selectedMessage, userCache]);
+
+  // Hàm tìm kiếm 
+const searchMessages = async () => {
+  console.log("ChatPage: Bắt đầu tìm kiếm", {
+    conversationId: selectedMessageId,
+    searchTerm: searchKeyword.trim(),
+    userId: currentUserId,
+    filterSender,
+    filterStartDate,
+    filterEndDate,
+  });
+
+  if (!selectedMessageId) {
+    console.warn("ChatPage: Thiếu conversationId");
+    toast.error("Không tìm thấy ID cuộc trò chuyện.");
+    setIsSearching(false);
+    return;
+  }
+  if (!searchKeyword.trim()) {
+    console.warn("ChatPage: Từ khóa tìm kiếm rỗng");
+    toast.error("Vui lòng nhập từ khóa tìm kiếm.");
+    setIsSearching(false);
+    return;
+  }
+  if (!currentUserId) {
+    console.warn("ChatPage: Thiếu userId");
+    toast.error("Không thể xác định người dùng hiện tại.");
+    setIsSearching(false);
+    return;
+  }
+
+  setIsSearching(true);
+  try {
+    const response = await Api_chatInfo.searchMessages({
+      conversationId: selectedMessageId,
+      searchTerm: searchKeyword.trim(),
+      page: 1,
+      limit: 20,
+      userId: currentUserId,
+      senderId: filterSender === "all" ? null : filterSender,
+      startDate: filterStartDate || null,
+      endDate: filterEndDate || null,
+    });
+    console.log("ChatPage: Kết quả tìm kiếm", response);
+
+    if (response.success) {
+      // Lọc bỏ tin nhắn bị xóa bởi currentUserId
+      const filteredMessages = response.messages.filter(
+        (msg) => !msg.deletedBy?.includes(currentUserId)
+      );
+      setSearchResults(filteredMessages);
+      setTotalResults(filteredMessages.length); // Cập nhật total dựa trên số tin nhắn còn lại
+      setIsSearchModalVisible(true);
+    } else {
+      console.warn("ChatPage: Tìm kiếm thất bại", response.error);
+      toast.error(response.error || "Không tìm thấy tin nhắn phù hợp.");
+    }
+  } catch (error) {
+    console.error("ChatPage: Lỗi khi tìm kiếm", {
+      message: error.message,
+      response: error.response,
+    });
+    let errorMessage = "Không thể tìm kiếm tin nhắn. Vui lòng thử lại.";
+    if (error.message.includes("Network Error")) {
+      errorMessage = "Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet.";
+    } else if (error.response?.error) {
+      errorMessage = error.response.error;
+    }
+    toast.error(errorMessage);
+  } finally {
+    setIsSearching(false);
+  }
+};
 
   // Hàm cuộn đến tin nhắn
   const scrollToMessage = (messageId) => {
@@ -1112,23 +1170,33 @@ function ChatPage() {
   };
 
   // Hàm render kết quả tìm kiếm
-  const renderSearchResult = (msg) => {
-    const senderName = msg.userId?.firstname
+const renderSearchResult = (msg) => {
+  // Kiểm tra userId của tin nhắn, có thể nằm trong msg.userId hoặc msg.userId._id
+  const messageUserId = msg.userId?._id || msg.userId;
+  const isCurrentUser = messageUserId === currentUserId;
+  
+  // Xác định tên người gửi
+  const senderName = isCurrentUser
+    ? "Bạn"
+    : msg.userId?.firstname
       ? `${msg.userId.firstname} ${msg.userId.surname || ''}`.trim()
-      : userCache[msg.userId?._id]?.name || "Người dùng ẩn danh";
-    return (
-      <div
-        className="p-2 border-b border-gray-200 cursor-pointer hover:bg-gray-100"
-        onClick={() => scrollToMessage(msg._id)}
-      >
-        <p className="font-bold text-sm">{senderName}</p>
-        <p className="text-sm text-gray-600 truncate">{msg.content}</p>
-        <p className="text-xs text-gray-500">
-          {format(new Date(msg.createdAt), "HH:mm", { locale: vi })}
-        </p>
-      </div>
-    );
-  };
+      : userCache[messageUserId]?.name || "Người dùng ẩn danh";
+
+  console.log("ChatPage: Render search result", { msgId: msg._id, senderName, isCurrentUser });
+  
+  return (
+    <div
+      className="p-2 border-b border-gray-200 cursor-pointer hover:bg-gray-100"
+      onClick={() => scrollToMessage(msg._id)}
+    >
+      <p className="font-bold text-sm">{senderName}</p>
+      <p className="text-sm text-gray-600 truncate">{msg.content}</p>
+      <p className="text-xs text-gray-500">
+        {format(new Date(msg.createdAt), "HH:mm", { locale: vi })}
+      </p>
+    </div>
+  );
+};
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
@@ -1226,7 +1294,7 @@ function ChatPage() {
                             sender:
                               msg.userId === currentUserId
                                 ? "Bạn"
-                                : userCache[msg.userId]?.name || "Unknown",
+                                : userCache[msg.userId]?.name || `${msg.userId?.firstname || ''} ${msg.userId?.surname || ''}`.trim() || "Unknown",
                             time: formatTime(msg.createdAt),
                             messageType: msg.messageType || "text",
                             content: msg.content || "",
@@ -1256,54 +1324,103 @@ function ChatPage() {
                   )}
                   <div ref={messagesEndRef} />
                 </div>
-             {isSearchModalVisible && (
-  <div className="fixed inset-0 flex items-center justify-center z-50 animate-fadeIn">
-    {/* Lớp nền mờ với hiệu ứng làm mờ nội dung bên dưới */}
-    <div
-      className="fixed inset-0 bg-transparent backdrop-filter backdrop-blur-sm transition-opacity duration-300"
-      onClick={() => setIsSearchModalVisible(false)} // Đóng modal khi nhấn vào nền
-    />
-    <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col relative z-60 shadow-xl transform transition-all duration-300 scale-100 hover:scale-[1.02]">
-      {/* Header với màu nền nhẹ và nút đóng nổi bật */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
-        <h2 className="text-lg font-semibold text-gray-800">
-          Kết quả tìm kiếm ({totalResults})
-        </h2>
-        <button
-          onClick={() => setIsSearchModalVisible(false)}
-          className="text-gray-500 hover:text-blue-500 transition-colors duration-200"
-        >
-          <IoClose size={24} />
-        </button>
-      </div>
-      {/* Nội dung chính với cuộn mượt */}
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-        {isSearching ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="flex items-center space-x-2">
-              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-gray-600">Đang tìm kiếm...</p>
-            </div>
-          </div>
-        ) : searchResults.length === 0 ? (
-          <p className="text-center text-gray-500 p-4 font-medium">
-            Không tìm thấy tin nhắn
-          </p>
-        ) : (
-          searchResults.map((msg) => (
-            <div
-              key={msg.id}
-              className="p-3 mb-2 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors duration-150 cursor-pointer"
-              onClick={() => handleResultClick(msg)}
-            >
-              {renderSearchResult(msg)}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  </div>
-)}
+                {isSearchModalVisible && (
+                  <div className="fixed inset-0 flex items-center justify-center z-50 animate-fadeIn">
+                    {/* Lớp nền mờ */}
+                    <div
+                      className="fixed inset-0  bg-opacity-50 backdrop-blur-sm transition-opacity duration-300"
+                      onClick={() => setIsSearchModalVisible(false)}
+                    />
+                    <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col relative z-60 shadow-xl transform transition-all duration-300">
+                      {/* Header */}
+                      <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
+                        <h2 className="text-lg font-semibold text-gray-800">
+                          Kết quả tìm kiếm ({totalResults})
+                        </h2>
+                        <button
+                          onClick={() => setIsSearchModalVisible(false)}
+                          className="text-gray-500 hover:text-blue-500 transition-colors duration-200"
+                        >
+                          <IoClose size={24} />
+                        </button>
+                      </div>
+                      {/* Bộ lọc */}
+                      <div className="p-4 border-b border-gray-200">
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Người gửi
+                          </label>
+                          <select
+                            value={filterSender}
+                            onChange={(e) => setFilterSender(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          >
+                            {senders.map((sender) => (
+                              <option key={sender.userId} value={sender.userId}>
+                                {sender.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex gap-3">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Từ ngày
+                            </label>
+                            <input
+                              type="date"
+                              value={filterStartDate || ""}
+                              onChange={(e) => setFilterStartDate(e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Đến ngày
+                            </label>
+                            <input
+                              type="date"
+                              value={filterEndDate || ""}
+                              onChange={(e) => setFilterEndDate(e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-3 mt-3">
+                          <button
+                            onClick={searchMessages}
+                            className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200"
+                          >
+                            Áp dụng bộ lọc
+                          </button>
+                          <button
+                            onClick={resetFilters}
+                            className="flex-1 bg-gray-300 text-gray-800 py-2 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                          >
+                            Xóa bộ lọc
+                          </button>
+                        </div>
+                      </div>
+                      {/* Nội dung kết quả */}
+                      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                        {isSearching ? (
+                          <div className="flex items-center justify-center h-full">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                              <p className="text-gray-600">Đang tìm kiếm...</p>
+                            </div>
+                          </div>
+                        ) : searchResults.length === 0 ? (
+                          <p className="text-center text-gray-500 p-4 font-medium">
+                            Không tìm thấy tin nhắn
+                          </p>
+                        ) : (
+                          searchResults.map((msg) => renderSearchResult(msg))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {typingUsers.length > 0 && (
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-gray-500 text-xs italic flex items-center gap-1">

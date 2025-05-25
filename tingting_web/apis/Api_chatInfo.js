@@ -126,29 +126,64 @@ export const Api_chatInfo = {
   disbandGroup: (conversationId, userId) => ApiManager.delete("chatService", `/conversations/disbandGroup/${conversationId}` , { userId }),
   transferGroupAdmin: (conversationId, participantData) => ApiManager.put("chatService",`/conversations/${conversationId}/transfer-admin/test`, participantData), // Gửi participantData trực tiếp
 
-searchMessages: async ({ conversationId, searchTerm, page = 1, limit = 20, userId }) => {
+/**
+ * Tìm kiếm tin nhắn trong cuộc trò chuyện
+ * @param {Object} params - Các tham số tìm kiếm
+ * @param {string} params.conversationId - ID của cuộc trò chuyện
+ * @param {string} params.searchTerm - Từ khóa tìm kiếm
+ * @param {number} [params.page=1] - Số trang (mặc định là 1)
+ * @param {number} [params.limit=20] - Số lượng tin nhắn mỗi trang (mặc định là 20)
+ * @param {string} params.userId - ID của người dùng hiện tại
+ * @param {string} [params.senderId] - ID của người gửi (tùy chọn, để lọc theo người gửi) [BỔ SUNG]
+ * @param {string} [params.startDate] - Ngày bắt đầu (YYYY-MM-DD, tùy chọn) [BỔ SUNG]
+ * @param {string} [params.endDate] - Ngày kết thúc (YYYY-MM-DD, tùy chọn) [BỔ SUNG]
+ * @returns {Promise<Object>} - Kết quả tìm kiếm (messages, total, page, limit)
+ * @throws {Error} - Nếu có lỗi trong quá trình gọi API
+ */
+searchMessages: async ({
+  conversationId,
+  searchTerm,
+  page = 1,
+  limit = 20,
+  userId,
+  senderId, // [BỔ SUNG] Lọc theo người gửi
+  startDate, // [BỔ SUNG] Lọc theo ngày bắt đầu
+  endDate, // [BỔ SUNG] Lọc theo ngày kết thúc
+}) => {
   try {
+    // Tạo query parameters
     const queryParams = new URLSearchParams({
       searchTerm,
       page,
       limit,
       userId,
+      ...(senderId && { senderId }), // [BỔ SUNG] Thêm senderId nếu có
+      ...(startDate && { startDate }), // [BỔ SUNG] Thêm startDate nếu có
+      ...(endDate && { endDate }), // [BỔ SUNG] Thêm endDate nếu có
     }).toString();
+
+    // Tạo URL cho API
     const url = `/messages/search/${conversationId}?${queryParams}`;
-    console.log('Calling ApiManager.get with:', { url });
-    const response = await ApiManager.get('chatService', url);
-    console.log('ApiManager.get response:', response);
+    console.log("Calling ApiManager.get with:", { url });
+
+    // Gọi API
+    const response = await ApiManager.get("chatService", url);
+    console.log("ApiManager.get response:", response);
+
     if (!response) {
-      throw new Error('No response received from ApiManager.get');
+      throw new Error("No response received from ApiManager.get");
     }
+
     return response; // Trả về response trực tiếp (không cần response.data)
   } catch (error) {
-    console.error('Error in Api_chatInfo.searchMessages:', {
+    console.error("Error in Api_chatInfo.searchMessages:", {
       message: error.message,
       response: error.response,
       stack: error.stack,
     });
-    throw new Error(error.response?.error || error.message || 'Không thể tìm kiếm tin nhắn');
+    throw new Error(
+      error.response?.error || error.message || "Không thể tìm kiếm tin nhắn"
+    );
   }
 },
 };
