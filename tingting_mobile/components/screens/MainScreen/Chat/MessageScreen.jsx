@@ -13,6 +13,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
+import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux"; // Thêm useDispatch
 import { useSocket } from "../../../../contexts/SocketContext";
@@ -68,6 +69,10 @@ const ChatScreen = ({ route, navigation }) => {
   const memberCount = message?.participants?.length || 0;
   const selectedMessageId = selectedMessageData?.id;
   const receiverId = Object.keys(userCache)[0];
+  // Thêm: State để quản lý phân trang và tải tin nhắn
+  const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [totalMessages, setTotalMessages] = useState(0);
 
   // Thêm state cho tìm kiếm
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -75,6 +80,14 @@ const ChatScreen = ({ route, navigation }) => {
   const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [totalResults, setTotalResults] = useState(0); // Thêm state để lưu tổng số kết quả
+
+  // Thêm state cho bộ lọc và danh sách người gửi
+const [filterSender, setFilterSender] = useState("all"); // Lọc theo người gửi
+const [filterStartDate, setFilterStartDate] = useState(""); // Ngày bắt đầu
+const [filterEndDate, setFilterEndDate] = useState(""); // Ngày kết thúc
+const [senders, setSenders] = useState([]); // Danh sách người gửi
+const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+
 
   // console.log("ChatScreen params:", {
   //   userId,
@@ -91,7 +104,35 @@ const ChatScreen = ({ route, navigation }) => {
   //   console.log("ChatScreen message:", message);
   // }, [route.params, message]);
 
+  // tải tin nhắn ban đầu
+useEffect(() => {
+    const loadInitialMessages = async () => {
+      if (!conversationId || !currentUserId) return;
+      try {
+        const response = await Api_chatInfo.searchMessages({
+          conversationId,
+          searchTerm: "",
+          page: 1,
+          limit: 20,
+          userId: currentUserId,
+          senderId: null,
+          startDate: null,
+          endDate: null,
+        });
+        console.log("Nhi đang tìm tin nhắn:", response);
+        if (response.success) {
+          setMessages(response.messages);
+          setTotalMessages(response.total);
+          setPage(1);
+        }
+      } catch (error) {
+        console.error("Error loading initial messages:", error);
+       
+      }
+    };
 
+    loadInitialMessages();
+  }, [conversationId, currentUserId]);
 
   useEffect(() => {
     console.log("ChatScreen route.params:", route.params);
@@ -107,50 +148,64 @@ const ChatScreen = ({ route, navigation }) => {
 
 
 
-  const fetchUserInfo = async (userId) => {
-    if (!userId) {
-      console.warn("fetchUserInfo: userId is undefined or null");
-      return {
-        name: "Unknown",
-        avatar: "https://picsum.photos/200",
+const fetchUserInfo = async (userId) => {
+  if (!userId) {
+    console.warn("ChatScreen: userId is undefined or null");
+    return { name: "Người dùng ẩn danh", avatar: "https://picsum.photos/200" };
+  }
+
+  if (userCache[userId]) {
+    console.log("ChatScreen: Lấy thông tin người dùng từ cache", { userId, userInfo: userCache[userId] });
+    return userCache[userId];
+  }
+
+  try {
+    const response = await Api_Profile.getProfile(userId);
+    let userInfo;
+    if (response?.data?.user) {
+      userInfo = {
+        name: `${response.data.user.firstname || ''} ${response.data.user.surname || ''}`.trim() || `Người dùng ${userId.slice(-4)}`,
+        avatar: response.data.user.avatar || "https://picsum.photos/200",
       };
+    } else {
+      userInfo = { name: `Người dùng ${userId.slice(-4)}`, avatar: "https://picsum.photos/200" };
     }
+    console.log("ChatScreen: Nhận thông tin người dùng từ API", { userId, userInfo });
+    setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
+    return userInfo;
+  } catch (error) {
+    console.error("ChatScreen: Lỗi khi lấy thông tin người dùng", { userId, error });
+    const userInfo = { name: `Người dùng ${userId.slice(-4)}`, avatar: "https://picsum.photos/200" };
+    setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
+    return userInfo;
+  }
+};
 
-    if (userCache[userId]) {
-      return userCache[userId];
+  useEffect(() => {
+  const loadUserInfos = async () => {
+    const userIds = [
+      ...new Set(
+        messages.map((msg) => msg.userId).filter((id) => id !== currentUserId)
+      ),
+    ];
+    console.log("ChatPage: Tải thông tin người dùng", { userIds });
+    for (const userId of userIds) {
+      await fetchUserInfo(userId);
     }
-
-    try {
-      const response = await Api_Profile.getProfile(userId);
-      let userInfo;
-
-      if (response?.data?.user) {
-        userInfo = {
-          name: `${response.data.user.firstname || ""} ${response.data.user.surname || ""}`.trim() || `Người dùng ${userId.slice(-4)}`,
-          avatar: response.data.user.avatar || "https://picsum.photos/200",
-        };
-      } else {
-        userInfo = {
-          name: `Người dùng ${userId.slice(-4)}`,
-          avatar: "https://picsum.photos/200",
-        };
+    if (selectedMessage?.participants) {
+      const participantIds = selectedMessage.participants
+        .map((p) => p.userId)
+        .filter((id) => id !== currentUserId && !userCache[id]);
+      for (const userId of participantIds) {
+        await fetchUserInfo(userId);
       }
-
-      setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
-      console.log(`Fetched user info for userId ${userId}:`, userInfo);
-      return userInfo;
-    } catch (error) {
-      console.error(`Failed to fetch user info for userId ${userId}:`, error);
-      const fallbackUserInfo = {
-        name: "Unknown",
-        avatar: "https://picsum.photos/200",
-      };
-      setUserCache((prev) => ({ ...prev, [userId]: fallbackUserInfo }));
-      return fallbackUserInfo;
     }
   };
 
-
+  if (messages.length > 0 || selectedMessage?.participants) {
+    loadUserInfos();
+  }
+}, [messages, selectedMessage, currentUserId, userCache]);
   useEffect(() => {
     const fetchConversationDetails = async () => {
       if (!message || !currentUserId) {
@@ -567,118 +622,280 @@ const ChatScreen = ({ route, navigation }) => {
   }, [socket, receiverId]);
 
 
+  useEffect(() => {
+  const preloadParticipants = async () => {
+    if (message?.participants) {
+      const userIds = message.participants
+        .map((p) => p.userId)
+        .filter((id) => id !== currentUserId && !userCache[id]);
+      console.log("ChatScreen: Preload thông tin người dùng cho participants", { userIds });
+      for (const userId of userIds) {
+        await fetchUserInfo(userId);
+      }
+    }
+  };
+  preloadParticipants();
+}, [message, currentUserId, userCache]);
+// Hàm khởi tạo danh sách senders
+const initializeSenders = () => {
+  if (message?.participants) {
+    const senderList = [
+      { userId: "all", name: "Tất cả" },
+      ...message.participants.map((participant) => {
+        const userId = participant.userId;
+        return {
+          userId,
+          name: userId === currentUserId
+            ? "Bạn"
+            : userCache[userId]?.name || `Người dùng ${userId.slice(-4)}`,
+        };
+      }),
+    ];
+    console.log("ChatScreen: Khởi tạo danh sách senders", senderList);
+    setSenders(senderList);
 
+    // Preload thông tin người dùng cho participants
+    const userIds = message.participants
+      .map((p) => p.userId)
+      .filter((id) => id !== currentUserId && !userCache[id]);
+    console.log("ChatScreen: Tải thông tin người dùng cho participants", { userIds });
+    userIds.forEach((userId) => fetchUserInfo(userId));
+  } else {
+    console.warn("ChatScreen: Không có participants để khởi tạo senders");
+    setSenders([{ userId: "all", name: "Tất cả" }]);
+  }
+};;
 
+// Hàm đặt lại bộ lọc
+const resetFilters = () => {
+    console.log("ChatScreen: Đặt lại bộ lọc");
+    setFilterSender("all");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setSearchKeyword("");
+    initializeSenders();
+    setIsSearchModalVisible(false);
+  };
 
-  // Hàm tìm kiếm tin nhắn
+  useEffect(() => {
+    initializeSenders();
+  }, [message, userCache]);
 
+useEffect(() => {
+  initializeSenders();
+}, [message, userCache]);
   // Hàm tìm kiếm tin nhắn trong ChatScreen
-  const searchMessages = async () => {
-    console.log('Starting searchMessages with:', {
+const searchMessages = async () => {
+  console.log("ChatScreen: Bắt đầu tìm kiếm", {
+    conversationId,
+    searchTerm: searchKeyword.trim(),
+    userId: currentUserId,
+    filterSender,
+    filterStartDate,
+    filterEndDate,
+  });
+
+  if (!conversationId) {
+    console.warn("ChatScreen: Thiếu conversationId");
+    Alert.alert("Lỗi", "Không tìm thấy ID cuộc trò chuyện.");
+    setIsSearching(false);
+    return;
+  }
+  if (!searchKeyword.trim()) {
+    console.warn("ChatScreen: Từ khóa tìm kiếm rỗng");
+    Alert.alert("Lỗi", "Vui lòng nhập từ khóa tìm kiếm.");
+    setIsSearching(false);
+    return;
+  }
+  if (!currentUserId) {
+    console.warn("ChatScreen: Thiếu userId");
+    Alert.alert("Lỗi", "Không thể xác định người dùng hiện tại.");
+    setIsSearching(false);
+    return;
+  }
+
+  setIsSearching(true);
+  try {
+    const response = await Api_chatInfo.searchMessages({
       conversationId,
       searchTerm: searchKeyword.trim(),
+      page: 1,
+      limit: 20,
       userId: currentUserId,
+      senderId: filterSender === "all" ? null : filterSender,
+      startDate: filterStartDate || null,
+      endDate: filterEndDate || null,
     });
+    console.log("ChatScreen: Kết quả tìm kiếm", response);
 
-    // Kiểm tra các tham số đầu vào
-    if (!conversationId) {
-      console.warn('Missing conversationId');
-      Alert.alert('Lỗi', 'Không tìm thấy ID cuộc trò chuyện. Vui lòng thử lại.');
-      setIsSearching(false);
-      return;
-    }
-    if (!searchKeyword.trim()) {
-      console.warn('Empty search keyword');
-      Alert.alert('Lỗi', 'Vui lòng nhập từ khóa tìm kiếm.');
-      setIsSearching(false);
-      return;
-    }
-    if (!currentUserId) {
-      console.warn('Missing userId');
-      Alert.alert('Lỗi', 'Không thể xác định người dùng hiện tại. Vui lòng đăng nhập lại.');
-      setIsSearching(false);
-      return;
-    }
+    if (response.success) {
+      const filteredMessages = response.messages.filter(
+        (msg) => !msg.deletedBy?.includes(currentUserId)
+      );
+      setSearchResults(filteredMessages);
+      setTotalResults(response.total);
 
-    setIsSearching(true);
+      // Preload thông tin người dùng cho các userId trong kết quả tìm kiếm
+      const userIds = [
+        ...new Set(
+          filteredMessages
+            .map((msg) => {
+              const userId = typeof msg.userId === 'object' && msg.userId?._id
+                ? msg.userId._id
+                : msg.userId;
+              return userId;
+            })
+            .filter((id) => id && id !== currentUserId && !userCache[id])
+        ),
+      ];
+      console.log("ChatScreen: Tải thông tin người dùng cho search results", { userIds });
+      for (const userId of userIds) {
+        const userInfo = await fetchUserInfo(userId);
+        console.log("ChatScreen: Đã tải thông tin người dùng", { userId, userInfo });
+      }
+
+      setIsSearchModalVisible(true);
+    } else {
+      console.warn("ChatScreen: Tìm kiếm thất bại", response.error);
+      Alert.alert("Lỗi", response.error || "Không tìm thấy tin nhắn phù hợp.");
+    }
+  } catch (error) {
+    console.error("ChatScreen: Lỗi khi tìm kiếm", {
+      message: error.message,
+      response: error.response,
+    });
+    let errorMessage = "Không thể tìm kiếm tin nhắn. Vui lòng thử lại.";
+    if (error.message.includes("Network Error")) {
+      errorMessage = "Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet.";
+    } else if (error.response?.error) {
+      errorMessage = error.response.error;
+    }
+    Alert.alert("Lỗi", errorMessage);
+  } finally {
+    setIsSearching(false);
+  }
+};
+
+// Hàm tải thêm tin nhắn khi cuộn đến cuối danh sách
+  const fetchMoreMessages = async (messageId) => {
+    if (isLoadingMore || messages.length >= totalMessages) return;
+    setIsLoadingMore(true);
+
     try {
+      console.log(`Fetching more messages to find messageId: ${messageId}, page: ${page + 1}`);
       const response = await Api_chatInfo.searchMessages({
         conversationId,
-        searchTerm: searchKeyword.trim(),
-        page: 1,
+        searchTerm: "",
+        page: page + 1,
         limit: 20,
         userId: currentUserId,
+        senderId: null,
+        startDate: null,
+        endDate: null,
       });
-      console.log('Search messages response:', response);
 
-      if (!response) {
-        console.warn('No response received from Api_chatInfo.searchMessages');
-        Alert.alert('Lỗi', 'Không nhận được phản hồi từ server.');
-        return;
-      }
+      console.log("Fetch more messages response:", response);
 
-      if (response.success) {
-        setSearchResults(response.messages || []);
-        setTotalResults(response.total || 0);
-        setIsSearchModalVisible(true);
+      if (response.success && response.messages.length > 0) {
+        const newMessages = response.messages.filter(
+          (msg) => !msg.deletedBy?.includes(currentUserId)
+        );
+        setMessages((prev) => {
+          const combinedMessages = [...prev, ...newMessages];
+          return Array.from(new Map(combinedMessages.map((msg) => [msg._id, msg])).values());
+        });
+        setTotalMessages(response.total);
+        setPage((prev) => prev + 1);
+
+        const filteredMessages = [...messages, ...newMessages].filter(
+          (msg) => !msg.deletedBy?.includes(currentUserId)
+        );
+        const newIndex = filteredMessages.findIndex((msg) => msg._id === messageId);
+
+        if (newIndex !== -1) {
+          setTimeout(() => {
+            flatListRef.current?.scrollToIndex({ index: newIndex, animated: true });
+            setHighlightedMessageId(messageId);
+            setIsSearchModalVisible(false);
+            setSearchKeyword("");
+            setTimeout(() => setHighlightedMessageId(null), 3000);
+          }, 100);
+        } else if (messages.length + newMessages.length < response.total) {
+          await fetchMoreMessages(messageId);
+        } else {
+          Alert.alert("Lỗi", "Không tìm thấy tin nhắn.");
+        }
       } else {
-        console.warn('Search failed:', response.error || 'Unknown error');
-        Alert.alert('Lỗi', response.error || 'Không tìm thấy tin nhắn phù hợp.');
+        Alert.alert("Lỗi", "Không thể tải thêm tin nhắn.");
       }
     } catch (error) {
-      console.error('Error searching messages:', {
-        message: error.message,
-        response: error.response,
-        stack: error.stack,
-      });
-      let errorMessage = 'Không thể tìm kiếm tin nhắn. Vui lòng thử lại.';
-      if (error.message.includes('Network Error')) {
-        errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet.';
-      } else if (error.response?.error) {
-        errorMessage = error.response.error;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      Alert.alert('Lỗi', errorMessage);
+      console.error("Error fetching more messages:", error);
+      Alert.alert("Lỗi", "Không thể tải thêm tin nhắn. Vui lòng thử lại.");
     } finally {
-      setIsSearching(false);
+      setIsLoadingMore(false);
     }
   };
   // Cuộn đến tin nhắn được chọn
-  const scrollToMessage = (messageId) => {
-    const index = messages.findIndex((msg) => msg._id === messageId);
-    if (index !== -1) {
+const scrollToMessage = async (messageId) => {
+    const filteredMessages = messages.filter(
+      (msg) => !msg.deletedBy?.includes(currentUserId)
+    );
+    const index = filteredMessages.findIndex((msg) => msg._id === messageId);
+    console.log(`scrollToMessage: Finding message with ID ${messageId}, index: ${index}, filtered messages length: ${filteredMessages.length}`);
+
+    if (index === -1) {
+      console.warn(`Tin nhắn với ID ${messageId} không tìm thấy trong danh sách hiện tại`);
+      Alert.alert("Thông báo", "Tin nhắn không tìm thấy. Đang tải thêm tin nhắn...");
+      await fetchMoreMessages(messageId);
+      return;
+    }
+
+    try {
       flatListRef.current?.scrollToIndex({ index, animated: true });
+      setHighlightedMessageId(messageId);
       setIsSearchModalVisible(false);
       setSearchKeyword("");
-    } else {
-      Alert.alert("Lỗi", "Không tìm thấy tin nhắn trong danh sách hiện tại");
+      setTimeout(() => setHighlightedMessageId(null), 3000);
+    } catch (error) {
+      console.error("Error scrolling to index:", error);
+      Alert.alert("Lỗi", "Không thể cuộn đến tin nhắn. Vui lòng thử lại.");
     }
   };
 
-  // Render kết quả tìm kiếm
-  const renderSearchResult = ({ item }) => {
-    const senderName = item.userId?.firstname
-      ? `${item.userId.firstname} ${item.userId.surname || ''}`.trim()
-      : userCache[item.userId?._id]?.name || "Người dùng ẩn danh";
-    return (
-      <TouchableOpacity
-        style={styles.searchResultItem}
-        onPress={() => scrollToMessage(item._id)}
-      >
-        <Text style={styles.searchResultSender}>{senderName}</Text>
-        <Text style={styles.searchResultContent} numberOfLines={2}>
-          {item.content}
-        </Text>
-        <Text style={styles.searchResultTime}>
-          {new Date(item.createdAt).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+ const renderSearchResult = ({ item }) => {
+  const messageUserId = typeof item.userId === 'object' && item.userId?._id
+    ? item.userId._id
+    : item.userId;
+  const senderName = messageUserId === currentUserId
+    ? "Bạn"
+    : userCache[messageUserId]?.name || `Người dùng ${messageUserId?.slice(-4) || 'ẩn danh'}`;
+
+  console.log("ChatScreen: Render search result", {
+    msgId: item._id,
+    messageUserId,
+    senderName,
+    isCurrentUser: messageUserId === currentUserId,
+    userCacheKeys: Object.keys(userCache),
+  });
+
+  return (
+    <TouchableOpacity
+      style={styles.searchResultItem}
+      onPress={() => scrollToMessage(item._id)}
+    >
+      <Text style={styles.searchResultSender}>{senderName}</Text>
+      <Text style={styles.searchResultContent} numberOfLines={2}>
+        {item.content}
+      </Text>
+      <Text style={styles.searchResultTime}>
+        {new Date(item.createdAt).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 
   const sendMessage = (payload) => {
@@ -910,14 +1127,15 @@ const ChatScreen = ({ route, navigation }) => {
     }
   }, [messages, selectedMessageId, socket, currentUserId]);
 
-  const renderItem = ({ item, index }) => {
+const renderItem = ({ item, index }) => {
+    const filteredMessages = messages.filter(
+      (msg) => !msg.deletedBy?.includes(currentUserId)
+    );
     const currentDate = formatDateSeparator(item.createdAt);
-    const prevMessage = index > 0 ? setMessages[index - 1] : null;
+    const prevMessage = index > 0 ? filteredMessages[index - 1] : null; // là tin nhắn trước đó
     const prevDate = prevMessage ? formatDateSeparator(prevMessage.createdAt) : null;
     const showDateSeparator = index === 0 || currentDate !== prevDate;
-
-    const isLastMessage = item._id === setMessages[setMessages.length - 1]?._id;
-
+    const isLastMessage = index === filteredMessages.length - 1;
 
     return (
       <>
@@ -937,22 +1155,22 @@ const ChatScreen = ({ route, navigation }) => {
             time: formatTime(item.createdAt),
             messageType: item.messageType || "text",
             content: item.content || "",
-            linkURL: item.linkURL || "",
+            linkURL: item.linkURL || [],
             userId: item.userId,
             status: item.status || { readBy: [] }
           }}
           currentUserId={currentUserId}
-          messages={messages}
+          messages={filteredMessages}
           onLongPress={handleLongPress}
           markMessageAsRead={markMessageAsRead}
           participants={message?.participants || []}
           userCache={userCache}
           isLastMessage={isLastMessage}
+          highlightedMessageId={highlightedMessageId}
         />
       </>
     );
   };
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -1049,7 +1267,7 @@ const ChatScreen = ({ route, navigation }) => {
           />
         </TouchableOpacity>
       </View>
-      <FlatList
+     <FlatList
         ref={flatListRef}
         data={messages.filter((msg) => !msg.deletedBy?.includes(currentUserId))}
         renderItem={renderItem}
@@ -1057,6 +1275,20 @@ const ChatScreen = ({ route, navigation }) => {
         contentContainerStyle={{ padding: 10 }}
         onContentSizeChange={() =>
           flatListRef.current?.scrollToEnd({ animated: true })
+        }
+        getItemLayout={(data, index) => ({
+          length: 100,
+          offset: 100 * index,
+          index,
+        })}
+        initialNumToRender={20}
+        maxToRenderPerBatch={20}
+        windowSize={21}
+        extraData={highlightedMessageId} // Thêm extraData
+        ListFooterComponent={
+          isLoadingMore ? (
+            <ActivityIndicator size="small" color="#0196fc" style={{ padding: 10 }} />
+          ) : null
         }
       />
       {typingUsers.length > 0 && (
@@ -1074,33 +1306,86 @@ const ChatScreen = ({ route, navigation }) => {
       />
       {/* Modal hiển thị kết quả tìm kiếm */}
       <Modal
-        visible={isSearchModalVisible}
-        animationType="slide"
-        onRequestClose={() => setIsSearchModalVisible(false)}
-      >
-        <View style={styles.searchModalContainer}>
-          <View style={styles.searchModalHeader}>
-            <TouchableOpacity onPress={() => setIsSearchModalVisible(false)}>
-              <Ionicons name="close" size={28} color="#000" />
-            </TouchableOpacity>
-            <Text style={styles.searchModalTitle}>
-              Kết quả tìm kiếm ({totalResults})
-            </Text>
-          </View>
-          {isSearching ? (
-            <ActivityIndicator size="large" color="#0196fc" />
-          ) : searchResults.length === 0 ? (
-            <Text style={styles.noResultsText}>Không tìm thấy tin nhắn</Text>
-          ) : (
-            <FlatList
-              data={searchResults}
-              renderItem={renderSearchResult}
-              keyExtractor={(item) => item._id}
-              contentContainerStyle={{ padding: 10 }}
+  visible={isSearchModalVisible}
+  animationType="slide"
+  onRequestClose={() => setIsSearchModalVisible(false)}
+>
+  <View style={styles.searchModalContainer}>
+    <View style={styles.searchModalHeader}>
+      <TouchableOpacity onPress={() => setIsSearchModalVisible(false)}>
+        <Ionicons name="close" size={28} color="#000" />
+      </TouchableOpacity>
+      <Text style={styles.searchModalTitle}>
+        Kết quả tìm kiếm ({totalResults})
+      </Text>
+    </View>
+    <View style={styles.filterContainer}>
+      <Text style={styles.filterLabel}>Người gửi</Text>
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={filterSender}
+          onValueChange={(itemValue) => setFilterSender(itemValue)}
+          style={styles.picker}
+        >
+          {senders.map((sender) => (
+            <Picker.Item
+              key={sender.userId}
+              label={sender.name}
+              value={sender.userId}
             />
-          )}
+          ))}
+        </Picker>
+      </View>
+      <View style={styles.dateContainer}>
+        <View style={styles.dateInput}>
+          <Text style={styles.filterLabel}>Từ ngày</Text>
+          <TextInput
+            style={styles.dateInputField}
+            value={filterStartDate}
+            onChangeText={setFilterStartDate}
+            placeholder="Chọn ngày"
+          />
         </View>
-      </Modal>
+        <View style={styles.dateInput}>
+          <Text style={styles.filterLabel}>Đến ngày</Text>
+          <TextInput
+            style={styles.dateInputField}
+            value={filterEndDate}
+            onChangeText={setFilterEndDate}
+            placeholder="Chọn ngày"
+          />
+        </View>
+      </View>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.applyButton}
+          onPress={searchMessages}
+          disabled={isSearching}
+        >
+          <Text style={styles.applyButtonText}>Áp dụng bộ lọc</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.resetButton}
+          onPress={resetFilters}
+        >
+          <Text style={styles.resetButtonText}>Xóa bộ lọc</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+    {isSearching ? (
+      <ActivityIndicator size="large" color="#0196fc" />
+    ) : searchResults.length === 0 ? (
+      <Text style={styles.noResultsText}>Không tìm thấy tin nhắn</Text>
+    ) : (
+      <FlatList
+        data={searchResults}
+        renderItem={renderSearchResult}
+        keyExtractor={(item) => item._id}
+        contentContainerStyle={{ padding: 10 }}
+      />
+    )}
+  </View>
+</Modal>
       <Modal visible={showOptions} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setShowOptions(false)}>
           <View style={styles.modalOverlay}>
@@ -1272,6 +1557,70 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
     color: "#666",
+  },
+  filterContainer: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: "bold",
+    marginBottom: 5,
+    color: "#333",
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    marginBottom: 10,
+  },
+  picker: {
+    height: 40,
+  },
+  dateContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  dateInput: {
+    flex: 1,
+    marginRight: 5,
+  },
+  dateInputField: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    paddingHorizontal: 10,
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  applyButton: {
+    flex: 1,
+    backgroundColor: "#0196fc",
+    padding: 10,
+    borderRadius: 5,
+    marginRight: 5,
+  },
+  applyButtonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  resetButton: {
+    flex: 1,
+    backgroundColor: "#ccc",
+    padding: 10,
+    borderRadius: 5,
+    marginLeft: 5,
+  },
+  resetButtonText: {
+    color: "#333",
+    textAlign: "center",
+    fontWeight: "bold",
   },
 });
 
