@@ -348,14 +348,14 @@ useEffect(() => {
       console.log("ChatScreen: Received groupLeft:", data);
       if (data.conversationId === selectedMessageId) {
         Alert.alert("Thông báo", "Bạn đã rời khỏi nhóm.");
-        navigation.navigate("Main", { screen: "MessageScreen" });
+        navigation.navigate("Main", { screen: "ChatScreen" });
       }
     });
 
     onConversationRemoved(socket, (data) => {
       console.log("ChatScreen: Received conversationRemoved:", data);
       if (data.conversationId === selectedMessageId) {
-        navigation.navigate("Main", { screen: "MessageScreen" });
+        navigation.navigate("Main", { screen: "ChatScreen" });
       }
     });
 

@@ -417,6 +417,7 @@ const SecuritySettings: React.FC<Props> = ({
       if (response.success) {
         setChatInfo(null);
         Alert.alert('Thành công', 'Bạn đã rời khỏi nhóm!');
+        console.log('SecuritySettings: Rời nhóm thành công', { conversationId, userId });
         navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
       } else {
         Alert.alert('Lỗi', `Rời nhóm thất bại: ${response.message}`);
@@ -471,6 +472,7 @@ const SecuritySettings: React.FC<Props> = ({
   // Disband group functionality
   const handleDisbandGroup = useCallback(() => {
     if (!isGroup || !isAdmin) return;
+    
     setShowDisbandConfirm(true);
   }, [isGroup, isAdmin]);
 

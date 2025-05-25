@@ -501,7 +501,9 @@ const ChatScreen = ({ navigation }) => {
           setPinnedOrder(pinnedOrder.filter((id) => id !== data.conversationId))
         );
         dispatch(setSelectedMessage(null));
-        Alert.alert("Thông báo", "Bạn đã rời khỏi nhóm.");
+        console.log(
+          `Bạn đã rời khỏi nhóm: ${data.conversationId}`
+        );
       }
     };
 
@@ -517,7 +519,7 @@ const ChatScreen = ({ navigation }) => {
         joinedRoomsRef.current.delete(data.conversationId);
         socket.emit("leaveConversation", { conversationId: data.conversationId });
       }
-      Alert.alert("Thông báo", "Bạn đã bị xóa khỏi nhóm.");
+      // Alert.alert("Thông báo", "Bạn đã bị xóa khỏi nhóm.");
     };
 
     const handleChatInfoUpdated = (updatedInfo) => {

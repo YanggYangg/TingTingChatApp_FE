@@ -451,6 +451,11 @@ export default function App() {
               component={CreatePostScreen}
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="ProfileScreen2"
+              component={ProfileScreen2}
+              options={{ headerShown: false }}
+            />
           </Stack.Navigator>
           
           <Toast />

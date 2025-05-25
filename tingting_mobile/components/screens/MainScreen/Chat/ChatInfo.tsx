@@ -291,6 +291,26 @@ const ChatInfo: React.FC = () => {
       });
       Alert.alert("Thông báo", "Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");
     };
+    const handleDisbandGroup = ({ conversationId: disbandedConversationId }) => {
+    if (disbandedConversationId !== conversationId) return;
+    console.log('DEBUG: Nhận sự kiện disbandGroup từ thiết bị khác', { conversationId });
+    Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
+      {
+        text: 'OK',
+        onPress: () => {
+          dispatch(setSelectedMessage(null));
+          setChatInfo(null);
+          try {
+            navigation.navigate('Main', { screen: 'ChatScreen', params: { refresh: true } });
+          } catch (error) {
+            console.error('DEBUG: Lỗi điều hướng:', error);
+          }
+        },
+      },
+    ]);
+  };
+
+  socket.on('disbandGroup', handleDisbandGroup);
 
     const handleError = (error: any) => {
       setError("Đã xảy ra lỗi: " + (error.message || "Không xác định"));
@@ -309,6 +329,7 @@ const ChatInfo: React.FC = () => {
     return () => {
       socket.off("updateChatInfo", handleUpdateChatInfo);
       socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
+      socket.off('disbandGroup', handleDisbandGroup);
       offChatInfo(socket);
       offChatInfoUpdated(socket);
       offError(socket);
