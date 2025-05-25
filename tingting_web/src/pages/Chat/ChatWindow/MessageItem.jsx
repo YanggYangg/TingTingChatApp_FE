@@ -9,6 +9,7 @@ import { HiDownload } from "react-icons/hi";
 import { MdCall, MdVideocam } from "react-icons/md";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import ProfileScreen from "../../../layouts/components/profile/ProfileScreen";
 
 const MessageItem = ({
   msg,
@@ -40,13 +41,18 @@ const MessageItem = ({
   const isCurrentUser = msg.userId === currentUserId;
   const repliedMessage = messages?.find((m) => m._id === msg.replyMessageId);
   const isHighlighted = msg._id === highlightedMessageId;
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-const navigate = useNavigate();
-  // Điều hướng đến ProfileScreen khi nhấn vào tên hoặc avatar
+  // Mở modal khi nhấn vào tên hoặc avatar
   const handleProfileClick = () => {
     if (!isCurrentUser && msg.userId) {
-      navigate(`/profile/${msg.userId}`);
+      setIsModalOpen(true);
     }
+  };
+
+  // Đóng modal
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
   };
   // Add useEffect to mark message as read when it becomes visible
   useEffect(() => {
@@ -284,13 +290,12 @@ const navigate = useNavigate();
     }
   }, [msg, isCurrentUser, currentUserId, markMessageAsRead]);
 
- return (
+  return (
     <>
       <div
         id={`message-${msg._id}`} // Đảm bảo có ID để cuộn đến
-        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"} mb-4 ${
-          isHighlighted ? "highlighted" : ""
-        }`}
+        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"} mb-4 ${isHighlighted ? "highlighted" : ""
+          }`}
       >
         {!isCurrentUser && !msg.isRevoked && (
           <div className="mr-2">
@@ -305,11 +310,10 @@ const navigate = useNavigate();
           </div>
         )}
         <div
-          className={`p-3 rounded-lg max-w-xs relative ${
-            isCurrentUser
+          className={`p-3 rounded-lg max-w-xs relative ${isCurrentUser
               ? "bg-blue-200 text-black ml-auto"
               : "bg-gray-200 text-black"
-          } ${msg.isRevoked ? "" : "group"}`}
+            } ${msg.isRevoked ? "" : "group"}`}
         >
           {!isCurrentUser && !msg.isRevoked && (
             <p
@@ -332,10 +336,10 @@ const navigate = useNavigate();
                     {repliedMessage?.messageType === "image"
                       ? "[Ảnh]"
                       : repliedMessage?.messageType === "file"
-                      ? "[Tệp]"
-                      : repliedMessage?.messageType === "call"
-                      ? "[Cuộc gọi]"
-                      : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
+                        ? "[Tệp]"
+                        : repliedMessage?.messageType === "call"
+                          ? "[Cuộc gọi]"
+                          : repliedMessage?.content || "[Tin nhắn đã bị xóa]"}
                   </p>
                   <p className="text-sm text-gray-900">{msg.content}</p>
                 </div>
@@ -450,9 +454,8 @@ const navigate = useNavigate();
 
           {!msg.isRevoked && (
             <div
-              className={`absolute top-[-36px] ${
-                isCurrentUser ? "right-0" : "left-0"
-              } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
+              className={`absolute top-[-36px] ${isCurrentUser ? "right-0" : "left-0"
+                } flex space-x-2 opacity-0 group-hover:opacity-100 pointer-events-auto transition-opacity duration-200`}
             >
               <button
                 onClick={() => onReply(msg)}
@@ -490,7 +493,10 @@ const navigate = useNavigate();
           )}
         </div>
       </div>
-
+      {/* Hiển thị modal khi isModalOpen là true */}
+      {isModalOpen && (
+        <ProfileScreen userId={msg.userId} onClose={handleCloseModal} />
+      )}
       {/* Modal xem ảnh/video */}
       {openMedia && (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
@@ -504,7 +510,7 @@ const navigate = useNavigate();
 
           <div className="relative max-w-[90%] max-h-[90%] flex items-center justify-center">
             {typeof openMedia === "string" &&
-            /\.(mp4|mov|avi|mkv)$/i.test(openMedia) ? (
+              /\.(mp4|mov|avi|mkv)$/i.test(openMedia) ? (
               <video
                 controls
                 autoPlay
