@@ -61,7 +61,7 @@ function SettingsMenu({ isOpen, onClose, position }) {
      try {
     const userId = localStorage.getItem("userId");
     const response =  await axios.post(
-      "http://184.73.0.29:3002/api/v1/auth/sign-out", userId,
+      "http://localhost:3002/api/v1/auth/sign-out", userId,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`

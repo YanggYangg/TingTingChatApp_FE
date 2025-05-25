@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,11 +11,14 @@ import {
   Keyboard,
   Modal,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useRoute } from "@react-navigation/native";
-
+import { Api_ChatGPT } from "../../../../apis/api_chatgpt";
+import { useDispatch, useSelector } from "react-redux";
+import { addMessage, removeLoadingMessage, resetMessages, loadMessages } from "../../../../redux/slices/chatGPTSlice";
 
 
 //Dinh nghia kieu cho message
@@ -23,7 +26,9 @@ interface Message {
   id: string;
   text: string;
   sender: string;
+  isLoading?: boolean;
 }
+
 
 const messagesData = [
     { id: "1", text: "Xin chào! Tôi là chatbot của tingting app ! Bạn cần hỗ trợ gì?", sender: "bot" },
@@ -34,44 +39,89 @@ const MessageSupportScreen = () => {
   const { username } = route.params as { username: string };
   const navigation = useNavigation();
   const [inputText, setInputText] = useState("");
-  const [messages, setMessages] = useState<Message[]>(messagesData);
   const [modalVisible, setModalVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  
+  const dispatch = useDispatch();
+  const messages = useSelector((state: any) => state.chatGPT.messages);
 
+  useEffect(() => {
+    // Load messages when component mounts
+    // dispatch(loadMessages());
+  }, [dispatch]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (inputText.trim() === "") return;
 
-    const newMessage = {
+    const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputText,
+      text: inputText.trim(),
       sender: "user",
     };
 
-    setMessages([...messages, newMessage]);
+    dispatch(addMessage(userMessage));
     setInputText("");
     Keyboard.dismiss();
 
-    // Giả lập phản hồi từ bot
-    setTimeout(() => {
-      const botReply = {
-        id: Date.now().toString() + "_bot",
-        text: "Cảm ơn bạn đã nhắn! Tôi sẽ hỗ trợ bạn ngay.",
-        sender: "bot",
-      };
-      setMessages((prev) => [...prev, botReply]);
-    }, 1000);
+    // Add loading message
+    const loadingMessage: Message = {
+      id: "loading_" + Date.now(),
+      text: "Đang trả lời...",
+      sender: "bot",
+      isLoading: true,
+    };
+    dispatch(addMessage(loadingMessage));
+
+    try {
+      const response = await Api_ChatGPT.sendMessage({
+        message: inputText.trim()
+      });
+
+      // Remove loading message and add bot response
+      dispatch(removeLoadingMessage(loadingMessage.id));
+      dispatch(addMessage({
+        id: Date.now().toString(),
+        text: response.data.message,
+        sender: "bot"
+      }));
+    } catch (error) {
+      console.error("Error sending message to ChatGPT:", error);
+      
+      // Remove loading message and add error message
+      dispatch(removeLoadingMessage(loadingMessage.id));
+      dispatch(addMessage({
+        id: Date.now().toString(),
+        text: "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.",
+        sender: "bot"
+      }));
+    }
   };
 
-  const renderItem = ({ item } : any) => (
+  const handleKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const renderItem = ({ item }: { item: Message }) => (
     <View
       style={[
         styles.messageContainer,
         item.sender === "user" ? styles.userMessage : styles.botMessage,
       ]}
     >
-      <Text style={styles.messageText}>{item.text}</Text>
+      {item.isLoading ? (
+        <ActivityIndicator size="small" color="#007AFF" />
+      ) : (
+        <Text style={styles.messageText}>{item.text}</Text>
+      )}
     </View>
   );
+
+  const handleNewChat = () => {
+    dispatch(resetMessages());
+  };
 
   return (
     <KeyboardAvoidingView
@@ -89,11 +139,12 @@ const MessageSupportScreen = () => {
         </View>
         <View style={styles.rightContainer}>
           <TouchableOpacity
-            onPress={() => setModalVisible(true)}
+            onPress={handleNewChat}
             style={{ marginLeft: 15 }}
           >
-            <Ionicons
-              name="information-circle-outline"
+            
+            <Ionicons 
+              name="add-circle-outline"
               size={28}
               color="#fff"
             />
@@ -113,10 +164,14 @@ const MessageSupportScreen = () => {
       {/* Footer: Nhập tin nhắn */}
       <View style={styles.footerContainer}>
         <TextInput
+          ref={inputRef}
           style={styles.input}
           placeholder="Nhập tin nhắn..."
           value={inputText}
           onChangeText={setInputText}
+          onKeyPress={handleKeyPress}
+          multiline
+          maxLength={1000}
         />
         <TouchableOpacity
           style={[
@@ -190,7 +245,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#ccc",
     backgroundColor: "#fff",
-    alignItems: "center",
+    alignItems: "flex-end",
   },
   input: {
     flex: 1,
@@ -199,11 +254,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === "ios" ? 10 : 6,
     marginRight: 8,
+    maxHeight: 100,
+    minHeight: 40,
   },
   sendButton: {
     backgroundColor: "#007AFF",
     borderRadius: 20,
-    padding: 10,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   messageContainer: {
     maxWidth: "75%",

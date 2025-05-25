@@ -8,14 +8,15 @@ const ChatSupportItems = () => {
 
     return (
         <ChatItems
-            avatar="https://picsum.photos/200/?1"
-            username="Hỗ trợ tiện ích ChatGPT"
+            avatar={require("../../assets/images/chatGPT.jpg")}
+            username="ChatGPT"
             lastMessage="Chào bạn! Bạn cần hỗ trợ gì?"
-            time="10:30 AM"
+            time=""
             onPress={() => navigation.navigate("MessageSupportScreen", {
-                username : "Hỗ trợ tiện ích ChatGPT",
+                username : "ChatGPT",
             })}
         />
     )
 };
+
 export default ChatSupportItems;

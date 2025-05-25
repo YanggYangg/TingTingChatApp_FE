@@ -33,6 +33,7 @@ interface MediaItem {
   type: "image" | "video";
 }
 
+const API_BASE_URL = "http://192.168.1.9:3006";
 const CreatePostScreen: React.FC = () => {
   const navigation = useNavigation();
   const [text, setText] = useState("");
@@ -131,7 +132,7 @@ const CreatePostScreen: React.FC = () => {
       });
 
       const response = await axios.post(
-        "http://192.168.24.106:3006/api/v1/post",
+        `${API_BASE_URL}/api/v1/post`,
         formData,
         {
           headers: {

@@ -32,6 +32,16 @@ import {
   getChatLinks,
 } from "../../services/sockets/events/chatInfo";
 
+import ChatHeaderChatGPT from './ChatWindow/ChatHeaderChatGPT';
+import ChatFooterChatGPT from './ChatWindow/ChatFooterChatGPT';
+import MessageItemChatGPT from './ChatWindow/MessageItemChatGPT';
+import { Api_ChatGPT } from '../../../apis/api_chatgpt';
+import {
+  setMessages as setChatGPTMessages,
+  addMessage as addChatGPTMessage,
+  clearMessages as clearChatGPTMessages
+} from "../../redux/slices/chatGPTSlice";
+
 function ChatPage() {
   const [isChatInfoVisible, setIsChatInfoVisible] = useState(false);
   const [cloudMessages, setCloudMessages] = useState([]);
@@ -87,6 +97,8 @@ function ChatPage() {
   const [senders, setSenders] = useState([]); // Danh sách người gửi
   const [highlightedMessageId, setHighlightedMessageId] = useState(null); 
   const messagesContainerRef = useRef(null);
+
+  const chatGPTMessages = useSelector((state) => state.chatGPT.messages);
 
   console.log("ChatPage: Current socket", { socket, socketCloud, currUserId });
 
@@ -559,18 +571,18 @@ const fetchUserInfo = async (userId) => {
     };
   }, []);
 
-  const selectedChat = useMemo(
-    () =>
-      selectedMessage
-        ? {
+const selectedChat = useMemo(
+  () =>
+    selectedMessage
+      ? {
           id: selectedMessageId,
-          name: chatDetails.name,
-          avatar: chatDetails.avatar,
-          type: selectedMessage.type || "personal",
+          name: selectedMessageId === 'chatgpt' ? 'ChatGPT Assistant' : chatDetails.name,
+          avatar: selectedMessageId === 'chatgpt' ? 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' : chatDetails.avatar,
+          type: selectedMessageId === 'chatgpt' ? 'chatgpt' : (selectedMessage.type || 'personal'),
         }
-        : null,
-    [selectedMessage, selectedMessageId, chatDetails.name, chatDetails.avatar]
-  );
+      : null,
+  [selectedMessage, selectedMessageId, chatDetails.name, chatDetails.avatar]
+);
 
   const sendMessage = (message) => {
     if (socket && selectedMessageId && selectedMessageId !== "my-cloud") {
@@ -1048,6 +1060,66 @@ const fetchUserInfo = async (userId) => {
       socket.off("messageRead", handleMessageRead);
     };
   }, [socket, selectedMessageId]);
+  const sendMessageToChatGPT = async (message) => {
+    try {
+      // First, add the user's message to the UI immediately
+      const userMessage = {
+        _id: Date.now().toString(),
+        content: message.content,
+        userId: currentUserId,
+        conversationId: 'chatgpt',
+        createdAt: new Date().toISOString(),
+        time: formatTime(new Date()),
+        role: 'user',
+        messageType: message.messageType || 'text'
+      };
+      
+      // Update messages with user's message
+      const updatedMessages = [...chatGPTMessages, userMessage];
+      dispatch(setChatGPTMessages(updatedMessages));
+
+      // Show loading state for ChatGPT's response
+      const loadingMessageId = 'loading-' + Date.now();
+      const loadingMessage = {
+        _id: loadingMessageId,
+        content: 'ChatGPT đang trả lời...',
+        userId: 'chatgpt',
+        conversationId: 'chatgpt',
+        createdAt: new Date().toISOString(),
+        time: formatTime(new Date()),
+        isLoading: true,
+        role: 'assistant'
+      };
+      
+      // Add loading message
+      dispatch(setChatGPTMessages([...updatedMessages, loadingMessage]));
+
+      // Make API call to ChatGPT service
+      const response = await Api_ChatGPT.sendMessage(message.content.toString());
+
+      // Remove loading message and add ChatGPT's response
+      const finalMessages = updatedMessages.filter(msg => msg._id !== loadingMessageId);
+      const chatGPTResponse = {
+        _id: Date.now().toString(),
+        content: response.data.message,
+        userId: 'chatgpt',
+        conversationId: 'chatgpt',
+        createdAt: new Date().toISOString(),
+        time: formatTime(new Date()),
+        role: response.data.role || 'assistant'
+      };
+
+      dispatch(setChatGPTMessages([...finalMessages, chatGPTResponse]));
+    } catch (error) {
+      console.error('Error sending message to ChatGPT:', error);
+      toast.error('Không thể gửi tin nhắn đến ChatGPT. Vui lòng thử lại sau.');
+      
+      // Remove loading message but keep user's message
+      const loadingMessageId = 'loading-' + Date.now();
+      const finalMessages = chatGPTMessages.filter(msg => msg._id !== loadingMessageId);
+      dispatch(setChatGPTMessages(finalMessages));
+    }
+  };
 
 
   // Hàm khởi tạo danh sách senders
@@ -1214,335 +1286,384 @@ const renderSearchResult = (msg) => {
   );
 };
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex">
-      <style>
-        {`
-          .highlighted {
-            background-color: #e0f7fa; /* Màu nền sáng để nổi bật */
-            transition: background-color 0.5s ease;
-            border-radius: 8px;
-            padding: 4px;
-          }
-        `}
-      </style>
-      {selectedChat ? (
-        <div className={`flex w-full transition-all duration-300`}>
-          <div
-            className={`flex flex-col h-screen transition-all duration-300 ${isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
-              }`}
-          >
-            {selectedChat.type === "cloud" ? (
-              <ChatHeaderCloud
-                name={cloudChat.name}
-                avatar={cloudChat.avatar}
-                isChatInfoVisible={isChatInfoVisible}
-                setIsChatInfoVisible={setIsChatInfoVisible}
-              />
-            ) : (
-              <ChatHeader
-                type={chatDetails.type}
-                name={chatDetails.name}
-                avatar={chatDetails.avatar}
-                members={chatDetails.members}
-                lastActive={chatDetails.lastActive}
-                isChatInfoVisible={isChatInfoVisible}
-                setIsChatInfoVisible={setIsChatInfoVisible}
-                conversationId={selectedMessageId}
-                userId={currUserId}
-                receiverId={receiverId}
-                onSearch={searchMessages}
-                searchKeyword={searchKeyword}
-                setSearchKeyword={setSearchKeyword}
-                isSearching={isSearching}
-              />
-            )}
-            {selectedChat.type === "cloud" ? (
-              <>
-                <div
-                  ref={cloudChatContainerRef}
-                  className="p-4 h-[calc(100vh-200px)] overflow-y-auto"
-                >
-                  {loading ? (
-                    <div className="flex items-center justify-center h-full">
-                      <p>Đang tải tin nhắn từ Cloud...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {cloudMessages.map((message, index) => {
-                        const currentDate = formatDateSeparator(
-                          message.timestamp
-                        );
-                        const prevMessage =
-                          index > 0 ? cloudMessages[index - 1] : null;
-                        const prevDate = prevMessage
-                          ? formatDateSeparator(prevMessage.timestamp)
-                          : null;
-                        const showDateSeparator =
-                          index === 0 || currentDate !== prevDate;
+ return (
+  <div className="min-h-screen bg-gray-100 flex">
+    <style>
+      {`
+        .highlighted {
+          background-color: #e0f7fa;
+          transition: background-color 0.5s ease;
+          border-radius: 8px;
+          padding: 4px;
+        }
+      `}
+    </style>
+    {selectedChat ? (
+      <div className={`flex w-full transition-all duration-300`}>
+        <div
+          className={`flex flex-col h-screen transition-all duration-300 ${
+            isChatInfoVisible ? "w-[calc(100%-400px)]" : "w-full"
+          }`}
+        >
+          {/* Header Section */}
+          {selectedChat.type === "cloud" ? (
+            <ChatHeaderCloud
+              name={cloudChat.name}
+              avatar={cloudChat.avatar}
+              isChatInfoVisible={isChatInfoVisible}
+              setIsChatInfoVisible={setIsChatInfoVisible}
+            />
+          ) : selectedChat.type === "chatgpt" ? (
+            <ChatHeaderChatGPT
+              onBack={() => dispatch(clearSelectedMessage())}
+              isChatInfoVisible={isChatInfoVisible}
+              setIsChatInfoVisible={setIsChatInfoVisible}
+            />
+          ) : (
+            <ChatHeader
+              type={chatDetails.type}
+              name={chatDetails.name}
+              avatar={chatDetails.avatar}
+              members={chatDetails.members}
+              lastActive={chatDetails.lastActive}
+              isChatInfoVisible={isChatInfoVisible}
+              setIsChatInfoVisible={setIsChatInfoVisible}
+              conversationId={selectedMessageId}
+              userId={currUserId}
+              receiverId={receiverId}
+              onSearch={searchMessages}
+              searchKeyword={searchKeyword}
+              setSearchKeyword={setSearchKeyword}
+              isSearching={isSearching}
+            />
+          )}
 
-                        return (
-                          <React.Fragment key={message.messageId || index}>
-                            {showDateSeparator && (
-                              <div className="flex justify-center my-4">
-                                <span className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
-                                  {currentDate}
-                                </span>
-                              </div>
-                            )}
-                            {renderCloudMessage(message)}
-                          </React.Fragment>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                <ChatFooterCloud
-                  onReload={() => setCloudMessages([])}
-                  className="fixed bottom-0 left-0 w-full bg-white shadow-md"
-                />
-              </>
-            ) : (
-              <>
-                <div className="flex-1 overflow-y-auto p-4">
-                  {messages.length > 0 ? (
-                    messages
-                      .filter(
-                        (msg) =>
-                          msg.conversationId === selectedMessageId &&
-                          !msg.deletedBy?.includes(currentUserId)
-                      )
-                      .map((msg, index, filteredMessages) => (
-                        <MessageItem
-                          key={msg._id}
-                          msg={{
-                            ...msg,
-                            sender:
-                              msg.userId === currentUserId
-                                ? "Bạn"
-                                : userCache[msg.userId]?.name || `${msg.userId?.firstname || ''} ${msg.userId?.surname || ''}`.trim() || "Unknown",
-                            time: formatTime(msg.createdAt),
-                            messageType: msg.messageType || "text",
-                            content: msg.content || "",
-                            linkURL: msg.linkURL || "",
-                            userId: msg.userId,
-                            receiverId: selectedMessage?.participants?.find(
-                              (p) => p.userId !== currentUserId
-                            )?.userId,
-                          }}
-                          currentUserId={currentUserId}
-                          onReply={handleReply}
-                          onForward={handleForward}
-                          onRevoke={handleRevoke}
-                          onDelete={handleDelete}
-                          messages={messages}
-                          isLastMessage={
-                            index === filteredMessages.length - 1 &&
+          {/* Messages Section */}
+          {selectedChat.type === "cloud" ? (
+            <>
+              <div
+                ref={cloudChatContainerRef}
+                className="p-4 h-[calc(100vh-200px)] overflow-y-auto"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <p>Đang tải tin nhắn từ Cloud...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cloudMessages.map((message, index) => {
+                      const currentDate = formatDateSeparator(message.timestamp);
+                      const prevMessage = index > 0 ? cloudMessages[index - 1] : null;
+                      const prevDate = prevMessage ? formatDateSeparator(prevMessage.timestamp) : null;
+                      const showDateSeparator = index === 0 || currentDate !== prevDate;
+
+                      return (
+                        <React.Fragment key={message.messageId || index}>
+                          {showDateSeparator && (
+                            <div className="flex justify-center my-4">
+                              <span className="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full">
+                                {currentDate}
+                              </span>
+                            </div>
+                          )}
+                          {renderCloudMessage(message)}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <ChatFooterCloud
+                onReload={() => setCloudMessages([])}
+                className="fixed bottom-0 left-0 w-full bg-white shadow-md"
+              />
+            </>
+          ) : selectedChat.type === "chatgpt" ? (
+            <>
+              <div className="flex-1 overflow-y-auto p-4">
+                {chatGPTMessages.length > 0 ? (
+                  chatGPTMessages
+                    .filter(msg => !msg.deletedBy?.includes(currentUserId))
+                    .map((msg) => (
+                      <MessageItemChatGPT
+                        key={msg._id}
+                        msg={msg}
+                        currentUserId={currentUserId}
+                      />
+                    ))
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500">Bắt đầu trò chuyện với ChatGPT</p>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+              <ChatFooterChatGPT
+                onSendMessage={(message) => {
+                  sendMessageToChatGPT(message);
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <div className="flex-1 overflow-y-auto p-4">
+                {messages.length > 0 ? (
+                  messages
+                    .filter(
+                      (msg) =>
+                        msg.conversationId === selectedMessageId &&
+                        !msg.deletedBy?.includes(currentUserId)
+                    )
+                    .map((msg, index, filteredMessages) => (
+                      <MessageItem
+                        key={msg._id}
+                        msg={{
+                          ...msg,
+                          sender:
                             msg.userId === currentUserId
-                          }
-                          participants={selectedMessage?.participants}
-                          userCache={userCache}
-                          markMessageAsRead={markMessageAsRead}
-                          highlightedMessageId={highlightedMessageId}
-                        />
-                      ))
-                  ) : (
-                    <div></div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-                {isSearchModalVisible && (
-                  <div className="fixed inset-0 flex items-center justify-center z-50 animate-fadeIn">
-                    {/* Lớp nền mờ */}
-                    <div
-                      className="fixed inset-0  bg-opacity-50 backdrop-blur-sm transition-opacity duration-300"
-                      onClick={() => setIsSearchModalVisible(false)}
-                    />
-                    <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col relative z-60 shadow-xl transform transition-all duration-300">
-                      {/* Header */}
-                      <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
-                        <h2 className="text-lg font-semibold text-gray-800">
-                          Kết quả tìm kiếm ({totalResults})
-                        </h2>
-                        <button
-                          onClick={() => setIsSearchModalVisible(false)}
-                          className="text-gray-500 hover:text-blue-500 transition-colors duration-200"
+                              ? "Bạn"
+                              : userCache[msg.userId]?.name || `${msg.userId?.firstname || ''} ${msg.userId?.surname || ''}`.trim() || "Unknown",
+                          time: formatTime(msg.createdAt),
+                          messageType: msg.messageType || "text",
+                          content: msg.content || "",
+                          linkURL: msg.linkURL || "",
+                          userId: msg.userId,
+                          receiverId: selectedMessage?.participants?.find(
+                            (p) => p.userId !== currentUserId
+                          )?.userId,
+                        }}
+                        currentUserId={currentUserId}
+                        onReply={handleReply}
+                        onForward={handleForward}
+                        onRevoke={handleRevoke}
+                        onDelete={handleDelete}
+                        messages={messages}
+                        isLastMessage={
+                          index === filteredMessages.length - 1 &&
+                          msg.userId === currentUserId
+                        }
+                        participants={selectedMessage?.participants}
+                        userCache={userCache}
+                        markMessageAsRead={markMessageAsRead}
+                        highlightedMessageId={highlightedMessageId}
+                      />
+                    ))
+                ) : (
+                  <div></div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Search Modal */}
+              {isSearchModalVisible && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 animate-fadeIn">
+                  <div
+                    className="fixed inset-0 bg-opacity-50 backdrop-blur-sm transition-opacity duration-300"
+                    onClick={() => setIsSearchModalVisible(false)}
+                  />
+                  <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col relative z-60 shadow-xl transform transition-all duration-300">
+                    {/* Search Modal Content */}
+                    <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
+                      <h2 className="text-lg font-semibold text-gray-800">
+                        Kết quả tìm kiếm ({totalResults})
+                      </h2>
+                      <button
+                        onClick={() => setIsSearchModalVisible(false)}
+                        className="text-gray-500 hover:text-blue-500 transition-colors duration-200"
+                      >
+                        <IoClose size={24} />
+                      </button>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="p-4 border-b border-gray-200">
+                      <div className="mb-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Người gửi
+                        </label>
+                        <select
+                          value={filterSender}
+                          onChange={(e) => setFilterSender(e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                         >
-                          <IoClose size={24} />
+                          {senders.map((sender) => (
+                            <option key={sender.userId} value={sender.userId}>
+                              {sender.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Từ ngày
+                          </label>
+                          <input
+                            type="date"
+                            value={filterStartDate || ""}
+                            onChange={(e) => setFilterStartDate(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Đến ngày
+                          </label>
+                          <input
+                            type="date"
+                            value={filterEndDate || ""}
+                            onChange={(e) => setFilterEndDate(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-3 mt-3">
+                        <button
+                          onClick={searchMessages}
+                          className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200"
+                        >
+                          Áp dụng bộ lọc
+                        </button>
+                        <button
+                          onClick={resetFilters}
+                          className="flex-1 bg-gray-300 text-gray-800 py-2 rounded-lg hover:bg-gray-400 transition-colors duration-200"
+                        >
+                          Xóa bộ lọc
                         </button>
                       </div>
-                      {/* Bộ lọc */}
-                      <div className="p-4 border-b border-gray-200">
-                        <div className="mb-3">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Người gửi
-                          </label>
-                          <select
-                            value={filterSender}
-                            onChange={(e) => setFilterSender(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                          >
-                            {senders.map((sender) => (
-                              <option key={sender.userId} value={sender.userId}>
-                                {sender.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex gap-3">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Từ ngày
-                            </label>
-                            <input
-                              type="date"
-                              value={filterStartDate || ""}
-                              onChange={(e) => setFilterStartDate(e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Đến ngày
-                            </label>
-                            <input
-                              type="date"
-                              value={filterEndDate || ""}
-                              onChange={(e) => setFilterEndDate(e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            />
+                    </div>
+
+                    {/* Search Results */}
+                    <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                      {isSearching ? (
+                        <div className="flex items-center justify-center h-full">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-gray-600">Đang tìm kiếm...</p>
                           </div>
                         </div>
-                        <div className="flex gap-3 mt-3">
-                          <button
-                            onClick={searchMessages}
-                            className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200"
-                          >
-                            Áp dụng bộ lọc
-                          </button>
-                          <button
-                            onClick={resetFilters}
-                            className="flex-1 bg-gray-300 text-gray-800 py-2 rounded-lg hover:bg-gray-400 transition-colors duration-200"
-                          >
-                            Xóa bộ lọc
-                          </button>
-                        </div>
-                      </div>
-                      {/* Nội dung kết quả */}
-                      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                        {isSearching ? (
-                          <div className="flex items-center justify-center h-full">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                              <p className="text-gray-600">Đang tìm kiếm...</p>
-                            </div>
-                          </div>
-                        ) : searchResults.length === 0 ? (
-                          <p className="text-center text-gray-500 p-4 font-medium">
-                            Không tìm thấy tin nhắn
-                          </p>
-                        ) : (
-                          searchResults.map((msg) => renderSearchResult(msg))
-                        )}
-                      </div>
+                      ) : searchResults.length === 0 ? (
+                        <p className="text-center text-gray-500 p-4 font-medium">
+                          Không tìm thấy tin nhắn
+                        </p>
+                      ) : (
+                        searchResults.map((msg) => renderSearchResult(msg))
+                      )}
                     </div>
                   </div>
-                )}
-                {typingUsers.length > 0 && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-gray-500 text-xs italic flex items-center gap-1">
-                      {typingUsers.map((user) => user.name).join(", ")} đang gõ...
-                    </span>
-                    <img
-                      src="/public/typingv1.gif"
-                      alt="typing..."
-                      className="w-6 h-5"
-                    />
-                  </div>
-                )}
-                <ChatFooter
-                  className="fixed bottom-0 left-0 w-full bg-white shadow-md"
-                  sendMessage={sendMessage}
-                  replyingTo={replyingTo}
-                  setReplyingTo={setReplyingTo}
-                  conversationId={selectedMessageId}
-                />
-              </>
-            )}
-          </div>
-          {isChatInfoVisible && (
-            <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
-              {selectedChat.type === "cloud" ? (
-                <ChatInfoCloud
-                  userId={currentUserId}
-                  conversationId={conversationId}
-                  cloudMessages={cloudMessages}
-                />
-              ) : (
-                <ChatInfo
-                  userId={currentUserId}
-                  conversationId={conversationId}
-                  socket={socket}
-                />
+                </div>
               )}
-            </div>
+
+              {/* Typing Indicator */}
+              {typingUsers.length > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-gray-500 text-xs italic flex items-center gap-1">
+                    {typingUsers.map((user) => user.name).join(", ")} đang gõ...
+                  </span>
+                  <img
+                    src="/public/typingv1.gif"
+                    alt="typing..."
+                    className="w-6 h-5"
+                  />
+                </div>
+              )}
+
+              {/* Chat Footer */}
+              <ChatFooter
+                className="fixed bottom-0 left-0 w-full bg-white shadow-md"
+                sendMessage={sendMessage}
+                replyingTo={replyingTo}
+                setReplyingTo={setReplyingTo}
+                conversationId={selectedMessageId}
+              />
+            </>
           )}
         </div>
-      ) : (
-        <div className="flex flex-1 flex-col items-center justify-center bg-white">
-          <h1 className="text-2xl font-bold">Chào mừng đến với TingTing PC!</h1>
-          <p className="text-gray-500 text-center mt-2 px-4">
-            Khám phá các tiện ích hỗ trợ làm việc và trò chuyện cùng người thân,
-            bạn bè.
-          </p>
-          <img
-            src={TingTingImage}
-            alt="Welcome"
-            className="mt-4 w-64 h-auto rounded-lg"
-          />
-        </div>
-      )}
-      {isShareModalVisible && (
-        <ShareModal
-          isOpen={isShareModalVisible}
-          onClose={handleCloseShareModal}
-          onShare={handleShare}
-          messageToForward={messageToForward}
-          userId={currentUserId}
-          messageId={messageToForward?._id}
+
+        {/* Chat Info Sidebar */}
+        {isChatInfoVisible && (
+          <div className="w-[400px] bg-white border-l p-2 max-h-screen transition-all duration-300">
+            {selectedChat.type === "cloud" ? (
+              <ChatInfoCloud
+                userId={currentUserId}
+                conversationId={conversationId}
+                cloudMessages={cloudMessages}
+              />
+            ) : selectedChat.type === "chatgpt" ? (
+              <div className="p-4">
+                <h2 className="text-lg font-semibold mb-4">ChatGPT</h2>
+                <p className="text-gray-600">
+                  ChatGPT là trợ lý AI có thể giúp bạn trả lời câu hỏi, viết code, và nhiều việc khác.
+                </p>
+              </div>
+            ) : (
+              <ChatInfo
+                userId={currentUserId}
+                conversationId={conversationId}
+                socket={socket}
+              />
+            )}
+          </div>
+        )}
+      </div>
+    ) : (
+      <div className="flex flex-1 flex-col items-center justify-center bg-white">
+        <h1 className="text-2xl font-bold">Chào mừng đến với TingTing PC!</h1>
+        <p className="text-gray-500 text-center mt-2 px-4">
+          Khám phá các tiện ích hỗ trợ làm việc và trò chuyện cùng người thân,
+          bạn bè.
+        </p>
+        <img
+          src={TingTingImage}
+          alt="Welcome"
+          className="mt-4 w-64 h-auto rounded-lg"
         />
-      )}
-      {contextMenu.visible && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          message={contextMenu.message}
-          fileIndex={contextMenu.fileIndex}
-          onClose={() =>
-            setContextMenu((prev) => ({ ...prev, visible: false }))
-          }
-        />
-      )}
-      {isDeleteModalVisible && (
-        <ConfirmModal
-          isOpen={isDeleteModalVisible}
-          onClose={() => setIsDeleteModalVisible(false)}
-          onConfirm={handleConfirmDelete}
-          title="Xóa tin nhắn"
-          message="Bạn có chắc muốn xóa tin nhắn này? Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi."
-        />
-      )}
-      {isRevokeModalVisible && (
-        <ConfirmModal
-          isOpen={isRevokeModalVisible}
-          onClose={() => setIsRevokeModalVisible(false)}
-          onConfirm={handleConfirmRevoke}
-          title="Thu hồi tin nhắn"
-          message="Bạn có chắc muốn thu hồi tin nhắn này?"
-        />
-      )}
-    </div>
-  );
+      </div>
+    )}
+
+    {/* Modals */}
+    {isShareModalVisible && (
+      <ShareModal
+        isOpen={isShareModalVisible}
+        onClose={handleCloseShareModal}
+        onShare={handleShare}
+        messageToForward={messageToForward}
+        userId={currentUserId}
+        messageId={messageToForward?._id}
+      />
+    )}
+
+    {contextMenu.visible && (
+      <ContextMenu
+        x={contextMenu.x}
+        y={contextMenu.y}
+        message={contextMenu.message}
+        fileIndex={contextMenu.fileIndex}
+        onClose={() => setContextMenu((prev) => ({ ...prev, visible: false }))}
+      />
+    )}
+
+    {isDeleteModalVisible && (
+      <ConfirmModal
+        isOpen={isDeleteModalVisible}
+        onClose={() => setIsDeleteModalVisible(false)}
+        onConfirm={handleConfirmDelete}
+        title="Xóa tin nhắn"
+        message="Bạn có chắc muốn xóa tin nhắn này? Nếu muốn xóa cả hai bên thì hãy nhấn vào nút thu hồi."
+      />
+    )}
+
+    {isRevokeModalVisible && (
+      <ConfirmModal
+        isOpen={isRevokeModalVisible}
+        onClose={() => setIsRevokeModalVisible(false)}
+        onConfirm={handleConfirmRevoke}
+        title="Thu hồi tin nhắn"
+        message="Bạn có chắc muốn thu hồi tin nhắn này?"
+      />
+    )}
+  </div>
+);
 }
 
 export default ChatPage;

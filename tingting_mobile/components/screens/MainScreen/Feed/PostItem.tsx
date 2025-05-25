@@ -57,7 +57,6 @@ const PostItem: React.FC<PostProps> = ({
   commentsCount,
   totalReactions,
 }) => {
-
   const navigator = useNavigation();
   const [reactLove, setReactLove] = useState(lovedByUser || false);
   const [countReaction, setCountReaction] = useState(totalReactions || 0);
@@ -140,7 +139,7 @@ const PostItem: React.FC<PostProps> = ({
     const id = await AsyncStorage.getItem("userId");
     try {
       const response = await axios.post(
-        `http://192.168.24.106:3006/api/v1/post/${_id}/love`,
+        `http://192.168.1.9:3006/api/v1/post/${_id}/love`,
         {
           profileId: id,
         }
@@ -162,7 +161,12 @@ const PostItem: React.FC<PostProps> = ({
   };
   const navigateToCommentSection = async () => {
     navigator.navigate("CommentSection", {
-      postId: _id
+      postId: _id,
+    });
+  };
+  const navigateToProfile = async () => {
+    navigator.navigate("ProfileScreen", {
+      profileId: profileId._id,
     });
   };
   const navigateToFeedOptions = async () => {
@@ -182,7 +186,7 @@ const PostItem: React.FC<PostProps> = ({
       return `${Math.floor(diff / 60)} phút trước`;
     } else if (diff < 86400) {
       return `${Math.floor(diff / 3600)} giờ trước`;
-    } else if (diff < 2592000) {  
+    } else if (diff < 2592000) {
       return `${Math.floor(diff / 86400)} ngày trước`;
     } else {
       const day = date.getDate().toString().padStart(2, "0");
@@ -196,14 +200,22 @@ const PostItem: React.FC<PostProps> = ({
     <View style={styles.container}>
       {/* User Info */}
       <View style={styles.userInfoContainer}>
-        <Image source={{ uri: profileId.avatar }} style={styles.userAvatar} />
+        <TouchableOpacity onPress={navigateToProfile}>
+          <Image source={{ uri: profileId.avatar }} style={styles.userAvatar} />
+        </TouchableOpacity>
         <View style={styles.userInfo}>
+          <TouchableOpacity onPress={navigateToProfile}>
           <Text style={styles.userName}>
             {profileId.firstname} {profileId.surname}
           </Text>
+          </TouchableOpacity>
           <Text style={styles.timestamp}>{formatTime(createdAt)}</Text>
         </View>
-        <TouchableOpacity style={styles.moreButton} onPress={navigateToFeedOptions}>
+
+        <TouchableOpacity
+          style={styles.moreButton}
+          onPress={navigateToFeedOptions}
+        >
           <Ionicons name="ellipsis-horizontal" size={20} color="#666" />
         </TouchableOpacity>
       </View>

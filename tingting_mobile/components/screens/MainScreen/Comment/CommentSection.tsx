@@ -62,6 +62,7 @@ interface Comment {
 
 type Props = StackScreenProps<RootStackParamList, "CommentSection">;
 
+const API_BASE_URL = "http://192.168.1.9:3006";
 const CommentSection: React.FC<Props> = ({ route }) => {
   const navigator = useNavigation();
   const { postId } = route.params;
@@ -88,7 +89,7 @@ const CommentSection: React.FC<Props> = ({ route }) => {
     setIdCurrentUser(id || "");
     try {
       const response = await axios.get(
-        `http://192.168.24.106:3006/api/v1/comment/${postId}`
+        `${API_BASE_URL}/api/v1/comment/${postId}`
       );
       const commentsData = response.data.data.comments;
       console.log("Fetched comments:", commentsData);
@@ -246,7 +247,7 @@ const CommentSection: React.FC<Props> = ({ route }) => {
       // Gửi yêu cầu backend
       
       const res = await axios.post(
-        `http://192.168.24.106:3006/api/v1/comment/${commentId}/love`,
+        `${API_BASE_URL}/api/v1/comment/${commentId}/love`,
         {
           profileId: id,
         }
@@ -364,7 +365,7 @@ const CommentSection: React.FC<Props> = ({ route }) => {
 
       // Gửi request đến API
       const response = await axios.post(
-        "http://192.168.24.106:3006/api/v1/comment",
+        `${API_BASE_URL}/api/v1/comment`,
         formData,
         {
           headers: {

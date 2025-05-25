@@ -28,7 +28,6 @@ function VerifyUser() {
           state: { phone },
         });
       }
-      
     } catch (error) {
       setMessageError(error.response.data.message);
       setIsError(true);
@@ -42,7 +41,7 @@ function VerifyUser() {
     <div className={cx("body-container")}>
       <div className={cx("flex justify-center items-center ")}>
         <div
-          className={cx(" bg-white w-4/9 h-80 rounded-lg shadow-lg mt-5 p-5")}
+          className={cx(" bg-white w-6/7 h-80 rounded-lg shadow-lg mt-5 p-5")}
         >
           <div
             className={cx(
@@ -81,18 +80,16 @@ function VerifyUser() {
                 title="Vui lòng nhập địa chỉ email hợp lệ"
                 required
               /> */}
-              <div className={cx("border-t-1 border-gray-300 w-full mt-3 ")}>
-<input
+              <div className={cx("border-t-1 border-gray-300 w-full mt-3 flex justify-center items-center")}>
+                <input
                   type="submit"
                   value="Tìm tài khoản"
                   className={cx(
-                    "bg-blue-500 font-bold text-white py-2 px-4 rounded-lg ml-43 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 mt-3"
+                    "bg-blue-500 font-bold text-white p-2 rounded-lg ml-40 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 mt-3"
                   )}
                 />
                 <Link to={config.routes.login}>
-                  <button className="bg-gray-200 p-2 rounded-md w-20 font-medium ml-2  hover:bg-gray-400">
-                    Hủy bỏ
-                  </button>
+                  <input type="button" className="bg-gray-200 p-2 mt-3 rounded-lg w-20 font-medium ml-2  hover:bg-gray-400" value="Hủy bỏ" />
                 </Link>
               </div>
             </form>

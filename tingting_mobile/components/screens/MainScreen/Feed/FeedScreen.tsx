@@ -17,6 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const API_BASE_URL = "http://192.168.1.9:3006";
 const FeedScreen: React.FC = () => {
   const navigation = useNavigation();
   const navigateToCreatePost = () => {
@@ -39,9 +40,10 @@ const FeedScreen: React.FC = () => {
     try {
       const profileId = await AsyncStorage.getItem("userId");
       const response = await axios.get(
-        `http://192.168.24.106:3001/api/v1/profile/${profileId}`
+        `http://192.168.1.9:3001/api/v1/profile/${profileId}`
       );
       const profile = response.data.data.user;
+      
       const date = new Date(profile.dateOfBirth);
       const day = date.getDate().toString();
       const month = (date.getMonth() + 1).toString();
@@ -75,7 +77,7 @@ const FeedScreen: React.FC = () => {
       }
 
       const response = await axios.get(
-        `http://192.168.24.106:3006/api/v1/post`,
+        `${API_BASE_URL}/api/v1/post`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -129,8 +131,10 @@ const FeedScreen: React.FC = () => {
         <View style={styles.createPostSection}>
           <View style={styles.userStatusContainer}>
             <TouchableOpacity
-              onPress={() => {
-                navigation.navigate("ProfileScreen");
+              onPress={ async  () => {
+                navigation.navigate("ProfileScreen", {
+                profileId: await AsyncStorage.getItem("userId"),
+                });
               }}
             >
               <Image

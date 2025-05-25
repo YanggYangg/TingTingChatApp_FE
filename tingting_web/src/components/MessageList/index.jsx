@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Phone, MessageCircle, Pin, BellOff } from "lucide-react"; // Nhi thêm: Thêm Pin, BellOff
+import { Phone, MessageCircle, Pin, BellOff, Bot } from "lucide-react"; // Nhi thêm: Thêm Pin, BellOff, Bot
 import { Api_Profile } from "../../../apis/api_profile";
 import { useNavigate } from "react-router-dom"; // File 1
 
@@ -228,6 +228,39 @@ const MessageList = ({ messages, onMessageClick, onPinConversation, userId, user
       {errorDetails && (
         <p className="text-center text-red-500">{errorDetails}</p>
       )}
+      {/* ChatGPT default conversation */}
+      <div
+        className="flex items-center justify-between p-2 rounded-lg transition hover:bg-[#dbebff] hover:text-black cursor-pointer"
+        onClick={() => onMessageClick({
+          id: 'chatgpt',
+          name: 'ChatGPT',
+          lastMessage: 'Xin chào! Tôi có thể giúp gì cho bạn?',
+          time: 'Bây giờ',
+          isGroup: false,
+          participants: [{ userId: 'chatgpt' }]
+        })}
+      >
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg"
+              alt="ChatGPT"
+              className="w-12 h-12 rounded-full object-cover"
+            />
+          </div>
+          <div className="w-40">
+            <span className="font-semibold truncate">ChatGPT</span>
+            <div className="text-sm text-gray-400 flex items-center space-x-1">
+              <Bot size={14} className="text-green-500" />
+              <span className="truncate">Xin chào! Tôi có thể giúp gì cho bạn?</span>
+            </div>
+          </div>
+        </div>
+        <div className="text-xs text-gray-400 whitespace-nowrap">
+          Bây giờ
+        </div>
+      </div>
+
       {messages &&
         messages.map((msg, index) => {
           const customProps =
@@ -245,7 +278,7 @@ const MessageList = ({ messages, onMessageClick, onPinConversation, userId, user
               message={{ ...msg, ...customProps }}
               userId={userId}
               memberDetails={memberDetails}
-              userCache={userCache} // Nhi thêm
+              userCache={userCache}
               onMessageClick={onMessageClick}
             />
           );
