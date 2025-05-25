@@ -50,7 +50,7 @@ const FeedOptions = ({
       }
 
       const res = await axios.post(
-        `http://192.168.1.15:3006/api/v1/post/hide`,
+        `http://192.168.1.171:3006/api/v1/post/hide`,
         {
           postId,
           profileId,
@@ -83,7 +83,7 @@ const FeedOptions = ({
       }
 
       const res = await axios.post(
-        `http://192.168.1.15:3006/api/v1/post/hide`, // Đảm bảo backend có route này
+        `http://192.168.1.171:3006/api/v1/post/hide`, // Đảm bảo backend có route này
         {
           postId,
           profileId,

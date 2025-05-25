@@ -49,7 +49,7 @@ function UpdateNewPass() {
     <div className={cx("body-container")}>
       <div className={cx("flex justify-center items-center ")}>
         <div
-          className={cx(" bg-white w-4/9 h-80 rounded-lg shadow-lg mt-5 p-5")}
+          className={cx(" bg-white w-7/9 h-80 rounded-lg shadow-lg mt-5 p-5")}
         >
           <div
             className={cx(

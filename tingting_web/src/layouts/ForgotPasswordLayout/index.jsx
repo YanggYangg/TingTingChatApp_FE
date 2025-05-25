@@ -8,38 +8,38 @@ import config from "../../config";
 import Modal from "../../components/Notification/Modal";
 import { RiCloseLine, RiMenu3Line } from "react-icons/ri";
 
-const cx = classNames.bind(styles)
+const cx = classNames.bind(styles);
 
 function ForgotAccountLayout({ children }) {
-  const navigator = useNavigate()
-  const [phoneLogin, setPhoneLogin] = useState("")
-  const [password, setPassword] = useState("")
-  const [isError, setIsError] = useState(false)
-  const [messageError, setMessageError] = useState("")
-  const [menuOpen, setMenuOpen] = useState(false)
+  const navigator = useNavigate();
+  const [phoneLogin, setPhoneLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [messageError, setMessageError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const toggleMenu = () => {
-    setMenuOpen(!menuOpen)
-  }
+    setMenuOpen(!menuOpen);
+  };
 
   const handleLogin = async (e) => {
-    e.preventDefault()
-    const data = { phone: phoneLogin, password }
-    console.log(data)
+    e.preventDefault();
+    const data = { phone: phoneLogin, password };
+    console.log(data);
 
     try {
-      const response = await Api_Auth.login(data)
-      localStorage.setItem("token", response.data.token)
-      navigator(config.routes.chat)
+      const response = await Api_Auth.login(data);
+      localStorage.setItem("token", response.data.token);
+      navigator(config.routes.chat);
     } catch (err) {
-      setMessageError(err.response.data.message)
-      setIsError(true)
+      setMessageError(err.response.data.message);
+      setIsError(true);
     }
-  }
+  };
 
   const handleTryAgain = () => {
-    setIsError(false)
-  }
+    setIsError(false);
+  };
 
   return (
     <div className={cx("page-container")}>
@@ -51,7 +51,11 @@ function ForgotAccountLayout({ children }) {
           </Link>
 
           <div className={cx("nav-container")}>
-            <button className={cx("menu-toggle")} onClick={toggleMenu} aria-label="Toggle menu">
+            <button
+              className={cx("menu-toggle")}
+              onClick={toggleMenu}
+              aria-label="Toggle menu"
+            >
               {menuOpen ? <RiCloseLine size={24} /> : <RiMenu3Line size={24} />}
             </button>
 
@@ -77,18 +81,9 @@ function ForgotAccountLayout({ children }) {
                     BẢO MẬT
                   </Link>
                 </li>
+
                 <li>
                   <Link to="#" className={cx("nav-link")}>
-                    TRỢ GIÚP
-                  </Link>
-                </li>
-                <li>
-                  <Link to="#" className={cx("nav-link")}>
-                    LIÊN HỆ
-                  </Link>
-                </li>
-                <li>
-<Link to="#" className={cx("nav-link")}>
                     BÁO CÁO VI PHẠM
                   </Link>
                 </li>
@@ -114,7 +109,10 @@ function ForgotAccountLayout({ children }) {
                 <button type="submit" className={cx("login-submit")}>
                   Đăng nhập
                 </button>
-                <Link to={config.routes.register} className={cx("register-link")}>
+                <Link
+                  to={config.routes.register}
+                  className={cx("register-link")}
+                >
                   Đăng ký
                 </Link>
               </form>
@@ -124,14 +122,16 @@ function ForgotAccountLayout({ children }) {
       </header>
 
       {/* Main Content */}
-      <main className={cx("main")}>
+      <div className={cx("main")}>
         <div className={cx("body-container")}>{children}</div>
-      </main>
+      </div>
 
       {/* Footer */}
       <footer className={cx("footer")}>
         <div className={cx("footer-container")}>
-          <p className={cx("copyright")}>© 2021 TingTing. All rights reserved</p>
+          <p className={cx("copyright")}>
+            © 2021 TingTing. All rights reserved
+          </p>
         </div>
       </footer>
 
@@ -147,7 +147,7 @@ function ForgotAccountLayout({ children }) {
         />
       )}
     </div>
-  )
+  );
 }
 
-export default ForgotAccountLayout
+export default ForgotAccountLayout;

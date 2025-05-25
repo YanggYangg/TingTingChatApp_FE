@@ -76,7 +76,7 @@ const PrivacySettings = ({
       }
 
       const res = await axios.put(
-        `http://192.168.1.15:3006/api/v1/post/${postId}/privacy`,
+        `http://192.168.1.171:3006/api/v1/post/${postId}/privacy`,
         {
           privacy: mappedPrivacy,
         }
