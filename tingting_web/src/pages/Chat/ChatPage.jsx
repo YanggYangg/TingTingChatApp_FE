@@ -1284,7 +1284,7 @@ const searchMessages = async () => {
         setHighlightedMessageId(null);
       }, 3000);
     } else {
-      toast.error("Không tìm thấy tin nhắn trong danh sách hiện tại");
+      toast.error("Không tìm thấy tin nhắn trong danh sách hiện tại, có thể nó đã bị xóa hoặc không còn trong cuộc trò chuyện.");
     }
   };
 

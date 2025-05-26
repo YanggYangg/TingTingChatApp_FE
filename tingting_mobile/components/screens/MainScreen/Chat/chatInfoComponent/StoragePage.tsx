@@ -134,7 +134,7 @@ const StoragePage: React.FC<Props> = ({
       socket.emit(event, { conversationId }, async (response: any) => {
         if (response?.success && Array.isArray(response.data)) {
           const formattedData = await Promise.all(
-            response.data.flatMap((item: any) =>
+            response.data.filter((item) => !item.deletedBy?.includes(userId)).flatMap((item: any) =>
               (Array.isArray(item?.linkURL) ? item.linkURL : [item?.linkURL])
                 .filter((url: string) => url && typeof url === 'string' && url.startsWith('http'))
                 .map(async (url: string, urlIndex: number) => {
