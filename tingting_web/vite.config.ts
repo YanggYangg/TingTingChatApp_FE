@@ -16,6 +16,7 @@ export default defineConfig({
       stream: "stream-browserify",
       buffer: "buffer",
     },
+     mainFields: ["module", "main"], 
   },
   optimizeDeps: {
     esbuildOptions: {
