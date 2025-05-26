@@ -1,6 +1,10 @@
-import { createContext, useContext, useState } from "react";
+// import { createContext, useContext, useState } from 'react';
 
-const ChatContext = createContext();
+// const ChatContext = createContext();
+import * as React from 'react';
+
+const ChatContext = React.createContext();
+const { useContext, useState } = React;
 
 export const ChatProvider = ({ children }) => {
     const [activeTab, setActiveTab] = useState('chat');// 'chat' or 'contact'
