@@ -53,7 +53,7 @@ const PostOptions = ({
       }
 
       const res = await axios.delete(
-        `http://192.168.1.12:3006/api/v1/post/${postId}`
+        `http://192.168.0.103:3006/api/v1/post/${postId}`
       );
 
       

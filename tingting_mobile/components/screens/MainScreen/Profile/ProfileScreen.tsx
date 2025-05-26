@@ -45,7 +45,7 @@ const ProfileScreen: React.FC<Props> = ({ route }) => {
   const loadProfileFromLocal = async () => {
     try {
       const response = await axios.get(
-        `http://192.168.1.12:3001/api/v1/profile/${profileId}`
+        `http://192.168.0.103:3001/api/v1/profile/${profileId}`
       );
       const profile = response.data.data.user;
       const date = new Date(profile.dateOfBirth);
