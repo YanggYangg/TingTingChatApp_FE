@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { FaTimes, FaSearch, FaUsers, FaUser, FaCheck, FaTrash } from "react-icons/fa";
 import { Api_chatInfo } from "../../../apis/Api_chatInfo";
 import { Api_Profile } from "../../../apis/api_profile";
+import { toast } from "react-toastify";
 
 const ShareModal = ({ isOpen, onClose, onShare, messageToForward, userId, messageId }) => {
     const [conversations, setConversations] = useState([]);
@@ -128,7 +129,8 @@ const ShareModal = ({ isOpen, onClose, onShare, messageToForward, userId, messag
 
             const response = await Api_chatInfo.forwardMessage(data);
             console.log("Forwarded messages:", response);
-            alert("Chuyển tiếp tin nhắn thành công!");
+            // alert("Chuyển tiếp tin nhắn thành công!");
+            toast.success("Chuyển tiếp tin nhắn thành công!");
             onShare(selectedConversations, content);
             onClose();
         } catch (err) {

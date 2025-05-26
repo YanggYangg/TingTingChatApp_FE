@@ -46,7 +46,17 @@ const MessageItem = ({
   const isLink = msg.messageType === "link";
   const isHighlighted = msg._id === highlightedMessageId;
 
-   useEffect(() => {
+  // Kiểm tra các điều kiện để không render tin nhắn
+  const shouldNotRender =
+    msg.deletedBy?.includes(currentUserId) ||
+    ((msg.messageType === "image" ||
+      msg.messageType === "video" ||
+      msg.messageType === "file") &&
+      (!msg.linkURL ||
+        (Array.isArray(msg.linkURL) && msg.linkURL.length === 0)));
+
+  // useEffect cho highlight animation
+  useEffect(() => {
     if (isHighlighted) {
       Animated.sequence([
         Animated.timing(highlightAnim, {
@@ -73,6 +83,11 @@ const MessageItem = ({
     }
   }, [msg, isCurrentUser, currentUserId, markMessageAsRead]);
 
+
+  // Nếu không nên render, trả về null sau khi gọi tất cả hooks
+  if (shouldNotRender) {
+    return null;
+  }
   const normalizeMediaArray = (data) =>
     Array.isArray(data)
       ? data.map((item) => (typeof item === "string" ? { url: item } : item))
