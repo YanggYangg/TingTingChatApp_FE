@@ -449,7 +449,7 @@ const fetchUserInfo = async (userId) => {
 
     socket.on("error", (error) => {
       console.error("ChatPage: Socket error", error);
-      toast.error(error.message || "Lỗi hệ thống.");
+      // toast.error(error.message || "Lỗi hệ thống.");
     });
 
     socket.on("connect", () => {

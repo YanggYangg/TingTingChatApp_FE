@@ -29,6 +29,7 @@ const MessageItem = ({
   if (msg.deletedBy?.includes(currentUserId)) {
     return null;
   }
+  console.log("msg", msg)
 
   // Nhi thêm:  Kiểm tra nếu tin nhắn là media/file nhưng linkURL rỗng
   if (
@@ -362,42 +363,44 @@ const MessageItem = ({
                 </a>
               )}
 
-              {isImage &&
-                Array.isArray(msg.linkURL) &&
-                msg.linkURL.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-1">
-                    {msg.linkURL.map((url, index) =>
-                      url ? (
-                        <img
-                          key={index}
-                          src={url}
-                          alt={`Ảnh ${index + 1}`}
-                          className="w-full h-auto rounded-lg cursor-pointer object-cover"
-                          onClick={() => setOpenMedia(url)}
-                        />
-                      ) : null
-                    )}
-                    {msg.content && (
-                      <p className="text-sm text-gray-800 mt-2">{msg.content}</p>
-                    )}
-                  </div>
-                )}
+             {isImage && (
+  <>
+    {Array.isArray(msg.linkURL) && msg.linkURL.length > 1 ? (
+      <div
+        className={`grid gap-2 ${
+          msg.linkURL.length === 2
+            ? 'grid-cols-2'
+            : msg.linkURL.length >= 3
+            ? 'grid-cols-3'
+            : ''
+        }`}
+      >
+        {msg.linkURL.map((url, index) =>
+          url ? (
+            <div key={index} className="w-auto h-auto">
+              <img
+                src={url}
+                alt={`Ảnh ${index + 1}`}
+                className="w-full h-full rounded-lg cursor-pointer object-cover"
+                onClick={() => setOpenMedia(url)}
+              />
+            </div>
+          ) : null
+        )}
+      </div>
+    ) : (
+      <div className="relative">
+        <img
+          src={Array.isArray(msg.linkURL) ? msg.linkURL[0] : msg.linkURL}
+          className="w-[200px] rounded-lg cursor-pointer object-contain bg-gray-100"
+          alt="Ảnh"
+          onClick={handleMediaClick}
+        />
+      </div>
+    )}
+  </>
+)}
 
-              {isImage &&
-                typeof msg.linkURL === "string" &&
-                msg.linkURL && (
-                  <>
-                    <img
-                      src={msg.linkURL}
-                      className="w-40 h-auto rounded-lg cursor-pointer mt-1"
-                      alt="Ảnh"
-                      onClick={handleMediaClick}
-                    />
-                    {msg.content && (
-                      <p className="text-sm text-gray-800 mt-2">{msg.content}</p>
-                    )}
-                  </>
-                )}
 
               {isVideo && (
                 <video
