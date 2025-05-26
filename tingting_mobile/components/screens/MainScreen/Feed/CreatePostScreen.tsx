@@ -33,7 +33,7 @@ interface MediaItem {
   type: "image" | "video";
 }
 
-const API_BASE_URL = "http://192.168.1.9:3006";
+const API_BASE_URL = "http://192.168.223.71:3006";
 const CreatePostScreen: React.FC = () => {
   const navigation = useNavigation();
   const [text, setText] = useState("");

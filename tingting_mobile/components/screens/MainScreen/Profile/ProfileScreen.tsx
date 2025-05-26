@@ -45,7 +45,7 @@ const ProfileScreen: React.FC<Props> = ({ route }) => {
   const loadProfileFromLocal = async () => {
     try {
       const response = await axios.get(
-        `http://192.168.24.106:3001/api/v1/profile/${profileId}`
+        `http://192.168.223.71:3001/api/v1/profile/${profileId}`
       );
       const profile = response.data.data.user;
       const date = new Date(profile.dateOfBirth);
@@ -75,7 +75,7 @@ const ProfileScreen: React.FC<Props> = ({ route }) => {
   const getPost = async () => {
     try {
       const response = await axios.get(
-        `http://192.168.24.106:3006/api/v1/post/${profileId}`
+        `http://192.168.223.71:3006/api/v1/post/${profileId}`
       );
       console.log("Response data2:", response.data.data.post);
       if (response.status === 200) {

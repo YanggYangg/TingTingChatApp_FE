@@ -139,7 +139,7 @@ const PostItem: React.FC<PostProps> = ({
     const id = await AsyncStorage.getItem("userId");
     try {
       const response = await axios.post(
-        `http://192.168.1.9:3006/api/v1/post/${_id}/love`,
+        `http://192.168.223.71:3006/api/v1/post/${_id}/love`,
         {
           profileId: id,
         }

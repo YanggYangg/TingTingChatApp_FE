@@ -144,10 +144,10 @@ const ChatFooter = ({
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         console.log(
-          `Attempt ${attempt}: Uploading to http://192.168.24.106:5000`
+          `Attempt ${attempt}: Uploading to http://192.168.223.71:5000`
         );
         const res = await fetch(
-          "http://192.168.24.106:5000/messages/sendMessageWithMedia",
+          "http://192.168.223.71:5000/messages/sendMessageWithMedia",
           {
             method: "POST",
             body: formData,

@@ -241,14 +241,14 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
     setShowDateSuggestions(false);
   };
 
-  const downloadImage = async (url, filename) => {
+const downloadImage = async (url, filename) => {
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Network response was not ok");
       const blob = await response.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = filename;
+      link.download = filename || "media";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -257,19 +257,24 @@ const StoragePage = ({ socket, onClose, conversationId, onDelete, userId }) => {
       toast.error("Không thể tải file. Thử tải trực tiếp!");
       const fallbackLink = document.createElement("a");
       fallbackLink.href = url;
-      fallbackLink.download = filename;
+      fallbackLink.download = filename || "media";
       document.body.appendChild(fallbackLink);
       fallbackLink.click();
       document.body.removeChild(fallbackLink);
     }
   };
-
-  const handleDownloadFile = (file) => {
+const handleDownloadFile = (file) => {
     if (!file?.url) {
-      console.error("Không có link file để tải.");
+      console.error("StoragePage: Không có link file để tải.");
+      toast.error("Không thể tải tệp: Thiếu URL.");
       return;
     }
-    downloadImage(file.url, file.name);
+    const link = document.createElement("a");
+    link.href = file.url;
+    link.setAttribute("download", file.name || "file");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handlePreviewFile = (file) => {
