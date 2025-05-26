@@ -339,7 +339,7 @@ export default function App() {
     const userId = await AsyncStorage.getItem("userId");
     if (!userId) return;
 
-    const socket = io("http://192.168.1.12:5000", {
+    const socket = io("http://192.168.0.103:5000", {
       query: { userId },
       transports: ["websocket"],
     });
