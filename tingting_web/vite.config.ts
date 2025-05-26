@@ -16,7 +16,6 @@ export default defineConfig({
       stream: "stream-browserify",
       buffer: "buffer",
     },
-    mainFields: ["module", "main"], // ✅ Thêm dòng này
   },
   optimizeDeps: {
     esbuildOptions: {
