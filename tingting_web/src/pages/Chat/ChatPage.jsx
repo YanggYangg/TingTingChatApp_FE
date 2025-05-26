@@ -351,21 +351,24 @@ const fetchUserInfo = async (userId) => {
       );
     });
 
-    socket.on("messageDeleted", ({ messageId, urlIndex, isMessageDeleted, deletedBy }) => {
-      console.log("ChatPage: Nhận messageDeleted", { messageId, urlIndex, isMessageDeleted, deletedBy });
+  socket.on("messageDeleted", ({ messageId, urlIndex, isMessageDeleted, deletedBy }) => {
+  console.log("ChatPage: Nhận messageDeleted", { messageId, urlIndex, isMessageDeleted, deletedBy });
 
-      dispatch(setMessages(messages.map((msg) => {
+  // Cập nhật danh sách tin nhắn trong Redux
+  dispatch(setMessages(
+    messages
+      .map((msg) => {
         if (msg._id === messageId) {
           if (isMessageDeleted) {
-            // Nếu tin nhắn bị xóa hoàn toàn, thêm userId vào deletedBy hoặc xóa tin nhắn
+            // Thêm userId vào deletedBy nếu tin nhắn bị xóa hoàn toàn
             return {
               ...msg,
               deletedBy: [...(msg.deletedBy || []), deletedBy]
             };
           } else if (urlIndex !== null && Array.isArray(msg.linkURL)) {
-            // Nếu chỉ xóa một URL cụ thể, cập nhật mảng linkURL
+            // Xóa URL cụ thể nếu chỉ xóa một link
             const updatedLinkURL = [...msg.linkURL];
-            updatedLinkURL.splice(urlIndex, 1); // Xóa URL tại urlIndex
+            updatedLinkURL.splice(urlIndex, 1);
             return {
               ...msg,
               linkURL: updatedLinkURL
@@ -373,8 +376,27 @@ const fetchUserInfo = async (userId) => {
           }
         }
         return msg;
-      })));
-    });
+      })
+      // Lọc bỏ tin nhắn nếu deletedBy chứa currentUserId
+      .filter((msg) => !msg.deletedBy?.includes(currentUserId))
+  ));
+
+  // Kích hoạt cập nhật ChatInfo dựa trên loại tin nhắn
+  const deletedMessage = messages.find((msg) => msg._id === messageId);
+  if (deletedMessage) {
+    if (deletedMessage.messageType === "image" || deletedMessage.messageType === "video") {
+      console.log("ChatPage: Yêu cầu cập nhật media trong ChatInfo");
+      getChatMedia(socket, { conversationId: selectedMessageId });
+    } else if (deletedMessage.messageType === "file") {
+      console.log("ChatPage: Yêu cầu cập nhật file trong ChatInfo");
+      getChatFiles(socket, { conversationId: selectedMessageId });
+    } else if (deletedMessage.messageType === "link") {
+      console.log("ChatPage: Yêu cầu cập nhật link trong ChatInfo");
+      getChatLinks(socket, { conversationId: selectedMessageId });
+    }
+  }
+});
+
 
     socket.on("messageRevoked", ({ messageId }) => {
       console.log("ChatPage: Nhận messageRevoked", { messageId });
@@ -1126,18 +1148,27 @@ const selectedChat = useMemo(
 const initializeSenders = () => {
   if (selectedMessage?.participants) {
     const senderList = [
-      { userId: "all", name: "Tất cả" },
+      { userId: "all", name: "Tất cả" }, // Luôn có tùy chọn "Tất cả"
       ...selectedMessage.participants.map((participant) => {
         // Chuẩn hóa userId
         let userId = participant.userId;
         if (typeof userId === "object" && userId?._id) {
           userId = userId._id; // Lấy _id nếu userId là object
         }
-        userId = userId?.toString() || "unknown"; // Chuyển thành chuỗi hoặc mặc định là "unknown"
+        userId = userId?.toString() || "unknown"; // Chuyển thành chuỗi, mặc định "unknown" nếu không có
+
+        // Xác định tên người gửi
+        const name =
+          userId === currentUserId
+            ? "Bạn" // Hiển thị "Bạn" nếu là người dùng hiện tại
+            : userCache[userId]?.name || // Lấy từ userCache nếu có
+              (participant.firstname
+                ? `${participant.firstname} ${participant.surname || ""}`.trim()
+                : `Người dùng ${userId.slice(-4)}`); // Dự phòng nếu không có thông tin
 
         return {
           userId,
-          name: userCache[userId]?.name || `Người dùng ${userId.slice(-4)}`,
+          name,
         };
       }),
     ];
@@ -1145,7 +1176,7 @@ const initializeSenders = () => {
     setSenders(senderList);
   } else {
     console.warn("ChatPage: Không có participants để khởi tạo senders");
-    setSenders([{ userId: "all", name: "Tất cả" }]);
+    setSenders([{ userId: "all", name: "Tất cả" }]); // Danh sách mặc định chỉ có "Tất cả"
   }
 };
 
