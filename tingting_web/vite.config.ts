@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import polyfillNode from "rollup-plugin-polyfill-node";
-import { nodeResolve } from "@rollup/plugin-node-resolve";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -17,7 +16,6 @@ export default defineConfig({
       stream: "stream-browserify",
       buffer: "buffer",
     },
-     mainFields: ["module", "main"], 
   },
   optimizeDeps: {
     esbuildOptions: {
@@ -28,7 +26,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      plugins: [ nodeResolve(), polyfillNode()],
+      plugins: [polyfillNode()],
     },
   },
 });
