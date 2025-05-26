@@ -34,7 +34,10 @@ const ContactList = () => {
     //socket 
   useEffect(() => {
   const userId = localStorage.getItem("userId");
-  if (userId) socket1.emit("add_user", userId); // đảm bảo đã add user
+  if (userId) {
+    console.log("🖥️ Web đăng ký socket:", userId);
+    socket1.emit("add_user", userId); // đảm bảo đã add user
+  }
 
   // Lắng nghe khi có lời mời được chấp nhận
   socket1.on("friend_request_accepted", ({ fromUserId }) => {

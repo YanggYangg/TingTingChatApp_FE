@@ -17,7 +17,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_BASE_URL = "http://192.168.1.9:3006";
+const API_BASE_URL = "http://192.168.0.103:3006";
 const FeedScreen: React.FC = () => {
   const navigation = useNavigation();
   const navigateToCreatePost = () => {

@@ -42,8 +42,13 @@ const AddFriendScreen = ({ navigation }) => {
 
     // 👂 Lắng nghe khi lời mời được chấp nhận
     socket.on("friend_request_accepted", ({ fromUserId }) => {
+      // if (searchResult && fromUserId === searchResult._id) {
+      //   setStatus("friend");
+      // }
       if (searchResult && fromUserId === searchResult._id) {
-        setStatus("friend");
+        console.log("✅ Đã trở thành bạn bè với:", fromUserId);
+        setStatus("accepted");
+        setSearchResult({ ...searchResult });
       }
     });
 
@@ -58,7 +63,7 @@ const AddFriendScreen = ({ navigation }) => {
     socket.on("friend_request_rejected", ({ fromUserId }) => {
       if (searchResult && fromUserId === searchResult._id) {
         setStatus(""); // Trạng thái trở lại "chưa kết bạn"
-        Alert.alert("❌ Lời mời đã bị từ chối");
+        //Alert.alert("❌ Lời mời đã bị từ chối");
       }
     });
 
@@ -173,6 +178,13 @@ const AddFriendScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerText}>Thêm bạn</Text>
+      </View>
+
+      <View style={styles.connectionBox}>
+        <Ionicons name="people-circle-outline" size={32} color="#007AFF" />
+        <Text style={styles.connectionText}>
+          Mở rộng vòng tròn kết nối của bạn
+        </Text>
       </View>
 
       {/* Nhập số điện thoại */}
@@ -292,6 +304,22 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "500",
   },
+  connectionBox: {
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: "#E8F0FE",
+  padding: 12,
+  borderRadius: 10,
+  marginBottom: 20,
+  gap: 10,
+},
+
+connectionText: {
+  fontSize: 16,
+  fontWeight: "600",
+  color: "#007AFF",
+},
+
 });
 
 export default AddFriendScreen;

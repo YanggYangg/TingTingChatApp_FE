@@ -30,7 +30,10 @@ export default function FriendsScreen() {
   useEffect(() => {
   const setupSocket = async () => {
     const userId = await AsyncStorage.getItem("userId");
-    if (userId) socket.emit("add_user", userId);
+    if (userId) {
+       console.log("📲 Mobile đăng ký socket:", userId);
+       socket.emit("add_user", userId);
+    }
 
     socket.on("unfriended", ({ byUserId }) => {
       console.log("🔔 Bạn đã bị huỷ kết bạn bởi:", byUserId);
@@ -68,7 +71,8 @@ export default function FriendsScreen() {
       const userId = await AsyncStorage.getItem("userId");
       const res = await Api_FriendRequest.getFriendsList(userId);
       console.log("Danh sách bạn bè:", res.data);
-      setFriends(res.data);
+      //setFriends(res.data);
+      setFriends([...res.data]);
     } catch (error) {
       console.error("Lỗi lấy danh sách bạn bè:", error);
     }

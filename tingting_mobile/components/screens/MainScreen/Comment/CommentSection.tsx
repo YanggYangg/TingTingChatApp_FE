@@ -62,7 +62,7 @@ interface Comment {
 
 type Props = StackScreenProps<RootStackParamList, "CommentSection">;
 
-const API_BASE_URL = "http://192.168.1.9:3006";
+const API_BASE_URL = "http://192.168.0.103:3006";
 const CommentSection: React.FC<Props> = ({ route }) => {
   const navigator = useNavigation();
   const { postId } = route.params;
