@@ -76,6 +76,7 @@ function VerifyOTP() {
         setIsSuccess(true);
       } else {
         const response = await Api_Auth.generate_token(data);
+        localStorage.setItem("profile", JSON.stringify(response.data.profile.data.user));
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("userId", response.data.user.userId);
         localStorage.setItem("phone", response.data.user.phone);

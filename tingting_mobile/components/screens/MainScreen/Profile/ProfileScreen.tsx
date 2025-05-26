@@ -12,15 +12,13 @@ import {
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/Ionicons";
-import {
-  useFocusEffect,
-  useNavigation,
-} from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import PostFeed from "./components/PostFeed";
 import { StackScreenProps } from "@react-navigation/stack";
 import { RootStackParamList } from "@/app/(tabs)";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = StackScreenProps<RootStackParamList, "ProfileScreen">;
 
@@ -74,14 +72,25 @@ const ProfileScreen: React.FC<Props> = ({ route }) => {
 
   const getPost = async () => {
     try {
-      const response = await axios.get(
-        `http://192.168.1.12:3006/api/v1/post/${profileId}`
-      );
-      console.log("Response data2:", response.data.data.post);
-      if (response.status === 200) {
-        setPosts(response.data.data.post);
+      const currentUser = await AsyncStorage.getItem("userId");
+      if (profileId === currentUser) {
+        const response = await axios.get(
+          `http://192.168.0.103:3006/api/v1/post/${profileId}`
+        );
+        if (response.status === 200) {
+          setPosts(response.data.data.post);
+        } else {
+          Alert.alert("Error", "Failed to fetch posts.");
+        }
       } else {
-        Alert.alert("Error", "Failed to fetch posts.");
+        const response = await axios.get(
+          `http://192.168.0.103:3006/api/v1/post/${profileId}/other`
+        );
+        if (response.status === 200) {
+          setPosts(response.data.data.post);
+        } else {
+          Alert.alert("Error", "Failed to fetch posts.");
+        }
       }
     } catch (error) {
       console.error("Error fetching posts:", error);
@@ -167,7 +176,9 @@ const ProfileScreen: React.FC<Props> = ({ route }) => {
           {/* Update Profile Button */}
           <TouchableOpacity
             style={styles.updateProfileButton}
-            onPress={() => navigation.navigate("PersonalInfo", { formData, profileId })}
+            onPress={() =>
+              navigation.navigate("PersonalInfo", { formData, profileId })
+            }
           >
             <Feather name="edit-2" size={16} color="#2196F3" />
             <Text style={styles.updateProfileText}>Cập nhật</Text>

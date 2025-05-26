@@ -143,12 +143,12 @@ const MenuProfileScreen: React.FC = () => {
         <View style={styles.divider} />
 
         {/* Menu Items */}
-        {renderMenuItem(
+        {/* {renderMenuItem(
           <MaterialIcon name="briefcase-outline" size={24} color="#0088FF" />,
           "zBusiness",
           "Quản lý và khám phá bộ tính năng zBusiness"
-        )}
-
+        )} */}
+{/* 
         <View style={styles.divider} />
 
         {renderMenuItem(
@@ -156,9 +156,9 @@ const MenuProfileScreen: React.FC = () => {
           "zCloud",
           "Không gian lưu trữ dữ liệu trên đám mây",
           true
-        )}
+        )} */}
 
-        <View style={styles.divider} />
+        {/* <View style={styles.divider} />
 
         {renderMenuItem(
           <FeatherIcon name="edit" size={24} color="#0088FF" />,
@@ -208,7 +208,7 @@ const MenuProfileScreen: React.FC = () => {
           "Quyền riêng tư",
           "",
           true
-        )}
+        )} */}
       </ScrollView>
     </SafeAreaView>
   );

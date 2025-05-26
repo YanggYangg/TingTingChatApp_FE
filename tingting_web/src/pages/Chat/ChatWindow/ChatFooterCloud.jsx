@@ -131,7 +131,7 @@ function ChatFooterCloud() {
     try {
       setError(null);
       setIsSending(true);
-      const response = await axios.post('http://184.73.0.29:3000/api/messages/send', {
+      const response = await axios.post('http://localhost:3000/api/messages/send', {
         userId,
         content: message,
       });
@@ -172,7 +172,7 @@ function ChatFooterCloud() {
     try {
       setError(null);
       setIsSending(true);
-      const response = await axios.post('http://184.73.0.29:3000/api/files/upload', formData, {
+      const response = await axios.post('http://localhost:3000/api/files/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

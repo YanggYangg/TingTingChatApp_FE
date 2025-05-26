@@ -99,7 +99,7 @@ const SettingProfileScreen: React.FC<SettingsScreenProps> = ({ onClose }) => {
       </View>
 
       <ScrollView style={styles.content}>
-        {renderSettingItem(
+        {/* {renderSettingItem(
           <MaterialIcon name="cellphone" size={24} color="#0088FF" />,
           "Dữ liệu trên máy"
         )}
@@ -118,9 +118,9 @@ const SettingProfileScreen: React.FC<SettingsScreenProps> = ({ onClose }) => {
           "Thông báo"
         )}
 
-        <View style={styles.divider} />
+        <View style={styles.divider} /> */}
 
-        {renderSettingItem(
+        {/* {renderSettingItem(
           <MaterialIcon
             name="message-text-outline"
             size={24}
@@ -157,9 +157,9 @@ const SettingProfileScreen: React.FC<SettingsScreenProps> = ({ onClose }) => {
           "Giao diện và ngôn ngữ"
         )}
 
-        <View style={styles.divider} />
+        <View style={styles.divider} /> */}
 
-        {renderSettingItem(
+        {/* {renderSettingItem(
           <Icon name="information-circle-outline" size={24} color="#0088FF" />,
           "Thông tin về Zalo"
         )}
@@ -176,7 +176,7 @@ const SettingProfileScreen: React.FC<SettingsScreenProps> = ({ onClose }) => {
         {renderSettingItem(
           <Icon name="people-outline" size={24} color="#0088FF" />,
           "Chuyển tài khoản"
-        )}
+        )} */}
 
         <View style={styles.divider} />
 

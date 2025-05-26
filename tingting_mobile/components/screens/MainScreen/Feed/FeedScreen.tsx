@@ -40,7 +40,7 @@ const FeedScreen: React.FC = () => {
     try {
       const profileId = await AsyncStorage.getItem("userId");
       const response = await axios.get(
-        `http://192.168.1.12:3001/api/v1/profile/${profileId}`
+        `http://192.168.1.9:3001/api/v1/profile/${profileId}`
       );
       const profile = response.data.data.user;
       
@@ -167,72 +167,7 @@ const FeedScreen: React.FC = () => {
               <FontAwesome name="video-camera" size={20} color="#F44336" />
               <Text style={styles.mediaButtonText}>Video</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.mediaButton}>
-              <FontAwesome name="image" size={20} color="#FF9800" />
-              <Text style={styles.mediaButtonText}>Album</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.mediaButton}>
-              <FontAwesome name="music" size={20} color="#9C27B0" />
-              <Text style={styles.mediaButtonText}>Nhạc</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Moments Section */}
-        <View style={styles.momentsSection}>
-          <Text style={styles.sectionTitle}>Khoảnh khắc</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.momentsScrollView}
-          >
-            <TouchableOpacity style={styles.momentItem}>
-              <Image
-                source={{
-                  uri:
-                    formData.avatar ||
-                    "https://randomuser.me/api/portraits/men/32.jpg",
-                }}
-                style={styles.momentImage}
-              />
-              <View style={styles.createMomentButton}>
-                <Ionicons name="camera" size={20} color="white" />
-              </View>
-              <Text style={styles.momentName}>Tạo mới</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.momentItem}>
-              <Image
-                source={{
-                  uri: "https://randomuser.me/api/portraits/women/44.jpg",
-                }}
-                style={styles.momentImage}
-              />
-              <Text style={styles.momentName}>Ngọc Hân</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.momentItem}>
-              <Image
-                source={{
-                  uri: "https://randomuser.me/api/portraits/men/42.jpg",
-                }}
-                style={styles.momentImage}
-              />
-              <Text style={styles.momentName}>Minh Tuấn</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.momentItem}>
-              <Image
-                source={{
-                  uri: "https://randomuser.me/api/portraits/women/22.jpg",
-                }}
-                style={styles.momentImage}
-              />
-              <Text style={styles.momentName}>Thu Hà</Text>
-            </TouchableOpacity>
-          </ScrollView>
         </View>
 
         {/* Posts */}
@@ -299,7 +234,7 @@ const styles = StyleSheet.create({
   },
   mediaButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-evenly",
   },
   mediaButton: {
     flexDirection: "row",

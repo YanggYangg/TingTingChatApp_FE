@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,13 +6,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Modal,
+  ScrollView,
+  StatusBar,
 } from "react-native";
 import { Ionicons, FontAwesome, AntDesign, Feather } from "@expo/vector-icons";
+import { Video, Audio } from "expo-av";
 import axios from "axios";
 import { useNavigation } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 export type Media = {
   url: string;
@@ -60,73 +64,156 @@ const PostItem: React.FC<PostProps> = ({
   const navigator = useNavigation();
   const [reactLove, setReactLove] = useState(lovedByUser || false);
   const [countReaction, setCountReaction] = useState(totalReactions || 0);
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
+
+  // Cấu hình Audio Session khi component mount
+  useEffect(() => {
+    const configureAudio = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          staysActiveInBackground: false,
+          interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+          playsInSilentModeIOS: true, // Quan trọng: cho phép phát âm thanh khi điện thoại ở chế độ im lặng
+          shouldDuckAndroid: true,
+          interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch (error) {
+        console.log("Error setting up audio:", error);
+      }
+    };
+
+    configureAudio();
+  }, []);
+
+  // Hàm mở modal xem media (ảnh/video)
+  const openMediaModal = (index: number) => {
+    setSelectedMediaIndex(index);
+    setShowMediaModal(true);
+  };
+
+  // Hàm đóng modal
+  const closeMediaModal = () => {
+    setShowMediaModal(false);
+  };
+
+  // Component hiển thị media có thể nhấn
+  const TouchableMedia = ({ source, style, index, type, thumbnailUrl }: { 
+    source: any, 
+    style: any, 
+    index: number,
+    type: "image" | "video",
+    thumbnailUrl?: string
+  }) => (
+    <TouchableOpacity onPress={() => openMediaModal(index)} activeOpacity={0.9}>
+      {type === "video" ? (
+        <View style={{ position: "relative" }}>
+          <Image 
+            source={{ uri: thumbnailUrl || source.uri }} 
+            style={style} 
+          />
+          <View style={styles.playButtonOverlay}>
+            <Ionicons name="play-circle" size={50} color="rgba(255,255,255,0.9)" />
+          </View>
+        </View>
+      ) : (
+        <Image source={source} style={style} />
+      )}
+    </TouchableOpacity>
+  );
 
   const renderImageGrid = () => {
     if (media.length === 0) return null;
 
     if (media.length === 1) {
-      // Hiển thị 1 hình ảnh với kích thước lớn
       return (
         <View style={styles.singleImageContainer}>
-          <Image source={{ uri: media[0].url }} style={styles.singleImage} />
+          <TouchableMedia 
+            source={{ uri: media[0].url }} 
+            style={styles.singleImage}
+            index={0}
+            type={media[0].type}
+            thumbnailUrl={media[0].thumbnailUrl}
+          />
         </View>
       );
     } else if (media.length === 2) {
-      // Hiển thị 2 hình ảnh cạnh nhau
       return (
         <View style={styles.twoImagesContainer}>
-          {media.map((image, index) => (
-            <Image
+          {media.map((item, index) => (
+            <TouchableMedia
               key={index}
-              source={{ uri: image.url }}
+              source={{ uri: item.url }}
               style={styles.twoImage}
+              index={index}
+              type={item.type}
+              thumbnailUrl={item.thumbnailUrl}
             />
           ))}
         </View>
       );
     } else if (media.length === 3) {
-      // Hiển thị 3 hình ảnh: 1 lớn bên trái, 2 nhỏ bên phải
       return (
         <View style={styles.threeImagesContainer}>
-          <Image source={{ uri: media[0].url }} style={styles.threeImageMain} />
+          <TouchableMedia 
+            source={{ uri: media[0].url }} 
+            style={styles.threeImageMain}
+            index={0}
+            type={media[0].type}
+            thumbnailUrl={media[0].thumbnailUrl}
+          />
           <View style={styles.threeImageSideContainer}>
-            {media.slice(1, 3).map((image, index) => (
-              <Image
+            {media.slice(1, 3).map((item, index) => (
+              <TouchableMedia
                 key={index}
-                source={{ uri: image.url }}
+                source={{ uri: item.url }}
                 style={styles.threeImageSide}
+                index={index + 1}
+                type={item.type}
+                thumbnailUrl={item.thumbnailUrl}
               />
             ))}
           </View>
         </View>
       );
     } else {
-      // Hiển thị 4+ hình ảnh: grid 2x2 với "+n" cho các hình còn lại
       const remainingCount = media.length - 4;
       return (
         <View style={styles.multipleImagesContainer}>
           <View style={styles.multipleImagesRow}>
-            {media.slice(0, 2).map((image, index) => (
-              <Image
+            {media.slice(0, 2).map((item, index) => (
+              <TouchableMedia
                 key={index}
-                source={{ uri: image.url }}
+                source={{ uri: item.url }}
                 style={styles.multipleImage}
+                index={index}
+                type={item.type}
+                thumbnailUrl={item.thumbnailUrl}
               />
             ))}
           </View>
           <View style={styles.multipleImagesRow}>
-            {media.slice(2, 4).map((image, index) => (
+            {media.slice(2, 4).map((item, index) => (
               <View key={index} style={{ position: "relative" }}>
-                <Image
-                  source={{ uri: image.url }}
+                <TouchableMedia
+                  source={{ uri: item.url }}
                   style={styles.multipleImage}
+                  index={index + 2}
+                  type={item.type}
+                  thumbnailUrl={item.thumbnailUrl}
                 />
                 {index === 1 && remainingCount > 0 && (
-                  <View style={styles.remainingCountOverlay}>
+                  <TouchableOpacity 
+                    style={styles.remainingCountOverlay}
+                    onPress={() => openMediaModal(index + 2)}
+                    activeOpacity={0.8}
+                  >
                     <Text style={styles.remainingCountText}>
                       +{remainingCount}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 )}
               </View>
             ))}
@@ -135,19 +222,127 @@ const PostItem: React.FC<PostProps> = ({
       );
     }
   };
+
+  // Modal hiển thị media (ảnh/video) phóng to
+  const renderMediaModal = () => (
+    <Modal
+      visible={showMediaModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={closeMediaModal}
+    >
+      <View style={styles.modalContainer}>
+        <StatusBar backgroundColor="black" barStyle="light-content" />
+        
+        {/* Header modal */}
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={closeMediaModal} style={styles.closeButton}>
+            <Ionicons name="close" size={30} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>
+            {selectedMediaIndex + 1} / {media.length}
+          </Text>
+          <View style={styles.modalHeaderRight} />
+        </View>
+
+        {/* Media có thể scroll */}
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(event) => {
+            const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+            setSelectedMediaIndex(newIndex);
+          }}
+          contentOffset={{ x: selectedMediaIndex * width, y: 0 }}
+        >
+          {media.map((item, index) => (
+            <View key={index} style={styles.mediaScrollContainer}>
+              {item.type === "video" ? (
+                <View style={styles.videoContainer}>
+                  <Video
+                    source={{ uri: item.url }}
+                    style={styles.fullVideo}
+                    useNativeControls
+                    resizeMode="contain"
+                    shouldPlay={false}
+                    isLooping={false}
+                    volume={1.0}
+                    isMuted={false}
+                    // Thêm các props quan trọng cho audio
+                    audioOnly={false}
+                    progressUpdateIntervalMillis={1000}
+                    positionMillis={0}
+                    // Cấu hình audio mode cho video
+                    onLoad={async () => {
+                      try {
+                        await Audio.setAudioModeAsync({
+                          allowsRecordingIOS: false,
+                          staysActiveInBackground: false,
+                          interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+                          playsInSilentModeIOS: true,
+                          shouldDuckAndroid: true,
+                          interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+                          playThroughEarpieceAndroid: false,
+                        });
+                      } catch (error) {
+                        console.log("Error setting audio mode for video:", error);
+                      }
+                    }}
+                  />
+                </View>
+              ) : (
+                <ScrollView
+                  style={styles.imageScrollContainer}
+                  maximumZoomScale={3}
+                  minimumZoomScale={1}
+                  showsVerticalScrollIndicator={false}
+                  showsHorizontalScrollIndicator={false}
+                >
+                  <TouchableOpacity 
+                    activeOpacity={1}
+                    onPress={closeMediaModal}
+                    style={styles.fullImageContainer}
+                  >
+                    <Image
+                      source={{ uri: item.url }}
+                      style={styles.fullImage}
+                      resizeMode="contain"
+                    />
+                  </TouchableOpacity>
+                </ScrollView>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* Dots indicator */}
+        {media.length > 1 && (
+          <View style={styles.dotsContainer}>
+            {media.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  selectedMediaIndex === index && styles.activeDot
+                ]}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    </Modal>
+  );
+
   const handleToggleLike = async () => {
     const id = await AsyncStorage.getItem("userId");
     try {
       const response = await axios.post(
-        `http://192.168.0.103:3006/api/v1/post/${_id}/love`,
+        `http://192.168.1.9:3006/api/v1/post/${_id}/love`,
         {
           profileId: id,
         }
       );
-      console.log("_id:", _id);
-      console.log("Profile author:", profileId._id);
-      console.log("Profile ID:", id);
-      console.log("Response from toggle love - Feed:", response.data);
       if (response.data?.lovedByUser === true) {
         setReactLove(true);
         setCountReaction((prev) => prev + 1);
@@ -159,26 +354,30 @@ const PostItem: React.FC<PostProps> = ({
       console.error("Error toggling love:", error);
     }
   };
+
   const navigateToCommentSection = async () => {
     navigator.navigate("CommentSection", {
       postId: _id,
     });
   };
+
   const navigateToProfile = async () => {
     navigator.navigate("ProfileScreen", {
       profileId: profileId._id,
     });
   };
+
   const navigateToFeedOptions = async () => {
     navigator.navigate("FeedOptions", {
       postId: _id,
       profileId: profileId._id,
     });
   };
+
   const formatTime = (createAt: string) => {
     const date = new Date(createAt);
     const now = new Date();
-    const diff = Math.floor((now.getTime() - date.getTime()) / 1000); // diff in seconds
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
 
     if (diff < 60) {
       return `${diff} giây trước`;
@@ -205,9 +404,9 @@ const PostItem: React.FC<PostProps> = ({
         </TouchableOpacity>
         <View style={styles.userInfo}>
           <TouchableOpacity onPress={navigateToProfile}>
-          <Text style={styles.userName}>
-            {profileId.firstname} {profileId.surname}
-          </Text>
+            <Text style={styles.userName}>
+              {profileId.firstname} {profileId.surname}
+            </Text>
           </TouchableOpacity>
           <Text style={styles.timestamp}>{formatTime(createdAt)}</Text>
         </View>
@@ -223,21 +422,11 @@ const PostItem: React.FC<PostProps> = ({
       {/* Post Content */}
       {content ? <Text style={styles.contentText}>{content}</Text> : null}
 
-      {/* Images */}
+      {/* Media Grid */}
       {renderImageGrid()}
 
-      {/* Music Player (if available) */}
-      {/* {music && (
-        <View style={styles.musicPlayer}>
-          <FontAwesome name="music" size={16} color="#666" />
-          <Text style={styles.musicTitle}>
-            {music.title} - {music.artist}
-          </Text>
-          <TouchableOpacity style={styles.musicPlayButton}>
-            <FontAwesome name="play" size={14} color="white" />
-          </TouchableOpacity>
-        </View>
-      )} */}
+      {/* Media Modal */}
+      {renderMediaModal()}
 
       {/* Interaction Buttons */}
       <View style={styles.interactionContainer}>
@@ -318,8 +507,6 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     fontSize: 16,
   },
-
-  // Single image styles
   singleImageContainer: {
     marginBottom: 8,
   },
@@ -327,8 +514,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: width * 0.8,
   },
-
-  // Two images styles
   twoImagesContainer: {
     flexDirection: "row",
     marginBottom: 8,
@@ -337,8 +522,6 @@ const styles = StyleSheet.create({
     width: width / 2,
     height: width / 2,
   },
-
-  // Three images styles
   threeImagesContainer: {
     paddingHorizontal: 12,
     backgroundColor: "#f0f0ff",
@@ -360,8 +543,6 @@ const styles = StyleSheet.create({
     width: width * 0.34 - 20,
     height: width * 0.33 - 20,
   },
-
-  // Multiple images styles
   multipleImagesContainer: {
     paddingHorizontal: 12,
     backgroundColor: "#f0f0ff",
@@ -392,33 +573,87 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
   },
-
-  // Music player
-  musicPlayer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    padding: 8,
-    marginHorizontal: 12,
-    marginBottom: 12,
-    borderRadius: 4,
-  },
-  musicTitle: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#333",
-  },
-  musicPlayButton: {
-    backgroundColor: "#1E88E5",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  playButtonOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
-
-  // Interaction
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "black",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+  },
+  closeButton: {
+    padding: 10,
+  },
+  modalTitle: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  modalHeaderRight: {
+    width: 50,
+  },
+  mediaScrollContainer: {
+    width: width,
+    height: height - 120,
+  },
+  videoContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    width: width,
+    height: height - 120,
+  },
+  fullVideo: {
+    width: width,
+    height: height - 120,
+  },
+  imageScrollContainer: {
+    width: width,
+    height: height - 120,
+  },
+  fullImageContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    width: width,
+    height: height - 120,
+  },
+  fullImage: {
+    width: width,
+    height: height - 120,
+  },
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    marginHorizontal: 4,
+  },
+  activeDot: {
+    backgroundColor: "white",
+  },
   interactionContainer: {
     paddingHorizontal: 12,
     paddingBottom: 12,
