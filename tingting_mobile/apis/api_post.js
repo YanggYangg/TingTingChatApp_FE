@@ -19,7 +19,7 @@ const request = async (method, url, data = null, params = null, headers = {}) =>
       url,
       data,
       params,
-      headers, 
+      headers,
     });
 
     return response.data;
@@ -37,22 +37,22 @@ const ApiManager = {
 };
 
 export const Api_Post = {
-    getAllPosts: async (data) => {
-        return ApiManager.get("api/v1/post", data);
-    },
-    getPostById: async (id) => {
-        return ApiManager.get(`api/v1/post/${id}`);
-    },
-    createPost: async (data) => {
-        return ApiManager.post("api/v1/post", data);
-    },
-    updatePost: async (id, data) => {
-        return ApiManager.put(`api/v1/post/${id}`, data);
-    },
-    deletePost: async (id) => {
-        return ApiManager.delete(`api/v1/post/${id}`);
-    },
-    toggleLove: async (id, data) => {
-        return ApiManager.post(`api/v1/post/${id}/love`, data);
-    },
+  getAllPosts: async (data) => {
+    return ApiManager.get("api/v1/post", data);
+  },
+  getPostById: async (id) => {
+    return ApiManager.get(`api/v1/post/${id}`);
+  },
+  createPost: async (data) => {
+    return ApiManager.post("api/v1/post", data);
+  },
+  updatePost: async (id, data) => {
+    return ApiManager.put(`api/v1/post/${id}`, data);
+  },
+  deletePost: async (id) => {
+    return ApiManager.delete(`api/v1/post/${id}`);
+  },
+  toggleLove: async (id, data) => {
+    return ApiManager.post(`api/v1/post/${id}/love`, data);
+  },
 };

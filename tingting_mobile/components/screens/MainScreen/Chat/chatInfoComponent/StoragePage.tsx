@@ -134,7 +134,7 @@ const StoragePage: React.FC<Props> = ({
       socket.emit(event, { conversationId }, async (response: any) => {
         if (response?.success && Array.isArray(response.data)) {
           const formattedData = await Promise.all(
-            response.data.flatMap((item: any) =>
+            response.data.filter((item) => !item.deletedBy?.includes(userId)).flatMap((item: any) =>
               (Array.isArray(item?.linkURL) ? item.linkURL : [item?.linkURL])
                 .filter((url: string) => url && typeof url === 'string' && url.startsWith('http'))
                 .map(async (url: string, urlIndex: number) => {
@@ -824,7 +824,7 @@ const StoragePage: React.FC<Props> = ({
                       <View style={styles.fileItem}>
                         <Ionicons name="document-outline" size={24} color="#007bff" style={styles.fileIcon} />
                         <View style={styles.fileInfo}>
-                          <Text style={styles.fileName}>{item.name}</Text>
+                          <Text style={styles.fileName}>{item.name || item.linkURL.split('/').pop() || 'Tệp không tên'}</Text>
                           <Text style={styles.fileMeta}>
                             {item.sender} • {item.date}
                           </Text>
@@ -1195,6 +1195,7 @@ const styles = StyleSheet.create({
   fileName: {
     fontSize: 14,
     fontWeight: '600',
+    width: '80%',
   },
   fileMeta: {
     fontSize: 12,
@@ -1285,10 +1286,10 @@ const styles = StyleSheet.create({
   },
   downloadButton: {
     position: 'absolute',
-    top: 40,
+    // top: 40,
     right: 20,
     zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    // backgroundColor: 'rgba(0,0,0,0.6)',
     borderRadius: 20,
     padding: 10,
   },

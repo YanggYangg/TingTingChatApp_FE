@@ -351,21 +351,24 @@ const fetchUserInfo = async (userId) => {
       );
     });
 
-    socket.on("messageDeleted", ({ messageId, urlIndex, isMessageDeleted, deletedBy }) => {
-      console.log("ChatPage: Nhận messageDeleted", { messageId, urlIndex, isMessageDeleted, deletedBy });
+  socket.on("messageDeleted", ({ messageId, urlIndex, isMessageDeleted, deletedBy }) => {
+  console.log("ChatPage: Nhận messageDeleted", { messageId, urlIndex, isMessageDeleted, deletedBy });
 
-      dispatch(setMessages(messages.map((msg) => {
+  // Cập nhật danh sách tin nhắn trong Redux
+  dispatch(setMessages(
+    messages
+      .map((msg) => {
         if (msg._id === messageId) {
           if (isMessageDeleted) {
-            // Nếu tin nhắn bị xóa hoàn toàn, thêm userId vào deletedBy hoặc xóa tin nhắn
+            // Thêm userId vào deletedBy nếu tin nhắn bị xóa hoàn toàn
             return {
               ...msg,
               deletedBy: [...(msg.deletedBy || []), deletedBy]
             };
           } else if (urlIndex !== null && Array.isArray(msg.linkURL)) {
-            // Nếu chỉ xóa một URL cụ thể, cập nhật mảng linkURL
+            // Xóa URL cụ thể nếu chỉ xóa một link
             const updatedLinkURL = [...msg.linkURL];
-            updatedLinkURL.splice(urlIndex, 1); // Xóa URL tại urlIndex
+            updatedLinkURL.splice(urlIndex, 1);
             return {
               ...msg,
               linkURL: updatedLinkURL
@@ -373,8 +376,27 @@ const fetchUserInfo = async (userId) => {
           }
         }
         return msg;
-      })));
-    });
+      })
+      // Lọc bỏ tin nhắn nếu deletedBy chứa currentUserId
+      .filter((msg) => !msg.deletedBy?.includes(currentUserId))
+  ));
+
+  // Kích hoạt cập nhật ChatInfo dựa trên loại tin nhắn
+  const deletedMessage = messages.find((msg) => msg._id === messageId);
+  if (deletedMessage) {
+    if (deletedMessage.messageType === "image" || deletedMessage.messageType === "video") {
+      console.log("ChatPage: Yêu cầu cập nhật media trong ChatInfo");
+      getChatMedia(socket, { conversationId: selectedMessageId });
+    } else if (deletedMessage.messageType === "file") {
+      console.log("ChatPage: Yêu cầu cập nhật file trong ChatInfo");
+      getChatFiles(socket, { conversationId: selectedMessageId });
+    } else if (deletedMessage.messageType === "link") {
+      console.log("ChatPage: Yêu cầu cập nhật link trong ChatInfo");
+      getChatLinks(socket, { conversationId: selectedMessageId });
+    }
+  }
+});
+
 
     socket.on("messageRevoked", ({ messageId }) => {
       console.log("ChatPage: Nhận messageRevoked", { messageId });
@@ -904,31 +926,6 @@ const selectedChat = useMemo(
 
   console.log("ChatPage: Render với", { selectedChat, chatDetails, messages, cloudMessages }); // Nhi thêm
 
-  // // Add this function to mark a message as read (emit trực tiếp)
-  // const markMessageAsRead = (messageId) => {
-  //   if (
-  //     socket &&
-  //     selectedMessageId &&
-  //     messageId &&
-  //     selectedMessageId !== "my-cloud"
-  //   ) {
-  //     // Find the message
-  //     const msg = messages.find((m) => m._id === messageId);
-  //     if (!msg) return;
-  //     // Only mark as read if the message is not from the current user and not already read
-  //     if (
-  //       msg.userId !== currentUserId &&
-  //       (!msg.status?.readBy || !msg.status.readBy.includes(currentUserId))
-  //     ) {
-  //       socket.emit("readMessage", {
-  //         conversationId: selectedMessageId,
-  //         messageId,
-  //         userId: currentUserId,
-  //       });
-  //     }
-  //   }
-  // };
-
   // Auto mark last message as read if it's from another user
   useEffect(() => {
     if (
@@ -959,19 +956,20 @@ const selectedChat = useMemo(
     if (!socket || !selectedMessageId || selectedMessageId === "my-cloud") return;
 
     const handleMessageRead = ({ messageId, userId, readBy }) => {
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
+      console.log("ChatPage: Nhận messageRead", { messageId, userId, readBy });
+      dispatch(setMessages(
+        messages.map((msg) =>
           msg._id === messageId
             ? {
-              ...msg,
-              status: {
-                ...msg.status,
-                readBy: readBy, // cập nhật lại mảng readBy mới nhất từ BE
-              },
-            }
+                ...msg,
+                status: {
+                  ...msg.status,
+                  readBy: readBy,
+                },
+              }
             : msg
         )
-      );
+      ));
     };
 
     socket.on("messageRead", handleMessageRead);
@@ -979,8 +977,7 @@ const selectedChat = useMemo(
     return () => {
       socket.off("messageRead", handleMessageRead);
     };
-  }, [socket, selectedMessageId]);
-  console.log("ChatPage: Render với", { selectedChat, chatDetails, messages, cloudMessages });
+  }, [socket, selectedMessageId, messages, dispatch]);
 
   // Add this function to mark a message as read (emit trực tiếp)
   const markMessageAsRead = (messageId) => {
@@ -1126,18 +1123,27 @@ const selectedChat = useMemo(
 const initializeSenders = () => {
   if (selectedMessage?.participants) {
     const senderList = [
-      { userId: "all", name: "Tất cả" },
+      { userId: "all", name: "Tất cả" }, // Luôn có tùy chọn "Tất cả"
       ...selectedMessage.participants.map((participant) => {
         // Chuẩn hóa userId
         let userId = participant.userId;
         if (typeof userId === "object" && userId?._id) {
           userId = userId._id; // Lấy _id nếu userId là object
         }
-        userId = userId?.toString() || "unknown"; // Chuyển thành chuỗi hoặc mặc định là "unknown"
+        userId = userId?.toString() || "unknown"; // Chuyển thành chuỗi, mặc định "unknown" nếu không có
+
+        // Xác định tên người gửi
+        const name =
+          userId === currentUserId
+            ? "Bạn" // Hiển thị "Bạn" nếu là người dùng hiện tại
+            : userCache[userId]?.name || // Lấy từ userCache nếu có
+              (participant.firstname
+                ? `${participant.firstname} ${participant.surname || ""}`.trim()
+                : `Người dùng ${userId.slice(-4)}`); // Dự phòng nếu không có thông tin
 
         return {
           userId,
-          name: userCache[userId]?.name || `Người dùng ${userId.slice(-4)}`,
+          name,
         };
       }),
     ];
@@ -1145,7 +1151,7 @@ const initializeSenders = () => {
     setSenders(senderList);
   } else {
     console.warn("ChatPage: Không có participants để khởi tạo senders");
-    setSenders([{ userId: "all", name: "Tất cả" }]);
+    setSenders([{ userId: "all", name: "Tất cả" }]); // Danh sách mặc định chỉ có "Tất cả"
   }
 };
 
@@ -1253,7 +1259,7 @@ const searchMessages = async () => {
         setHighlightedMessageId(null);
       }, 3000);
     } else {
-      toast.error("Không tìm thấy tin nhắn trong danh sách hiện tại");
+      toast.error("Không tìm thấy tin nhắn trong danh sách hiện tại, có thể nó đã bị xóa hoặc không còn trong cuộc trò chuyện.");
     }
   };
 

@@ -162,21 +162,22 @@ const fetchUserInfo = async (userId) => {
 
   try {
     const response = await Api_Profile.getProfile(userId);
+    console.log("ChatScreen: Nhận thông tin người dùng từ API", { userId, response });
     let userInfo;
     if (response?.data?.user) {
       userInfo = {
-        name: `${response.data.user.firstname || ''} ${response.data.user.surname || ''}`.trim() || `Người dùng ${userId.slice(-4)}`,
+        name: `${response.data.user.firstname || ''} ${response.data.user.surname || ''}`.trim() || "Người dùng",
         avatar: response.data.user.avatar || "https://picsum.photos/200",
       };
     } else {
-      userInfo = { name: `Người dùng ${userId.slice(-4)}`, avatar: "https://picsum.photos/200" };
+      userInfo = { name: "Người dùng", avatar: "https://picsum.photos/200" };
     }
     console.log("ChatScreen: Nhận thông tin người dùng từ API", { userId, userInfo });
     setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
     return userInfo;
   } catch (error) {
     console.error("ChatScreen: Lỗi khi lấy thông tin người dùng", { userId, error });
-    const userInfo = { name: `Người dùng ${userId.slice(-4)}`, avatar: "https://picsum.photos/200" };
+    const userInfo = { name: "Người dùng", avatar: "https://picsum.photos/200" };
     setUserCache((prev) => ({ ...prev, [userId]: userInfo }));
     return userInfo;
   }
@@ -231,7 +232,7 @@ const fetchUserInfo = async (userId) => {
         );
         if (otherParticipant?.userId) {
           const userInfo = await fetchUserInfo(otherParticipant.userId);
-          name = userInfo.name || `Người dùng ${otherParticipant.userId.slice(-4)}`;
+          name = userInfo.name || `Người dùng `;
           imageGroup = userInfo.avatar || imageGroup;
         }
       }
@@ -648,7 +649,7 @@ const initializeSenders = () => {
           userId,
           name: userId === currentUserId
             ? "Bạn"
-            : userCache[userId]?.name || `Người dùng ${userId.slice(-4)}`,
+            : userCache[userId]?.name || `Người dùng `,
         };
       }),
     ];

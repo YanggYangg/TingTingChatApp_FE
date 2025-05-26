@@ -286,7 +286,7 @@ setGroupedFriends(groupedSorted);
                 <span className="text-sm">Tất cả</span>
                 <ChevronDown size={16} />
               </button>
-              {filterOpen && (
+              {/* {filterOpen && (
                 <div
                   className="absolute right-0 top-12 bg-white rounded-md shadow-lg z-10 w-[95%]"
                   onClick={handleDropdownClick}
@@ -301,7 +301,7 @@ setGroupedFriends(groupedSorted);
                     Mới truy cập
                   </button>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
           <div className="w-full h-full rounded-xs p-4">

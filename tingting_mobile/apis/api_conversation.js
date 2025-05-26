@@ -69,11 +69,11 @@ export const Api_Conversation = {
     });
   },
 
-    searchConversationsByUserId: async (userId, searchKeyword = "") => {
-  // Gắn thủ công query param vào URL
-  const query = searchKeyword ? `?search=${encodeURIComponent(searchKeyword)}` : "";
-  return ApiManager.get(`/conversations/getAllConversationById2/${userId}${query}`);
-},
+  searchConversationsByUserId: async (userId, searchKeyword = "") => {
+    // Gắn thủ công query param vào URL
+    const query = searchKeyword ? `?search=${encodeURIComponent(searchKeyword)}` : "";
+    return ApiManager.get(`/conversations/getAllConversationById2/${userId}${query}`);
+  },
 
 
 };

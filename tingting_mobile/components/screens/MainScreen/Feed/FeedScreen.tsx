@@ -40,7 +40,7 @@ const FeedScreen: React.FC = () => {
     try {
       const profileId = await AsyncStorage.getItem("userId");
       const response = await axios.get(
-        `http://192.168.1.9:3001/api/v1/profile/${profileId}`
+        `http://192.168.1.12:3001/api/v1/profile/${profileId}`
       );
       const profile = response.data.data.user;
       

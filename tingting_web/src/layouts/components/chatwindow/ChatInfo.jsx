@@ -84,122 +84,139 @@ const ChatInfo = ({ userId, conversationId, socket }) => {
   );
 
   // Fetch and listen for chat info updates
-  useEffect(() => {
-    if (!socket || !conversationId || !userId) {
+useEffect(() => {
+  if (!socket || !conversationId || !userId) {
+    setLoading(false);
+    return;
+  }
+
+  socket.emit("joinUserRoom", { userId });
+  joinConversation(socket, conversationId);
+  getChatInfo(socket, { conversationId });
+
+  const handleUpdateChatInfo = ({ conversationId: updatedId, messageType }) => {
+    if (updatedId !== conversationId) return;
+    if (messageType === "image" || messageType === "video") {
+      getChatMedia(socket, { conversationId });
+    } else if (messageType === "file") {
+      getChatFiles(socket, { conversationId });
+    } else if (messageType === "link") {
+      getChatLinks(socket, { conversationId });
+    }
+  };
+
+  const handleOnChatInfo = (newChatInfo) => {
+    const participant = newChatInfo.participants?.find((p) => p.userId === userId);
+    if (!participant) {
+      dispatch(setSelectedMessage(null));
       setLoading(false);
       return;
     }
 
-    socket.emit("joinUserRoom", { userId });
-    joinConversation(socket, conversationId);
-    getChatInfo(socket, { conversationId });
-
-    const handleUpdateChatInfo = ({ conversationId: updatedId, messageType }) => {
-      if (updatedId !== conversationId) return;
-      if (messageType === "image" || messageType === "video") getChatMedia(socket, { conversationId });
-      else if (messageType === "file") getChatFiles(socket, { conversationId });
-      else if (messageType === "link") getChatLinks(socket, { conversationId });
+    // Lọc các tin nhắn chưa bị xóa bởi userId
+    const filteredChatInfo = {
+      ...newChatInfo,
+      media: newChatInfo.media?.filter((msg) => !msg.deletedBy?.includes(userId)) || [],
+      files: newChatInfo.files?.filter((msg) => !msg.deletedBy?.includes(userId)) || [],
+      links: newChatInfo.links?.filter((msg) => !msg.deletedBy?.includes(userId)) || [],
     };
 
-    const handleOnChatInfo = (newChatInfo) => {
-      const participant = newChatInfo.participants?.find((p) => p.userId === userId);
-      // if (participant?.isHidden) {
-      //   dispatch(setSelectedMessage(null));
-      //   setLoading(false);
-      //   return;
-      // }
+    setChatInfo((prev) => {
+      if (JSON.stringify(prev) === JSON.stringify(filteredChatInfo)) return prev;
+      return filteredChatInfo;
+    });
+    setIsMuted(!!participant?.mute);
+    setMuteValue(participant?.mute || null);
+    setIsPinned(!!participant?.isPinned);
+    setUserRoleInGroup(participant?.role || null);
 
-      setChatInfo((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(newChatInfo)) return prev;
-        return newChatInfo;
-      });
-      setIsMuted(!!participant?.mute);
-      setMuteValue(participant?.mute || null);
-      setIsPinned(!!participant?.isPinned);
-      setUserRoleInGroup(participant?.role || null);
-
-      if (!newChatInfo.isGroup) {
-        const otherParticipant = newChatInfo.participants?.find((p) => p.userId !== userId);
-        if (otherParticipant?.userId) {
-          Api_Profile.getProfile(otherParticipant.userId)
-            .then((response) => setOtherUser(response?.data?.user || { firstname: "Không tìm thấy", surname: "" }))
-            .catch(() => setOtherUser({ firstname: "Không tìm thấy", surname: "" }))
-            .finally(() => setLoading(false));
-        } else {
-          setLoading(false);
-        }
+    if (!newChatInfo.isGroup) {
+      const otherParticipant = newChatInfo.participants?.find((p) => p.userId !== userId);
+      if (otherParticipant?.userId) {
+        Api_Profile.getProfile(otherParticipant.userId)
+          .then((response) => setOtherUser(response?.data?.user || { firstname: "Không tìm thấy", surname: "" }))
+          .catch(() => setOtherUser({ firstname: "Không tìm thấy", surname: "" }))
+          .finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
+    } else {
+      setLoading(false);
+    }
+    dispatch(setChatInfoUpdate(filteredChatInfo));
+  };
+
+  const handleOnChatInfoUpdated = (updatedInfo) => {
+    if (updatedInfo._id !== conversationId) return;
+    const participant = updatedInfo.participants?.find((p) => p.userId === userId);
+    if (!participant) {
+      dispatch(setSelectedMessage(null));
+      socket.emit("leaveConversation", { conversationId });
+      return;
+    }
+
+    // Lọc các tin nhắn chưa bị xóa bởi userId
+    const filteredUpdatedInfo = {
+      ...updatedInfo,
+      media: updatedInfo.media?.filter((msg) => !msg.deletedBy?.includes(userId)) || [],
+      files: updatedInfo.files?.filter((msg) => !msg.deletedBy?.includes(userId)) || [],
+      links: updatedInfo.links?.filter((msg) => !msg.deletedBy?.includes(userId)) || [],
+    };
+
+    setChatInfo((prev) => {
+      if (!prev || JSON.stringify(prev) === JSON.stringify(filteredUpdatedInfo)) return prev;
+      const newChatInfo = { ...prev, ...filteredUpdatedInfo };
       dispatch(setChatInfoUpdate(newChatInfo));
-    };
+      return newChatInfo;
+    });
+    setIsMuted(!!participant?.mute);
+    setMuteValue(participant?.mute || null);
+    setIsPinned(!!participant?.isPinned);
+    setUserRoleInGroup(participant?.role || null);
+  };
 
-    const handleOnChatInfoUpdated = (updatedInfo) => {
-      if (updatedInfo._id !== conversationId) return;
-      const participant = updatedInfo.participants?.find((p) => p.userId === userId);
-      if (!participant ) {
-        
-        dispatch(setSelectedMessage(null));
-        socket.emit("leaveConversation", { conversationId });
-        return;
-      }
+  const handleDeleteAllChatHistory = ({ conversationId: deletedConversationId, deletedBy }) => {
+    if (deletedConversationId !== conversationId) return;
+    console.log("ChatInfo: Nhận deleteAllChatHistory", { conversationId, deletedBy });
 
-      setChatInfo((prev) => {
-        if (!prev || JSON.stringify(prev) === JSON.stringify({ ...prev, ...updatedInfo })) return prev;
-        const newChatInfo = { ...prev, ...updatedInfo };
-        dispatch(setChatInfoUpdate(newChatInfo));
-        return newChatInfo;
-      });
-      setIsMuted(!!participant?.mute);
-      setMuteValue(participant?.mute || null);
-      setIsPinned(!!participant?.isPinned);
-      setUserRoleInGroup(participant?.role || null);
-    };
+    setChatInfo((prev) => {
+      if (!prev) return prev;
+      const updatedChatInfo = {
+        ...prev,
+        media: [],
+        files: [],
+        links: [],
+        lastMessage: null,
+      };
+      dispatch(setChatInfoUpdate(updatedChatInfo));
+      return updatedChatInfo;
+    });
+    toast.success("Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");
+  };
 
-    const handleDeleteAllChatHistory = ({ conversationId: deletedConversationId, deletedBy }) => {
-      if (deletedConversationId !== conversationId) return;
-      console.log("ChatInfo: Nhận deleteAllChatHistory", { conversationId, deletedBy });
+  socket.on("updateChatInfo", handleUpdateChatInfo);
+  onChatInfo(socket, handleOnChatInfo);
+  onChatInfoUpdated(socket, handleOnChatInfoUpdated);
+  socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
+  onError(socket, (error) => {
+    if (error.message === "Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!") {
+      setIsPinLimitModalOpen(true);
+    } else {
+      toast.error("Đã xảy ra lỗi: " + (error.message || "Không thể cập nhật thông tin."));
+    }
+  });
+  getChatMedia(socket, { conversationId });
+  getChatFiles(socket, { conversationId });
+  getChatLinks(socket, { conversationId });
 
-      setChatInfo((prev) => {
-        if (!prev) return prev;
-        const updatedChatInfo = {
-          ...prev,
-          media: [],
-          files: [],
-          links: [],
-          lastMessage: null,
-        };
-        dispatch(setChatInfoUpdate(updatedChatInfo));
-        return updatedChatInfo;
-      });
-      toast.success("Đã xóa lịch sử trò chuyện, cập nhật media, files, links!");
-    };
-
-    const handleError = (error) => {
-      if (error.message === "Bạn chỉ có thể ghim tối đa 5 cuộc trò chuyện!") {
-        setIsPinLimitModalOpen(true);
-      } else {
-        toast.error("Đã xảy ra lỗi: " + (error.message || "Không thể cập nhật thông tin."));
-      }
-    };
-
-    socket.on("updateChatInfo", handleUpdateChatInfo);
-    onChatInfo(socket, handleOnChatInfo);
-    onChatInfoUpdated(socket, handleOnChatInfoUpdated);
-    socket.on("deleteAllChatHistory", handleDeleteAllChatHistory);
-    onError(socket, handleError);
-    getChatMedia(socket, { conversationId });
-    getChatFiles(socket, { conversationId });
-    getChatLinks(socket, { conversationId });
-
-    return () => {
-      socket.off("updateChatInfo", handleUpdateChatInfo);
-      socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
-      offChatInfo(socket);
-      offChatInfoUpdated(socket);
-      offError(socket);
-    };
-  }, [socket, conversationId, userId, dispatch]);
+  return () => {
+    socket.off("updateChatInfo", handleUpdateChatInfo);
+    socket.off("deleteAllChatHistory", handleDeleteAllChatHistory);
+    offChatInfo(socket);
+    offChatInfoUpdated(socket);
+    offError(socket);
+  };
+}, [socket, conversationId, userId, dispatch]);
 
   // Load and listen for conversation updates
   useEffect(() => {

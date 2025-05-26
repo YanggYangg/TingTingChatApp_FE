@@ -39,14 +39,24 @@ const MessageItem = ({
   const [isLoading, setIsLoading] = useState(true);
   const [highlightAnim] = useState(new Animated.Value(0)); // ĐỂ highlight animation nếu cần
 
-  // Modal states
+    // Modal states
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [mediaType, setMediaType] = useState(null);
   const isLink = msg.messageType === "link";
   const isHighlighted = msg._id === highlightedMessageId;
 
-   useEffect(() => {
+  // Kiểm tra các điều kiện để không render tin nhắn
+  const shouldNotRender =
+    msg.deletedBy?.includes(currentUserId) ||
+    ((msg.messageType === "image" ||
+      msg.messageType === "video" ||
+      msg.messageType === "file") &&
+      (!msg.linkURL ||
+        (Array.isArray(msg.linkURL) && msg.linkURL.length === 0)));
+
+  // useEffect cho highlight animation
+  useEffect(() => {
     if (isHighlighted) {
       Animated.sequence([
         Animated.timing(highlightAnim, {
@@ -73,6 +83,11 @@ const MessageItem = ({
     }
   }, [msg, isCurrentUser, currentUserId, markMessageAsRead]);
 
+
+  // Nếu không nên render, trả về null sau khi gọi tất cả hooks
+  if (shouldNotRender) {
+    return null;
+  }
   const normalizeMediaArray = (data) =>
     Array.isArray(data)
       ? data.map((item) => (typeof item === "string" ? { url: item } : item))
@@ -101,23 +116,47 @@ const MessageItem = ({
   const renderImages = () => {
     const images = normalizeMediaArray(msg.linkURL);
     if (msg.messageType !== "image") return null;
+
+    if (images.length > 1) {
+      return (
+        <View style={[
+          styles.imageGrid,
+          images.length === 2 ? styles.twoImageGrid : styles.threeImageGrid
+        ]}>
+          {images.map((img, idx) => (
+            <TouchableOpacity
+              key={idx}
+              onPress={() => handleMediaPress(img.url, "image")}
+              style={[
+                styles.gridImageContainer,
+                images.length === 2 ? styles.twoImageContainer : styles.threeImageContainer
+              ]}
+            >
+              <Image
+                source={{ uri: img.url }}
+                style={[
+                  styles.gridImage,
+                  images.length === 2 ? styles.twoImage : styles.threeImage
+                ]}
+                onLoad={() => setIsLoading(false)}
+              />
+              {isLoading && <ActivityIndicator style={styles.mediaLoading} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    }
+
     return (
-      <View style={styles.imageGrid}>
-        {images.map((img, idx) => (
-          <TouchableOpacity
-            key={idx}
-            onPress={() => handleMediaPress(img.url, "image")}
-          >
-            <Image
-              source={{ uri: img.url }}
-              style={
-                images.length === 1 ? styles.imageSingle : styles.gridImage
-              }
-              onLoad={() => setIsLoading(false)}
-            />
-            {isLoading && <ActivityIndicator style={styles.mediaLoading} />}
-          </TouchableOpacity>
-        ))}
+      <View style={styles.singleImageContainer}>
+        <TouchableOpacity onPress={() => handleMediaPress(images[0].url, "image")}>
+          <Image
+            source={{ uri: images[0].url }}
+            style={styles.imageSingle}
+            onLoad={() => setIsLoading(false)}
+          />
+          {isLoading && <ActivityIndicator style={styles.mediaLoading} />}
+        </TouchableOpacity>
       </View>
     );
   };
@@ -325,13 +364,14 @@ const MessageItem = ({
         return "Tất cả đã xem";
       }
 
-      const readNames = readMembers.map(userId => {
+      // Sử dụng Set để loại bỏ các tên trùng lặp
+      const uniqueReadNames = [...new Set(readMembers.map(userId => {
         const id = typeof userId === 'object' ? userId._id : userId;
         const cachedUser = userCache[id];
         return cachedUser?.name || "Unknown";
-      }).join(", ");
+      }))].join(", ");
 
-      return readNames ? `${readNames} đã xem` : "Đã gửi";
+      return uniqueReadNames ? `${uniqueReadNames} đã xem` : "Đã gửi";
     }
 
     // Lấy ID của người nhận (người không phải người gửi)
@@ -456,10 +496,12 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   messageRightBox: {
-    backgroundColor: "#dcf8c6",
+    // blue hơi nhạt 
+    backgroundColor: '#CCE5FF'
   },
   messageLeftBox: {
-    backgroundColor: "#fff",
+    // xám nhạt
+    backgroundColor: "#F0F0F0"
   },
   senderText: {
     fontSize: 12,
@@ -480,8 +522,8 @@ const styles = StyleSheet.create({
   leftContainer: { justifyContent: "flex-start" },
   messageContainer: { maxWidth: "80%" },
   messageBox: { padding: 10, borderRadius: 10 },
-  messageRightBox: { backgroundColor: "#DCF8C6", marginLeft: "auto" },
-  messageLeftBox: { backgroundColor: "#FFF", marginRight: "auto" },
+  // messageRightBox: { backgroundColor: "#DCF8C6", marginLeft: "auto" },
+  // messageLeftBox: { backgroundColor: "#FFF", marginRight: "auto" },
   senderName: {
     fontWeight: "600",
     fontSize: 13,
@@ -502,23 +544,46 @@ const styles = StyleSheet.create({
   repliedMessageContent: { fontStyle: "italic", fontSize: 12, color: "#666" },
   repliedMessage: { marginTop: 5, fontSize: 14 },
   textMessage: { fontSize: 15, lineHeight: 20 },
+  imageGrid: {
+    marginTop: 5,
+    gap: 5,
+  },
+  twoImageGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  threeImageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  gridImageContainer: {
+    marginBottom: 5,
+  },
+  twoImageContainer: {
+    width: '48%',
+  },
+  threeImageContainer: {
+    width: '32%',
+  },
+  gridImage: {
+    borderRadius: 8,
+  },
+  twoImage: {
+    width: '100%',
+    aspectRatio: 1,
+  },
+  threeImage: {
+    width: '100%',
+    aspectRatio: 1,
+  },
+  singleImageContainer: {
+    marginTop: 5,
+  },
   imageSingle: {
     width: 200,
     height: 200,
     borderRadius: 10,
-    marginTop: 5,
-  },
-  imageGrid: {
-    marginTop: 5,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 5,
-  },
-  gridImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    marginTop: 4,
   },
   fileMessage: {
     padding: 8,

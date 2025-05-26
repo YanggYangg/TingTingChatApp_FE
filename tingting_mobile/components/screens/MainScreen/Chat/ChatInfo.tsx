@@ -161,7 +161,7 @@ const ChatInfo: React.FC = () => {
       else if (messageType === "link") getChatLinks(socket, { conversationId });
     };
 
-    const handleOnChatInfo = (newChatInfo: ChatInfoData) => {
+const handleOnChatInfo = (newChatInfo: ChatInfoData) => {
       const participant = newChatInfo.participants?.find((p) => p.userId === finalUserId);
       if (participant?.isHidden) {
         Alert.alert("Lỗi", "Hội thoại này đang ẩn. Vui lòng xác thực lại.");
@@ -170,8 +170,16 @@ const ChatInfo: React.FC = () => {
         return;
       }
 
-      // [MODIFIED] Kiểm tra xem nhóm có bị giải tán hay không
-      if (!newChatInfo.participants || newChatInfo.participants.length === 0) {
+      // THÊM: Lọc các tin nhắn chưa bị xóa bởi finalUserId
+      const filteredChatInfo = {
+        ...newChatInfo,
+        media: newChatInfo.media?.filter((msg) => !msg.deletedBy?.includes(finalUserId)) || [],
+        files: newChatInfo.files?.filter((msg) => !msg.deletedBy?.includes(finalUserId)) || [],
+        links: newChatInfo.links?.filter((msg) => !msg.deletedBy?.includes(finalUserId)) || [],
+      };
+
+      // SỬA: Kiểm tra nhóm bị giải tán với filteredChatInfo
+      if (!filteredChatInfo.participants || filteredChatInfo.participants.length === 0) {
         console.log('DEBUG: Nhóm đã bị giải tán', { conversationId });
         Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
           {
@@ -189,9 +197,9 @@ const ChatInfo: React.FC = () => {
         ]);
         return;
       }
-      // Thêm logic kiểm tra xem finalUserId có trong participants hay không
-      if (!newChatInfo.participants?.some((p) => p.userId === finalUserId)) {
-        // Alert.alert("Thông báo", "Bạn đã bị rời khỏi nhóm!");
+
+      // SỬA: Kiểm tra finalUserId có trong participants của filteredChatInfo
+      if (!filteredChatInfo.participants?.some((p) => p.userId === finalUserId)) {
         console.log("Bạn đã bị rời khỏi nhóm!");
         dispatch(setSelectedMessage(null));
         setChatInfo(null);
@@ -199,13 +207,14 @@ const ChatInfo: React.FC = () => {
         return;
       }
 
-      setChatInfo(newChatInfo);
+      // SỬA: Sử dụng filteredChatInfo thay vì newChatInfo
+      setChatInfo(filteredChatInfo);
       setIsMuted(!!participant?.mute);
       setIsPinned(!!participant?.isPinned);
       setUserRoleInGroup(participant?.role || null);
 
-      if (!newChatInfo.isGroup) {
-        const otherParticipant = newChatInfo.participants?.find((p) => p.userId !== finalUserId);
+      if (!filteredChatInfo.isGroup) {
+        const otherParticipant = filteredChatInfo.participants?.find((p) => p.userId !== finalUserId);
         if (otherParticipant?.userId) {
           Api_Profile.getProfile(otherParticipant.userId)
             .then((response) => {
@@ -225,7 +234,8 @@ const ChatInfo: React.FC = () => {
       } else {
         setLoading(false);
       }
-      dispatch(setChatInfoUpdate(newChatInfo));
+      // SỬA: Dispatch filteredChatInfo
+      dispatch(setChatInfoUpdate(filteredChatInfo));
     };
 
     const handleOnChatInfoUpdated = (updatedInfo: Partial<ChatInfoData>) => {
@@ -237,7 +247,16 @@ const ChatInfo: React.FC = () => {
         return;
       }
 
-      if (updatedInfo.participants && updatedInfo.participants.length === 0) {
+      // THÊM: Lọc các tin nhắn chưa bị xóa bởi finalUserId
+      const filteredUpdatedInfo = {
+        ...updatedInfo,
+        media: updatedInfo.media?.filter((msg) => !msg.deletedBy?.includes(finalUserId)) || [],
+        files: updatedInfo.files?.filter((msg) => !msg.deletedBy?.includes(finalUserId)) || [],
+        links: updatedInfo.links?.filter((msg) => !msg.deletedBy?.includes(finalUserId)) || [],
+      };
+
+      // SỬA: Kiểm tra nhóm bị giải tán với filteredUpdatedInfo
+      if (filteredUpdatedInfo.participants && filteredUpdatedInfo.participants.length === 0) {
         console.log('DEBUG: Nhóm đã bị giải tán (updated)', { conversationId });
         Alert.alert('Thông báo', 'Nhóm đã bị giải tán!', [
           {
@@ -255,17 +274,20 @@ const ChatInfo: React.FC = () => {
         ]);
         return;
       }
-      // Thêm logic kiểm tra xem finalUserId có trong participants hay không
-      if (updatedInfo.participants && !updatedInfo.participants.some((p) => p.userId === finalUserId)) {
+
+      // SỬA: Kiểm tra finalUserId có trong participants của filteredUpdatedInfo
+      if (filteredUpdatedInfo.participants && !filteredUpdatedInfo.participants.some((p) => p.userId === finalUserId)) {
         Alert.alert("Thông báo", "Bạn đã bị rời khỏi nhóm!");
         dispatch(setSelectedMessage(null));
         setChatInfo(null);
         navigation.navigate("Main", { screen: "ChatScreen", params: { refresh: true } });
         return;
       }
+
+      // SỬA: Sử dụng filteredUpdatedInfo thay vì updatedInfo
       setChatInfo((prev) => {
         if (!prev) return null;
-        const newChatInfo = { ...prev, ...updatedInfo };
+        const newChatInfo = { ...prev, ...filteredUpdatedInfo };
         dispatch(setChatInfoUpdate(newChatInfo));
         return newChatInfo;
       });
@@ -273,7 +295,6 @@ const ChatInfo: React.FC = () => {
       setIsPinned(!!participant?.isPinned);
       setUserRoleInGroup(participant?.role || null);
     };
-
     const handleDeleteAllChatHistory = ({ conversationId: deletedConversationId, deletedBy }: { conversationId: string; deletedBy: string }) => {
       if (deletedConversationId !== conversationId || deletedBy !== finalUserId) return;
       console.log("ChatInfo: Nhận deleteAllChatHistory", { conversationId, deletedBy });

@@ -339,7 +339,7 @@ export default function App() {
     const userId = await AsyncStorage.getItem("userId");
     if (!userId) return;
 
-    const socket = io("http://192.168.0.100:5000", {
+    const socket = io("http://192.168.1.12:5000", {
       query: { userId },
       transports: ["websocket"],
     });
@@ -457,6 +457,11 @@ export default function App() {
             <Stack.Screen
               name="AddFriendScreen"
               component={AddFriendScreen}
+              options={{ headerShown: false }}
+            />
+               <Stack.Screen
+              name="ProfileScreen2"
+              component={ProfileScreen2}
               options={{ headerShown: false }}
             />
           </Stack.Navigator>
