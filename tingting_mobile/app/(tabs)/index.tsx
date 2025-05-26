@@ -459,6 +459,11 @@ export default function App() {
               component={AddFriendScreen}
               options={{ headerShown: false }}
             />
+               <Stack.Screen
+              name="ProfileScreen2"
+              component={ProfileScreen2}
+              options={{ headerShown: false }}
+            />
           </Stack.Navigator>
           
           <Toast />
