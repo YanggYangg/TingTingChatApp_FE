@@ -926,31 +926,6 @@ const selectedChat = useMemo(
 
   console.log("ChatPage: Render với", { selectedChat, chatDetails, messages, cloudMessages }); // Nhi thêm
 
-  // // Add this function to mark a message as read (emit trực tiếp)
-  // const markMessageAsRead = (messageId) => {
-  //   if (
-  //     socket &&
-  //     selectedMessageId &&
-  //     messageId &&
-  //     selectedMessageId !== "my-cloud"
-  //   ) {
-  //     // Find the message
-  //     const msg = messages.find((m) => m._id === messageId);
-  //     if (!msg) return;
-  //     // Only mark as read if the message is not from the current user and not already read
-  //     if (
-  //       msg.userId !== currentUserId &&
-  //       (!msg.status?.readBy || !msg.status.readBy.includes(currentUserId))
-  //     ) {
-  //       socket.emit("readMessage", {
-  //         conversationId: selectedMessageId,
-  //         messageId,
-  //         userId: currentUserId,
-  //       });
-  //     }
-  //   }
-  // };
-
   // Auto mark last message as read if it's from another user
   useEffect(() => {
     if (
@@ -981,19 +956,20 @@ const selectedChat = useMemo(
     if (!socket || !selectedMessageId || selectedMessageId === "my-cloud") return;
 
     const handleMessageRead = ({ messageId, userId, readBy }) => {
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
+      console.log("ChatPage: Nhận messageRead", { messageId, userId, readBy });
+      dispatch(setMessages(
+        messages.map((msg) =>
           msg._id === messageId
             ? {
-              ...msg,
-              status: {
-                ...msg.status,
-                readBy: readBy, // cập nhật lại mảng readBy mới nhất từ BE
-              },
-            }
+                ...msg,
+                status: {
+                  ...msg.status,
+                  readBy: readBy,
+                },
+              }
             : msg
         )
-      );
+      ));
     };
 
     socket.on("messageRead", handleMessageRead);
@@ -1001,8 +977,7 @@ const selectedChat = useMemo(
     return () => {
       socket.off("messageRead", handleMessageRead);
     };
-  }, [socket, selectedMessageId]);
-  console.log("ChatPage: Render với", { selectedChat, chatDetails, messages, cloudMessages });
+  }, [socket, selectedMessageId, messages, dispatch]);
 
   // Add this function to mark a message as read (emit trực tiếp)
   const markMessageAsRead = (messageId) => {

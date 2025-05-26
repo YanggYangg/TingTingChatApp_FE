@@ -2,7 +2,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Use environment-specific base URL
-const BASE_URL = "http://192.168.223.71:5000";
+const BASE_URL = "http://192.168.1.12:5000";
 
 // const BASE_URL = 'http://192.168.139.71:3001'
 
@@ -69,11 +69,11 @@ export const Api_Conversation = {
     });
   },
 
-    searchConversationsByUserId: async (userId, searchKeyword = "") => {
-  // Gắn thủ công query param vào URL
-  const query = searchKeyword ? `?search=${encodeURIComponent(searchKeyword)}` : "";
-  return ApiManager.get(`/conversations/getAllConversationById2/${userId}${query}`);
-},
+  searchConversationsByUserId: async (userId, searchKeyword = "") => {
+    // Gắn thủ công query param vào URL
+    const query = searchKeyword ? `?search=${encodeURIComponent(searchKeyword)}` : "";
+    return ApiManager.get(`/conversations/getAllConversationById2/${userId}${query}`);
+  },
 
 
 };

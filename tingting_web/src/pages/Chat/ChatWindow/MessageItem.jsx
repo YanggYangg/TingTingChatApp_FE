@@ -196,13 +196,6 @@ const MessageItem = ({
   const getMessageStatus = () => {
     if (!isCurrentUser || !isLastMessage) return null;
 
-    console.log("Message status check:", {
-      messageId: msg._id,
-      participants,
-      currentUserId,
-      userCache
-    });
-
     // If no read status or empty readBy array
     if (!msg.status?.readBy || msg.status.readBy.length === 0) {
       return "Đã gửi";
@@ -210,13 +203,6 @@ const MessageItem = ({
 
     // For group chat (more than 2 participants)
     if (participants && participants.length > 2) {
-      console.log("Group chat read check:", {
-        readBy: msg.status.readBy,
-        participants,
-        currentUserId,
-        userCache
-      });
-
       // Get all other members (excluding current user)
       const otherMembers = participants.filter(p => p.userId !== currentUserId);
       const totalOtherMembers = otherMembers.length;
@@ -225,13 +211,6 @@ const MessageItem = ({
       const readMembers = msg.status.readBy.filter(user => {
         const userId = typeof user === 'object' ? user._id : user;
         return userId !== currentUserId;
-      });
-
-      console.log("Group read status:", {
-        readMembers,
-        totalOtherMembers,
-        otherMembers,
-        userCache
       });
 
       if (readMembers.length === totalOtherMembers) {
@@ -249,11 +228,6 @@ const MessageItem = ({
 
     // For personal chat (2 participants)
     const receiverId = participants?.find(p => p.userId !== currentUserId)?.userId;
-    console.log("Personal chat read check:", {
-      receiverId,
-      readBy: msg.status.readBy,
-      isRead: msg.status.readBy.some(user => user._id === receiverId || user === receiverId)
-    });
 
     // Check both object format (_id) and direct ID format
     const isRead = msg.status.readBy.some(user =>
@@ -295,7 +269,7 @@ const MessageItem = ({
     <>
       <div
         id={`message-${msg._id}`} // Đảm bảo có ID để cuộn đến
-        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"} mb-4 ${isHighlighted ? "highlighted" : ""
+        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"} mt-10 ${isHighlighted ? "highlighted" : ""
           }`}
       >
         {!isCurrentUser && !msg.isRevoked && (
@@ -440,12 +414,12 @@ const MessageItem = ({
             <div className="absolute -bottom-5 right-2">
               {participants && participants.length > 2 && msg.status?.readBy?.length > 0 ? (
                 <span className="text-xs text-gray-500 whitespace-nowrap">
-                  {msg.status.readBy
+                  {Array.from(new Set(msg.status.readBy
                     .filter((user) => {
                       const userId = typeof user === "object" ? user._id : user;
                       return userId !== currentUserId;
                     })
-                    .map((userId) => userCache[userId]?.name || "Unknown")
+                    .map((userId) => userCache[userId]?.name || "Unknown")))
                     .join(", ")}{" "}
                   đã xem
                 </span>

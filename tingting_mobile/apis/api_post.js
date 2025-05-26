@@ -1,7 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = "http:/192.168.223.71:3006";
+const BASE_URL = "http:/192.168.1.12:3006";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -19,7 +19,7 @@ const request = async (method, url, data = null, params = null, headers = {}) =>
       url,
       data,
       params,
-      headers, 
+      headers,
     });
 
     return response.data;
@@ -37,22 +37,22 @@ const ApiManager = {
 };
 
 export const Api_Post = {
-    getAllPosts: async (data) => {
-        return ApiManager.get("api/v1/post", data);
-    },
-    getPostById: async (id) => {
-        return ApiManager.get(`api/v1/post/${id}`);
-    },
-    createPost: async (data) => {
-        return ApiManager.post("api/v1/post", data);
-    },
-    updatePost: async (id, data) => {
-        return ApiManager.put(`api/v1/post/${id}`, data);
-    },
-    deletePost: async (id) => {
-        return ApiManager.delete(`api/v1/post/${id}`);
-    },
-    toggleLove: async (id, data) => {
-        return ApiManager.post(`api/v1/post/${id}/love`, data);
-    },
+  getAllPosts: async (data) => {
+    return ApiManager.get("api/v1/post", data);
+  },
+  getPostById: async (id) => {
+    return ApiManager.get(`api/v1/post/${id}`);
+  },
+  createPost: async (data) => {
+    return ApiManager.post("api/v1/post", data);
+  },
+  updatePost: async (id, data) => {
+    return ApiManager.put(`api/v1/post/${id}`, data);
+  },
+  deletePost: async (id) => {
+    return ApiManager.delete(`api/v1/post/${id}`);
+  },
+  toggleLove: async (id, data) => {
+    return ApiManager.post(`api/v1/post/${id}/love`, data);
+  },
 };

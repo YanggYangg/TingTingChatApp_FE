@@ -2,7 +2,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Use environment-specific base URL
-const BASE_URL = "http://192.168.223.71:3001";
+const BASE_URL = "http://192.168.1.12:3001";
 
 // const BASE_URL = 'http://192.168.139.71:3001'
 

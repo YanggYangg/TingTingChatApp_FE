@@ -42,7 +42,7 @@ const GroupFile: React.FC<Props> = ({ userId }) => {
       setError(null);
       try {
         const response = await axios.get(
-          `http://192.168.223.71:3000/api/messages/user/${userId}`
+          `http://192.168.1.12:3000/api/messages/user/${userId}`
         );
         const messages: Message[] = response.data.sort(
           (a: Message, b: Message) =>
